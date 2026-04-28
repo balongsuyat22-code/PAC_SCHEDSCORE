@@ -1,0 +1,921 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Player Registration — PAC SCHED-SCORE</title>
+    <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@400;500;700&display=swap"
+        rel="stylesheet">
+    <style>
+        :root {
+            --gold: #F5B800;
+            --gold2: #FFD54F;
+            --bg: #07090F;
+            --bg2: #0D1017;
+            --bg3: #141720;
+            --border: rgba(255, 255, 255, 0.07);
+            --text: #EEF0F8;
+            --text2: #9BA3C0;
+            --muted: #5A6180;
+            --green: #22C55E;
+            --red: #E8323B;
+            --blue: #3B82F6;
+        }
+
+        body {
+            font-family: 'DM Sans', sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            margin: 0;
+        }
+
+        .nav {
+            height: 60px;
+            background: rgba(7, 9, 15, 0.9);
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            padding: 0 32px;
+            justify-content: space-between;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+
+        .nav-logo {
+            font-family: 'Bebas Neue';
+            font-size: 24px;
+            color: var(--text);
+            text-decoration: none;
+            letter-spacing: 1px;
+        }
+
+        .nav-logo span {
+            color: var(--gold);
+        }
+
+        .nav-links {
+            display: flex;
+            gap: 20px;
+            align-items: center;
+        }
+
+        .nav-link {
+            color: var(--text2);
+            text-decoration: none;
+            font-size: 14px;
+            transition: color 0.2s;
+        }
+
+        .nav-link:hover {
+            color: var(--gold);
+        }
+
+        .hero {
+            padding: 40px 32px;
+            background: linear-gradient(to bottom, var(--bg2), var(--bg));
+            border-bottom: 1px solid var(--border);
+        }
+
+        .hero h1 {
+            font-family: 'Bebas Neue';
+            font-size: 48px;
+            margin: 0;
+        }
+
+        .hero p {
+            color: var(--text2);
+            margin: 8px 0 0;
+        }
+
+        .container {
+            max-width: 1100px;
+            margin: 40px auto;
+            padding: 0 20px;
+            display: grid;
+            grid-template-columns: 1fr 340px;
+            gap: 30px;
+        }
+
+        .fcard {
+            background: var(--bg2);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            margin-bottom: 20px;
+            overflow: hidden;
+        }
+
+        .fcard-head {
+            padding: 15px 20px;
+            background: var(--bg3);
+            border-bottom: 1px solid var(--border);
+            font-family: 'Bebas Neue';
+            letter-spacing: 1px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .fcard-body {
+            padding: 20px;
+        }
+
+        .fgroup {
+            margin-bottom: 15px;
+        }
+
+        .flabel {
+            display: block;
+            font-size: 11px;
+            text-transform: uppercase;
+            color: var(--muted);
+            margin-bottom: 6px;
+            font-weight: 700;
+            letter-spacing: 1px;
+        }
+
+        .finput,
+        .fselect {
+            width: 100%;
+            padding: 12px;
+            background: var(--bg3);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            color: var(--text);
+            outline: none;
+            box-sizing: border-box;
+            font-family: inherit;
+        }
+
+        .finput:focus,
+        .fselect:focus {
+            border-color: var(--gold);
+        }
+
+        .grid-2 {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+        }
+
+        /* Entry Type Selection */
+        .type-selector {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 15px;
+        }
+
+        .type-option {
+            flex: 1;
+            cursor: pointer;
+            background: var(--bg3);
+            border: 1px solid var(--border);
+            padding: 10px;
+            border-radius: 8px;
+            text-align: center;
+            font-size: 13px;
+            transition: 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            color: var(--text2);
+        }
+
+        .type-option input {
+            display: none;
+        }
+
+        .type-option:has(input:checked) {
+            border-color: var(--gold);
+            background: rgba(245, 184, 0, 0.05);
+            color: var(--gold);
+            font-weight: bold;
+        }
+
+        .type-option.disabled {
+            opacity: 0.3;
+            cursor: not-allowed;
+            pointer-events: none;
+        }
+
+        .type-info {
+            padding: 12px;
+            background: rgba(245, 184, 0, 0.05);
+            border: 1px dashed var(--gold);
+            border-radius: 8px;
+            margin-bottom: 15px;
+            font-size: 13px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        /* Preview ID */
+        .preview-box {
+            position: sticky;
+            top: 80px;
+        }
+
+        .id-card {
+            background: var(--bg2);
+            border: 1px solid var(--gold);
+            border-radius: 15px;
+            overflow: hidden;
+            position: relative;
+        }
+
+        .id-top {
+            height: 100px;
+            background: linear-gradient(135deg, #1a1e2a, #07090f);
+            position: relative;
+        }
+
+        .id-photo {
+            width: 80px;
+            height: 80px;
+            background: var(--bg3);
+            border: 3px solid var(--gold);
+            border-radius: 50%;
+            position: absolute;
+            bottom: -40px;
+            left: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 30px;
+            overflow: hidden;
+        }
+
+        .id-photo img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        .id-body {
+            padding: 50px 20px 20px;
+        }
+
+        .id-name {
+            font-family: 'Bebas Neue';
+            font-size: 26px;
+            margin-bottom: 5px;
+        }
+
+        .id-info {
+            font-size: 12px;
+            color: var(--text2);
+            line-height: 1.6;
+        }
+
+        .id-tag {
+            display: inline-block;
+            padding: 4px 10px;
+            background: rgba(245, 184, 0, 0.1);
+            color: var(--gold);
+            border-radius: 5px;
+            font-size: 10px;
+            font-weight: 700;
+            margin-top: 10px;
+            text-transform: uppercase;
+        }
+
+        .btn-reg {
+            width: 100%;
+            padding: 15px;
+            background: var(--gold);
+            color: #000;
+            border: none;
+            border-radius: 8px;
+            font-family: 'Bebas Neue';
+            font-size: 20px;
+            cursor: pointer;
+            transition: 0.2s;
+        }
+
+        .btn-reg:hover {
+            background: #ffca28;
+            transform: translateY(-2px);
+        }
+
+        .btn-reg:disabled {
+            background: var(--muted);
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .hidden {
+            display: none;
+        }
+
+        /* Toast Notification */
+        .toast-notification {
+            position: fixed;
+            top: 80px;
+            right: 20px;
+            background: var(--bg2);
+            border-left: 4px solid var(--gold);
+            border-radius: 8px;
+            padding: 12px 20px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+            z-index: 1000;
+            animation: slideIn 0.3s ease;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            min-width: 280px;
+        }
+
+        .toast-notification.success {
+            border-left-color: var(--green);
+        }
+
+        .toast-notification.error {
+            border-left-color: var(--red);
+        }
+
+        .toast-notification.info {
+            border-left-color: var(--blue);
+        }
+
+        @keyframes slideIn {
+            from {
+                transform: translateX(100%);
+                opacity: 0;
+            }
+
+            to {
+                transform: translateX(0);
+                opacity: 1;
+            }
+        }
+
+        .toast-notification.fade-out {
+            animation: fadeOut 0.3s ease forwards;
+        }
+
+        @keyframes fadeOut {
+            to {
+                opacity: 0;
+                transform: translateX(100%);
+            }
+        }
+
+        .toast-icon {
+            font-size: 20px;
+        }
+
+        .toast-message {
+            flex: 1;
+            font-size: 13px;
+        }
+
+        .toast-close {
+            cursor: pointer;
+            color: var(--muted);
+            font-size: 16px;
+        }
+
+        /* Loading Spinner */
+        .loading-spinner {
+            display: inline-block;
+            width: 16px;
+            height: 16px;
+            border: 2px solid rgba(0, 0, 0, 0.3);
+            border-top-color: #000;
+            border-radius: 50%;
+            animation: spin 0.6s linear infinite;
+            margin-right: 8px;
+        }
+
+        @keyframes spin {
+            to {
+                transform: rotate(360deg);
+            }
+        }
+
+        /* Modal */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.8);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 2000;
+            opacity: 0;
+            visibility: hidden;
+            transition: all 0.3s ease;
+        }
+
+        .modal-overlay.open {
+            opacity: 1;
+            visibility: visible;
+        }
+
+        .modal {
+            background: var(--bg2);
+            border: 1px solid var(--border-gold);
+            border-radius: 16px;
+            max-width: 400px;
+            width: 90%;
+            padding: 24px;
+            text-align: center;
+        }
+
+        .modal-icon {
+            font-size: 48px;
+            margin-bottom: 16px;
+        }
+
+        .modal-title {
+            font-family: 'Bebas Neue';
+            font-size: 24px;
+            margin-bottom: 12px;
+        }
+
+        .modal-message {
+            color: var(--text2);
+            font-size: 14px;
+            margin-bottom: 20px;
+        }
+
+        .modal-buttons {
+            display: flex;
+            gap: 12px;
+            justify-content: center;
+        }
+
+        .modal-btn {
+            padding: 10px 24px;
+            border-radius: 8px;
+            border: none;
+            cursor: pointer;
+            font-weight: 600;
+        }
+
+        .modal-btn-primary {
+            background: var(--gold);
+            color: #000;
+        }
+
+        .modal-btn-secondary {
+            background: var(--bg3);
+            color: var(--text);
+            border: 1px solid var(--border);
+        }
+    </style>
+</head>
+
+<body>
+
+    <nav class="nav">
+        <a href="#" class="nav-logo">SPORT<span>FEST</span> 2025</a>
+        <div class="nav-links">
+            <a href="/login" class="nav-link">🔐 Login</a>
+            <div style="font-size: 13px; color: var(--text2);">Registration Portal</div>
+        </div>
+    </nav>
+
+    <div class="hero">
+        <h1>Athlete Registration</h1>
+        <p>Select your sport and provide your details to join the competition.</p>
+    </div>
+
+    <div class="container">
+
+        <main>
+
+            <div class="fcard">
+                <div class="fcard-head">🏆 Sport & Grade / Strand</div>
+                <div class="fcard-body">
+                    <div class="fgroup">
+                        <label class="flabel">Gender</label>
+                        <select class="fselect" id="reg-gender" onchange="handleDeptChange()">
+                            <option value="">-- Select Gender --</option>
+                            <option value="Male">Male</option>
+                            <option value="Female">Female</option>
+                        </select>
+                    </div>
+                    <div class="fgroup">
+                        <label class="flabel">Select Sport</label>
+                        <select class="fselect" id="reg-sport" onchange="handleSportChange()">
+                            <option value="">-- Loading Sports... --</option>
+                        </select>
+                    </div>
+
+                    <div id="type-badge" class="type-info hidden">
+                        <span id="type-icon"></span>
+                        <span id="type-text"></span>
+                    </div>
+
+                    <div class="fgroup">
+                        <label class="flabel">Entry Type</label>
+                        <div class="type-selector">
+                            <label class="type-option" id="opt-solo">
+                                <input type="radio" name="entry-type" value="solo" checked
+                                    onchange="handleEntryTypeChange()"> 👤 Solo Player
+                            </label>
+                            <label class="type-option" id="opt-team">
+                                <input type="radio" name="entry-type" value="team" onchange="handleEntryTypeChange()">
+                                👥 Team Entry
+                            </label>
+                        </div>
+                    </div>
+
+                    <div class="grid-2">
+                        <div class="fgroup">
+                            <label class="flabel">Grade / Strand</label>
+                            <select class="fselect" id="reg-dept" onchange="handleDeptChange()">
+                                <option value="">-- Loading... --</option>
+                            </select>
+                        </div>
+                        <div class="fgroup hidden" id="team-group">
+                            <label class="flabel">Team</label>
+                            <select class="fselect" id="reg-team" onchange="updatePreview()">
+                                <option value="">-- Select Team --</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+
+            <div class="fcard">
+                <div class="fcard-head">👤 Personal Information</div>
+                <div class="fcard-body">
+                    <div class="grid-2">
+                        <div class="fgroup">
+                            <label class="flabel">First Name</label>
+                            <input type="text" class="finput" id="reg-first" placeholder="Juan"
+                                oninput="updatePreview()">
+                        </div>
+                        <div class="fgroup">
+                            <label class="flabel">Last Name</label>
+                            <input type="text" class="finput" id="reg-last" placeholder="Dela Cruz"
+                                oninput="updatePreview()">
+                        </div>
+                    </div>
+                    <div class="grid-2">
+                        <div class="fgroup">
+                            <label class="flabel">Jersey # (Optional)</label>
+                            <input type="number" class="finput" id="reg-jersey" placeholder="00"
+                                oninput="updatePreview()">
+                        </div>
+                        <div class="fgroup">
+                            <label class="flabel">Position / Specialty</label>
+                            <input type="text" class="finput" id="reg-pos" placeholder="Point Guard / Sprinter"
+                                oninput="updatePreview()">
+                        </div>
+                    </div>
+                    <div class="fgroup">
+                        <label class="flabel">Profile Photo</label>
+                        <input type="file" id="reg-img" accept="image/*" onchange="previewImage(this)">
+                    </div>
+                </div>
+            </div>
+
+
+            <div class="fcard">
+                <div class="fcard-head">🔐 Account Setup</div>
+                <div class="fcard-body">
+                    <div class="fgroup">
+                        <label class="flabel">Email Address</label>
+                        <input type="email" class="finput" id="reg-email" placeholder="juan@example.com">
+                    </div>
+                    <div class="grid-2">
+                        <div class="fgroup">
+                            <label class="flabel">Username</label>
+                            <input type="text" class="finput" id="reg-username" placeholder="juan_dela_cruz">
+                        </div>
+                        <div class="fgroup">
+                            <label class="flabel">Password</label>
+                            <input type="password" class="finput" id="reg-password" placeholder="••••••••">
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <button class="btn-reg" id="submit-btn" onclick="submitRegistration()">Confirm Registration</button>
+        </main>
+
+
+        <aside>
+            <div class="preview-box">
+                <div class="flabel" style="margin-bottom: 10px;">ID Card Preview</div>
+                <div class="id-card">
+                    <div class="id-top">
+                        <div class="id-photo" id="id-photo-container">🏃</div>
+                    </div>
+                    <div class="id-body">
+                        <div class="id-name" id="prev-name">Athlete Name</div>
+                        <div class="id-info">
+                            <div id="prev-sport">Sport: ---</div>
+                            <div id="prev-dept">Grade/Strand: ---</div>
+                            <div id="prev-team">Team: Solo Entry</div>
+                        </div>
+                        <div id="prev-tags">
+                            <span class="id-tag" id="tag-pos">PLAYER</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </aside>
+    </div>
+
+    <script>
+        let sports = [];
+        let departments = [];
+        let teams = [];
+        let profileImageBase64 = null;
+
+
+        function showToast(message, type = 'info') {
+            const existingToast = document.querySelector('.toast-notification');
+            if (existingToast) existingToast.remove();
+
+            const toast = document.createElement('div');
+            toast.className = `toast-notification ${type}`;
+            const icons = {
+                success: '✅',
+                error: '❌',
+                info: 'ℹ️'
+            };
+            toast.innerHTML = `
+                <span class="toast-icon">${icons[type] || 'ℹ️'}</span>
+                <span class="toast-message">${message}</span>
+                <span class="toast-close" onclick="this.parentElement.remove()">✕</span>
+            `;
+            document.body.appendChild(toast);
+            setTimeout(() => {
+                toast.classList.add('fade-out');
+                setTimeout(() => toast.remove(), 300);
+            }, 4000);
+        }
+
+
+        function showModal(options) {
+            const existingModal = document.querySelector('.modal-overlay');
+            if (existingModal) existingModal.remove();
+
+            const modalOverlay = document.createElement('div');
+            modalOverlay.className = 'modal-overlay';
+            modalOverlay.innerHTML = `
+                <div class="modal">
+                    <div class="modal-icon">${options.icon || 'ℹ️'}</div>
+                    <div class="modal-title">${options.title || 'Notification'}</div>
+                    <div class="modal-message">${options.message || ''}</div>
+                    <div class="modal-buttons">
+                        <button class="modal-btn modal-btn-primary" id="modal-confirm-btn">${options.confirmText || 'OK'}</button>
+                        ${options.showCancel ? `<button class="modal-btn modal-btn-secondary" id="modal-cancel-btn">Cancel</button>` : ''}
+                    </div>
+                </div>
+            `;
+            document.body.appendChild(modalOverlay);
+            setTimeout(() => modalOverlay.classList.add('open'), 10);
+
+            const confirmBtn = document.getElementById('modal-confirm-btn');
+            const cancelBtn = document.getElementById('modal-cancel-btn');
+
+            if (confirmBtn) {
+                confirmBtn.onclick = () => {
+                    modalOverlay.remove();
+                    if (options.onConfirm) options.onConfirm();
+                };
+            }
+            if (cancelBtn) {
+                cancelBtn.onclick = () => {
+                    modalOverlay.remove();
+                    if (options.onCancel) options.onCancel();
+                };
+            }
+        }
+
+        async function init() {
+            try {
+                const [sportsRes, deptsRes, teamsRes] = await Promise.all([
+                    fetch('/api/sports').then(res => res.json()),
+                    fetch('/api/departments').then(res => res.json()),
+                    fetch('/api/teams').then(res => res.json())
+                ]);
+
+                sports = sportsRes.data || [];
+                departments = deptsRes.data || [];
+                teams = teamsRes.data || [];
+
+                const sportSelect = document.getElementById('reg-sport');
+                sportSelect.innerHTML = '<option value="">-- Choose Sport --</option>';
+                sports.forEach(s => {
+                    sportSelect.innerHTML += `<option value="${s.id}">${s.icon || '🏆'} ${s.name}</option>`;
+                });
+
+                const deptSelect = document.getElementById('reg-dept');
+                deptSelect.innerHTML = '<option value="">-- Select Grade/Strand --</option>';
+                departments.forEach(d => {
+                    deptSelect.innerHTML += `<option value="${d.id}">${d.name}</option>`;
+                });
+
+            } catch (error) {
+                console.error("Failed to load registration data:", error);
+                showToast("Failed to load registration data. Please refresh the page.", "error");
+            }
+        }
+
+        function handleSportChange() {
+            const sportId = document.getElementById('reg-sport').value;
+            const sport = sports.find(s => s.id == sportId);
+            const typeBadge = document.getElementById('type-badge');
+            const soloOpt = document.getElementById('opt-solo');
+            const teamOpt = document.getElementById('opt-team');
+
+            if (!sport) {
+                typeBadge.classList.add('hidden');
+                return;
+            }
+
+            typeBadge.classList.remove('hidden');
+
+            soloOpt.classList.remove('disabled');
+            teamOpt.classList.remove('disabled');
+
+            if (sport.category === 'team') {
+                document.getElementById('type-icon').innerText = '👥';
+                document.getElementById('type-text').innerText = 'Team Sport: You must join a team.';
+                soloOpt.classList.add('disabled');
+                document.querySelector('input[name="entry-type"][value="team"]').checked = true;
+            } else if (sport.category === 'individual') {
+                document.getElementById('type-icon').innerText = '👤';
+                document.getElementById('type-text').innerText = 'Individual Sport: Solo registration only.';
+                teamOpt.classList.add('disabled');
+                document.querySelector('input[name="entry-type"][value="solo"]').checked = true;
+            } else {
+                document.getElementById('type-icon').innerText = '🎭';
+                document.getElementById('type-text').innerText = 'Mixed Sport: Choose Solo or Team Entry.';
+            }
+
+            handleEntryTypeChange();
+            handleDeptChange();
+            updatePreview();
+        }
+
+        function handleEntryTypeChange() {
+            const entryType = document.querySelector('input[name="entry-type"]:checked').value;
+            const teamGroup = document.getElementById('team-group');
+
+            if (entryType === 'team') {
+                teamGroup.classList.remove('hidden');
+            } else {
+                teamGroup.classList.add('hidden');
+                document.getElementById('reg-team').value = "";
+            }
+
+            handleDeptChange();
+            updatePreview();
+        }
+
+        function handleDeptChange() {
+            const deptId = document.getElementById('reg-dept').value;
+            const sportId = document.getElementById('reg-sport').value;
+            const gender = document.getElementById('reg-gender').value;
+            const entryType = document.querySelector('input[name="entry-type"]:checked').value;
+            const teamSelect = document.getElementById('reg-team');
+
+            teamSelect.innerHTML = '<option value="">-- Select Team --</option>';
+
+            if (entryType !== 'team') return;
+            if (!deptId || !sportId || !gender) return;
+
+            const sport = sports.find(s => s.id == sportId);
+            const genderMap = { 'Male': 'Men', 'Female': 'Women' };
+            const targetGender = genderMap[gender];
+
+            const filteredTeams = teams.filter(t =>
+                t.department_id == deptId &&
+                (t.sport_id == sportId || t.sport_name === sport.name) &&
+                (t.gender === targetGender || t.gender === 'Mixed')
+            );
+
+            if (filteredTeams.length === 0) {
+                teamSelect.innerHTML = '<option value="" disabled>No available teams for your gender.</option>';
+            } else {
+                filteredTeams.forEach(t => {
+                    teamSelect.innerHTML += `<option value="${t.id}">${t.name} (${t.gender})</option>`;
+                });
+            }
+            updatePreview();
+        }
+
+        function updatePreview() {
+            const first = document.getElementById('reg-first').value;
+            const last = document.getElementById('reg-last').value;
+            const sportId = document.getElementById('reg-sport').value;
+            const deptId = document.getElementById('reg-dept').value;
+            const teamId = document.getElementById('reg-team').value;
+            const jersey = document.getElementById('reg-jersey').value;
+            const pos = document.getElementById('reg-pos').value;
+            const entryType = document.querySelector('input[name="entry-type"]:checked').value;
+
+            const sport = sports.find(s => s.id == sportId);
+            const dept = departments.find(d => d.id == deptId);
+            const team = teams.find(t => t.id == teamId);
+
+            document.getElementById('prev-name').innerText = (first || last) ? `${first} ${last}` : "Athlete Name";
+            document.getElementById('prev-sport').innerText = `Sport: ${sport ? (sport.icon || '') + ' ' + sport.name : '---'}`;
+            document.getElementById('prev-dept').innerText = `Grade/Strand: ${dept ? dept.name : '---'}`;
+
+            if (entryType === 'team') {
+                document.getElementById('prev-team').innerText = `Team: ${team ? team.name : 'No Team Selected'}`;
+            } else {
+                document.getElementById('prev-team').innerText = `Team: Solo Entry`;
+            }
+
+            document.getElementById('tag-pos').innerText = pos ? pos.toUpperCase() : (jersey ? `JERSEY #${jersey}` : "PLAYER");
+        }
+
+        function previewImage(input) {
+            if (input.files && input.files[0]) {
+                const reader = new FileReader();
+                reader.onload = function (e) {
+                    profileImageBase64 = e.target.result;
+                    document.getElementById('id-photo-container').innerHTML = `<img src="${e.target.result}" style="width:100%; height:100%; object-fit:cover;">`;
+                };
+                reader.readAsDataURL(input.files[0]);
+            }
+        }
+
+        async function submitRegistration() {
+            const btn = document.getElementById('submit-btn');
+            const entryType = document.querySelector('input[name="entry-type"]:checked').value;
+
+            const payload = {
+                first_name: document.getElementById('reg-first').value,
+                last_name: document.getElementById('reg-last').value,
+                gender: document.getElementById('reg-gender').value,
+                sport_id: document.getElementById('reg-sport').value,
+                department_id: document.getElementById('reg-dept').value,
+                team_id: entryType === 'team' ? document.getElementById('reg-team').value : null,
+                email: document.getElementById('reg-email').value,
+                username: document.getElementById('reg-username').value,
+                password: document.getElementById('reg-password').value,
+                jersey_number: document.getElementById('reg-jersey').value || null,
+                position: document.getElementById('reg-pos').value || null,
+                image_url: profileImageBase64
+            };
+
+            if (!payload.first_name || !payload.last_name || !payload.gender || !payload.sport_id || !payload.department_id || !payload.email || !payload.username || !payload.password) {
+                showToast("Please fill in all required fields, including account setup.", "error");
+                return;
+            }
+
+            if (entryType === 'team' && !payload.team_id) {
+                showToast("You selected Team Entry. Please select a Team before registering.", "error");
+                return;
+            }
+
+            btn.innerHTML = '<span class="loading-spinner"></span> Submitting...';
+            btn.disabled = true;
+
+            try {
+                const response = await fetch('/api/players/register', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    showModal({
+                        icon: '✅',
+                        title: 'Registration Successful!',
+                        message: 'Your account has been created. You will be redirected to the player dashboard.',
+                        confirmText: 'Go to Dashboard',
+                        onConfirm: () => {
+
+                            localStorage.setItem('sf_token', data.token);
+                            localStorage.setItem('sf_user', JSON.stringify(data.user));
+                            window.location.href = '/player';
+                        }
+                    });
+                } else {
+                    showToast(data.message || "Error submitting registration.", "error");
+                    btn.innerHTML = 'Confirm Registration';
+                    btn.disabled = false;
+                }
+            } catch (error) {
+                console.error("Registration Error:", error);
+                showToast("A server error occurred. Please try again later.", "error");
+                btn.innerHTML = 'Confirm Registration';
+                btn.disabled = false;
+            }
+        }
+        init();
+    </script>
+</body>
+
+</html>

@@ -1,0 +1,735 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <!-- Prevent Cloudflare email obfuscation -->
+    <meta name="email-obfuscation" content="off">
+    <title>PAC SCHED-SCORE — Login</title>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;600;700;800;900&family=Barlow:wght@300;400;500;600&display=swap"
+        rel="stylesheet">
+    <style>
+        :root {
+            --gold: #F5B800;
+            --red: #E8323B;
+            --bg: #0A0C10;
+            --bg2: #10131A;
+            --bg3: #181C26;
+            --border: rgba(245, 184, 0, 0.18);
+            --text: #F0F2F8;
+            --muted: #7A8099;
+            --success: #22C55E;
+        }
+
+        *,
+        *::before,
+        *::after {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: 'Barlow', sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            min-height: 100vh;
+            display: flex;
+            overflow: hidden;
+        }
+
+        /* LEFT PANEL */
+        .hero {
+            flex: 1;
+            position: relative;
+            display: flex;
+            flex-direction: column;
+            justify-content: flex-end;
+            padding: 60px;
+            overflow: hidden;
+        }
+
+        .hero-bg {
+            position: absolute;
+            inset: 0;
+            background:
+                radial-gradient(ellipse 80% 60% at 60% 30%, rgba(245, 184, 0, 0.12) 0%, transparent 70%),
+                radial-gradient(ellipse 50% 80% at 20% 80%, rgba(232, 50, 59, 0.08) 0%, transparent 60%),
+                linear-gradient(135deg, #0A0C10 0%, #12161f 100%);
+            z-index: 0;
+        }
+
+        .hero-grid {
+            position: absolute;
+            inset: 0;
+            z-index: 0;
+            background-image:
+                linear-gradient(rgba(245, 184, 0, 0.05) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(245, 184, 0, 0.05) 1px, transparent 1px);
+            background-size: 48px 48px;
+            mask-image: radial-gradient(ellipse 80% 80% at 50% 50%, black 40%, transparent 100%);
+        }
+
+        .trophy-icon {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -60%);
+            font-size: 260px;
+            opacity: 0.04;
+            z-index: 0;
+            animation: float 6s ease-in-out infinite;
+        }
+
+        @keyframes float {
+
+            0%,
+            100% {
+                transform: translate(-50%, -60%) translateY(0)
+            }
+
+            50% {
+                transform: translate(-50%, -60%) translateY(-18px)
+            }
+        }
+
+        .hero-content {
+            position: relative;
+            z-index: 1;
+        }
+
+        .hero-eyebrow {
+            font-family: 'Barlow Condensed', sans-serif;
+            font-size: 13px;
+            font-weight: 700;
+            letter-spacing: 4px;
+            color: var(--gold);
+            text-transform: uppercase;
+            margin-bottom: 16px;
+        }
+
+        .hero-title {
+            font-family: 'Barlow Condensed', sans-serif;
+            font-size: clamp(56px, 6vw, 88px);
+            font-weight: 900;
+            line-height: 0.92;
+            text-transform: uppercase;
+            margin-bottom: 24px;
+        }
+
+        .hero-title span {
+            color: var(--gold);
+            display: block;
+        }
+
+        .hero-desc {
+            font-size: 15px;
+            color: var(--muted);
+            max-width: 380px;
+            line-height: 1.7;
+            margin-bottom: 40px;
+        }
+
+        .hero-stats {
+            display: flex;
+            gap: 40px;
+        }
+
+        .stat-num {
+            font-family: 'Barlow Condensed', sans-serif;
+            font-size: 32px;
+            font-weight: 800;
+            color: var(--gold);
+        }
+
+        .stat-lbl {
+            font-size: 12px;
+            color: var(--muted);
+            letter-spacing: 1px;
+            text-transform: uppercase;
+            margin-top: 2px;
+        }
+
+        .stripe {
+            width: 3px;
+            flex-shrink: 0;
+            background: linear-gradient(to bottom, transparent, var(--gold) 30%, var(--gold) 70%, transparent);
+        }
+
+        /* RIGHT PANEL */
+        .login-panel {
+            width: 460px;
+            flex-shrink: 0;
+            background: var(--bg2);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            padding: 60px 48px;
+            position: relative;
+        }
+
+        .login-panel::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background: linear-gradient(180deg, rgba(245, 184, 0, 0.03) 0%, transparent 50%);
+            pointer-events: none;
+        }
+
+        .login-logo {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 48px;
+        }
+
+        .logo-icon {
+            width: 40px;
+            height: 40px;
+            background: var(--gold);
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 20px;
+        }
+
+        .logo-text {
+            font-family: 'Barlow Condensed', sans-serif;
+            font-size: 22px;
+            font-weight: 800;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .logo-text span {
+            color: var(--gold);
+        }
+
+        h2 {
+            font-family: 'Barlow Condensed', sans-serif;
+            font-size: 36px;
+            font-weight: 800;
+            text-transform: uppercase;
+            margin-bottom: 6px;
+        }
+
+        .subtitle {
+            font-size: 14px;
+            color: var(--muted);
+            margin-bottom: 36px;
+        }
+
+        /* Role Tabs */
+        .role-tabs {
+            display: flex;
+            gap: 4px;
+            margin-bottom: 28px;
+            background: var(--bg3);
+            border-radius: 10px;
+            padding: 4px;
+        }
+
+        .role-tab {
+            flex: 1;
+            padding: 8px 4px;
+            border: none;
+            background: none;
+            color: var(--muted);
+            font-family: 'Barlow Condensed', sans-serif;
+            font-size: 14px;
+            font-weight: 700;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+            border-radius: 7px;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 3px;
+        }
+
+        .role-tab .tab-icon {
+            font-size: 18px;
+        }
+
+        .role-tab.active {
+            background: var(--gold);
+            color: #000;
+        }
+
+        .role-tab:not(.active):hover {
+            color: var(--text);
+        }
+
+        /* Form */
+        .form-group {
+            margin-bottom: 18px;
+        }
+
+        .form-label {
+            font-size: 12px;
+            font-weight: 600;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+            color: var(--muted);
+            margin-bottom: 8px;
+            display: block;
+        }
+
+        .form-input {
+            width: 100%;
+            padding: 13px 16px;
+            background: var(--bg3);
+            border: 1.5px solid var(--border);
+            border-radius: 8px;
+            color: var(--text);
+            font-family: 'Barlow', sans-serif;
+            font-size: 15px;
+            transition: all 0.2s;
+            outline: none;
+        }
+
+        .form-input:focus {
+            border-color: var(--gold);
+            box-shadow: 0 0 0 3px rgba(245, 184, 0, 0.1);
+        }
+
+        .form-input::placeholder {
+            color: var(--muted);
+        }
+
+        .input-wrap {
+            position: relative;
+        }
+
+        .input-icon {
+            position: absolute;
+            left: 14px;
+            top: 50%;
+            transform: translateY(-50%);
+            font-size: 16px;
+            color: var(--muted);
+        }
+
+        .has-icon .form-input {
+            padding-left: 42px;
+        }
+
+        .toggle-pw {
+            position: absolute;
+            right: 14px;
+            top: 50%;
+            transform: translateY(-50%);
+            background: none;
+            border: none;
+            color: var(--muted);
+            cursor: pointer;
+            font-size: 16px;
+            transition: color 0.2s;
+        }
+
+        .toggle-pw:hover {
+            color: var(--gold);
+        }
+
+        .form-error {
+            color: var(--red);
+            font-size: 12px;
+            margin-top: 5px;
+            display: none;
+        }
+
+        .form-error.show {
+            display: block;
+        }
+
+        .btn-login {
+            width: 100%;
+            padding: 15px;
+            background: var(--gold);
+            color: #000;
+            border: none;
+            border-radius: 8px;
+            font-family: 'Barlow Condensed', sans-serif;
+            font-size: 17px;
+            font-weight: 800;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+            cursor: pointer;
+            transition: all 0.2s;
+            margin-top: 8px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .btn-login:hover {
+            background: #ffc926;
+        }
+
+        .btn-login:active {
+            transform: scale(0.99);
+        }
+
+        .btn-login:disabled {
+            opacity: 0.7;
+            cursor: not-allowed;
+        }
+
+        .divider {
+            text-align: center;
+            color: var(--muted);
+            font-size: 12px;
+            margin: 20px 0;
+            position: relative;
+        }
+
+        .divider::before,
+        .divider::after {
+            content: '';
+            position: absolute;
+            top: 50%;
+            width: 38%;
+            height: 1px;
+            background: var(--border);
+        }
+
+        .divider::before {
+            left: 0;
+        }
+
+        .divider::after {
+            right: 0;
+        }
+
+        .demo-credentials {
+            background: var(--bg3);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 14px 16px;
+        }
+
+        .demo-title {
+            font-size: 11px;
+            font-weight: 700;
+            letter-spacing: 1.5px;
+            text-transform: uppercase;
+            color: var(--gold);
+            margin-bottom: 10px;
+        }
+
+        .demo-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+            cursor: pointer;
+            transition: all 0.15s;
+            border-radius: 4px;
+            padding: 8px;
+        }
+
+        .demo-row:last-child {
+            border-bottom: none;
+        }
+
+        .demo-row:hover {
+            background: rgba(245, 184, 0, 0.06);
+        }
+
+        .demo-role {
+            font-size: 12px;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .demo-role .badge {
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-size: 10px;
+            font-family: 'Barlow Condensed', sans-serif;
+            font-weight: 700;
+            letter-spacing: 1px;
+        }
+
+        .badge-admin {
+            background: rgba(245, 184, 0, 0.2);
+            color: var(--gold);
+        }
+
+        .badge-referee {
+            background: rgba(232, 50, 59, 0.2);
+            color: var(--red);
+        }
+
+        .badge-player {
+            background: rgba(34, 197, 94, 0.2);
+            color: var(--success);
+        }
+
+        .demo-creds {
+            font-size: 11px;
+            color: var(--muted);
+            font-family: monospace;
+        }
+
+        /* Error alert box */
+        .alert-box {
+            border-radius: 8px;
+            padding: 12px 16px;
+            margin-bottom: 16px;
+            font-size: 13px;
+            display: none;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .alert-box.show {
+            display: flex;
+        }
+
+        .alert-error {
+            background: rgba(232, 50, 59, 0.12);
+            border: 1px solid rgba(232, 50, 59, 0.3);
+            color: #FCA5A5;
+        }
+
+        .alert-success {
+            background: rgba(34, 197, 94, 0.12);
+            border: 1px solid rgba(34, 197, 94, 0.3);
+            color: #86EFAC;
+        }
+
+        @media (max-width:900px) {
+
+            .hero,
+            .stripe {
+                display: none;
+            }
+
+            .login-panel {
+                width: 100%;
+            }
+        }
+    </style>
+</head>
+
+<body>
+
+
+    <div class="hero">
+        <div class="hero-bg"></div>
+        <div class="hero-grid"></div>
+        <div class="trophy-icon">🏆</div>
+        <div class="hero-content">
+            <div class="hero-eyebrow">🏅 Annual Sport Fest </div>
+            <h1 class="hero-title">Compete.<br><span>Dominate.</span>Win.</h1>
+            <p class="hero-desc">The official management platform for tracking every match, score, and department
+                standing across all Sport Fest events.</p>
+            <div class="hero-stats">
+                <div>
+                    <div class="stat-num">11</div>
+                    <div class="stat-lbl">Sports</div>
+                </div>
+                <div>
+                    <div class="stat-num">6</div>
+                    <div class="stat-lbl">Departments</div>
+                </div>
+                <div>
+                    <div class="stat-num">1</div>
+                    <div class="stat-lbl">Champion</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="stripe"></div>
+
+
+    <div class="login-panel">
+        <div class="login-logo">
+            <div class="logo-icon">🏆</div>
+            <div class="logo-text">PAC <span>SCHED-SCORE</span></div>
+        </div>
+
+        <h2>Welcome Back</h2>
+        <p class="subtitle">Sign in to your dashboard</p>
+
+
+        <div class="role-tabs">
+            <button class="role-tab active" data-role="admin" onclick="setRole('admin',this)">
+                <span class="tab-icon">⚙️</span> Admin
+            </button>
+            <button class="role-tab" data-role="referee" onclick="setRole('referee',this)">
+                <span class="tab-icon">🟡</span> Referee
+            </button>
+            <button class="role-tab" data-role="player" onclick="setRole('player',this)">
+                <span class="tab-icon">🏃</span> Player
+            </button>
+        </div>
+
+
+        <div class="alert-box alert-error" id="alert-box">
+            <span>❌</span>
+            <span id="alert-msg">Invalid credentials</span>
+        </div>
+
+        <form id="loginForm" onsubmit="handleLogin(event)" autocomplete="on">
+            <div class="form-group">
+                <label class="form-label">Email / Username</label>
+                <div class="input-wrap has-icon">
+                    <span class="input-icon">✉️</span>
+                    <input type="text" id="sf-email" name="sf-email" class="form-input"
+                        placeholder="Enter your email..." autocomplete="username" spellcheck="false">
+                </div>
+                <div class="form-error" id="emailErr">Please enter your email or username</div>
+            </div>
+            <div class="form-group">
+                <label class="form-label">Password</label>
+                <div class="input-wrap has-icon">
+                    <span class="input-icon">🔒</span>
+                    <input type="password" id="sf-password" name="sf-password" class="form-input"
+                        placeholder="Enter your password..." autocomplete="current-password">
+                    <button type="button" class="toggle-pw" onclick="togglePw()">👁</button>
+                </div>
+                <div class="form-error" id="passErr">Please enter your password</div>
+            </div>
+            <button type="submit" class="btn-login" id="loginBtn">Sign In →</button>
+        </form>
+        <p style="text-align:center; margin: 16px 0 4px; font-size:14px; color:var(--muted);">
+            New player? <a href="/player-registration"
+                style="color:var(--gold); font-weight:600; text-decoration:none;">Register here →</a>
+        </p>
+        <div class="divider">Demo Accounts</div>
+
+        <div class="demo-credentials">
+            <div class="demo-title">⚡ Quick Login — click to fill</div>
+            <div class="demo-row" onclick="fillDemo('admin')">
+                <div class="demo-role"><span class="badge badge-admin">ADMIN</span> System Admin</div>
+                <div class="demo-creds" id="d-admin"></div>
+            </div>
+            <div class="demo-row" onclick="fillDemo('referee')">
+                <div class="demo-role"><span class="badge badge-referee">REFEREE</span> Game Official</div>
+                <div class="demo-creds" id="d-referee"></div>
+            </div>
+            <div class="demo-row" onclick="fillDemo('player')">
+                <div class="demo-role"><span class="badge badge-player">PLAYER</span> Athlete</div>
+                <div class="demo-creds" id="d-player"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+
+        const DOMAIN = 'sportfest.com';
+        const ACCOUNTS = {
+            admin: { u: 'admin', p: 'Admin@1234', e: 'admin@' + DOMAIN },
+            referee: { u: 'referee', p: 'Referee@1234', e: 'referee@' + DOMAIN },
+            player: { u: 'player', p: 'Player@1234', e: 'player@' + DOMAIN },
+        };
+
+
+        document.getElementById('d-admin').textContent = ACCOUNTS.admin.e;
+        document.getElementById('d-referee').textContent = ACCOUNTS.referee.e;
+        document.getElementById('d-player').textContent = ACCOUNTS.player.e;
+
+        const API = window.location.origin + '/api';
+
+
+        function setRole(role, btn) {
+            document.querySelectorAll('.role-tab').forEach(t => t.classList.remove('active'));
+            btn.classList.add('active');
+            document.getElementById('sf-email').value = ACCOUNTS[role].e;
+            document.getElementById('sf-password').value = '';
+            hideAlert();
+        }
+
+        function fillDemo(role) {
+            document.getElementById('sf-email').value = ACCOUNTS[role].e;
+            document.getElementById('sf-password').value = ACCOUNTS[role].p;
+            document.querySelectorAll('.role-tab').forEach(t =>
+                t.classList.toggle('active', t.dataset.role === role)
+            );
+            hideAlert();
+        }
+
+        function togglePw() {
+            const inp = document.getElementById('sf-password');
+            inp.type = inp.type === 'password' ? 'text' : 'password';
+        }
+
+        function showAlert(msg, type = 'error') {
+            const box = document.getElementById('alert-box');
+            document.getElementById('alert-msg').textContent = msg;
+            box.className = `alert-box alert-${type} show`;
+        }
+        function hideAlert() {
+            document.getElementById('alert-box').classList.remove('show');
+        }
+
+
+        async function handleLogin(e) {
+            e.preventDefault();
+            hideAlert();
+
+            const emailVal = document.getElementById('sf-email').value.trim();
+            const passVal = document.getElementById('sf-password').value;
+
+
+            document.getElementById('emailErr').classList.toggle('show', !emailVal);
+            document.getElementById('passErr').classList.toggle('show', !passVal);
+            if (!emailVal || !passVal) return;
+
+            const btn = document.getElementById('loginBtn');
+            btn.disabled = true;
+            btn.textContent = 'Signing in...';
+
+            try {
+                const res = await fetch(`${API}/auth/login`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ email: emailVal, password: passVal }),
+                });
+
+
+                let data;
+                try { data = await res.json(); }
+                catch { data = { success: false, message: `Server error (HTTP ${res.status})` }; }
+
+                if (data.success) {
+                    localStorage.setItem('sf_token', data.data.accessToken);
+                    localStorage.setItem('sf_refresh', data.data.refreshToken);
+                    localStorage.setItem('sf_user', JSON.stringify(data.data.user));
+
+                    showAlert(`Welcome back, ${data.data.user.first_name}! Redirecting...`, 'success');
+
+                    setTimeout(() => {
+                        const role = data.data.user.role;
+
+
+                        window.location.href =
+                            role === 'admin' ? '/admin' :
+                                role === 'referee' ? '/referee/matches' : '/player';
+                    }, 700);
+                } else {
+                    showAlert(data.message || 'Login failed. Check your credentials.');
+                    btn.disabled = false;
+                    btn.textContent = 'Sign In →';
+                }
+
+            } catch (err) {
+
+                showAlert('Cannot reach the server. Make sure the backend is running on port 3000.');
+                btn.disabled = false;
+                btn.textContent = 'Sign In →';
+            }
+        }
+    </script>
+</body>
+
+</html>

@@ -1,0 +1,896 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PAC SCHED-SCORE — Admin Dashboard</title>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;600;700;800;900&family=Barlow:wght@300;400;500;600&display=swap"
+        rel="stylesheet">
+    <link rel="stylesheet" href="../css/shared.css">
+    <style>
+        .champion-banner {
+            background: linear-gradient(135deg, #1a1400 0%, #2a1f00 100%);
+            border: 1px solid var(--border-gold);
+            border-radius: 16px;
+            padding: 24px 32px;
+            margin-bottom: 24px;
+            display: flex;
+            align-items: center;
+            gap: 24px;
+            position: relative;
+            overflow: hidden;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+        }
+
+        .champion-banner::after {
+            content: '🏆';
+            position: absolute;
+            right: -20px;
+            bottom: -20px;
+            font-size: 120px;
+            opacity: 0.05;
+            transform: rotate(-15deg);
+        }
+
+        .champion-trophy {
+            font-size: 64px;
+            filter: drop-shadow(0 0 15px rgba(245, 184, 0, 0.4));
+        }
+
+        .champion-info {
+            flex: 1;
+        }
+
+        .champion-label {
+            font-size: 12px;
+            font-weight: 700;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+            color: var(--gold);
+            margin-bottom: 4px;
+        }
+
+        .champion-name {
+            font-family: 'Barlow Condensed', sans-serif;
+            font-size: 36px;
+            font-weight: 900;
+            line-height: 1;
+        }
+
+        .champion-sub {
+            font-size: 14px;
+            color: var(--text2);
+            margin-top: 6px;
+        }
+
+        .champion-pts-container {
+            text-align: right;
+            border-left: 1px solid rgba(245, 184, 0, 0.2);
+            padding-left: 24px;
+        }
+
+        .champion-pts {
+            font-family: 'Barlow Condensed', sans-serif;
+            font-size: 52px;
+            font-weight: 900;
+            color: var(--gold);
+            line-height: 1;
+        }
+
+        .champion-pts-lbl {
+            font-size: 11px;
+            color: var(--muted);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+            gap: 16px;
+            margin-bottom: 32px;
+        }
+
+        .stat-card {
+            background: var(--bg2);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 16px;
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            transition: all 0.2s ease;
+        }
+
+        .stat-card:hover {
+            border-color: var(--border-gold);
+            background: var(--bg3);
+            transform: translateY(-3px);
+        }
+
+        .stat-icon-box {
+            width: 48px;
+            height: 48px;
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+            flex-shrink: 0;
+        }
+
+        .stat-details {
+            flex: 1;
+        }
+
+        .stat-value {
+            font-family: 'Barlow Condensed', sans-serif;
+            font-size: 24px;
+            font-weight: 800;
+            display: block;
+        }
+
+        .stat-label {
+            font-size: 11px;
+            color: var(--muted);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+
+        .bg-gold {
+            background: rgba(245, 184, 0, 0.1);
+            color: var(--gold);
+        }
+
+        .bg-green {
+            background: rgba(34, 197, 94, 0.1);
+            color: var(--green);
+        }
+
+        .bg-red {
+            background: rgba(232, 50, 59, 0.1);
+            color: var(--red);
+        }
+
+        .bg-blue {
+            background: rgba(59, 130, 246, 0.1);
+            color: var(--blue);
+        }
+
+        .bg-purple {
+            background: rgba(139, 92, 246, 0.1);
+            color: var(--purple);
+        }
+
+        .bg-orange {
+            background: rgba(249, 115, 22, 0.1);
+            color: var(--orange);
+        }
+
+
+        .match-card {
+            background: var(--bg3);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 16px;
+            margin-bottom: 12px;
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            transition: all 0.2s;
+        }
+
+        .match-card:hover {
+            border-color: var(--gold);
+            background: var(--bg4);
+        }
+
+        .match-sport-icon {
+            font-size: 28px;
+            width: 50px;
+            height: 50px;
+            background: var(--bg2);
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+        }
+
+        .match-main {
+            flex: 1;
+        }
+
+        .match-teams {
+            font-weight: 700;
+            font-size: 15px;
+            margin-bottom: 4px;
+        }
+
+        .match-details {
+            font-size: 12px;
+            color: var(--muted);
+        }
+
+        .match-time-box {
+            text-align: right;
+            border-left: 1px solid var(--border);
+            padding-left: 16px;
+        }
+
+        .match-date {
+            font-size: 11px;
+            color: var(--muted);
+            display: block;
+        }
+
+        .match-time {
+            font-family: 'Barlow Condensed', sans-serif;
+            font-size: 18px;
+            font-weight: 800;
+            color: var(--gold);
+        }
+
+
+        .ffa-match-card {
+            background: linear-gradient(135deg, rgba(245, 184, 0, 0.08), rgba(139, 92, 246, 0.08));
+            border: 1px solid var(--border-gold);
+            border-radius: 12px;
+            padding: 16px;
+            margin-bottom: 12px;
+            transition: all 0.2s;
+        }
+
+        .ffa-match-card:hover {
+            border-color: var(--gold);
+            background: linear-gradient(135deg, rgba(245, 184, 0, 0.12), rgba(139, 92, 246, 0.12));
+        }
+
+        .ffa-header {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            margin-bottom: 16px;
+        }
+
+        .ffa-icon {
+            font-size: 32px;
+            width: 56px;
+            height: 56px;
+            background: rgba(245, 184, 0, 0.15);
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .ffa-title {
+            flex: 1;
+        }
+
+        .ffa-title h4 {
+            font-family: 'Barlow Condensed', sans-serif;
+            font-size: 18px;
+            font-weight: 800;
+            margin: 0 0 4px 0;
+            color: var(--gold);
+        }
+
+        .ffa-title p {
+            font-size: 12px;
+            color: var(--muted);
+            margin: 0;
+        }
+
+        .ffa-stats {
+            display: flex;
+            gap: 12px;
+            font-size: 12px;
+        }
+
+        .ffa-stat {
+            background: var(--bg2);
+            padding: 4px 10px;
+            border-radius: 20px;
+            color: var(--text2);
+        }
+
+        .ffa-participants-list {
+            margin-top: 12px;
+            border-top: 1px solid rgba(245, 184, 0, 0.2);
+            padding-top: 12px;
+        }
+
+        .ffa-participant-row {
+            display: grid;
+            grid-template-columns: 40px 1fr 80px;
+            padding: 8px 10px;
+            border-radius: 8px;
+            background: var(--bg2);
+            margin-bottom: 6px;
+            font-size: 13px;
+            align-items: center;
+        }
+
+        .ffa-participant-rank {
+            font-weight: 800;
+            color: var(--gold);
+        }
+
+        .ffa-participant-rank.top-1 {
+            color: #FFD700;
+        }
+
+        .ffa-participant-rank.top-2 {
+            color: #C0C0C0;
+        }
+
+        .ffa-participant-rank.top-3 {
+            color: #CD7F32;
+        }
+
+        .ffa-participant-name {
+            font-weight: 600;
+        }
+
+        .ffa-participant-score {
+            text-align: right;
+            font-weight: 700;
+            color: var(--green);
+        }
+
+        .ffa-badge {
+            display: inline-block;
+            padding: 2px 8px;
+            border-radius: 20px;
+            font-size: 10px;
+            font-weight: 700;
+            background: rgba(245, 184, 0, 0.15);
+            color: var(--gold);
+            margin-left: 8px;
+        }
+
+        .empty-state {
+            padding: 40px 0;
+            text-align: center;
+            color: var(--muted);
+        }
+
+
+        .dash-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-end;
+            margin-bottom: 24px;
+        }
+
+        .dash-title-group h1 {
+            font-family: 'Barlow Condensed', sans-serif;
+            font-size: 32px;
+            font-weight: 900;
+            text-transform: uppercase;
+            margin: 0;
+        }
+
+        .dash-title-group p {
+            color: var(--muted);
+            font-size: 14px;
+            margin: 4px 0 0 0;
+        }
+
+
+        .ffa-result-card {
+            background: linear-gradient(135deg, rgba(245, 184, 0, 0.05), rgba(139, 92, 246, 0.05));
+            border-left: 3px solid var(--gold);
+        }
+
+        .result-ffa-info {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .result-ffa-winner {
+            font-size: 12px;
+            font-weight: 700;
+            color: var(--gold);
+        }
+    </style>
+</head>
+
+<body>
+
+
+    <main class="main">
+        <div class="topbar">
+            <div class="topbar-title">📊 Admin Dashboard</div>
+            <div class="topbar-actions">
+                <button class="btn btn-secondary btn-sm" onclick="loadDashboard()">🔄 Refresh Data</button>
+            </div>
+        </div>
+
+        <div class="content">
+
+
+            <div class="dash-header">
+                <div class="dash-title-group">
+                    <h1>Welcome Back, Admin</h1>
+                    <p>Here's the real-time status of SportFest 2025</p>
+                </div>
+            </div>
+
+
+            <div id="champion-area"></div>
+
+
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <div class="stat-icon-box bg-gold">🏟️</div>
+                    <div class="stat-details">
+                        <span class="stat-value" id="s-tournaments">—</span>
+                        <span class="stat-label">Tournaments</span>
+                    </div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon-box bg-green">✅</div>
+                    <div class="stat-details">
+                        <span class="stat-value" id="s-completed">—</span>
+                        <span class="stat-label">Completed</span>
+                    </div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon-box bg-red">🔴</div>
+                    <div class="stat-details">
+                        <span class="stat-value" id="s-live">—</span>
+                        <span class="stat-label">Live Now</span>
+                    </div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon-box bg-blue">⚔️</div>
+                    <div class="stat-details">
+                        <span class="stat-value" id="s-matches">—</span>
+                        <span class="stat-label">Total Matches</span>
+                    </div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon-box bg-purple">🏃</div>
+                    <div class="stat-details">
+                        <span class="stat-value" id="s-players">—</span>
+                        <span class="stat-label">Total Athletes</span>
+                    </div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon-box bg-orange">📅</div>
+                    <div class="stat-details">
+                        <span class="stat-value" id="s-today">—</span>
+                        <span class="stat-label">Today's Games</span>
+                    </div>
+                </div>
+            </div>
+
+
+            <div class="grid-2">
+
+                <div class="card">
+                    <div class="card-header">
+                        <div class="card-title">📅 Upcoming Matches</div>
+                        <a href="/admin/matches" class="btn btn-secondary btn-sm">View All →</a>
+                    </div>
+                    <div id="upcoming-matches" class="card-body">
+                        <div class="empty-state">
+                            <div class="empty-icon">📅</div>
+                            <div class="empty-text">Loading matches...</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-header">
+                        <div class="card-title">🏆 Overall Standings</div>
+                        <a href="/admin/leaderboard" class="btn btn-secondary btn-sm">Full Board →</a>
+                    </div>
+                    <div id="mini-leaderboard" class="card-body">
+
+                    </div>
+                </div>
+            </div>
+
+
+            <div class="card" style="margin-top:24px">
+                <div class="card-header">
+                    <div class="card-title">📜 Recent Results</div>
+                    <a href="/admin/matches" class="btn btn-secondary btn-sm">History →</a>
+                </div>
+                <div class="table-wrap">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Sport</th>
+                                <th>Match</th>
+                                <th>Score</th>
+                                <th>Winner</th>
+                                <th>Date</th>
+                            </tr>
+                        </thead>
+                        <tbody id="recent-results">
+                            <tr>
+                                <td colspan="5" style="text-align:center;color:var(--muted); padding: 30px;">Loading
+                                    data...</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+        </div>
+    </main>
+
+    <script src="../js/shared.js"></script>
+    <script src="../js/admin-sidebar.js"></script>
+    <script>
+
+        const ffaCache = {};
+
+
+
+
+        document.addEventListener('DOMContentLoaded', async () => {
+            renderSidebar('dashboard');
+            await loadDashboard();
+        });
+
+
+        async function loadDashboard() {
+            try {
+                const [dash, champion, leaderboard] = await Promise.all([
+                    api('/reports/dashboard'),
+                    api('/leaderboard/champion'),
+                    api('/leaderboard')
+                ]);
+
+                if (dash.success) {
+                    const t = dash.data.totals;
+
+                    document.getElementById('s-tournaments').textContent = t.total_tournaments;
+                    document.getElementById('s-completed').textContent = t.completed_tournaments;
+                    document.getElementById('s-live').textContent = t.live_matches;
+                    document.getElementById('s-matches').textContent = t.total_matches;
+                    document.getElementById('s-players').textContent = t.total_players;
+                    document.getElementById('s-today').textContent = t.todays_matches;
+
+
+                    const completedMatches = dash.data.recentResults || [];
+                    for (const match of completedMatches) {
+                        if (isFFAMatch(match) && match.tournament_id && !ffaCache[match.tournament_id]) {
+                            await loadFFATournamentData(match.tournament_id);
+                        }
+                    }
+
+                    await renderUpcoming(dash.data.upcomingMatches || []);
+                    renderRecent(dash.data.recentResults || []);
+                }
+
+                renderChampion(champion);
+
+                if (leaderboard.success) {
+                    renderMiniLeaderboard(leaderboard.data);
+                }
+
+            } catch (err) {
+                console.error('Dashboard error:', err);
+            }
+        }
+
+
+
+        async function renderUpcoming(matches) {
+            const upEl = document.getElementById('upcoming-matches');
+
+            if (!matches.length) {
+                upEl.innerHTML = `
+            <div class="empty-state">
+                <div class="empty-icon">📅</div>
+                <div class="empty-text">No upcoming matches scheduled</div>
+            </div>`;
+                return;
+            }
+
+
+            const regularMatches = matches.filter(m => !isFFAMatch(m));
+            const ffaMatches = matches.filter(m => isFFAMatch(m));
+
+            let html = '';
+
+
+            if (regularMatches.length) {
+                html += regularMatches.map(m => `
+            <div class="match-card">
+                <div class="match-sport-icon">${sportIcon(m.sport_name)}</div>
+                <div class="match-main">
+                    <div class="match-teams">
+                        ${m.dept_a} <span style="color:var(--muted)">vs</span> ${m.dept_b}
+                    </div>
+                    <div class="match-details">
+                        ${m.tournament_name} · ${m.venue_name || 'TBD'} · 🟡 ${m.referee_name || 'No referee assigned'}
+                    </div>
+                </div>
+                <div class="match-time-box">
+                    <span class="match-date">${formatDate(m.scheduled_date)}</span>
+                    <span class="match-time">${formatTime(m.scheduled_time)}</span>
+                </div>
+            </div>
+        `).join('');
+            }
+
+
+            if (ffaMatches.length) {
+                html += ffaMatches.map(m => `
+            <div class="ffa-match-card" id="ffa-card-${m.match_id || m.id}">
+                <div class="ffa-header">
+                    <div class="ffa-icon">🏃‍♂️</div>
+                    <div class="ffa-title">
+                        <h4>FREE-FOR-ALL EVENT <span class="ffa-badge">FFA</span></h4>
+                        <p>${m.tournament_name} · ${m.venue_name || 'Venue TBD'}</p>
+                    </div>
+                    <div class="ffa-stats">
+                        <div class="ffa-stat">🏁 All participants compete</div>
+                    </div>
+                </div>
+                <div class="match-time-box" style="text-align:left; border-left:none; padding-left:0; margin-bottom:12px;">
+                    <span class="match-date">📅 ${formatDate(m.scheduled_date)}</span>
+                    <span class="match-time">⏰ ${formatTime(m.scheduled_time)}</span>
+                    <span class="match-date" style="margin-left:12px;">🟡 ${m.referee_name || 'Referee TBD'}</span>
+                </div>
+                <div class="ffa-participants-list" id="ffa-participants-${m.match_id || m.id}">
+                    <div style="text-align:center; color:var(--muted); padding:10px;">
+                        <span>Loading participants...</span>
+                    </div>
+                </div>
+            </div>
+        `).join('');
+            }
+
+            upEl.innerHTML = html;
+
+
+            for (let i = 0; i < ffaMatches.length; i++) {
+                const m = ffaMatches[i];
+                const tournamentId = m.tournament_id;
+                if (tournamentId && !ffaCache[tournamentId]) {
+                    await loadFFATournamentData(tournamentId);
+                }
+                renderFFAParticipants(m.match_id || m.id, tournamentId);
+            }
+        }
+
+        async function loadFFATournamentData(tournamentId) {
+            if (ffaCache[tournamentId]) return ffaCache[tournamentId];
+
+            try {
+                const res = await api(`/tournaments/ffa-results/${tournamentId}`);
+                if (res.success && res.data) {
+                    const participants = res.data.participants || [];
+                    const ffaScoring = res.data.ffa_scoring || 'points';
+                    const lowerBetter = ffaScoring === 'time';
+
+
+                    const withScores = participants.filter(p => p.ffa_result_value !== null);
+                    const withoutScores = participants.filter(p => p.ffa_result_value === null);
+
+                    withScores.sort((a, b) => lowerBetter ? a.ffa_result_value - b.ffa_result_value : b.ffa_result_value - a.ffa_result_value);
+
+                    const allParticipants = [...withScores, ...withoutScores];
+
+                    ffaCache[tournamentId] = {
+                        participants: allParticipants,
+                        scoring: ffaScoring,
+                        unit: ffaScoring === 'time' ? 's' : (ffaScoring === 'distance' ? 'm' : 'pts'),
+                        lowerBetter
+                    };
+                    return ffaCache[tournamentId];
+                }
+            } catch (err) {
+                console.error('Error loading FFA data:', err);
+            }
+            return null;
+        }
+
+        function renderFFAParticipants(matchId, tournamentId) {
+            const container = document.getElementById(`ffa-participants-${matchId}`);
+            if (!container) return;
+
+            const data = ffaCache[tournamentId];
+            if (!data || !data.participants.length) {
+                container.innerHTML = `
+                    <div style="text-align:center; color:var(--muted); padding:10px;">
+                        <span>No participants registered yet</span>
+                    </div>`;
+                return;
+            }
+
+            const hasScores = data.participants.some(p => p.ffa_result_value !== null);
+
+            container.innerHTML = `
+                <div style="font-size:11px; color:var(--muted); margin-bottom:8px; text-transform:uppercase; font-weight:700;">
+                    ${hasScores ? '🏆 CURRENT RANKINGS' : '📋 REGISTERED PARTICIPANTS'}
+                </div>
+                ${data.participants.slice(0, 5).map((p, idx) => {
+                const rank = idx + 1;
+                let rankClass = 'ffa-participant-rank';
+                if (rank === 1) rankClass += ' top-1';
+                else if (rank === 2) rankClass += ' top-2';
+                else if (rank === 3) rankClass += ' top-3';
+
+                const medal = rank === 1 ? '🥇' : rank === 2 ? '🥈' : rank === 3 ? '🥉' : rank;
+
+                return `
+                        <div class="ffa-participant-row">
+                            <span class="${rankClass}">${medal}</span>
+                            <span class="ffa-participant-name">${p.department_name || 'Unknown'}</span>
+                            <span class="ffa-participant-score">
+                                ${p.ffa_result_value !== null ? `${p.ffa_result_value} ${data.unit}` : '—'}
+                            </span>
+                        </div>
+                    `;
+            }).join('')}
+                ${data.participants.length > 5 ? `
+                    <div style="text-align:center; margin-top:8px; font-size:11px; color:var(--muted);">
+                        +${data.participants.length - 5} more participants
+                    </div>
+                ` : ''}
+            `;
+        }
+
+
+
+
+
+        function renderRecent(results) {
+            const el = document.getElementById('recent-results');
+
+            if (!results.length) {
+                el.innerHTML = `
+            <tr>
+                <td colspan="5" style="text-align:center;color:var(--muted);padding:30px;">
+                    No completed matches yet
+                </td>
+            </tr>`;
+                return;
+            }
+
+            el.innerHTML = results.map(r => {
+                const isFFA = r.format === 'free_for_all' || r.format === 'team_ranking' || (!r.dept_a && !r.dept_b);
+
+                if (isFFA) {
+
+                    let winnerDisplay = '—';
+
+                    if (r.tournament_id && ffaCache[r.tournament_id]) {
+                        const cachedData = ffaCache[r.tournament_id];
+                        if (cachedData.participants && cachedData.participants.length > 0) {
+
+                            const winner = cachedData.participants.find(p => p.ffa_result_value !== null);
+                            if (winner) {
+                                winnerDisplay = winner.department_name || 'Unknown';
+                            } else {
+                                winnerDisplay = 'Results Pending';
+                            }
+                        } else {
+                            winnerDisplay = 'No participants';
+                        }
+                    } else if (r.winner) {
+                        winnerDisplay = r.winner;
+                    } else {
+                        winnerDisplay = 'Results Pending';
+                    }
+
+
+                    return `
+                <tr class="ffa-result-card">
+                    <td>🏃 ${r.sport_name || 'FFA Event'}</td>
+                    <td colspan="2">
+                        <div class="result-ffa-info">
+                            <strong>FREE-FOR-ALL EVENT</strong>
+                            <span class="result-ffa-winner">🏆 Winner: ${winnerDisplay}</span>
+                        </div>
+                    </td>
+                    <td style="font-weight:600;color:var(--green)">${winnerDisplay}</td>
+                    <td style="color:var(--muted)">${formatDate(r.completed_at)}</td>
+                </tr>
+            `;
+                }
+
+                return `
+            <tr>
+                <td>${sportIcon(r.sport_name)} ${r.sport_name}</td>
+                <td>${r.dept_a} <span style="color:var(--muted)">vs</span> ${r.dept_b}</td>
+                <td><code style="color:var(--gold);font-weight:bold;">${r.final_score_display || '—'}</code></td>
+                <td style="font-weight:600;color:var(--green)">${r.winner || '—'}</td>
+                <td style="color:var(--muted)">${formatDate(r.completed_at)}</td>
+            </tr>
+        `;
+            }).join('');
+        }
+
+
+        function renderMiniLeaderboard(data) {
+            const el = document.getElementById('mini-leaderboard');
+            if (!el) return;
+
+            el.innerHTML = data.slice(0, 5).map((d, i) => `
+                <div class="lb-row">
+                    <div class="lb-rank ${i < 3 ? `rank-${i + 1}` : ''}">
+                        ${i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : i + 1}
+                    </div>
+                    <div class="lb-color" style="background:${d.color}"></div>
+                    <div class="lb-dept">
+                        <div class="lb-dept-name">${d.name}</div>
+                        <div class="lb-dept-medals">
+                            🥇${d.gold_medals || 0} 🥈${d.silver_medals || 0} 🥉${d.bronze_medals || 0}
+                        </div>
+                    </div>
+                    <div>
+                        <div class="lb-pts">${d.total_points || 0}</div>
+                        <div class="lb-pts-lbl">pts</div>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+
+
+        function renderChampion(champion) {
+            if (!champion?.success) return;
+
+            const c = champion.data;
+            const leader = c.champion || c.current_leader;
+            const area = document.getElementById('champion-area');
+
+            if (!leader) return;
+
+            area.innerHTML = `
+                <div class="champion-banner">
+                    <div class="champion-trophy">${c.is_final ? '🏆' : '📊'}</div>
+                    <div class="champion-info">
+                        <div class="champion-label">
+                            ${c.is_final ? '🎉 Sport Fest Champion' : '📈 Current Leader'}
+                        </div>
+                        <div class="champion-name">${leader.name}</div>
+                        <div class="champion-sub">${c.message}</div>
+                    </div>
+                    <div class="champion-pts-container">
+                        <div class="champion-pts">${leader.total_points}</div>
+                        <div class="champion-pts-lbl">Total Points</div>
+                        <div style="font-size:13px;color:var(--text2);margin-top:8px">
+                            🥇${leader.gold_medals || 0}
+                            🥈${leader.silver_medals || 0}
+                            🥉${leader.bronze_medals || 0}
+                        </div>
+                    </div>
+                </div>`;
+        }
+
+
+
+        function isFFAMatch(m) {
+            const format = (m.tournament_format || m.format || '').toLowerCase();
+            return (
+                format === 'free_for_all' ||
+                format === 'team_ranking' ||
+                format === 'group_stage_ffa' ||
+                m.bracket_side === 'ffa' ||
+                m.bracket_position === 'FFA Event' ||
+                (!m.dept_a && !m.dept_b && m.sport_name)
+            );
+        }
+
+
+        window.loadDashboard = loadDashboard;
+    </script>
+</body>
+
+</html>

@@ -1,0 +1,641 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Scores · PAC SCHED-SCORE</title>
+    <link rel="stylesheet" href="../css/player.css">
+    <style>
+        .app-layout {
+            display: flex;
+            min-height: 100vh
+        }
+
+        .main-wrapper {
+            flex: 1;
+            margin-left: 220px;
+            transition: margin-left .3s;
+            min-width: 0
+        }
+
+        .main-wrapper.sidebar-collapsed {
+            margin-left: 60px
+        }
+
+
+        .match-card {
+            background: var(--bg2);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-md);
+            margin-bottom: 12px;
+            overflow: hidden;
+            transition: all 0.2s;
+        }
+
+        .match-card:hover {
+            border-color: var(--gold-border);
+            box-shadow: var(--shadow-gold);
+        }
+
+        .match-top {
+            padding: 11px 18px;
+            background: var(--bg3);
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .match-sport {
+            font-size: 11px;
+            font-weight: 700;
+            letter-spacing: 1.5px;
+            text-transform: uppercase;
+            color: var(--muted);
+        }
+
+        .match-body {
+            display: grid;
+            grid-template-columns: 1fr auto 1fr;
+            align-items: center;
+            gap: 12px;
+            padding: 20px 28px;
+        }
+
+        .match-side {
+            text-align: center;
+        }
+
+        .match-side-name {
+            font-family: 'Bebas Neue', sans-serif;
+            font-size: 22px;
+            letter-spacing: .5px;
+        }
+
+        .match-winner {
+            font-size: 11px;
+            font-weight: 700;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+            color: var(--green);
+            margin-top: 5px;
+        }
+
+        .match-score {
+            font-family: 'Bebas Neue', sans-serif;
+            font-size: 52px;
+            color: var(--gold);
+            line-height: 1;
+        }
+
+        .match-vs {
+            font-family: 'Bebas Neue', sans-serif;
+            font-size: 32px;
+            letter-spacing: 4px;
+            color: var(--muted);
+        }
+
+
+        .ffa-match-card {
+            background: linear-gradient(135deg, rgba(245, 184, 0, 0.05), rgba(139, 92, 246, 0.05));
+            border: 1px solid var(--gold-border);
+            border-radius: var(--radius-md);
+            margin-bottom: 12px;
+            overflow: hidden;
+            transition: all 0.3s;
+        }
+
+        .ffa-match-card:hover {
+            border-color: var(--gold);
+            transform: translateY(-2px);
+            box-shadow: 0 8px 32px rgba(245, 184, 0, 0.15);
+        }
+
+        .ffa-top {
+            padding: 11px 18px;
+            background: linear-gradient(135deg, rgba(245, 184, 0, 0.12), rgba(139, 92, 246, 0.08));
+            border-bottom: 1px solid var(--gold-border);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .ffa-badge {
+            background: var(--gold-dim);
+            color: var(--gold);
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 11px;
+            font-weight: 700;
+            letter-spacing: 1px;
+            border: 1px solid var(--gold-border);
+        }
+
+        .ffa-body {
+            padding: 20px;
+        }
+
+        .ffa-header {
+            text-align: center;
+            margin-bottom: 20px;
+        }
+
+        .ffa-icon {
+            font-size: 48px;
+            margin-bottom: 8px;
+        }
+
+        .ffa-title {
+            font-family: 'Bebas Neue', sans-serif;
+            font-size: 24px;
+            color: var(--gold);
+            letter-spacing: 2px;
+        }
+
+        .ffa-subtitle {
+            font-size: 12px;
+            color: var(--text2);
+            margin-top: 4px;
+        }
+
+        .ffa-participants {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            margin-top: 16px;
+        }
+
+        .ffa-participant-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 10px 14px;
+            background: var(--bg3);
+            border-radius: 10px;
+            transition: all 0.2s;
+        }
+
+        .ffa-participant-row:hover {
+            background: var(--bg4);
+            transform: translateX(4px);
+        }
+
+        .ffa-participant-info {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            flex: 1;
+        }
+
+        .ffa-rank {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-family: 'Bebas Neue', sans-serif;
+            font-size: 18px;
+            font-weight: 700;
+        }
+
+        .ffa-rank-1 {
+            background: rgba(255, 215, 0, 0.2);
+            color: #FFD700;
+            border: 1px solid rgba(255, 215, 0, 0.4);
+        }
+
+        .ffa-rank-2 {
+            background: rgba(192, 192, 192, 0.2);
+            color: #C0C0C0;
+            border: 1px solid rgba(192, 192, 192, 0.4);
+        }
+
+        .ffa-rank-3 {
+            background: rgba(205, 127, 50, 0.2);
+            color: #CD7F32;
+            border: 1px solid rgba(205, 127, 50, 0.4);
+        }
+
+        .ffa-rank-other {
+            background: var(--bg4);
+            color: var(--muted);
+            border: 1px solid var(--border);
+        }
+
+        .ffa-participant-name {
+            font-weight: 600;
+            font-size: 14px;
+        }
+
+        .ffa-participant-dept {
+            font-size: 11px;
+            color: var(--muted);
+        }
+
+        .ffa-score {
+            font-family: 'Bebas Neue', sans-serif;
+            font-size: 24px;
+            font-weight: 700;
+            color: var(--gold);
+        }
+
+        .ffa-unit {
+            font-size: 11px;
+            color: var(--muted);
+            margin-left: 4px;
+        }
+
+        .ffa-footer {
+            margin-top: 16px;
+            padding-top: 12px;
+            border-top: 1px solid var(--gold-border);
+            text-align: center;
+            font-size: 12px;
+            color: var(--muted);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .ffa-medal {
+            font-size: 20px;
+        }
+
+        .live-ring {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 3px 10px;
+            border-radius: var(--radius-pill);
+            background: rgba(67, 160, 71, .12);
+            border: 1px solid rgba(67, 160, 71, .3);
+            font-size: 11px;
+            font-weight: 700;
+            color: var(--green);
+        }
+
+        .live-dot {
+            width: 7px;
+            height: 7px;
+            border-radius: 50%;
+            background: var(--green);
+            animation: pulse 1.2s infinite;
+        }
+
+        .sport-group-header {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 6px 0 12px;
+            font-family: 'Bebas Neue', sans-serif;
+            font-size: 20px;
+            letter-spacing: 2px;
+            color: var(--text2);
+            border-bottom: 1px solid var(--border);
+            margin: 24px 0 14px;
+        }
+
+        .sport-group-header:first-of-type {
+            margin-top: 0;
+        }
+
+        @keyframes pulse {
+            0% {
+                opacity: 1
+            }
+
+            50% {
+                opacity: 0.3
+            }
+
+            100% {
+                opacity: 1
+            }
+        }
+
+        @media(max-width:900px) {
+            .main-wrapper {
+                margin-left: 0 !important;
+            }
+
+            .page-content {
+                padding: 20px 16px;
+            }
+        }
+
+        @media(max-width:600px) {
+            .match-body {
+                padding: 14px 16px;
+            }
+
+            .match-score {
+                font-size: 38px;
+            }
+
+            .match-side-name {
+                font-size: 16px;
+            }
+
+            .ffa-participant-row {
+                flex-direction: column;
+                text-align: center;
+                gap: 8px;
+            }
+
+            .ffa-participant-info {
+                flex-direction: column;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <div class="app-layout">
+        <aside class="sidebar" id="sidebar"></aside>
+
+        <div class="main-wrapper" id="main-wrapper">
+            <nav class="topbar" id="topbar">
+                <input type="hidden" id="global-search" placeholder="Search matches…" oninput="renderScores()">
+            </nav>
+
+            <main class="page-content">
+                <div class="page-header">
+                    <div class="page-header__titles">
+                        <div class="page-header__eyebrow">PAC SCHED-SCORE</div>
+                        <h1 class="page-header__title">Scores</h1>
+                        <p class="page-header__subtitle">Live results, completed matches, and upcoming games</p>
+                    </div>
+                </div>
+
+                <div class="stats-row" style="grid-template-columns:repeat(auto-fit,minmax(130px,1fr))">
+                    <div class="scard sc-gold">
+                        <div class="scard-icon">⚔️</div>
+                        <div class="scard-val" id="s-total">0</div>
+                        <div class="scard-lbl">Total Matches</div>
+                    </div>
+                    <div class="scard sc-green">
+                        <div class="scard-icon">✅</div>
+                        <div class="scard-val" id="s-done">0</div>
+                        <div class="scard-lbl">Completed</div>
+                    </div>
+                    <div class="scard sc-red">
+                        <div class="scard-icon">🟢</div>
+                        <div class="scard-val" id="s-live">0</div>
+                        <div class="scard-lbl">Live Now</div>
+                    </div>
+                </div>
+
+                <div class="filter-bar">
+                    <select class="fsel" id="sf-sport" onchange="renderScores()">
+                        <option value="">All Sports</option>
+                    </select>
+                    <select class="fsel" id="sf-status" onchange="renderScores()">
+                        <option value="">All Status</option>
+                        <option value="completed">✅ Completed</option>
+                        <option value="ongoing">🟢 Live</option>
+                        <option value="scheduled">📅 Scheduled</option>
+                    </select>
+                    <span class="filter-badge on" id="fb-all" onclick="setStatusQuick('',this)">All</span>
+                    <span class="filter-badge" id="fb-live" onclick="setStatusQuick('ongoing',this)">🟢 Live</span>
+                    <span class="filter-badge" id="fb-done" onclick="setStatusQuick('completed',this)">✅ Done</span>
+                </div>
+
+                <div id="scores-container"></div>
+            </main>
+        </div>
+    </div>
+
+    <div class="toast" id="toast"></div>
+    <script src="../js/player.js"></script>
+    <script src="../js/player-sidebar.js"></script>
+    <script>
+        let matches = [];
+        let ffaDataCache = {};
+
+        async function init() {
+            await initPlayerLayout('scores');
+
+            try {
+                const res = await apiFetch('/matches');
+                matches = res.data || [];
+
+
+                for (const match of matches) {
+                    if (isFFAMatch(match) && match.tournament_id) {
+                        await loadFFAData(match.tournament_id);
+                    }
+                }
+            } catch (err) {
+                console.error(err);
+            }
+
+            renderStats();
+            populateSportFilter();
+            renderScores();
+        }
+
+        function isFFAMatch(match) {
+            const format = (match.tournament_format || '').toLowerCase();
+            return format === 'free_for_all' ||
+                format === 'team_ranking' ||
+                match.bracket_side === 'ffa' ||
+                match.bracket_position === 'FFA Event';
+        }
+
+        async function loadFFAData(tournamentId) {
+            if (ffaDataCache[tournamentId]) return ffaDataCache[tournamentId];
+
+            try {
+                const res = await apiFetch(`/tournaments/ffa-results/${tournamentId}`);
+                if (res.success && res.data) {
+                    const participants = res.data.participants || [];
+                    const ffaScoring = res.data.ffa_scoring || 'points';
+                    const lowerBetter = ffaScoring === 'time';
+
+
+                    const withScores = participants.filter(p => p.ffa_result_value !== null);
+                    const withoutScores = participants.filter(p => p.ffa_result_value === null);
+
+                    withScores.sort((a, b) => lowerBetter ? a.ffa_result_value - b.ffa_result_value : b.ffa_result_value - a.ffa_result_value);
+
+                    ffaDataCache[tournamentId] = {
+                        participants: [...withScores, ...withoutScores],
+                        scoring: ffaScoring,
+                        unit: ffaScoring === 'time' ? 's' : (ffaScoring === 'distance' ? 'm' : 'pts'),
+                        lowerBetter
+                    };
+                    return ffaDataCache[tournamentId];
+                }
+            } catch (err) {
+                console.error('Error loading FFA data:', err);
+            }
+            return null;
+        }
+
+        function renderStats() {
+            document.getElementById('s-total').textContent = matches.length;
+            document.getElementById('s-done').textContent = matches.filter(m => m.status === 'completed').length;
+            document.getElementById('s-live').textContent = matches.filter(m => m.status === 'ongoing').length;
+        }
+
+        function populateSportFilter() {
+            const sports = [...new Set(matches.map(m => m.sport_name))];
+            const el = document.getElementById('sf-sport');
+            sports.forEach(s => el.insertAdjacentHTML('beforeend', `<option value="${s}">🏆 ${s}</option>`));
+        }
+
+        function setStatusQuick(val, btn) {
+            document.getElementById('sf-status').value = val;
+            document.querySelectorAll('.filter-badge').forEach(b => b.classList.remove('on'));
+            btn.classList.add('on');
+            renderScores();
+        }
+
+        function renderScores() {
+            const sp = document.getElementById('sf-sport').value;
+            const st = document.getElementById('sf-status').value;
+            const search = document.querySelector('.topbar__search input')?.value.toLowerCase() || '';
+
+            let data = matches;
+            if (sp) data = data.filter(m => m.sport_name === sp);
+            if (st) data = data.filter(m => m.status === st);
+            if (search) data = data.filter(m => `${m.dept_a_name} ${m.dept_b_name} ${m.sport_name}`.toLowerCase().includes(search));
+
+            const el = document.getElementById('scores-container');
+            if (!data.length) {
+                el.innerHTML = `<div class="empty" style="text-align:center; padding:40px; color:var(--muted);"><div style="font-size:40px;">⚔️</div><div>No matches found.</div></div>`;
+                return;
+            }
+
+            const groups = {};
+            data.forEach(m => { (groups[m.sport_name] = groups[m.sport_name] || []).push(m); });
+
+            el.innerHTML = Object.entries(groups).map(([sport, items]) => `
+                <div class="sport-group-header">🏆 ${sport} <span style="font-size:13px;color:var(--muted);">(${items.length})</span></div>
+                ${items.map((m, i) => isFFAMatch(m) ? renderFFAMatchCard(m, i) : renderRegularMatchCard(m, i)).join('')}
+            `).join('');
+        }
+
+        function renderRegularMatchCard(m, i) {
+            const aw = m.status === 'completed' && m.total_score_a > m.total_score_b;
+            const bw = m.status === 'completed' && m.total_score_b > m.total_score_a;
+
+            const statusBadge = {
+                ongoing: `<div class="live-ring"><div class="live-dot"></div> LIVE</div>`,
+                completed: `<span class="badge" style="background:var(--green);color:#000;">✅ Final</span>`,
+                scheduled: `<span class="badge" style="background:var(--bg3);color:var(--gold);">📅 Scheduled</span>`,
+            }[m.status] || `<span class="badge" style="background:var(--bg3);">${m.status}</span>`;
+
+            return `
+            <div class="match-card fu" style="animation-delay:${i * 0.04}s">
+                <div class="match-top">
+                    <div class="match-sport">${m.sport_name} ${m.tournament_name ? `· <span style="color:var(--text2)">${m.tournament_name}</span>` : ''}</div>
+                    <div style="display:flex;align-items:center;gap:10px">
+                        ${statusBadge}
+                        <span style="font-size:12px;color:var(--muted)">
+                            ${m.scheduled_date ? new Date(m.scheduled_date).toLocaleDateString() : ''} ${m.scheduled_time?.slice(0, 5) || ''}
+                        </span>
+                    </div>
+                </div>
+                <div class="match-body">
+                    <div class="match-side" style="${aw ? 'color:var(--gold)' : ''}">
+                        <div class="match-side-name">${m.team_a_name || m.dept_a_name || 'TBD'}</div>
+                        ${aw ? '<div class="match-winner">🏆 Winner</div>' : ''}
+                    </div>
+                    <div class="match-score-box">
+                        ${m.total_score_a != null
+                    ? `<div class="match-score">${Math.round(m.total_score_a)} <span style="font-size:22px;color:var(--muted)">—</span> ${Math.round(m.total_score_b)}</div>`
+                    : `<div class="match-vs">VS</div>`}
+                    </div>
+                    <div class="match-side" style="${bw ? 'color:var(--gold)' : ''}">
+                        <div class="match-side-name">${m.team_b_name || m.dept_b_name || 'TBD'}</div>
+                        ${bw ? '<div class="match-winner">🏆 Winner</div>' : ''}
+                    </div>
+                </div>
+            </div>`;
+        }
+
+        function renderFFAMatchCard(m, i) {
+            const ffaData = m.tournament_id ? ffaDataCache[m.tournament_id] : null;
+            const participants = ffaData?.participants || [];
+            const unit = ffaData?.unit || 'pts';
+            const isCompleted = m.status === 'completed';
+
+            const statusBadge = {
+                ongoing: `<div class="live-ring"><div class="live-dot"></div> LIVE</div>`,
+                completed: `<span class="badge" style="background:var(--green);color:#000;">✅ Finalized</span>`,
+                scheduled: `<span class="badge" style="background:var(--bg3);color:var(--gold);">📅 Scheduled</span>`,
+            }[m.status] || `<span class="badge" style="background:var(--bg3);">${m.status}</span>`;
+
+
+            const topParticipants = participants.slice(0, 5);
+            const remainingCount = participants.length - 5;
+
+            return `
+            <div class="ffa-match-card fu" style="animation-delay:${i * 0.04}s">
+                <div class="ffa-top">
+                    <div class="ffa-badge">🏃 FREE-FOR-ALL</div>
+                    <div style="display:flex;align-items:center;gap:10px">
+                        ${statusBadge}
+                        <span style="font-size:12px;color:var(--muted)">
+                            ${m.scheduled_date ? new Date(m.scheduled_date).toLocaleDateString() : ''} ${m.scheduled_time?.slice(0, 5) || ''}
+                        </span>
+                    </div>
+                </div>
+                <div class="ffa-body">
+                    <div class="ffa-header">
+                        <div class="ffa-icon">🏃‍♂️🏃‍♀️</div>
+                        <div class="ffa-title">${m.tournament_name || 'Free-for-All Event'}</div>
+                        <div class="ffa-subtitle">${participants.length} participants · ${isCompleted ? 'Final results' : 'Rankings in progress'}</div>
+                    </div>
+                    
+                    <div class="ffa-participants">
+                        ${topParticipants.map((p, idx) => {
+                const rank = idx + 1;
+                let rankClass = 'ffa-rank-other';
+                let medal = rank;
+                if (rank === 1) { rankClass = 'ffa-rank-1'; medal = '🥇'; }
+                else if (rank === 2) { rankClass = 'ffa-rank-2'; medal = '🥈'; }
+                else if (rank === 3) { rankClass = 'ffa-rank-3'; medal = '🥉'; }
+
+                const hasScore = p.ffa_result_value !== null;
+                const scoreDisplay = hasScore ? p.ffa_result_value : '—';
+
+                return `
+                            <div class="ffa-participant-row">
+                                <div class="ffa-participant-info">
+                                    <div class="ffa-rank ${rankClass}">${medal}</div>
+                                    <div>
+                                        <div class="ffa-participant-name">${p.department_name || 'Unknown'}</div>
+                                        <div class="ffa-participant-dept">${p.team_name || 'Individual'}</div>
+                                    </div>
+                                </div>
+                                <div class="ffa-score">${scoreDisplay}<span class="ffa-unit">${unit}</span></div>
+                            </div>`;
+            }).join('')}
+                        ${remainingCount > 0 ? `
+                            <div style="text-align:center; padding:8px; color:var(--muted); font-size:12px;">
+                                +${remainingCount} more participants
+                            </div>
+                        ` : ''}
+                    </div>
+                    
+                    <div class="ffa-footer">
+                        <div class="ffa-medal">
+                            ${participants[0]?.ffa_result_value !== null ? '🏆 Champion crowned!' : '⏳ Waiting for results'}
+                        </div>
+                        <div>
+                            ${isCompleted ? 'Final rankings determined' : 'Live rankings update automatically'}
+                        </div>
+                    </div>
+                </div>
+            </div>`;
+        }
+
+        document.addEventListener('DOMContentLoaded', init);
+    </script>
+</body>
+
+</html>

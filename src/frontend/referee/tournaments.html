@@ -1,0 +1,579 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tournaments — PAC SCHED-SCORE</title>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;600;700;800;900&family=Barlow:wght@300;400;500;600&display=swap"
+        rel="stylesheet">
+    <link rel="stylesheet" href="../css/referee.css">
+
+    <style>
+        /* ── STAT CARDS ── */
+        .stats-row {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 14px;
+            margin-bottom: 26px;
+        }
+
+        .stat-card {
+            background: var(--bg2);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 18px 20px;
+            transition: border-color 0.2s, transform 0.2s;
+        }
+
+        .stat-card:hover {
+            border-color: var(--border-gold);
+            transform: translateY(-1px);
+        }
+
+        .stat-card-label {
+            font-size: 10px;
+            font-weight: 700;
+            letter-spacing: 1.5px;
+            text-transform: uppercase;
+            color: var(--muted);
+            margin-bottom: 10px;
+        }
+
+        .stat-card-value {
+            font-family: 'Barlow Condensed', sans-serif;
+            font-size: 38px;
+            font-weight: 900;
+            line-height: 1;
+        }
+
+        .stat-card-sub {
+            font-size: 12px;
+            color: var(--text2);
+            margin-top: 5px;
+        }
+
+        /* ── FILTER BAR ── */
+        .filter-bar {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+            align-items: center;
+        }
+
+        .filter-pill {
+            padding: 6px 14px;
+            border-radius: 20px;
+            border: 1px solid var(--border);
+            background: var(--bg3);
+            color: var(--text2);
+            font-size: 12px;
+            font-weight: 700;
+            font-family: 'Barlow', sans-serif;
+            cursor: pointer;
+            transition: all 0.18s;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .filter-pill:hover {
+            color: var(--text);
+            background: var(--bg4);
+            border-color: rgba(255, 255, 255, 0.14);
+        }
+
+        .filter-pill.active {
+            background: var(--gold-bg);
+            color: var(--gold);
+            border-color: var(--border-gold);
+        }
+
+        .filter-spacer {
+            flex: 1;
+            min-width: 8px;
+        }
+
+        /* ── VIEW TOGGLE ── */
+        .view-toggle {
+            display: flex;
+            gap: 4px;
+        }
+
+        .btn-view {
+            width: 34px;
+            height: 34px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: var(--bg3);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            cursor: pointer;
+            color: var(--text2);
+            font-size: 15px;
+            transition: all 0.18s;
+        }
+
+        .btn-view:hover {
+            color: var(--text);
+            border-color: var(--border-gold);
+        }
+
+        .btn-view.active {
+            background: var(--gold-bg);
+            color: var(--gold);
+            border-color: var(--border-gold);
+        }
+
+        /* ── TABLE ── */
+        .table-wrap {
+            overflow-x: auto;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        thead th {
+            padding: 12px 18px;
+            background: var(--bg3);
+            color: var(--muted);
+            font-family: 'Barlow Condensed', sans-serif;
+            font-size: 11px;
+            font-weight: 700;
+            letter-spacing: 1.5px;
+            text-transform: uppercase;
+            text-align: left;
+            border-bottom: 1px solid var(--border);
+            white-space: nowrap;
+        }
+
+        tbody tr {
+            border-bottom: 1px solid var(--border);
+            transition: background 0.15s;
+        }
+
+        tbody tr:last-child {
+            border-bottom: none;
+        }
+
+        tbody tr:hover {
+            background: var(--bg3);
+        }
+
+        tbody td {
+            padding: 14px 18px;
+            font-size: 14px;
+            color: var(--text);
+            vertical-align: middle;
+        }
+
+        .td-primary {
+            font-family: 'Barlow Condensed', sans-serif;
+            font-size: 16px;
+            font-weight: 800;
+            color: var(--text);
+            line-height: 1.2;
+        }
+
+        .td-sub {
+            font-size: 11px;
+            color: var(--muted);
+            margin-top: 2px;
+        }
+
+        /* ── BADGES ── */
+        .badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            padding: 4px 10px;
+            border-radius: 20px;
+            font-size: 11px;
+            font-weight: 700;
+            font-family: 'Barlow', sans-serif;
+            white-space: nowrap;
+        }
+
+        .badge-active {
+            background: rgba(34, 197, 94, 0.12);
+            color: #4ade80;
+        }
+
+        .badge-ongoing {
+            background: rgba(34, 197, 94, 0.12);
+            color: #4ade80;
+        }
+
+        .badge-upcoming {
+            background: rgba(245, 184, 0, 0.12);
+            color: var(--gold);
+        }
+
+        .badge-scheduled {
+            background: rgba(245, 184, 0, 0.12);
+            color: var(--gold);
+        }
+
+        .badge-completed {
+            background: rgba(255, 255, 255, 0.07);
+            color: var(--text2);
+        }
+
+        .badge-cancelled {
+            background: rgba(232, 50, 59, 0.12);
+            color: #f87171;
+        }
+
+        .badge-muted {
+            background: rgba(255, 255, 255, 0.07);
+            color: var(--text2);
+            text-transform: uppercase;
+            font-size: 10px;
+            letter-spacing: 1px;
+        }
+
+        .badge-blue {
+            background: rgba(59, 130, 246, 0.12);
+            color: #60a5fa;
+        }
+
+        /* ── CARD GRID ── */
+        .card-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+            gap: 16px;
+        }
+
+        .tourney-card {
+            background: var(--bg2);
+            border: 1px solid var(--border);
+            border-radius: 14px;
+            overflow: hidden;
+            transition: all 0.22s;
+        }
+
+        .tourney-card:hover {
+            border-color: var(--border-gold);
+            transform: translateY(-2px);
+            box-shadow: 0 10px 32px rgba(0, 0, 0, 0.4);
+        }
+
+        .tc-header {
+            padding: 14px 16px;
+            background: var(--bg3);
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .tc-sport-circle {
+            width: 40px;
+            height: 40px;
+            background: var(--gold-bg);
+            border: 1px solid var(--border-gold);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 18px;
+            flex-shrink: 0;
+        }
+
+        .tc-sport-name {
+            font-size: 11px;
+            font-weight: 700;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+            color: var(--muted);
+        }
+
+        .tc-meta {
+            font-size: 12px;
+            color: var(--text2);
+            margin-top: 2px;
+        }
+
+        .tc-body {
+            padding: 16px;
+        }
+
+        .tc-name {
+            font-family: 'Barlow Condensed', sans-serif;
+            font-size: 20px;
+            font-weight: 900;
+            line-height: 1.2;
+            color: var(--text);
+            margin-bottom: 10px;
+            text-transform: uppercase;
+        }
+
+        .tc-badges {
+            display: flex;
+            gap: 6px;
+            flex-wrap: wrap;
+        }
+
+        /* ── EMPTY / LOADING ── */
+        .empty-state {
+            text-align: center;
+            padding: 60px 20px;
+            color: var(--muted);
+        }
+
+        .empty-icon {
+            font-size: 36px;
+            margin-bottom: 12px;
+        }
+
+        .empty-text {
+            font-size: 14px;
+        }
+
+        /* ── RESPONSIVE ── */
+        @media (max-width: 640px) {
+            .stats-row {
+                grid-template-columns: repeat(2, 1fr);
+            }
+
+            .card-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .filter-spacer {
+                display: none;
+            }
+
+            .view-toggle {
+                margin-left: auto;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <aside class="sidebar" id="sidebar"></aside>
+
+    <main class="main">
+        <div class="topbar"></div>
+
+        <div class="content">
+
+            <!-- PAGE HEADER -->
+            <div class="page-header"
+                style="display:flex; justify-content:space-between; align-items:center; margin-bottom:28px;">
+                <div>
+                    <div class="page-title">🏅 Tournaments</div>
+                    <div class="page-sub">All active and upcoming SportFest tournaments.</div>
+                </div>
+                <button class="btn btn-secondary btn-sm" onclick="loadTournaments()">🔄 Refresh</button>
+            </div>
+
+            <!-- STAT CARDS -->
+            <div class="stats-row">
+                <div class="stat-card">
+                    <div class="stat-card-label">Total</div>
+                    <div class="stat-card-value" id="stat-total" style="color:var(--text);">—</div>
+                    <div class="stat-card-sub">Tournaments</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-card-label">Active</div>
+                    <div class="stat-card-value" id="stat-active" style="color:var(--green);">—</div>
+                    <div class="stat-card-sub">Currently running</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-card-label">Upcoming</div>
+                    <div class="stat-card-value" id="stat-upcoming" style="color:var(--gold);">—</div>
+                    <div class="stat-card-sub">Scheduled</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-card-label">Completed</div>
+                    <div class="stat-card-value" id="stat-completed" style="color:var(--text2);">—</div>
+                    <div class="stat-card-sub">Finished</div>
+                </div>
+            </div>
+
+            <!-- FILTER BAR + VIEW TOGGLE -->
+            <div class="filter-bar">
+                <button class="filter-pill active" onclick="setFilter('all',this)">All</button>
+                <button class="filter-pill" onclick="setFilter('active',this)">🟢 Active</button>
+                <button class="filter-pill" onclick="setFilter('upcoming',this)">📅 Upcoming</button>
+                <button class="filter-pill" onclick="setFilter('completed',this)">✅ Completed</button>
+                <div class="filter-spacer"></div>
+                <div class="view-toggle">
+                    <button class="btn-view active" id="btn-view-table" onclick="setView('table')"
+                        title="Table view">☰</button>
+                    <button class="btn-view" id="btn-view-grid" onclick="setView('grid')" title="Card view">⊞</button>
+                </div>
+            </div>
+
+
+            <div id="view-table-el">
+                <div class="card">
+                    <div class="table-wrap">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Tournament</th>
+                                    <th>Sport</th>
+                                    <th>Format</th>
+                                    <th>Matches</th>
+                                    <th>Status</th>
+                                </tr>
+                            </thead>
+                            <tbody id="tourney-body">
+                                <tr>
+                                    <td colspan="5" style="text-align:center; padding:50px; color:var(--muted);">
+                                        <div style="font-size:26px; margin-bottom:10px;">⏳</div>Loading...
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+
+            <div id="view-grid-el" style="display:none;">
+                <div class="card-grid" id="tourney-grid"></div>
+            </div>
+
+        </div>
+    </main>
+
+    <script src="../js/shared.js"></script>
+    <script src="../js/referee-sidebar.js"></script>
+    <script>
+        let allTournaments = [];
+        let currentFilter = 'all';
+        let currentView = 'table';
+
+        document.addEventListener('DOMContentLoaded', () => {
+            renderRefereeSidebar('tournaments');
+            renderRefereeTopbar();
+            loadTournaments();
+        });
+
+        async function loadTournaments() {
+            document.getElementById('tourney-body').innerHTML =
+                `<tr><td colspan="5" style="text-align:center; padding:50px; color:var(--muted);"><div style="font-size:26px; margin-bottom:10px;">⏳</div>Loading...</td></tr>`;
+            document.getElementById('tourney-grid').innerHTML = '';
+            try {
+                const res = await api('/tournaments');
+                allTournaments = (res.success && res.data) ? res.data : [];
+            } catch (e) {
+                console.error(e);
+                allTournaments = [];
+            }
+            renderStats();
+            render();
+        }
+
+        function renderStats() {
+            const d = allTournaments;
+            document.getElementById('stat-total').textContent = d.length;
+            document.getElementById('stat-active').textContent = d.filter(t => t.status === 'active').length;
+            document.getElementById('stat-upcoming').textContent = d.filter(t => ['upcoming', 'scheduled'].includes(t.status)).length;
+            document.getElementById('stat-completed').textContent = d.filter(t => t.status === 'completed').length;
+        }
+
+        function setFilter(f, el) {
+            currentFilter = f;
+            document.querySelectorAll('.filter-pill').forEach(p => p.classList.remove('active'));
+            el.classList.add('active');
+            render();
+        }
+
+        function filteredData() {
+            if (currentFilter === 'all') return allTournaments;
+            if (currentFilter === 'upcoming') return allTournaments.filter(t => ['upcoming', 'scheduled'].includes(t.status));
+            return allTournaments.filter(t => t.status === currentFilter);
+        }
+
+        function setView(v) {
+            currentView = v;
+            document.getElementById('view-table-el').style.display = v === 'table' ? '' : 'none';
+            document.getElementById('view-grid-el').style.display = v === 'grid' ? '' : 'none';
+            document.getElementById('btn-view-table').classList.toggle('active', v === 'table');
+            document.getElementById('btn-view-grid').classList.toggle('active', v === 'grid');
+            render();
+        }
+
+        function render() {
+            currentView === 'table' ? renderTable() : renderGrid();
+        }
+
+        function renderTable() {
+            const tbody = document.getElementById('tourney-body');
+            const data = filteredData();
+            if (!data.length) {
+                tbody.innerHTML = `<tr><td colspan="5" style="text-align:center; padding:50px; color:var(--muted);">
+                    <div style="font-size:28px; margin-bottom:10px;">🏅</div>No tournaments found.</td></tr>`;
+                return;
+            }
+            tbody.innerHTML = data.map(t => `
+                <tr>
+                    <td>
+                        <div class="td-primary">${t.name}</div>
+                        <div class="td-sub">ID #${t.id}</div>
+                    </td>
+                    <td>${sportIcon(t.sport_name)} ${t.sport_name || '—'}</td>
+                    <td><span class="badge badge-muted">${fmtFormat(t.format)}</span></td>
+                    <td style="color:var(--text2); font-size:13px;">${t.match_count != null ? t.match_count + ' matches' : '—'}</td>
+                    <td>${tBadge(t.status)}</td>
+                </tr>`).join('');
+        }
+
+        function renderGrid() {
+            const grid = document.getElementById('tourney-grid');
+            const data = filteredData();
+            if (!data.length) {
+                grid.innerHTML = `<div class="empty-state" style="grid-column:1/-1">
+                    <div class="empty-icon">🏅</div><div class="empty-text">No tournaments found.</div></div>`;
+                return;
+            }
+            grid.innerHTML = data.map(t => `
+                <div class="tourney-card">
+                    <div class="tc-header">
+                        <div class="tc-sport-circle">${sportIcon(t.sport_name)}</div>
+                        <div style="flex:1; min-width:0;">
+                            <div class="tc-sport-name">${t.sport_name || 'Sport'}</div>
+                            <div class="tc-meta">${t.match_count != null ? t.match_count + ' matches' : 'ID #' + t.id}</div>
+                        </div>
+                        <div>${tBadge(t.status)}</div>
+                    </div>
+                    <div class="tc-body">
+                        <div class="tc-name">${t.name}</div>
+                        <div class="tc-badges">
+                            <span class="badge badge-muted">${fmtFormat(t.format)}</span>
+                            <span class="badge badge-blue">ID #${t.id}</span>
+                        </div>
+                    </div>
+                </div>`).join('');
+        }
+
+        function fmtFormat(f) {
+            if (!f) return '—';
+            return f.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+        }
+
+        function tBadge(s) {
+            const map = {
+                active: { cls: 'badge-active', label: '● Active' },
+                ongoing: { cls: 'badge-ongoing', label: '● Ongoing' },
+                upcoming: { cls: 'badge-upcoming', label: '◌ Upcoming' },
+                scheduled: { cls: 'badge-scheduled', label: '◌ Upcoming' },
+                completed: { cls: 'badge-completed', label: '✓ Completed' },
+                cancelled: { cls: 'badge-cancelled', label: '✕ Cancelled' },
+            };
+            const b = map[s] || { cls: 'badge-muted', label: s || 'Unknown' };
+            return `<span class="badge ${b.cls}">${b.label}</span>`;
+        }
+    </script>
+</body>
+
+</html>

@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PAC SCHED-SCORE — Venues</title>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;600;700;800;900&family=Barlow:wght@300;400;500;600&display=swap"
+        rel="stylesheet">
+    <link rel="stylesheet" href="../css/shared.css">
+    <style>
+        .venue-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+            gap: 16px;
+        }
+
+        .venue-card {
+            background: var(--bg2);
+            border: 1px solid var(--border);
+            border-radius: 14px;
+            overflow: hidden;
+            transition: all 0.2s;
+        }
+
+        .venue-card:hover {
+            border-color: var(--border-gold);
+            transform: translateY(-2px);
+        }
+    </style>
+</head>
+
+<body>
+    <main class="main">
+        <div class="topbar">
+            <div class="topbar-title">🏟️ Venues</div>
+            <div class="topbar-actions">
+                <button class="btn btn-secondary btn-sm" onclick="loadPage()">🔄 Refresh</button>
+                <button class="btn btn-primary btn-sm" onclick="openNew()">+ New Venue</button>
+            </div>
+        </div>
+        <div class="content">
+            <div class="venue-grid" id="venue-grid">
+                <div class="empty-state" style="grid-column:1/-1">
+                    <div class="empty-icon">⏳</div>
+                    <div class="empty-text">Loading...</div>
+                </div>
+            </div>
+        </div>
+    </main>
+    <div class="modal-overlay" id="modal-venue" onclick="if(event.target===this)Modal.close('modal-venue')">
+        <div class="modal">
+            <div class="modal-header">
+                <div class="modal-title" id="venue-modal-title">🏟️ New Venue</div><button class="modal-close"
+                    onclick="Modal.close('modal-venue')">✕</button>
+            </div>
+            <div class="modal-body">
+                <input type="hidden" id="venue-edit-id">
+                <div class="form-group"><label class="form-label">Venue Name *</label><input type="text" id="v-name"
+                        class="form-input" placeholder="e.g. Main Gymnasium"></div>
+                <div class="form-row">
+                    <div class="form-group"><label class="form-label">Location</label><input type="text" id="v-loc"
+                            class="form-input" placeholder="Building / Area"></div>
+                    <div class="form-group"><label class="form-label">Capacity</label><input type="number" id="v-cap"
+                            class="form-input" value="0"></div>
+                </div>
+                <div class="form-group"><label class="form-label">Description</label><textarea id="v-desc"
+                        class="form-textarea"></textarea></div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="Modal.close('modal-venue')">Cancel</button>
+                <button class="btn btn-primary" onclick="saveVenue()">Save</button>
+            </div>
+        </div>
+    </div>
+    <script src="../js/shared.js"></script>
+    <script src="../js/admin-sidebar.js"></script>
+    <script>
+        let allVenues = [];
+        document.addEventListener('DOMContentLoaded', () => { renderSidebar('venues'); loadPage(); });
+        async function loadPage() {
+            const res = await api('/venues'); if (!res.success) return; allVenues = res.data || [];
+            const el = document.getElementById('venue-grid');
+            if (!allVenues.length) { el.innerHTML = `<div class="empty-state" style="grid-column:1/-1"><div class="empty-icon">🏟️</div><div class="empty-text">No venues yet</div></div>`; return; }
+            el.innerHTML = allVenues.map(v => `
+    <div class="venue-card">
+      <div style="padding:20px">
+        <div style="font-size:32px;margin-bottom:10px">🏟️</div>
+        <div style="font-size:17px;font-weight:700;margin-bottom:4px">${v.name}</div>
+        <div style="font-size:13px;color:var(--muted);margin-bottom:12px">📍 ${v.location || '—'}</div>
+        <div style="display:flex;gap:10px;margin-bottom:14px">
+          <div style="flex:1;background:var(--bg3);border-radius:7px;padding:10px;text-align:center">
+            <div style="font-family:'Barlow Condensed',sans-serif;font-size:22px;font-weight:800">${v.capacity || 0}</div>
+            <div style="font-size:10px;color:var(--muted)">CAPACITY</div>
+          </div>
+          <div style="flex:1;background:var(--bg3);border-radius:7px;padding:10px;text-align:center">
+            <div style="font-family:'Barlow Condensed',sans-serif;font-size:22px;font-weight:800;color:${v.scheduled_matches ? 'var(--red)' : 'var(--green)'}">${v.scheduled_matches || 0}</div>
+            <div style="font-size:10px;color:var(--muted)">ACTIVE</div>
+          </div>
+        </div>
+        <div style="display:flex;gap:8px">
+          <button class="btn btn-secondary btn-sm" style="flex:1" onclick="openEdit(${v.id})">✏️ Edit</button>
+          <button class="btn btn-secondary btn-sm" style="flex:1" onclick="viewSchedule(${v.id})">📅 Schedule</button>
+        </div>
+      </div>
+    </div>`).join('');
+        }
+        function openNew() { document.getElementById('venue-modal-title').textContent = '🏟️ New Venue'; document.getElementById('venue-edit-id').value = '';['v-name', 'v-loc', 'v-desc'].forEach(id => document.getElementById(id).value = ''); document.getElementById('v-cap').value = 0; Modal.open('modal-venue'); }
+        function openEdit(id) { const v = allVenues.find(x => x.id === id); if (!v) return; document.getElementById('venue-modal-title').textContent = `✏️ ${v.name}`; document.getElementById('venue-edit-id').value = id; document.getElementById('v-name').value = v.name; document.getElementById('v-loc').value = v.location || ''; document.getElementById('v-cap').value = v.capacity || 0; document.getElementById('v-desc').value = v.description || ''; Modal.open('modal-venue'); }
+        async function viewSchedule(id) { const v = allVenues.find(x => x.id === id); Toast.show(`${v?.name} schedule — use /admin/matches to filter by venue`, 'info'); }
+        async function saveVenue() {
+            const id = document.getElementById('venue-edit-id').value;
+            const body = { name: document.getElementById('v-name').value, location: document.getElementById('v-loc').value, capacity: parseInt(document.getElementById('v-cap').value) || 0, description: document.getElementById('v-desc').value };
+            if (!body.name) { Toast.show('Venue name required', 'error'); return; }
+            const res = id ? await api(`/venues/${id}`, { method: 'PUT', body: JSON.stringify(body) }) : await api('/venues', { method: 'POST', body: JSON.stringify(body) });
+            Toast.show(res.message || (res.success ? 'Saved!' : 'Error'), res.success ? 'success' : 'error');
+            if (res.success) { Modal.closeAll(); loadPage(); }
+        }
+    </script>
+</body>
+
+</html>

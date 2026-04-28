@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PAC SCHED-SCORE — Schedule</title>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;600;700;800;900&family=Barlow:wght@300;400;500;600&display=swap"
+        rel="stylesheet">
+    <link rel="stylesheet" href="../css/shared.css">
+    <style>
+        .day-header {
+            font-family: 'Barlow Condensed', sans-serif;
+            font-size: 18px;
+            font-weight: 900;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            padding: 12px 16px;
+            background: var(--bg3);
+            border-radius: 8px;
+            margin: 20px 0 10px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .sched-match {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            padding: 14px 16px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+            transition: background 0.1s;
+        }
+
+        .sched-match:hover {
+            background: rgba(255, 255, 255, 0.02);
+        }
+
+        .sched-time {
+            font-family: 'Barlow Condensed', sans-serif;
+            font-size: 20px;
+            font-weight: 900;
+            color: var(--gold);
+            min-width: 60px;
+        }
+
+        .sched-vs {
+            flex: 1;
+        }
+
+        .sched-teams {
+            font-size: 14px;
+            font-weight: 600;
+            margin-bottom: 3px;
+        }
+
+        .sched-meta {
+            font-size: 12px;
+            color: var(--muted);
+        }
+    </style>
+</head>
+
+<body>
+    <main class="main">
+        <div class="topbar">
+            <div class="topbar-title">📅 Schedule</div>
+            <div class="topbar-actions">
+                <button class="btn btn-secondary btn-sm" onclick="loadPage()">🔄 Refresh</button>
+            </div>
+        </div>
+        <div class="content">
+            <div style="display:flex;gap:10px;margin-bottom:20px;flex-wrap:wrap;align-items:center">
+                <input type="date" id="filter-date" class="form-select" style="width:180px" onchange="loadPage()">
+                <select id="filter-venue" class="form-select" style="width:200px" onchange="loadPage()">
+                    <option value="">All Venues</option>
+                </select>
+                <select id="filter-tournament" class="form-select" style="width:220px" onchange="loadPage()">
+                    <option value="">All Tournaments</option>
+                </select>
+                <button class="btn btn-secondary btn-sm" onclick="setToday()">Today</button>
+            </div>
+            <div id="schedule-content">
+                <div class="empty-state">
+                    <div class="empty-icon">⏳</div>
+                    <div class="empty-text">Loading...</div>
+                </div>
+            </div>
+        </div>
+    </main>
+    <script src="../js/shared.js"></script>
+    <script src="../js/admin-sidebar.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', async () => {
+            renderSidebar('schedule');
+            setToday();
+            const [vRes, tRes] = await Promise.all([api('/venues'), api('/tournaments')]);
+            document.getElementById('filter-venue').innerHTML += (vRes.data || []).map(v => `<option value="${v.id}">${v.name}</option>`).join('');
+            document.getElementById('filter-tournament').innerHTML += (tRes.data || []).map(t => `<option value="${t.id}">${t.name}</option>`).join('');
+            loadPage();
+        });
+        function setToday() { document.getElementById('filter-date').value = new Date().toISOString().split('T')[0]; loadPage(); }
+        async function loadPage() {
+            const date = document.getElementById('filter-date').value;
+            const venueId = document.getElementById('filter-venue').value;
+            const tournId = document.getElementById('filter-tournament').value;
+            let url = '/matches?';
+            if (date) url += `date=${date}&`;
+            if (venueId) url += `venue_id=${venueId}&`;
+            if (tournId) url += `tournament_id=${tournId}&`;
+            const res = await api(url);
+            const el = document.getElementById('schedule-content');
+            if (!res.success || !res.data?.length) {
+                el.innerHTML = `<div class="empty-state"><div class="empty-icon">📅</div><div class="empty-text">No matches scheduled${date ? ' for ' + new Date(date + 'T00:00').toLocaleDateString('en-PH', { weekday: 'long', month: 'long', day: 'numeric' }) : ''}</div></div>`;
+                return;
+            }
+            // Group by date
+            const byDate = {};
+            res.data.forEach(m => { const d = m.scheduled_date || 'Unscheduled'; if (!byDate[d]) byDate[d] = []; byDate[d].push(m); });
+            el.innerHTML = Object.entries(byDate).map(([d, matches]) => `
+    <div class="day-header">
+      <span>${d !== 'Unscheduled' ? new Date(d + 'T00:00').toLocaleDateString('en-PH', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' }) : d}</span>
+      <span style="font-size:13px;color:var(--muted);font-weight:400">${matches.length} match${matches.length !== 1 ? 'es' : ''}</span>
+    </div>
+    <div class="card">
+      ${matches.sort((a, b) => (a.scheduled_time || '').localeCompare(b.scheduled_time || '')).map(m => `
+        <div class="sched-match">
+          <div class="sched-time">${formatTime(m.scheduled_time) || 'TBD'}</div>
+          <div style="font-size:22px">${sportIcon(m.sport_name)}</div>
+          <div class="sched-vs">
+            <div class="sched-teams">${m.dept_a_name || '?'} <span style="color:var(--muted)">vs</span> ${m.dept_b_name || '?'}</div>
+            <div class="sched-meta">${m.tournament_name} · ${m.venue_name || 'Venue TBD'} · ${m.referee_name || 'Referee TBD'}</div>
+          </div>
+          <div style="font-family:'Barlow Condensed',sans-serif;font-size:18px;font-weight:700;color:var(--gold)">${m.total_score_a != null ? `${m.total_score_a}–${m.total_score_b}` : ''}</div>
+          ${statusBadge(m.status)}
+        </div>`).join('')}
+    </div>`).join('');
+        }
+    </script>
+</body>
+
+</html>

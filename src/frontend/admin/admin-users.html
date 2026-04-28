@@ -1,0 +1,595 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PAC SCHED-SCORE — Users</title>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;600;700;800;900&family=Barlow:wght@300;400;500;600&display=swap"
+        rel="stylesheet">
+    <link rel="stylesheet" href="../css/shared.css">
+    <style>
+        .player-avatar-sm {
+            width: 34px;
+            height: 34px;
+            border-radius: 50%;
+            object-fit: cover;
+            background: var(--bg3);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 14px;
+            font-weight: 700;
+            color: var(--gold);
+            font-family: 'Barlow Condensed', sans-serif;
+            flex-shrink: 0;
+        }
+
+        .player-info-cell {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .player-details {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .player-name {
+            font-weight: 600;
+            font-size: 14px;
+        }
+
+        .player-jersey {
+            font-size: 11px;
+            color: var(--muted);
+        }
+
+        .role-badge {
+            display: inline-block;
+            padding: 4px 10px;
+            border-radius: 20px;
+            font-size: 11px;
+            font-weight: 700;
+        }
+
+        .role-admin {
+            background: rgba(245, 184, 0, 0.15);
+            color: var(--gold);
+        }
+
+        .role-referee {
+            background: rgba(232, 50, 59, 0.15);
+            color: var(--red);
+        }
+
+        .role-player {
+            background: rgba(34, 197, 94, 0.15);
+            color: var(--green);
+        }
+
+        .player-detail-avatar {
+            width: 100px;
+            height: 100px;
+            border-radius: 50%;
+            object-fit: cover;
+            margin: 0 auto 16px;
+            display: block;
+        }
+
+        .player-detail-avatar-placeholder {
+            width: 100px;
+            height: 100px;
+            border-radius: 50%;
+            background: var(--bg3);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 16px;
+            font-size: 40px;
+            font-weight: bold;
+            color: var(--gold);
+        }
+
+        .detail-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 10px 0;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .detail-label {
+            color: var(--muted);
+            font-size: 13px;
+        }
+
+        .detail-value {
+            font-weight: 600;
+            font-size: 13px;
+        }
+    </style>
+</head>
+
+<body>
+    <main class="main">
+        <div class="topbar">
+            <div class="topbar-title">👤 Users</div>
+            <div class="topbar-actions">
+                <button class="btn btn-secondary btn-sm" onclick="loadPage()">🔄 Refresh</button>
+                <button class="btn btn-primary btn-sm" onclick="openNew()">+ Add User</button>
+            </div>
+        </div>
+
+        <div class="content">
+
+            <div id="user-stats"
+                style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:12px;margin-bottom:20px">
+            </div>
+
+
+            <div style="display:flex;gap:10px;margin-bottom:16px;flex-wrap:wrap">
+                <select id="filter-role" class="form-select" style="width:160px" onchange="loadPage()">
+                    <option value="">All Roles</option>
+                    <option value="admin">Admin</option>
+                    <option value="referee">Referee</option>
+                    <option value="player">Player</option>
+                </select>
+                <select id="filter-dept" class="form-select" style="width:200px" onchange="loadPage()">
+                    <option value="">All Departments</option>
+                </select>
+                <select id="filter-status" class="form-select" style="width:140px" onchange="applyFilter()">
+                    <option value="">All Status</option>
+                    <option value="1">Active</option>
+                    <option value="0">Inactive</option>
+                </select>
+                <input id="filter-search"
+                    style="background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:8px 14px;color:var(--text);font-family:'Barlow',sans-serif;font-size:14px;outline:none;flex:1;min-width:180px"
+                    placeholder="🔍 Search by name or email..." oninput="applyFilter()">
+            </div>
+
+            <div class="card">
+                <div class="table-wrap">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Name</th>
+                                <th>Email</th>
+                                <th>Username</th>
+                                <th>Role</th>
+                                <th>Department</th>
+                                <th>Jersey #</th>
+                                <th>Status</th>
+                                <th>Last Login</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="users-body"></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </main>
+
+
+    <div class="modal-overlay" id="modal-user" onclick="if(event.target===this)Modal.close('modal-user')">
+        <div class="modal" style="max-width:600px">
+            <div class="modal-header">
+                <div class="modal-title" id="user-modal-title">👤 Add User</div>
+                <button class="modal-close" onclick="Modal.close('modal-user')">✕</button>
+            </div>
+            <div class="modal-body">
+                <input type="hidden" id="user-edit-id">
+
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label class="form-label">First Name *</label>
+                        <input type="text" id="u-first" class="form-input" placeholder="e.g. Juan">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Last Name *</label>
+                        <input type="text" id="u-last" class="form-input" placeholder="e.g. Dela Cruz">
+                    </div>
+                </div>
+
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label class="form-label">Username *</label>
+                        <input type="text" id="u-username" class="form-input" placeholder="e.g. jdelacruz"
+                            autocomplete="off">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Email *</label>
+                        <input type="email" id="u-email" class="form-input" placeholder="e.g. juan@school.edu">
+                    </div>
+                </div>
+
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label class="form-label">Password <span id="pass-hint"
+                                style="color:var(--muted);font-weight:400;text-transform:none;letter-spacing:0">(required
+                                for new users)</span></label>
+                        <input type="password" id="u-pass" class="form-input" placeholder="Leave blank to keep current"
+                            autocomplete="new-password">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Role</label>
+                        <select id="u-role" class="form-select" onchange="toggleDeptVisibility()">
+                            <option value="player">🏅 Player</option>
+                            <option value="referee">🟡 Referee</option>
+                            <option value="admin">⚙️ Admin</option>
+                        </select>
+                    </div>
+                </div>
+
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label class="form-label">Phone <span
+                                style="color:var(--muted);font-weight:400;text-transform:none;letter-spacing:0">optional</span></label>
+                        <input type="tel" id="u-phone" class="form-input" placeholder="e.g. 09171234567">
+                    </div>
+                    <div class="form-group" id="dept-group">
+                        <label class="form-label">Department</label>
+                        <select id="u-dept" class="form-select">
+                            <option value="">None</option>
+                        </select>
+                    </div>
+                </div>
+
+
+                <div id="player-fields" style="display:none">
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label class="form-label">Jersey Number</label>
+                            <input type="text" id="u-jersey" class="form-input" placeholder="e.g. 21">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Position</label>
+                            <input type="text" id="u-position" class="form-input" placeholder="e.g. Point Guard">
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Sport</label>
+                        <select id="u-sport" class="form-select">
+                            <option value="">Select Sport...</option>
+                        </select>
+                    </div>
+                </div>
+
+
+                <div class="form-group" id="status-group" style="display:none">
+                    <label class="form-label">Status</label>
+                    <select id="u-status" class="form-select">
+                        <option value="1">Active</option>
+                        <option value="0">Inactive</option>
+                    </select>
+                </div>
+
+
+                <div id="role-hint"
+                    style="background:var(--bg3);border:1px solid var(--border-gold);border-radius:8px;padding:10px 14px;font-size:12px;color:var(--muted);margin-top:4px">
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="Modal.close('modal-user')">Cancel</button>
+                <button class="btn btn-danger btn-sm" id="deactivate-btn" style="display:none"
+                    onclick="deactivateUser()">Deactivate</button>
+                <button class="btn btn-primary" onclick="saveUser()">Save</button>
+            </div>
+        </div>
+    </div>
+
+
+    <div class="modal-overlay" id="modal-player-detail"
+        onclick="if(event.target===this)Modal.close('modal-player-detail')">
+        <div class="modal" style="max-width: 500px;">
+            <div class="modal-header">
+                <div class="modal-title">👤 Player Details</div>
+                <button class="modal-close" onclick="Modal.close('modal-player-detail')">✕</button>
+            </div>
+            <div class="modal-body" id="player-detail-content">
+
+            </div>
+        </div>
+    </div>
+
+    <script src="../js/shared.js"></script>
+    <script src="../js/admin-sidebar.js"></script>
+    <script>
+        let allUsers = [];
+        let allSports = [];
+
+        document.addEventListener('DOMContentLoaded', async () => {
+            renderSidebar('users');
+            const [dRes, sRes] = await Promise.all([api('/departments'), api('/sports')]);
+            allSports = sRes.data || [];
+            const dOpts = (dRes.data || []).map(d => `<option value="${d.id}">${d.name}</option>`).join('');
+            const sOpts = allSports.map(s => `<option value="${s.id}">${s.icon || '🏅'} ${s.name}</option>`).join('');
+            ['filter-dept', 'u-dept'].forEach(id => {
+                const el = document.getElementById(id);
+                if (el) el.innerHTML += dOpts;
+            });
+            const sportSelect = document.getElementById('u-sport');
+            if (sportSelect) sportSelect.innerHTML = '<option value="">Select Sport...</option>' + sOpts;
+            loadPage();
+        });
+
+        async function loadPage() {
+            const role = document.getElementById('filter-role').value;
+            const deptId = document.getElementById('filter-dept').value;
+            let url = '/users?';
+            if (role) url += `role=${role}&`;
+            if (deptId) url += `department_id=${deptId}&`;
+            const res = await api(url);
+            if (!res.success) return;
+            allUsers = res.data || [];
+
+
+            for (let i = 0; i < allUsers.length; i++) {
+                if (allUsers[i].role === 'player') {
+                    const playerRes = await api(`/players/user/${allUsers[i].id}`);
+                    if (playerRes.success && playerRes.data) {
+                        allUsers[i].player_details = playerRes.data;
+                    }
+                }
+            }
+
+            renderStats();
+            applyFilter();
+        }
+
+        function renderStats() {
+            const total = allUsers.length;
+            const admins = allUsers.filter(u => u.role === 'admin').length;
+            const referees = allUsers.filter(u => u.role === 'referee').length;
+            const players = allUsers.filter(u => u.role === 'player').length;
+            const active = allUsers.filter(u => u.is_active).length;
+
+            document.getElementById('user-stats').innerHTML = [
+                { label: 'Total Users', val: total, color: 'var(--gold)', icon: '👤' },
+                { label: 'Admins', val: admins, color: 'var(--gold)', icon: '⚙️' },
+                { label: 'Referees', val: referees, color: 'var(--red)', icon: '🟡' },
+                { label: 'Players', val: players, color: 'var(--green)', icon: '🏅' },
+                { label: 'Active', val: active, color: 'var(--green)', icon: '✅' },
+            ].map(s => `
+                <div style="background:var(--bg2);border:1px solid var(--border);border-radius:10px;padding:14px 16px">
+                    <div style="font-size:18px;margin-bottom:6px">${s.icon}</div>
+                    <div style="font-family:'Barlow Condensed',sans-serif;font-size:26px;font-weight:900;color:${s.color}">${s.val}</div>
+                    <div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:1px">${s.label}</div>
+                </div>`).join('');
+        }
+
+        function applyFilter() {
+            const q = document.getElementById('filter-search').value.toLowerCase();
+            const status = document.getElementById('filter-status').value;
+
+            const filtered = allUsers.filter(u => {
+                if (status !== '' && String(u.is_active ? 1 : 0) !== status) return false;
+                if (q && !(u.first_name + u.last_name + u.email + u.username + (u.department_name || '')).toLowerCase().includes(q)) return false;
+                return true;
+            });
+
+            renderTable(filtered);
+        }
+
+        function getRoleBadgeClass(role) {
+            if (role === 'admin') return 'role-admin';
+            if (role === 'referee') return 'role-referee';
+            return 'role-player';
+        }
+
+        function renderTable(users) {
+            const tbody = document.getElementById('users-body');
+            if (!users.length) {
+                tbody.innerHTML = `<tr><td colspan="9" style="text-align:center;color:var(--muted);padding:32px">No users found</td></tr>`;
+                return;
+            }
+
+            tbody.innerHTML = users.map(u => {
+                const avatarInitial = (u.first_name?.[0] || '?').toUpperCase();
+                const jerseyDisplay = u.player_details?.jersey_number ? `#${u.player_details.jersey_number}` : '—';
+                const playerId = u.player_details?.id;
+
+                return `
+                <tr>
+                    <td>
+                        <div class="player-info-cell">
+                            <div class="player-avatar-sm">${avatarInitial}</div>
+                            <div class="player-details">
+                                <div class="player-name">${escapeHtml(u.first_name || '')} ${escapeHtml(u.last_name || '')}</div>
+                                ${u.phone ? `<div class="player-jersey">📞 ${u.phone}</div>` : ''}
+                            </div>
+                        </div>
+                    </td>
+                    <td style="font-size:13px;color:var(--muted)">${escapeHtml(u.email)}</td>
+                    <td style="font-size:13px;color:var(--muted)">@${escapeHtml(u.username)}</td>
+                    <td><span class="role-badge ${getRoleBadgeClass(u.role)}">${u.role.toUpperCase()}</span></td>
+                    <td style="color:var(--muted);font-size:13px">${escapeHtml(u.department_name || '—')}</td>
+                    <td style="color:var(--muted);font-size:13px;font-weight:600">${jerseyDisplay}</td>
+                    <td><span class="badge ${u.is_active ? 'badge-green' : 'badge-red'}">${u.is_active ? 'Active' : 'Inactive'}</span></td>
+                    <td style="color:var(--muted);font-size:12px">${u.last_login ? formatDate(u.last_login) : 'Never'}</td>
+                    <td>
+                        <button class="btn btn-secondary btn-sm" onclick="openEdit(${u.id})">Edit</button>
+                        ${u.role === 'player' && playerId ? `<button class="btn btn-info btn-sm" onclick="viewPlayerDetail(${playerId})">View Player</button>` : ''}
+                    </td>
+                </tr>`;
+            }).join('');
+        }
+
+        async function viewPlayerDetail(playerId) {
+            try {
+                const res = await api(`/players/${playerId}`);
+                if (!res.success) throw new Error('Failed to load player details');
+                const p = res.data;
+
+                const avatarHtml = p.image_url
+                    ? `<img src="${p.image_url}" class="player-detail-avatar" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'"><div class="player-detail-avatar-placeholder" style="display:none;">${(p.first_name?.[0] || '?')}${(p.last_name?.[0] || '')}</div>`
+                    : `<div class="player-detail-avatar-placeholder">${(p.first_name?.[0] || '?')}${(p.last_name?.[0] || '')}</div>`;
+
+                document.getElementById('player-detail-content').innerHTML = `
+                    ${avatarHtml}
+                    <h3 style="text-align: center; margin-bottom: 20px;">${escapeHtml(p.first_name)} ${escapeHtml(p.last_name)}</h3>
+                    <div class="detail-row">
+                        <span class="detail-label">Jersey Number</span>
+                        <span class="detail-value">${p.jersey_number || 'Not assigned'}</span>
+                    </div>
+                    <div class="detail-row">
+                        <span class="detail-label">Position</span>
+                        <span class="detail-value">${p.position || 'Not specified'}</span>
+                    </div>
+                    <div class="detail-row">
+                        <span class="detail-label">Grade/Strand</span>
+                        <span class="detail-value">${escapeHtml(p.department_name || '—')}</span>
+                    </div>
+                    <div class="detail-row">
+                        <span class="detail-label">Sport</span>
+                        <span class="detail-value">${escapeHtml(p.sport_name || '—')}</span>
+                    </div>
+                    <div class="detail-row">
+                        <span class="detail-label">Team</span>
+                        <span class="detail-value">${escapeHtml(p.team_name || 'Individual')}</span>
+                    </div>
+                    <div class="detail-row">
+                        <span class="detail-label">Status</span>
+                        <span class="detail-value"><span class="status-${p.status}">${p.status?.toUpperCase() || 'PENDING'}</span></span>
+                    </div>
+                    <div class="detail-row">
+                        <span class="detail-label">Email</span>
+                        <span class="detail-value">${escapeHtml(p.email || '—')}</span>
+                    </div>
+                `;
+                Modal.open('modal-player-detail');
+            } catch (err) {
+                Toast.show('Error loading player details', 'error');
+                console.error(err);
+            }
+        }
+
+        function toggleDeptVisibility() {
+            const role = document.getElementById('u-role').value;
+            const hints = {
+                player: '🏅 Player — requires a department. You can also specify jersey number, position, and sport.',
+                referee: '🟡 Referee — department optional. A row in the <code>referees</code> table will be created automatically.',
+                admin: '⚙️ Admin — full system access. Department not required.',
+            };
+            document.getElementById('role-hint').innerHTML = hints[role] || '';
+            document.getElementById('dept-group').style.opacity = role === 'player' ? '1' : '0.6';
+
+
+            const playerFields = document.getElementById('player-fields');
+            if (playerFields) {
+                playerFields.style.display = role === 'player' ? 'block' : 'none';
+            }
+        }
+
+        function openNew() {
+            document.getElementById('user-modal-title').textContent = '👤 Add User';
+            document.getElementById('user-edit-id').value = '';
+            document.getElementById('pass-hint').textContent = '(required for new users)';
+            ['u-first', 'u-last', 'u-username', 'u-email', 'u-pass', 'u-phone', 'u-jersey', 'u-position'].forEach(id => {
+                const el = document.getElementById(id);
+                if (el) el.value = '';
+            });
+            document.getElementById('u-role').value = 'player';
+            document.getElementById('u-dept').value = '';
+            document.getElementById('u-sport').value = '';
+            document.getElementById('u-status').value = '1';
+            document.getElementById('deactivate-btn').style.display = 'none';
+            document.getElementById('status-group').style.display = 'none';
+            toggleDeptVisibility();
+            Modal.open('modal-user');
+        }
+
+        function openEdit(id) {
+            const u = allUsers.find(x => x.id === id);
+            if (!u) return;
+            document.getElementById('user-modal-title').textContent = `✏️ ${u.first_name} ${u.last_name}`;
+            document.getElementById('user-edit-id').value = id;
+            document.getElementById('pass-hint').textContent = '(leave blank to keep current)';
+            document.getElementById('u-first').value = u.first_name || '';
+            document.getElementById('u-last').value = u.last_name || '';
+            document.getElementById('u-username').value = u.username || '';
+            document.getElementById('u-email').value = u.email || '';
+            document.getElementById('u-pass').value = '';
+            document.getElementById('u-phone').value = u.phone || '';
+            document.getElementById('u-role').value = u.role || 'player';
+            document.getElementById('u-dept').value = u.department_id || '';
+            document.getElementById('u-status').value = u.is_active ? '1' : '0';
+            document.getElementById('deactivate-btn').style.display = u.is_active ? '' : 'none';
+            document.getElementById('status-group').style.display = '';
+
+            if (u.player_details) {
+                document.getElementById('u-jersey').value = u.player_details.jersey_number || '';
+                document.getElementById('u-position').value = u.player_details.position || '';
+                document.getElementById('u-sport').value = u.player_details.sport_id || '';
+            }
+
+            toggleDeptVisibility();
+            Modal.open('modal-user');
+        }
+
+        async function saveUser() {
+            const id = document.getElementById('user-edit-id').value;
+            const first_name = document.getElementById('u-first').value.trim();
+            const last_name = document.getElementById('u-last').value.trim();
+            const username = document.getElementById('u-username').value.trim();
+            const email = document.getElementById('u-email').value.trim();
+            const password = document.getElementById('u-pass').value;
+            const role = document.getElementById('u-role').value;
+            const department_id = parseInt(document.getElementById('u-dept').value) || null;
+            const phone = document.getElementById('u-phone').value.trim() || null;
+            const is_active = parseInt(document.getElementById('u-status').value ?? 1);
+            const jersey_number = document.getElementById('u-jersey')?.value.trim() || null;
+            const position = document.getElementById('u-position')?.value.trim() || null;
+            const sport_id = parseInt(document.getElementById('u-sport')?.value) || null;
+
+            if (!first_name) { Toast.show('First name is required', 'error'); return; }
+            if (!username) { Toast.show('Username is required', 'error'); return; }
+            if (!email) { Toast.show('Email is required', 'error'); return; }
+            if (!id && !password) { Toast.show('Password is required for new users', 'error'); return; }
+            if (role === 'player' && !department_id) {
+                Toast.show('Players must have a department', 'error'); return;
+            }
+
+            const body = { first_name, last_name, username, email, role, department_id, phone, is_active };
+            if (password) body.password = password;
+            if (role === 'player') {
+                body.jersey_number = jersey_number;
+                body.position = position;
+                body.sport_id = sport_id;
+            }
+
+            const res = id
+                ? await api(`/users/${id}`, { method: 'PUT', body: JSON.stringify(body) })
+                : await api('/users', { method: 'POST', body: JSON.stringify(body) });
+
+            Toast.show(res.message || (res.success ? 'Saved!' : 'Error'), res.success ? 'success' : 'error');
+            if (res.success) { Modal.closeAll(); loadPage(); }
+        }
+
+        async function deactivateUser() {
+            const id = document.getElementById('user-edit-id').value;
+            if (!confirm('Deactivate this user? They will lose access immediately.')) return;
+            const res = await api(`/users/${id}`, { method: 'DELETE' });
+            Toast.show(res.message || (res.success ? 'User deactivated' : 'Error'), res.success ? 'success' : 'error');
+            if (res.success) { Modal.closeAll(); loadPage(); }
+        }
+
+        function escapeHtml(str) {
+            if (!str) return '';
+            return String(str).replace(/[&<>]/g, function (m) {
+                if (m === '&') return '&amp;';
+                if (m === '<') return '&lt;';
+                if (m === '>') return '&gt;';
+                return m;
+            });
+        }
+    </script>
+</body>
+
+</html>

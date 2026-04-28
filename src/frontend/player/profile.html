@@ -1,0 +1,1444 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>My Profile · PAC SCHED-SCORE</title>
+    <link rel="stylesheet" href="../css/player.css">
+    <style>
+        .toast-container {
+            position: fixed;
+            top: 80px;
+            right: 20px;
+            z-index: 9999;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .toast-notification {
+            background: var(--bg2);
+            border-left: 4px solid var(--gold);
+            border-radius: 8px;
+            padding: 12px 16px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            min-width: 280px;
+            animation: slideIn 0.3s ease;
+        }
+
+        .toast-notification.success {
+            border-left-color: var(--green);
+        }
+
+        .toast-notification.error {
+            border-left-color: var(--red);
+        }
+
+        .toast-notification.info {
+            border-left-color: var(--blue);
+        }
+
+        .toast-notification.warning {
+            border-left-color: var(--orange);
+        }
+
+        @keyframes slideIn {
+            from {
+                transform: translateX(100%);
+                opacity: 0;
+            }
+
+            to {
+                transform: translateX(0);
+                opacity: 1;
+            }
+        }
+
+        .toast-notification.fade-out {
+            animation: fadeOut 0.3s ease forwards;
+        }
+
+        @keyframes fadeOut {
+            to {
+                opacity: 0;
+                transform: translateX(100%);
+            }
+        }
+
+        .toast-icon {
+            font-size: 20px;
+        }
+
+        .toast-message {
+            flex: 1;
+            font-size: 13px;
+        }
+
+        .toast-close {
+            cursor: pointer;
+            color: var(--muted);
+            font-size: 16px;
+        }
+
+        /* Sidebar styles */
+        .app-layout {
+            display: flex;
+            min-height: 100vh;
+        }
+
+        .sidebar {
+            width: 220px;
+            background: var(--bg2);
+            border-right: 1px solid var(--border);
+            display: flex;
+            flex-direction: column;
+            position: fixed;
+            top: 0;
+            left: 0;
+            height: 100vh;
+            z-index: 300;
+            transition: width 0.3s, transform 0.3s;
+            flex-shrink: 0;
+        }
+
+        .sidebar.collapsed {
+            width: 60px;
+        }
+
+        .sidebar-logo {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 16px 14px;
+            border-bottom: 1px solid var(--border);
+            text-decoration: none;
+        }
+
+        .sidebar-logo-icon {
+            width: 34px;
+            height: 34px;
+            background: var(--gold);
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 17px;
+        }
+
+        .sidebar-logo-text {
+            font-family: 'Bebas Neue', sans-serif;
+            font-size: 19px;
+            letter-spacing: 2.5px;
+            color: var(--text);
+            white-space: nowrap;
+            transition: opacity 0.2s;
+        }
+
+        .sidebar-logo-text em {
+            color: var(--gold);
+            font-style: normal;
+        }
+
+        .sidebar.collapsed .sidebar-logo-text {
+            opacity: 0;
+        }
+
+        .sidebar-nav {
+            flex: 1;
+            padding: 10px 8px;
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+            overflow-y: auto;
+        }
+
+        .nav-section-label {
+            font-size: 10px;
+            font-weight: 700;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+            color: var(--muted);
+            padding: 10px 10px 4px;
+            white-space: nowrap;
+        }
+
+        .sidebar.collapsed .nav-section-label {
+            opacity: 0;
+        }
+
+        .sidebar-nav-link {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 9px 10px;
+            border-radius: 8px;
+            font-size: 13px;
+            font-weight: 600;
+            color: var(--text2);
+            text-decoration: none;
+            white-space: nowrap;
+            position: relative;
+            border: 1px solid transparent;
+        }
+
+        .sidebar-nav-link:hover {
+            background: rgba(255, 255, 255, 0.05);
+            color: var(--text);
+        }
+
+        .sidebar-nav-link.active {
+            background: var(--gold-dim);
+            color: var(--gold);
+            border-color: var(--gold-border);
+        }
+
+        .sidebar-nav-link.active::before {
+            content: '';
+            position: absolute;
+            left: 0;
+            top: 20%;
+            bottom: 20%;
+            width: 3px;
+            background: var(--gold);
+            border-radius: 0 2px 2px 0;
+        }
+
+        .sidebar-nav-icon {
+            font-size: 16px;
+            width: 20px;
+            text-align: center;
+        }
+
+        .sidebar-nav-label {
+            transition: opacity 0.2s;
+        }
+
+        .sidebar.collapsed .sidebar-nav-label {
+            opacity: 0;
+        }
+
+        .sidebar-bottom {
+            border-top: 1px solid var(--border);
+            padding: 10px 8px;
+        }
+
+        .collapse-btn {
+            width: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            padding: 7px 10px;
+            background: none;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            color: var(--muted);
+            font-size: 12px;
+            font-weight: 600;
+            cursor: pointer;
+            margin-bottom: 8px;
+        }
+
+        .collapse-btn:hover {
+            color: var(--text);
+            border-color: var(--gold-border);
+        }
+
+        .collapse-arrow {
+            transition: transform 0.3s;
+            font-size: 11px;
+        }
+
+        .sidebar.collapsed .collapse-arrow {
+            transform: rotate(180deg);
+        }
+
+        .sidebar.collapsed .collapse-label {
+            display: none;
+        }
+
+        .sidebar-logout-btn {
+            width: 100%;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 9px 10px;
+            border-radius: 8px;
+            font-size: 13px;
+            font-weight: 600;
+            color: var(--red);
+            cursor: pointer;
+            background: none;
+            border: 1px solid rgba(232, 50, 59, 0.3);
+            margin-top: 8px;
+        }
+
+        .sidebar-logout-btn:hover {
+            background: rgba(232, 50, 59, 0.1);
+            border-color: var(--red);
+        }
+
+        .sidebar.collapsed .sidebar-logout-btn span:not(.sidebar-nav-icon) {
+            display: none;
+        }
+
+        .sidebar-user-row {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 8px 10px;
+            border-radius: 8px;
+            overflow: hidden;
+        }
+
+        .sidebar-user-avatar {
+            width: 30px;
+            height: 30px;
+            border-radius: 50%;
+            background: var(--bg4);
+            border: 2px solid var(--gold-border);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 13px;
+            color: var(--gold);
+            font-weight: 700;
+            overflow: hidden;
+        }
+
+        .sidebar-user-avatar img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        .sidebar-user-info {
+            overflow: hidden;
+        }
+
+        .sidebar.collapsed .sidebar-user-info {
+            display: none;
+        }
+
+        .sidebar-user-name {
+            font-size: 12px;
+            font-weight: 600;
+            color: var(--text);
+            white-space: nowrap;
+        }
+
+        .sidebar-user-dept {
+            font-size: 10px;
+            color: var(--muted);
+            white-space: nowrap;
+        }
+
+        .sidebar-overlay {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.7);
+            backdrop-filter: blur(4px);
+            z-index: 290;
+        }
+
+        .sidebar-overlay.open {
+            display: block;
+        }
+
+        .main-wrapper {
+            flex: 1;
+            margin-left: 220px;
+            transition: margin-left 0.3s;
+            min-width: 0;
+        }
+
+        .main-wrapper.sidebar-collapsed {
+            margin-left: 60px;
+        }
+
+        .topbar {
+            position: sticky;
+            top: 0;
+            z-index: 200;
+            height: 60px;
+            padding: 0 28px;
+            background: rgba(7, 9, 15, 0.95);
+            backdrop-filter: blur(16px);
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .hamburger-btn {
+            display: none;
+            width: 36px;
+            height: 36px;
+            background: var(--bg3);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 4px;
+            cursor: pointer;
+        }
+
+        .hamburger-line {
+            width: 14px;
+            height: 1.5px;
+            background: var(--text2);
+            border-radius: 2px;
+            transition: all 0.25s;
+        }
+
+        .hamburger-btn.open .hamburger-line:nth-child(1) {
+            transform: translateY(5.5px) rotate(45deg);
+        }
+
+        .hamburger-btn.open .hamburger-line:nth-child(2) {
+            opacity: 0;
+            transform: scaleX(0);
+        }
+
+        .hamburger-btn.open .hamburger-line:nth-child(3) {
+            transform: translateY(-5.5px) rotate(-45deg);
+        }
+
+        .topbar__right {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-left: auto;
+        }
+
+        @media (max-width: 900px) {
+            .sidebar {
+                transform: translateX(-100%);
+                width: 220px !important;
+            }
+
+            .sidebar.mobile-open {
+                transform: translateX(0);
+            }
+
+            .main-wrapper {
+                margin-left: 0 !important;
+            }
+
+            .hamburger-btn {
+                display: flex;
+            }
+        }
+
+        /* Profile specific styles */
+        .profile-hero {
+            background: var(--bg2);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            overflow: hidden;
+            margin-bottom: 24px;
+        }
+
+        .profile-hero-banner {
+            height: 140px;
+            background: linear-gradient(135deg, #0d1117 0%, #141720 40%, #1a1e2a 100%);
+            position: relative;
+        }
+
+        .banner-number {
+            position: absolute;
+            right: 28px;
+            bottom: -10px;
+            font-family: 'Bebas Neue', sans-serif;
+            font-size: 120px;
+            color: rgba(245, 184, 0, 0.06);
+            letter-spacing: -4px;
+        }
+
+        .profile-hero-body {
+            padding: 0 28px 24px;
+            display: flex;
+            align-items: flex-end;
+            gap: 20px;
+            flex-wrap: wrap;
+            margin-top: -48px;
+            position: relative;
+            z-index: 1;
+        }
+
+        .profile-avatar-wrap {
+            position: relative;
+        }
+
+        .profile-avatar {
+            width: 96px;
+            height: 96px;
+            border-radius: 50%;
+            border: 4px solid var(--bg2);
+            background: var(--bg3);
+            overflow: hidden;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 40px;
+            box-shadow: 0 0 0 3px var(--gold-border);
+        }
+
+        .profile-avatar img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        .profile-jersey-badge {
+            position: absolute;
+            bottom: 0;
+            right: -4px;
+            background: var(--gold);
+            color: #000;
+            font-family: 'Bebas Neue', sans-serif;
+            font-size: 13px;
+            padding: 2px 7px;
+            border-radius: 20px;
+            border: 2px solid var(--bg2);
+        }
+
+        .profile-meta {
+            flex: 1;
+            min-width: 200px;
+            padding-top: 52px;
+        }
+
+        .profile-name {
+            font-family: 'Bebas Neue', sans-serif;
+            font-size: 34px;
+            letter-spacing: 1.5px;
+            margin-bottom: 4px;
+        }
+
+        .profile-sub {
+            font-size: 13px;
+            color: var(--text2);
+            margin-bottom: 12px;
+        }
+
+        .profile-tags {
+            display: flex;
+            gap: 6px;
+            flex-wrap: wrap;
+        }
+
+        .profile-tag {
+            padding: 3px 10px;
+            border-radius: 20px;
+            font-size: 11px;
+            font-weight: 700;
+            background: var(--bg3);
+            color: var(--text2);
+            border: 1px solid var(--border);
+        }
+
+        .profile-tag.gold {
+            background: var(--gold-dim);
+            color: var(--gold);
+            border-color: var(--gold-border);
+        }
+
+        .profile-actions {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+            padding-top: 52px;
+        }
+
+        .profile-grid {
+            display: grid;
+            grid-template-columns: 1fr 380px;
+            gap: 20px;
+            align-items: start;
+        }
+
+        @media(max-width: 900px) {
+            .profile-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .mini-stats {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 12px;
+            margin-bottom: 20px;
+        }
+
+        .mini-stat {
+            background: var(--bg3);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            padding: 14px 12px;
+            text-align: center;
+        }
+
+        .mini-stat-val {
+            font-family: 'Bebas Neue', sans-serif;
+            font-size: 28px;
+            color: var(--gold);
+        }
+
+        .mini-stat-lbl {
+            font-size: 10px;
+            color: var(--muted);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .team-status-card {
+            background: var(--bg2);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            overflow: hidden;
+            margin-bottom: 20px;
+        }
+
+        .team-status-head {
+            padding: 14px 18px;
+            background: var(--bg3);
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .team-status-title {
+            font-family: 'Bebas Neue', sans-serif;
+            font-size: 16px;
+            letter-spacing: 1.5px;
+        }
+
+        .team-status-body {
+            padding: 18px;
+        }
+
+        .team-info-row {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            margin-bottom: 16px;
+        }
+
+        .team-color-dot {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+        }
+
+        .team-info-name {
+            font-size: 16px;
+            font-weight: 700;
+        }
+
+        .team-info-sub {
+            font-size: 12px;
+            color: var(--text2);
+        }
+
+        .team-status-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 8px 0;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+        }
+
+        .team-status-row:last-child {
+            border-bottom: none;
+        }
+
+        .team-status-label {
+            font-size: 12px;
+            color: var(--muted);
+        }
+
+        .team-status-val {
+            font-size: 13px;
+            font-weight: 600;
+        }
+
+        .match-card {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 12px;
+            padding: 12px;
+            background: var(--bg3);
+            border-radius: 8px;
+            border: 1px solid var(--border);
+        }
+
+        .match-card:hover {
+            border-color: var(--gold-border);
+        }
+
+        .match-time {
+            font-family: 'Bebas Neue', sans-serif;
+            font-size: 20px;
+            color: var(--gold);
+            min-width: 55px;
+            text-align: center;
+        }
+
+        .match-details {
+            flex: 1;
+            margin-left: 12px;
+        }
+
+        .match-main {
+            font-size: 13px;
+            font-weight: 600;
+        }
+
+        .match-sub {
+            font-size: 11px;
+            color: var(--text2);
+        }
+
+        .notif-page-item {
+            display: flex;
+            gap: 14px;
+            padding: 14px 18px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+            cursor: pointer;
+        }
+
+        .notif-page-item:hover {
+            background: rgba(255, 255, 255, 0.025);
+        }
+
+        .notif-page-item.unread {
+            background: rgba(245, 184, 0, 0.03);
+            border-left: 3px solid var(--gold);
+        }
+
+        .notif-page-icon {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 18px;
+        }
+
+        .ni-blue {
+            background: rgba(59, 130, 246, 0.1);
+            color: #3B82F6;
+        }
+
+        .ni-green {
+            background: rgba(34, 197, 94, 0.1);
+            color: #22C55E;
+        }
+
+        .ni-gold {
+            background: rgba(245, 184, 0, 0.1);
+            color: #F5B800;
+        }
+
+        .ni-red {
+            background: rgba(232, 50, 59, 0.1);
+            color: #E8323B;
+        }
+
+        .ni-orange {
+            background: rgba(249, 115, 22, 0.1);
+            color: #F97316;
+        }
+
+        .ni-purple {
+            background: rgba(139, 92, 246, 0.1);
+            color: #8B5CF6;
+        }
+
+        .notif-page-body {
+            flex: 1;
+        }
+
+        .notif-page-title {
+            font-size: 13px;
+            font-weight: 600;
+            margin-bottom: 3px;
+        }
+
+        .notif-page-text {
+            font-size: 13px;
+            color: var(--text2);
+            line-height: 1.5;
+        }
+
+        .notif-page-time {
+            font-size: 11px;
+            color: var(--muted);
+            margin-top: 4px;
+        }
+
+        .edit-form {
+            display: flex;
+            flex-direction: column;
+            gap: 14px;
+        }
+
+        .form-group {
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+        }
+
+        .form-label {
+            font-size: 12px;
+            font-weight: 600;
+            color: var(--text2);
+        }
+
+        .form-input {
+            padding: 9px 12px;
+            background: var(--bg3);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            color: var(--text);
+            font-size: 13px;
+            outline: none;
+        }
+
+        .form-input:focus {
+            border-color: var(--gold-border);
+        }
+
+        .form-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+        }
+
+        .modal-avatar-preview {
+            width: 60px;
+            height: 60px;
+            border-radius: 50%;
+            border: 2px solid var(--gold);
+            background: var(--bg3);
+            overflow: hidden;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 20px;
+        }
+
+        .modal-avatar-preview img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        .pulse {
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0% {
+                opacity: 1;
+                box-shadow: 0 0 0 0 rgba(232, 50, 59, 0.4);
+            }
+
+            50% {
+                opacity: 0.8;
+                box-shadow: 0 0 0 6px rgba(232, 50, 59, 0);
+            }
+
+            100% {
+                opacity: 1;
+                box-shadow: 0 0 0 0 rgba(232, 50, 59, 0);
+            }
+        }
+
+        @media (max-width: 600px) {
+            .profile-name {
+                font-size: 26px;
+            }
+
+            .mini-stats {
+                gap: 8px;
+            }
+
+            .mini-stat {
+                padding: 10px 8px;
+            }
+
+            .mini-stat-val {
+                font-size: 22px;
+            }
+
+            .form-row {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+
+<body>
+
+    <div class="toast-container" id="toast-container"></div>
+    <div class="sidebar-overlay" id="sidebar-overlay" onclick="closeSidebar()"></div>
+
+    <div class="app-layout">
+        <aside class="sidebar" id="sidebar">
+            <a href="athletes.html" class="sidebar-logo">
+                <div class="sidebar-logo-icon">🏆</div>
+                <span class="sidebar-logo-text">PAC <em>SCHED-SCORE</em></span>
+            </a>
+            <nav class="sidebar-nav">
+                <div class="nav-section-label">Main</div>
+                <a href="profile.html" class="sidebar-nav-link active">
+                    <span class="sidebar-nav-icon">🏃</span>
+                    <span class="sidebar-nav-label">My Profile</span>
+                </a>
+                <a href="athletes.html" class="sidebar-nav-link">
+                    <span class="sidebar-nav-icon">👥</span>
+                    <span class="sidebar-nav-label">Athletes</span>
+                </a>
+                <a href="scores.html" class="sidebar-nav-link">
+                    <span class="sidebar-nav-icon">🏅</span>
+                    <span class="sidebar-nav-label">Scores</span>
+                </a>
+                <a href="mvp.html" class="sidebar-nav-link">
+                    <span class="sidebar-nav-icon">⭐</span>
+                    <span class="sidebar-nav-label">MVP</span>
+                </a>
+                <a href="standings.html" class="sidebar-nav-link">
+                    <span class="sidebar-nav-icon">📊</span>
+                    <span class="sidebar-nav-label">Standings</span>
+                </a>
+            </nav>
+            <div class="sidebar-bottom">
+                <button class="collapse-btn" onclick="toggleCollapse()">
+                    <span class="collapse-arrow">◀</span>
+                    <span class="collapse-label">Collapse</span>
+                </button>
+                <div class="sidebar-user-row">
+                    <div class="sidebar-user-avatar" id="sidebar-user-avatar">🏃</div>
+                    <div class="sidebar-user-info">
+                        <div class="sidebar-user-name" id="sidebar-user-name">Player</div>
+                        <div class="sidebar-user-dept" id="sidebar-user-dept">—</div>
+                    </div>
+                </div>
+                <button class="sidebar-logout-btn" onclick="confirmLogout()">
+                    <span class="sidebar-nav-icon">🚪</span>
+                    <span class="sidebar-nav-label">Sign Out</span>
+                </button>
+            </div>
+        </aside>
+
+        <div class="main-wrapper" id="main-wrapper">
+            <nav class="topbar">
+                <button class="hamburger-btn" id="hamburger-btn" onclick="toggleSidebar()">
+                    <div class="hamburger-line"></div>
+                    <div class="hamburger-line"></div>
+                    <div class="hamburger-line"></div>
+                </button>
+                <div class="topbar__right">
+                    <div class="topbar__user">
+                        <div class="topbar__user-avatar" id="user-avatar-small">🏃</div>
+                        <span class="topbar__user-name" id="user-name-small">Player</span>
+                    </div>
+                </div>
+            </nav>
+
+            <main class="page-content">
+                <div class="profile-hero">
+                    <div class="profile-hero-banner">
+                        <div class="banner-number" id="banner-number"></div>
+                    </div>
+                    <div class="profile-hero-body">
+                        <div class="profile-avatar-wrap">
+                            <div class="profile-avatar" id="profile-avatar-el">🏃</div>
+                            <div class="profile-jersey-badge" id="profile-jersey-badge"></div>
+                        </div>
+                        <div class="profile-meta">
+                            <div class="profile-name" id="profile-name">Loading...</div>
+                            <div class="profile-sub" id="profile-sub">—</div>
+                            <div class="profile-tags" id="profile-tags"></div>
+                        </div>
+                        <div class="profile-actions">
+                            <button class="btn btn-primary" onclick="openEditModal()">✏️ Edit Profile</button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="profile-grid">
+                    <div>
+                        <div class="mini-stats">
+                            <div class="mini-stat">
+                                <div class="mini-stat-val" id="ms-matches">0</div>
+                                <div class="mini-stat-lbl">Matches</div>
+                            </div>
+                            <div class="mini-stat">
+                                <div class="mini-stat-val" id="ms-notifs">0</div>
+                                <div class="mini-stat-lbl">Notifications</div>
+                            </div>
+                            <div class="mini-stat">
+                                <div class="mini-stat-val" id="ms-unread">0</div>
+                                <div class="mini-stat-lbl">Unread</div>
+                            </div>
+                        </div>
+                        <div class="card">
+                            <div class="card-head">
+                                <div class="card-title">🔔 Activity & Alerts</div>
+                                <div style="display:flex;gap:8px">
+                                    <button class="btn btn-ghost" style="font-size:12px;padding:5px 12px"
+                                        onclick="markAllRead()">Mark all read</button>
+                                    <button class="btn btn-danger" style="font-size:12px;padding:5px 12px"
+                                        onclick="clearAllNotifs()">Clear all</button>
+                                </div>
+                            </div>
+                            <div id="notif-page-list" class="notif-page-list"></div>
+                        </div>
+                    </div>
+
+                    <div>
+                        <div class="team-status-card">
+                            <div class="team-status-head">
+                                <div class="team-status-title">🏅 Team Status</div>
+                                <span class="badge" id="team-status-badge">Loading...</span>
+                            </div>
+                            <div class="team-status-body">
+                                <div class="team-info-row">
+                                    <div class="team-color-dot" style="background:var(--gold)"></div>
+                                    <div>
+                                        <div class="team-info-name" id="ts-team">—</div>
+                                        <div class="team-info-sub" id="ts-section">—</div>
+                                    </div>
+                                </div>
+                                <div class="team-status-row"><span class="team-status-label">Sport</span><span
+                                        class="team-status-val" id="ts-sport">—</span></div>
+                                <div class="team-status-row"><span class="team-status-label">Jersey No.</span><span
+                                        class="team-status-val" id="ts-jersey">—</span></div>
+                                <div class="team-status-row"><span class="team-status-label">Acceptance</span><span
+                                        id="ts-eligibility-badge" style="font-size:11px">Checking...</span></div>
+                            </div>
+                        </div>
+
+                        <div class="card" style="margin-bottom:16px">
+                            <div class="card-head">
+                                <div class="card-title">📅 My Department Matches</div>
+                            </div>
+                            <div id="my-upcoming" style="padding:14px"></div>
+                        </div>
+
+                        <div class="card">
+                            <div class="card-head">
+                                <div class="card-title">⚙️ Account</div>
+                            </div>
+                            <div class="card-body">
+                                <div style="display:flex;flex-direction:column;gap:10px">
+                                    <div style="display:flex;justify-content:space-between"><span
+                                            style="color:var(--text2)">Name</span><span style="font-weight:600"
+                                            id="acc-name">—</span></div>
+                                    <div style="display:flex;justify-content:space-between"><span
+                                            style="color:var(--text2)">Department</span><span style="font-weight:600"
+                                            id="acc-section">—</span></div>
+                                    <div style="display:flex;justify-content:space-between"><span
+                                            style="color:var(--text2)">Role</span><span class="badge"
+                                            id="acc-level">Player</span></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </main>
+        </div>
+    </div>
+
+
+    <div class="overlay" id="edit-modal">
+        <div class="modal">
+            <div class="modal-head">
+                <div class="modal-head-bg"></div>
+                <div class="modal-head-photo">✏️</div><button class="modal-close" onclick="closeEditModal()">✕</button>
+            </div>
+            <div class="modal-body">
+                <div class="modal-name">Edit Basic Info</div>
+                <div style="margin-top:16px" class="edit-form">
+                    <div class="form-group" style="flex-direction: row; align-items: center; gap: 15px;">
+                        <div class="modal-avatar-preview" id="modal-avatar-preview">🏃</div>
+                        <div style="flex:1">
+                            <label class="form-label">Profile Photo</label>
+                            <input type="file" id="ef-image" accept="image/*">
+                        </div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group"><label class="form-label">First Name</label><input class="form-input"
+                                id="ef-fname" placeholder="First name"></div>
+                        <div class="form-group"><label class="form-label">Last Name</label><input class="form-input"
+                                id="ef-lname" placeholder="Last name"></div>
+                    </div>
+                    <div class="form-group"><label class="form-label">Phone Number</label><input class="form-input"
+                            id="ef-phone" placeholder="e.g. +639123456789"></div>
+                    <div class="form-group">
+                        <p style="font-size: 11px; color: var(--muted);">* Department, Team, Sport, and Jersey Number
+                            can only be modified by an Admin.</p>
+                    </div>
+                </div>
+                <div class="modal-divider"></div>
+                <div class="modal-actions">
+                    <button class="btn btn-primary" onclick="saveProfile()">💾 Save Changes</button>
+                    <button class="btn btn-ghost" onclick="closeEditModal()">Cancel</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function showToast(message, type = 'info') {
+            const container = document.getElementById('toast-container');
+            if (!container) return;
+            const toast = document.createElement('div');
+            toast.className = `toast-notification ${type}`;
+            const icons = { success: '✅', error: '❌', info: 'ℹ️', warning: '⚠️' };
+            toast.innerHTML = `<span class="toast-icon">${icons[type] || 'ℹ️'}</span><span class="toast-message">${message}</span><span class="toast-close" onclick="this.parentElement.remove()">✕</span>`;
+            container.appendChild(toast);
+            setTimeout(() => { toast.classList.add('fade-out'); setTimeout(() => toast.remove(), 300); }, 5000);
+        }
+
+        async function apiFetch(endpoint, options = {}) {
+            const token = localStorage.getItem('sf_token');
+            const headers = { 'Content-Type': 'application/json', ...(token && { 'Authorization': `Bearer ${token}` }), ...options.headers };
+            const response = await fetch(`/api${endpoint}`, { ...options, headers });
+            const data = await response.json();
+            if (!response.ok) throw new Error(data.message || 'Request failed');
+            return data;
+        }
+
+        let profileData = { user: null, player: null, department: null, team: null, sport: null, matches: [] };
+        let localNotifs = [];
+        let profileImageBase64 = null;
+        let sidebarCollapsed = false, sidebarMobileOpen = false;
+
+        function toggleCollapse() {
+            const sidebar = document.getElementById('sidebar');
+            const mainWrapper = document.getElementById('main-wrapper');
+            sidebarCollapsed = !sidebarCollapsed;
+            sidebar.classList.toggle('collapsed', sidebarCollapsed);
+            mainWrapper.classList.toggle('sidebar-collapsed', sidebarCollapsed);
+        }
+
+        function toggleSidebar() {
+            sidebarMobileOpen = !sidebarMobileOpen;
+            document.getElementById('sidebar').classList.toggle('mobile-open', sidebarMobileOpen);
+            document.getElementById('sidebar-overlay').classList.toggle('open', sidebarMobileOpen);
+            document.getElementById('hamburger-btn').classList.toggle('open', sidebarMobileOpen);
+        }
+
+        function closeSidebar() {
+            sidebarMobileOpen = false;
+            document.getElementById('sidebar').classList.remove('mobile-open');
+            document.getElementById('sidebar-overlay').classList.remove('open');
+            document.getElementById('hamburger-btn').classList.remove('open');
+        }
+
+        async function initRealData() {
+            const token = localStorage.getItem('sf_token');
+            if (!token) { window.location.href = '/login'; return; }
+
+            try {
+
+                const meRes = await apiFetch('/auth/me');
+                if (!meRes.success || !meRes.data) throw new Error("Session expired.");
+                const authUser = meRes.data;
+                profileData.user = authUser;
+
+
+                const playerByUserRes = await apiFetch(`/players/user/${authUser.id}`);
+                if (playerByUserRes.success && playerByUserRes.data) {
+                    profileData.player = playerByUserRes.data;
+                    console.log('Player data loaded:', profileData.player);
+                } else {
+                    console.log('No player record found for user');
+                }
+
+
+                const deptsRes = await apiFetch('/departments');
+                profileData.department = deptsRes.data?.find(d => d.id === authUser.department_id);
+
+
+                if (profileData.player && profileData.player.team_id) {
+                    const teamRes = await apiFetch(`/teams/${profileData.player.team_id}`);
+                    if (teamRes.success && teamRes.data) {
+                        profileData.team = teamRes.data;
+
+
+                        if (profileData.team.sport_id) {
+                            const sportsRes = await apiFetch('/sports');
+                            profileData.sport = sportsRes.data?.find(s => s.id === profileData.team.sport_id);
+                        }
+                    }
+                } else if (profileData.player && profileData.player.sport_id) {
+
+                    const sportsRes = await apiFetch('/sports');
+                    profileData.sport = sportsRes.data?.find(s => s.id === profileData.player.sport_id);
+                }
+
+
+                if (authUser.department_id) {
+                    const matchesRes = await apiFetch(`/matches?department_id=${authUser.department_id}`);
+                    profileData.matches = matchesRes.data || [];
+                }
+
+                generateRealNotifications();
+                renderProfile();
+                renderNotifPage();
+                renderMyUpcoming();
+
+                showToast('Profile loaded successfully', 'success');
+            } catch (err) {
+                console.error('Profile load error:', err);
+                showToast('Error loading profile data: ' + err.message, 'error');
+            }
+        }
+
+        function generateRealNotifications() {
+            const { user, player, matches, team } = profileData;
+            if (!user) return;
+
+            localNotifs = JSON.parse(localStorage.getItem(`sf_notifs_${user.id}`) || '[]');
+            let changed = false;
+
+            const addNotif = (id, title, body, icon, cls) => {
+                if (!localNotifs.find(n => n.id === id)) {
+                    localNotifs.unshift({ id, title, body, icon, iconClass: cls, ts: Date.now(), read: false });
+                    changed = true;
+                }
+            };
+
+            addNotif('welcome', 'Welcome to SportFest! 🎉', `Hi ${user.first_name || 'Athlete'}, your account is ready.`, '🎉', 'ni-gold');
+
+            if (player) {
+                if (player.status === 'approved') {
+                    addNotif('status_approved', 'Registration Approved ✅', 'You are now eligible to participate in tournaments.', '✅', 'ni-green');
+                } else if (player.status === 'pending') {
+                    addNotif('status_pending', 'Registration Pending ⏳', 'Your registration is awaiting admin approval.', '⏳', 'ni-blue');
+                } else if (player.status === 'rejected') {
+                    addNotif('status_rejected', 'Registration Rejected ❌', 'Your registration was rejected. Please contact your department head.', '❌', 'ni-red');
+                }
+
+
+                if (player.team_name) {
+                    addNotif('team_assigned', 'Team Assigned 👥', `You have been assigned to team ${player.team_name}.`, '👥', 'ni-green');
+                }
+            }
+
+            if (team && team.status === 'disqualified') {
+                addNotif('team_dq', 'Team Disqualified 🚫', `Your team ${team.name} has been disqualified.`, '🚫', 'ni-red');
+            }
+
+            if (matches && matches.length > 0) {
+                const now = new Date();
+                matches.forEach(m => {
+                    const isMyDeptA = m.participant_a_department_id === user.department_id;
+                    const opponent = isMyDeptA ? (m.dept_b_name || 'TBD') : (m.dept_a_name || 'TBD');
+
+                    if (m.status === 'cancelled') {
+                        addNotif(`match_${m.id}_cancelled`, 'Match Cancelled ❌', `Your match against ${opponent} has been cancelled.`, '❌', 'ni-red');
+                    } else if (m.status === 'completed') {
+                        const isWinner = m.winner_department_id === user.department_id;
+                        const result = isWinner ? 'You won! 🎉' : 'You lost. Better luck next time! 💪';
+                        addNotif(`match_${m.id}_completed`, 'Match Completed 🏁', `${result} Final: ${m.final_score_display || 'N/A'}`, '🏁', isWinner ? 'ni-green' : 'ni-red');
+                    } else if (m.status === 'ongoing') {
+                        addNotif(`match_${m.id}_live`, 'Match is LIVE! 🔴', `Your match against ${opponent} is happening now!`, '🔴', 'ni-red pulse');
+                    } else if (m.status === 'scheduled' && m.scheduled_date && m.scheduled_time) {
+                        const matchTime = new Date(`${m.scheduled_date}T${m.scheduled_time}`);
+                        const hoursDiff = (matchTime - now) / (1000 * 60 * 60);
+                        if (hoursDiff <= 1 && hoursDiff > 0) {
+                            addNotif(`match_${m.id}_soon`, 'Match Starting Soon! ⏰', `Your match against ${opponent} starts in ${Math.round(hoursDiff * 60)} minutes!`, '⏰', 'ni-orange pulse');
+                        } else if (hoursDiff <= 24 && hoursDiff > 1) {
+                            addNotif(`match_${m.id}_tomorrow`, 'Match Tomorrow 📅', `You play against ${opponent} tomorrow at ${m.scheduled_time?.slice(0, 5)}.`, '📅', 'ni-blue');
+                        } else {
+                            addNotif(`match_${m.id}_scheduled`, 'Match Scheduled 📅', `You play against ${opponent} on ${new Date(m.scheduled_date).toLocaleDateString()} at ${m.scheduled_time?.slice(0, 5)}.`, '📅', 'ni-gold');
+                        }
+                    }
+                });
+            }
+
+            if (changed) {
+                localNotifs.sort((a, b) => b.ts - a.ts);
+                localStorage.setItem(`sf_notifs_${user.id}`, JSON.stringify(localNotifs));
+                const unreadCount = localNotifs.filter(n => !n.read).length;
+                if (unreadCount > 0) {
+                    showToast(`You have ${unreadCount} new notification(s)`, 'info');
+                }
+            }
+        }
+
+        function renderProfile() {
+            const { user, player, department, team, sport } = profileData;
+            if (!user) return;
+
+            const fullName = `${user.first_name || ''} ${user.last_name || ''}`.trim() || 'Unknown Player';
+            const deptName = department?.name || user.department_name || 'No Department';
+            const teamName = team?.name || player?.team_name || 'No Team Assigned';
+            const sportName = sport?.name || player?.sport_name || 'Not Assigned';
+            const jerseyNo = player?.jersey_number ? `#${player.jersey_number}` : '';
+
+            document.getElementById('profile-name').textContent = fullName;
+            document.getElementById('profile-sub').textContent = `${deptName} · ${teamName}`;
+            document.getElementById('banner-number').textContent = jerseyNo;
+            document.getElementById('profile-jersey-badge').textContent = jerseyNo;
+
+            const initial = fullName.charAt(0).toUpperCase();
+            const avatarEl = document.getElementById('profile-avatar-el');
+            avatarEl.innerHTML = user.profile_picture ? `<img src="${user.profile_picture}" alt="${fullName}">` : initial;
+
+            document.getElementById('user-name-small').textContent = user.first_name || 'Player';
+            document.getElementById('user-avatar-small').textContent = initial;
+            document.getElementById('sidebar-user-name').textContent = fullName;
+            document.getElementById('sidebar-user-dept').textContent = deptName;
+            if (user.profile_picture) {
+                document.getElementById('sidebar-user-avatar').innerHTML = `<img src="${user.profile_picture}" style="width:100%;height:100%;object-fit:cover;border-radius:50%">`;
+            } else {
+                document.getElementById('sidebar-user-avatar').textContent = initial;
+            }
+
+            let tags = '';
+            if (sportName !== 'Not Assigned') tags += `<span class="profile-tag gold">🏆 ${sportName}</span>`;
+            if (department?.code) tags += `<span class="profile-tag">${department.code}</span>`;
+            if (player?.position) tags += `<span class="profile-tag">${player.position}</span>`;
+            document.getElementById('profile-tags').innerHTML = tags;
+
+            document.getElementById('ts-team').textContent = teamName;
+            document.getElementById('ts-section').textContent = deptName;
+            document.getElementById('ts-sport').textContent = sportName;
+            document.getElementById('ts-jersey').textContent = jerseyNo || '—';
+
+            const isApproved = player?.status === 'approved';
+            const statusBadge = document.getElementById('team-status-badge');
+            const eligBadge = document.getElementById('ts-eligibility-badge');
+            if (isApproved) {
+                statusBadge.textContent = 'Active';
+                statusBadge.className = 'badge b-green';
+                eligBadge.innerHTML = '✅ Approved';
+                eligBadge.className = 'badge b-green';
+            } else if (player?.status === 'rejected') {
+                statusBadge.textContent = 'Rejected';
+                statusBadge.className = 'badge b-red';
+                eligBadge.innerHTML = '❌ Rejected';
+                eligBadge.className = 'badge b-red';
+            } else {
+                statusBadge.textContent = player?.status || 'Pending';
+                statusBadge.className = 'badge b-gold';
+                eligBadge.innerHTML = '⏳ Pending Approval';
+                eligBadge.className = 'badge b-gold';
+            }
+
+            document.getElementById('acc-name').textContent = fullName;
+            document.getElementById('acc-section').textContent = deptName;
+        }
+
+        function renderMyUpcoming() {
+            const el = document.getElementById('my-upcoming');
+            const matches = profileData.matches;
+            if (!matches.length) {
+                el.innerHTML = `<div style="color:var(--muted);text-align:center;padding:15px">No matches scheduled for your department yet.</div>`;
+                document.getElementById('ms-matches').textContent = '0';
+                return;
+            }
+
+            el.innerHTML = matches.map(m => {
+                const dateStr = m.scheduled_date ? new Date(m.scheduled_date).toLocaleDateString('en-PH', { month: 'short', day: 'numeric' }) : 'TBD';
+                const isMyDeptA = m.participant_a_department_id === profileData.user?.department_id;
+                const myTeam = isMyDeptA ? (m.team_a_name || m.dept_a_name || 'Your Team') : (m.team_b_name || m.dept_b_name || 'Your Team');
+                const opponent = isMyDeptA ? (m.dept_b_name || 'TBD') : (m.dept_a_name || 'TBD');
+                const statusClass = m.status === 'ongoing' ? 'pulse' : '';
+                return `<div class="match-card"><div class="match-time">${m.scheduled_time?.slice(0, 5) || 'TBD'}</div><div class="match-details"><div class="match-main">${myTeam} vs ${opponent}</div><div class="match-sub">📅 ${dateStr} · 📍 ${m.venue_name || 'TBD'} · ${m.sport_name || ''}</div></div><div><span class="badge b-gold ${statusClass}">${m.status || 'Scheduled'}</span></div></div>`;
+            }).join('');
+            document.getElementById('ms-matches').textContent = matches.length;
+        }
+
+        function renderNotifPage() {
+            const el = document.getElementById('notif-page-list');
+            const unreadCount = localNotifs.filter(n => !n.read).length;
+            document.getElementById('ms-notifs').textContent = localNotifs.length;
+            document.getElementById('ms-unread').textContent = unreadCount;
+            if (!localNotifs.length) { el.innerHTML = `<div style="padding:30px;text-align:center;color:var(--muted)">No notifications yet.</div>`; return; }
+            el.innerHTML = localNotifs.map(n => `<div class="notif-page-item ${n.read ? '' : 'unread'}" onclick="markRead('${n.id}')"><div class="notif-page-icon ${n.iconClass || 'ni-blue'}">${n.icon || '🔔'}</div><div class="notif-page-body"><div class="notif-page-title">${n.title}</div><div class="notif-page-text">${n.body}</div><div class="notif-page-time">${new Date(n.ts).toLocaleString()}</div></div></div>`).join('');
+        }
+
+        function markRead(id) {
+            localNotifs = localNotifs.map(n => n.id === id ? { ...n, read: true } : n);
+            localStorage.setItem(`sf_notifs_${profileData.user?.id}`, JSON.stringify(localNotifs));
+            renderNotifPage();
+        }
+
+        function markAllRead() {
+            localNotifs = localNotifs.map(n => ({ ...n, read: true }));
+            localStorage.setItem(`sf_notifs_${profileData.user?.id}`, JSON.stringify(localNotifs));
+            renderNotifPage();
+            showToast('All marked as read', 'info');
+        }
+
+        function clearAllNotifs() {
+            localNotifs = [];
+            localStorage.setItem(`sf_notifs_${profileData.user?.id}`, '[]');
+            renderNotifPage();
+            showToast('Notifications cleared', 'info');
+        }
+
+        function openEditModal() {
+            const u = profileData.user;
+            document.getElementById('ef-fname').value = u.first_name || '';
+            document.getElementById('ef-lname').value = u.last_name || '';
+            document.getElementById('ef-phone').value = u.phone || '';
+            document.getElementById('modal-avatar-preview').innerHTML = u.profile_picture ? `<img src="${u.profile_picture}">` : '🏃';
+            document.getElementById('edit-modal').classList.add('open');
+        }
+
+        function closeEditModal() { document.getElementById('edit-modal').classList.remove('open'); }
+
+        document.getElementById('ef-image').addEventListener('change', function (e) {
+            const file = e.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = function (event) {
+                    profileImageBase64 = event.target.result;
+                    document.getElementById('modal-avatar-preview').innerHTML = `<img src="${profileImageBase64}">`;
+                };
+                reader.readAsDataURL(file);
+            }
+        });
+
+        async function saveProfile() {
+            const fn = document.getElementById('ef-fname').value.trim();
+            const ln = document.getElementById('ef-lname').value.trim();
+            const phone = document.getElementById('ef-phone').value.trim();
+            if (!fn || !ln) return showToast('First name and Last name are required', 'error');
+            try {
+                await apiFetch(`/auth/profile`, { method: 'PUT', body: JSON.stringify({ first_name: fn, last_name: ln, phone: phone, profile_picture: profileImageBase64 }) });
+                showToast('Profile updated!', 'success');
+                closeEditModal();
+                profileImageBase64 = null;
+                await initRealData();
+            } catch (err) { showToast(err.message || 'Failed to update', 'error'); }
+        }
+
+        function confirmLogout() {
+            showToast('Signing out...', 'info');
+            setTimeout(() => { localStorage.clear(); window.location.href = '/login'; }, 500);
+        }
+
+        document.addEventListener('DOMContentLoaded', initRealData);
+    </script>
+</body>
+
+</html>

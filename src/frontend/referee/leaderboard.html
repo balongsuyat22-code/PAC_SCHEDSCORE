@@ -1,0 +1,349 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Leaderboard — PAC SCHED-SCORE</title>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;600;700;800;900&family=Barlow:wght@300;400;500;600&display=swap"
+        rel="stylesheet">
+    <link rel="stylesheet" href="../css/referee.css">
+
+    <style>
+        .podium-wrap {
+            display: flex;
+            justify-content: center;
+            align-items: flex-end;
+            gap: 16px;
+            margin-bottom: 40px;
+            padding: 24px 20px 0;
+            flex-wrap: wrap;
+        }
+
+        .podium-place {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            width: 130px;
+        }
+
+        .podium-avatar {
+            width: 64px;
+            height: 64px;
+            border-radius: 50%;
+            border: 4px solid var(--border);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 26px;
+            background: var(--bg3);
+            margin-bottom: 10px;
+            transition: transform 0.2s;
+        }
+
+        .podium-place:hover .podium-avatar {
+            transform: scale(1.08);
+        }
+
+        .podium-1 .podium-avatar {
+            border-color: #ffd700;
+            box-shadow: 0 0 20px rgba(255, 215, 0, 0.35);
+        }
+
+        .podium-2 .podium-avatar {
+            border-color: #c0c0c0;
+        }
+
+        .podium-3 .podium-avatar {
+            border-color: #cd7f32;
+        }
+
+        .podium-bar {
+            width: 100%;
+            border-radius: 8px 8px 0 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            font-family: 'Barlow Condensed', sans-serif;
+            font-weight: 900;
+            color: #000;
+            font-size: 18px;
+            transition: transform 0.2s;
+        }
+
+        .podium-bar:hover {
+            transform: scaleY(1.03);
+            transform-origin: bottom;
+        }
+
+        .bar-1 {
+            height: 130px;
+            background: linear-gradient(to top, #e6a800, #ffd700);
+            order: 2;
+        }
+
+        .bar-2 {
+            height: 90px;
+            background: linear-gradient(to top, #999, #d4d4d4);
+            order: 1;
+        }
+
+        .bar-3 {
+            height: 65px;
+            background: linear-gradient(to top, #a05c1e, #d4894a);
+            order: 3;
+        }
+
+        .podium-bar-pts {
+            font-size: 20px;
+            font-weight: 900;
+        }
+
+        .podium-bar-label {
+            font-size: 11px;
+            font-weight: 700;
+            opacity: 0.7;
+        }
+
+        .podium-name {
+            font-family: 'Barlow Condensed', sans-serif;
+            font-size: 14px;
+            font-weight: 700;
+            text-align: center;
+            margin-top: 8px;
+            color: var(--text);
+            max-width: 130px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+
+        .lb-section-title {
+            font-family: 'Barlow Condensed', sans-serif;
+            font-size: 13px;
+            font-weight: 700;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+            color: var(--muted);
+            padding: 0 20px 12px;
+            margin-bottom: 0;
+        }
+
+        .lb-row {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            padding: 14px 20px;
+            border-bottom: 1px solid var(--border);
+            transition: background 0.15s;
+        }
+
+        .lb-row:last-child {
+            border-bottom: none;
+        }
+
+        .lb-row:hover {
+            background: var(--bg3);
+        }
+
+        .lb-row.top-3 {
+            background: rgba(245, 184, 0, 0.04);
+            border-left: 3px solid var(--gold);
+        }
+
+        .lb-row.top-3:hover {
+            background: rgba(245, 184, 0, 0.08);
+        }
+
+        .lb-rank {
+            font-family: 'Barlow Condensed', sans-serif;
+            font-size: 20px;
+            font-weight: 900;
+            min-width: 36px;
+            text-align: center;
+            color: var(--muted);
+        }
+
+        .lb-rank.rank-1 {
+            color: #ffd700;
+        }
+
+        .lb-rank.rank-2 {
+            color: #c0c0c0;
+        }
+
+        .lb-rank.rank-3 {
+            color: #cd7f32;
+        }
+
+        .lb-color-dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            flex-shrink: 0;
+        }
+
+        .lb-dept {
+            flex: 1;
+            min-width: 0;
+        }
+
+        .lb-dept-name {
+            font-family: 'Barlow Condensed', sans-serif;
+            font-size: 16px;
+            font-weight: 800;
+            color: var(--text);
+        }
+
+        .lb-dept-medals {
+            font-size: 12px;
+            color: var(--muted);
+            margin-top: 2px;
+        }
+
+        .lb-pts-block {
+            text-align: right;
+            flex-shrink: 0;
+        }
+
+        .lb-pts {
+            font-family: 'Barlow Condensed', sans-serif;
+            font-size: 24px;
+            font-weight: 900;
+            color: var(--gold);
+            line-height: 1;
+        }
+
+        .lb-pts-label {
+            font-size: 10px;
+            color: var(--muted);
+            font-weight: 700;
+            letter-spacing: 1px;
+        }
+
+        /* ── DIVIDER ── */
+        .lb-divider {
+            height: 1px;
+            background: var(--border);
+            margin: 4px 20px;
+            opacity: 0.5;
+        }
+    </style>
+</head>
+
+<body>
+    <aside class="sidebar" id="sidebar"></aside>
+
+    <main class="main">
+        <div class="topbar"></div>
+
+        <div class="content">
+
+            <div class="page-header"
+                style="display:flex; justify-content:space-between; align-items:center; margin-bottom:28px;">
+                <div>
+                    <div class="page-title">🏆 Leaderboard</div>
+                    <div class="page-sub">Overall department standings and medal tallies.</div>
+                </div>
+                <button class="btn btn-secondary btn-sm" onclick="loadLeaderboard()">🔄 Refresh</button>
+            </div>
+
+            <div class="card" style="max-width:860px; margin:0 auto;">
+
+                <div id="podium" class="podium-wrap"></div>
+
+
+                <div style="padding: 0 0 4px;">
+                    <div class="lb-section-title">Full Rankings</div>
+                </div>
+                <div id="leaderboard-list">
+                    <div style="padding:50px; text-align:center; color:var(--muted);">
+                        <div style="font-size:26px; margin-bottom:10px;">⏳</div>Loading standings...
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <script src="../js/shared.js"></script>
+    <script src="../js/referee-sidebar.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', async () => {
+            renderRefereeSidebar('leaderboard');
+            renderRefereeTopbar();
+            loadLeaderboard();
+        });
+
+        async function loadLeaderboard() {
+            const podiumEl = document.getElementById('podium');
+            const listEl = document.getElementById('leaderboard-list');
+
+            listEl.innerHTML = `<div style="padding:50px; text-align:center; color:var(--muted);">
+                <div style="font-size:26px; margin-bottom:10px;">⏳</div>Loading standings...</div>`;
+
+            try {
+                const res = await api('/leaderboard');
+                if (!res.success || !res.data?.length) {
+                    listEl.innerHTML = `<div style="padding:50px; text-align:center; color:var(--muted);">
+                        <div style="font-size:30px; margin-bottom:10px;">🏆</div>No standings available yet.</div>`;
+                    podiumEl.innerHTML = '';
+                    return;
+                }
+
+                const data = res.data;
+
+
+                const top3 = data.slice(0, 3);
+                podiumEl.innerHTML = top3.map((d, i) => {
+                    const rank = i + 1;
+                    const medal = ['🥇', '🥈', '🥉'][i];
+                    const barOrder = [2, 1, 3][i];
+                    return `
+                        <div class="podium-place podium-${rank}" style="order:${barOrder}">
+                            <div class="podium-avatar" style="background:${d.color || 'var(--bg3)'};">
+                                ${medal}
+                            </div>
+                            <div class="podium-bar bar-${rank}">
+                                <div class="podium-bar-pts">${d.total_points}</div>
+                                <div class="podium-bar-label">pts</div>
+                            </div>
+                            <div class="podium-name">${d.name}</div>
+                        </div>`;
+                }).join('');
+
+
+                listEl.innerHTML = data.map((d, i) => {
+                    const isTop3 = i < 3;
+                    const rankDisp = i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : i + 1;
+                    return `
+                        <div class="lb-row ${isTop3 ? 'top-3' : ''}">
+                            <div class="lb-rank ${isTop3 ? `rank-${i + 1}` : ''}">${rankDisp}</div>
+                            <div class="lb-color-dot" style="background:${d.color || 'var(--muted)'};"></div>
+                            <div class="lb-dept">
+                                <div class="lb-dept-name">${d.name}</div>
+                                <div class="lb-dept-medals">
+                                    🥇 ${d.gold_medals}&nbsp;&nbsp;
+                                    🥈 ${d.silver_medals}&nbsp;&nbsp;
+                                    🥉 ${d.bronze_medals}
+                                </div>
+                            </div>
+                            <div class="lb-pts-block">
+                                <div class="lb-pts">${d.total_points}</div>
+                                <div class="lb-pts-label">PTS</div>
+                            </div>
+                        </div>`;
+                }).join('');
+
+            } catch (err) {
+                console.error(err);
+                listEl.innerHTML = `<div style="padding:40px; text-align:center; color:#ef4444;">
+                    ⚠️ Failed to load leaderboard. Please try again.</div>`;
+            }
+        }
+    </script>
+</body>
+
+</html>

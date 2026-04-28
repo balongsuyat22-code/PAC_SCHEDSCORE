@@ -1,0 +1,1116 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PAC SCHED-SCORE— Matches</title>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;600;700;800;900&family=Barlow:wght@300;400;500;600&display=swap"
+        rel="stylesheet">
+    <link rel="stylesheet" href="/css/shared.css">
+    <style>
+        .live-banner {
+            background: linear-gradient(135deg, #0a1a0a, #0d1f0d);
+            border: 1px solid rgba(34, 197, 94, 0.25);
+            border-radius: 14px;
+            padding: 18px 24px;
+            margin-bottom: 12px;
+            display: flex;
+            align-items: center;
+            gap: 20px;
+            transition: transform 0.2s, border-color 0.2s;
+        }
+
+        .live-banner:hover {
+            transform: translateY(-2px);
+            border-color: rgba(34, 197, 94, 0.5);
+        }
+
+        .live-pulse {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background: var(--green);
+            flex-shrink: 0;
+            animation: livePulse 1.4s ease-in-out infinite;
+        }
+
+        @keyframes livePulse {
+
+            0%,
+            100% {
+                opacity: 1;
+                box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.5);
+            }
+
+            50% {
+                opacity: .7;
+                box-shadow: 0 0 0 6px rgba(34, 197, 94, 0);
+            }
+        }
+
+        .live-score-big {
+            font-family: 'Barlow Condensed', sans-serif;
+            font-size: 52px;
+            font-weight: 900;
+            color: var(--gold);
+            line-height: 1;
+            letter-spacing: -1px;
+            padding: 0 16px;
+        }
+
+
+        .action-group {
+            display: flex;
+            gap: 6px;
+            flex-wrap: wrap;
+        }
+
+
+        .period-row {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 10px 0;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+        }
+
+        .period-row:last-child {
+            border-bottom: none;
+        }
+
+        .score-num-input {
+            width: 68px;
+            text-align: center;
+            background: var(--bg3);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 9px 6px;
+            color: var(--text);
+            font-family: 'Barlow Condensed', sans-serif;
+            font-size: 22px;
+            font-weight: 900;
+            outline: none;
+            transition: border-color .15s;
+        }
+
+        .score-num-input:focus {
+            border-color: var(--border-gold);
+        }
+
+        .score-sep {
+            color: var(--muted);
+            font-size: 16px;
+            padding: 0 2px;
+        }
+
+
+        .match-header-card {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            background: var(--bg3);
+            border-radius: 12px;
+            padding: 18px 22px;
+            margin-bottom: 20px;
+            border: 1px solid var(--border);
+        }
+
+        .mhc-side {
+            flex: 1;
+            text-align: center;
+        }
+
+        .mhc-logo {
+            width: 52px;
+            height: 52px;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-family: 'Barlow Condensed', sans-serif;
+            font-size: 20px;
+            font-weight: 900;
+            color: #fff;
+            margin: 0 auto 8px;
+            border: 2px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .mhc-name {
+            font-family: 'Barlow Condensed', sans-serif;
+            font-size: 18px;
+            font-weight: 800;
+            text-transform: uppercase;
+        }
+
+        .mhc-dept {
+            font-size: 12px;
+            color: var(--muted);
+            margin-top: 2px;
+        }
+
+        .mhc-center {
+            text-align: center;
+            min-width: 80px;
+        }
+
+        .mhc-score {
+            font-family: 'Barlow Condensed', sans-serif;
+            font-size: 46px;
+            font-weight: 900;
+            color: var(--gold);
+            line-height: 1;
+        }
+
+        .mhc-vs {
+            font-family: 'Barlow Condensed', sans-serif;
+            font-size: 22px;
+            font-weight: 900;
+            color: var(--muted);
+        }
+
+
+        .winner-btn {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 10px;
+            padding: 18px 12px;
+            background: var(--bg3);
+            border: 2px solid var(--border);
+            border-radius: 12px;
+            cursor: pointer;
+            transition: all .2s;
+            font-family: 'Barlow', sans-serif;
+            color: var(--text);
+        }
+
+        .winner-btn:hover {
+            border-color: var(--border-gold);
+            background: rgba(245, 184, 0, .05);
+        }
+
+        .winner-btn.selected {
+            border-color: var(--gold);
+            background: rgba(245, 184, 0, .1);
+            box-shadow: 0 0 0 3px rgba(245, 184, 0, .15);
+        }
+
+        .winner-logo {
+            width: 48px;
+            height: 48px;
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-family: 'Barlow Condensed', sans-serif;
+            font-size: 18px;
+            font-weight: 900;
+            color: #fff;
+        }
+
+        .winner-label {
+            font-size: 15px;
+            font-weight: 700;
+        }
+
+
+        .match-stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+            gap: 12px;
+            margin-bottom: 24px;
+        }
+
+        .match-stat {
+            background: var(--bg2);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 14px 18px;
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .match-stat-val {
+            font-family: 'Barlow Condensed', sans-serif;
+            font-size: 32px;
+            font-weight: 900;
+            line-height: 1;
+        }
+
+        .match-stat-lbl {
+            font-size: 11px;
+            color: var(--muted);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            font-weight: 600;
+        }
+
+
+        .filter-bar {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        .filter-sel {
+            background: var(--bg3);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 9px 14px;
+            color: var(--text);
+            font-family: 'Barlow', sans-serif;
+            font-size: 13px;
+            outline: none;
+            cursor: pointer;
+            transition: border-color .15s;
+        }
+
+        .filter-sel:focus {
+            border-color: var(--border-gold);
+        }
+
+        .search-sm {
+            background: var(--bg3);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 9px 14px;
+            color: var(--text);
+            font-family: 'Barlow', sans-serif;
+            font-size: 13px;
+            outline: none;
+            flex: 1;
+            min-width: 180px;
+        }
+
+        .search-sm::placeholder {
+            color: var(--muted);
+        }
+
+
+        .ffa-subrow td {
+            padding: 0 !important;
+            background: var(--bg2);
+            border-bottom: 2px solid var(--border);
+        }
+
+        .ffa-table {
+            width: 100%;
+            border-collapse: collapse;
+            background: rgba(0, 0, 0, 0.2);
+        }
+
+        .ffa-table th {
+            background: var(--bg3);
+            color: var(--muted);
+            font-size: 11px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            padding: 10px 16px;
+            text-align: left;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .ffa-table td {
+            padding: 12px 16px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.03);
+            font-size: 13px;
+        }
+
+        .ffa-table tr:last-child td {
+            border-bottom: none;
+        }
+    </style>
+</head>
+
+<body>
+
+    <main class="main">
+        <div class="topbar">
+            <div class="topbar-title">⚔️ Matches & Scoring</div>
+            <div class="topbar-actions">
+                <button class="btn btn-secondary btn-sm" onclick="refresh()">🔄 Refresh Data</button>
+            </div>
+        </div>
+
+        <div class="content">
+
+
+            <div class="match-stats" id="match-stats"></div>
+
+
+            <div id="live-strip" style="margin-bottom:24px"></div>
+
+
+            <div class="filter-bar">
+                <select class="filter-sel" id="f-status" onchange="applyFilters()" style="width:170px">
+                    <option value="">All Statuses</option>
+                    <option value="pending">⏳ Pending</option>
+                    <option value="scheduled">📅 Scheduled</option>
+                    <option value="ongoing">🔴 Ongoing (Live)</option>
+                    <option value="completed">✅ Completed</option>
+                    <option value="cancelled">🚫 Cancelled</option>
+                </select>
+                <select class="filter-sel" id="f-tournament" onchange="applyFilters()" style="width:200px">
+                    <option value="">All Tournaments</option>
+                </select>
+                <input type="date" class="filter-sel" id="f-date" onchange="applyFilters()" style="width:155px">
+                <input class="search-sm" id="f-search" placeholder="🔍 Search Grades, Strands, Venues..."
+                    oninput="applyFilters()">
+                <button class="btn btn-secondary btn-sm" style="padding: 9px 14px;" onclick="clearFilters()">✕ Clear
+                    Filters</button>
+            </div>
+
+            <!-- Table -->
+            <div class="card">
+                <div class="table-wrap">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Sport</th>
+                                <th>Tournament</th>
+                                <th>Matchup</th>
+                                <th>Date / Time</th>
+                                <th>Venue</th>
+                                <th>Referee</th>
+                                <th>Score</th>
+                                <th>Status</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="matches-body">
+                            <tr>
+                                <td colspan="9">
+                                    <div class="empty-state">
+                                        <div class="empty-icon">⏳</div>
+                                        <div class="empty-text">Loading matches...</div>
+                                    </div>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </main>
+
+
+    <div class="modal-overlay" id="modal-schedule" onclick="if(event.target===this)Modal.close('modal-schedule')">
+        <div class="modal">
+            <div class="modal-header">
+                <div class="modal-title">📅 Schedule Match</div>
+                <button class="modal-close" onclick="Modal.close('modal-schedule')">✕</button>
+            </div>
+            <div class="modal-body">
+                <div id="sched-preview" style="margin-bottom:16px"></div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label class="form-label">Date</label>
+                        <input type="date" id="sched-date" class="form-input">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Time</label>
+                        <input type="time" id="sched-time" class="form-input">
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label class="form-label">Venue</label>
+                        <select id="sched-venue" class="form-select">
+                            <option value="">No venue</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Referee</label>
+                        <select id="sched-referee" class="form-select">
+                            <option value="">No referee</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Notes <span
+                            style="color:var(--muted);font-weight:400;text-transform:none;letter-spacing:0">optional</span></label>
+                    <textarea id="sched-notes" class="form-textarea" rows="2"
+                        placeholder="Any notes about this match..."></textarea>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="Modal.close('modal-schedule')">Cancel</button>
+                <button class="btn btn-primary" onclick="saveSchedule()">💾 Save Schedule</button>
+            </div>
+        </div>
+    </div>
+
+
+    <div class="modal-overlay" id="modal-score" onclick="if(event.target===this)Modal.close('modal-score')">
+        <div class="modal" style="max-width:580px">
+            <div class="modal-header">
+                <div class="modal-title" id="score-modal-title">📊 Live Scoring</div>
+                <button class="modal-close" onclick="Modal.close('modal-score')">✕</button>
+            </div>
+            <div class="modal-body">
+                <div id="score-preview" style="margin-bottom:16px"></div>
+                <div style="margin-bottom:8px">
+                    <div style="display:grid;grid-template-columns:1fr 68px 16px 68px 32px;gap:8px;
+                            font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:1px;
+                            padding-bottom:8px;border-bottom:1px solid var(--border)">
+                        <span>Period</span>
+                        <span id="score-col-a" style="text-align:center">Team A</span>
+                        <span></span>
+                        <span id="score-col-b" style="text-align:center">Team B</span>
+                        <span></span>
+                    </div>
+                    <div id="score-periods"></div>
+                </div>
+                <button class="btn btn-secondary btn-sm" onclick="addPeriod()" style="width:100%;margin-top:8px">+ Add
+                    Period</button>
+                <div style="display:grid;grid-template-columns:1fr 68px 16px 68px 32px;gap:8px;
+                        align-items:center;margin-top:12px;padding-top:12px;
+                        border-top:2px solid var(--border)">
+                    <span style="font-size:13px;font-weight:700;color:var(--muted)">TOTAL SCORE</span>
+                    <span id="total-a"
+                        style="text-align:center;font-family:'Barlow Condensed',sans-serif;font-size:28px;font-weight:900;color:var(--gold)">0</span>
+                    <span></span>
+                    <span id="total-b"
+                        style="text-align:center;font-family:'Barlow Condensed',sans-serif;font-size:28px;font-weight:900;color:var(--gold)">0</span>
+                    <span></span>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="Modal.close('modal-score')">Cancel</button>
+                <button class="btn btn-primary" onclick="saveScores()">💾 Save Scores</button>
+            </div>
+        </div>
+    </div>
+
+
+    <div class="modal-overlay" id="modal-complete" onclick="if(event.target===this)Modal.close('modal-complete')">
+        <div class="modal" style="max-width:540px">
+            <div class="modal-header">
+                <div class="modal-title">🏁 Complete Match</div>
+                <button class="modal-close" onclick="Modal.close('modal-complete')">✕</button>
+            </div>
+            <div class="modal-body">
+                <div id="complete-preview" style="margin-bottom:20px"></div>
+
+                <div class="form-group">
+                    <label class="form-label">Select Winner *</label>
+                    <div style="display:flex;gap:12px" id="winner-btns"></div>
+                </div>
+
+                <div class="form-row" style="margin-top:4px">
+                    <div class="form-group">
+                        <label class="form-label">Win Type</label>
+                        <select id="win-type" class="form-select">
+                            <option value="normal">Normal Win</option>
+                            <option value="forfeit">Forfeit (No-Show)</option>
+                            <option value="walkover">Walkover</option>
+                            <option value="overtime">Overtime Win</option>
+                            <option value="penalty">Penalty Shootout</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Duration (min) <span
+                                style="color:var(--muted);font-weight:400;text-transform:none;letter-spacing:0">optional</span></label>
+                        <input type="number" id="win-duration" class="form-input" placeholder="e.g. 90" min="1">
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">Final Score Display <span
+                            style="color:var(--muted);font-weight:400;text-transform:none;letter-spacing:0">optional
+                            override</span></label>
+                    <input type="text" id="win-score-display" class="form-input" placeholder="e.g. 21–15 or 2–1 sets">
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="Modal.close('modal-complete')">Cancel</button>
+                <button class="btn btn-primary" style="background:var(--green);color:#000" onclick="submitComplete()">✅
+                    Confirm & Complete</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="../js/shared.js"></script>
+    <script src="../js/admin-sidebar.js"></script>
+    <script>
+
+        let allMatches = [];
+        let venues = [];
+        let referees = [];
+        let scorePeriods = [];
+        let activeId = null;
+        let _selectedWinner = null;
+
+
+        document.addEventListener('DOMContentLoaded', async () => {
+            if (typeof renderSidebar === 'function') renderSidebar('matches');
+            await Promise.all([loadDropdowns(), loadTournamentFilter()]);
+            await refresh();
+        });
+
+        async function refresh() {
+            await loadMatches();
+            await loadLive();
+        }
+
+
+        async function loadDropdowns() {
+            const [vRes, rRes] = await Promise.all([
+                api('/venues'),
+                api('/matches/referees')
+            ]);
+
+            venues = vRes.data || [];
+            referees = rRes.data || [];
+
+            const vSel = document.getElementById('sched-venue');
+            const rSel = document.getElementById('sched-referee');
+
+            vSel.innerHTML = '<option value="">No venue configured</option>' +
+                venues.map(v => `<option value="${v.id}">${v.name}${v.location ? ' — ' + v.location : ''}</option>`).join('');
+
+            rSel.innerHTML = '<option value="">No referee assigned</option>' +
+                referees.map(r => `<option value="${r.id}">${r.first_name} ${r.last_name}</option>`).join('');
+        }
+
+        async function loadTournamentFilter() {
+            const res = await api('/tournaments');
+            document.getElementById('f-tournament').innerHTML =
+                '<option value="">All Tournaments</option>' +
+                (res.data || []).map(t => `<option value="${t.id}">${t.name}</option>`).join('');
+        }
+
+
+        async function loadMatches() {
+            const res = await api('/matches');
+            allMatches = res.data || [];
+            renderStats();
+            applyFilters();
+        }
+
+
+        function renderStats() {
+            const total = allMatches.length;
+            const live = allMatches.filter(m => m.status === 'ongoing').length;
+            const scheduled = allMatches.filter(m => m.status === 'scheduled' || m.status === 'pending').length;
+            const done = allMatches.filter(m => m.status === 'completed').length;
+            const noSched = allMatches.filter(m => !m.scheduled_date && m.status !== 'completed' && m.status !== 'cancelled').length;
+
+            document.getElementById('match-stats').innerHTML = [
+                { val: total, lbl: 'Total Matches', color: 'var(--gold)', icon: '⚔️' },
+                { val: live, lbl: 'Live Now', color: 'var(--green)', icon: '🔴' },
+                { val: scheduled, lbl: 'Scheduled', color: 'var(--blue)', icon: '📅' },
+                { val: done, lbl: 'Completed', color: 'var(--muted)', icon: '✅' },
+                { val: noSched, lbl: 'Unscheduled', color: 'var(--orange)', icon: '⚠️' },
+            ].map(s => `
+            <div class="match-stat">
+                <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px">
+                    <div style="font-size:18px">${s.icon}</div>
+                    <div class="match-stat-val" style="color:${s.color}">${s.val}</div>
+                </div>
+                <div class="match-stat-lbl">${s.lbl}</div>
+            </div>`).join('');
+        }
+
+
+        async function loadLive() {
+            const res = await api('/matches/live');
+            const el = document.getElementById('live-strip');
+            if (!res.success || !res.data?.length) { el.innerHTML = ''; return; }
+
+            el.innerHTML = res.data.map(m => {
+                const isFFA = m.bracket_side === 'ffa' || m.bracket_position === 'FFA Event' || (!m.dept_a && !m.dept_b);
+                let matchupHTML = '';
+
+                if (isFFA) {
+                    matchupHTML = `
+                        <div style="text-align:center;width:100%">
+                            <div style="font-family:'Barlow Condensed',sans-serif;font-size:24px;font-weight:900;color:var(--gold);text-transform:uppercase">🏃 ALL PARTICIPANTS — FFA EVENT</div>
+                            <div style="font-size:12px;color:var(--muted)">Event Managed in Tournament Dashboard</div>
+                        </div>
+                    `;
+                } else {
+                    matchupHTML = `
+                        <div style="text-align:right;min-width:120px">
+                            <div style="font-family:'Barlow Condensed',sans-serif;font-size:18px;font-weight:800;text-transform:uppercase">${m.team_a || m.dept_a || '?'}</div>
+                            ${m.dept_a && m.team_a ? `<div style="font-size:12px;color:var(--muted)">${m.dept_a}</div>` : ''}
+                        </div>
+                        <div class="live-score-big">${m.live_score_a}&nbsp;–&nbsp;${m.live_score_b}</div>
+                        <div style="text-align:left;min-width:120px">
+                            <div style="font-family:'Barlow Condensed',sans-serif;font-size:18px;font-weight:800;text-transform:uppercase">${m.team_b || m.dept_b || '?'}</div>
+                            ${m.dept_b && m.team_b ? `<div style="font-size:12px;color:var(--muted)">${m.dept_b}</div>` : ''}
+                        </div>
+                    `;
+                }
+
+                return `
+                <div class="live-banner">
+                    <div class="live-pulse"></div>
+                    <span style="font-size:34px;flex-shrink:0">${sportIcon(m.sport_name)}</span>
+                    <div style="flex:1">
+                        <div style="font-size:12px;font-weight:800;letter-spacing:1.5px;text-transform:uppercase;
+                                    color:var(--green);margin-bottom:6px">
+                            LIVE · ${m.sport_name} · ${m.tournament_name}
+                        </div>
+                        <div style="display:flex;align-items:center;gap:16px;justify-content:center;">
+                            ${matchupHTML}
+                        </div>
+                        ${m.venue_name && !isFFA ? `<div style="font-size:12px;color:var(--muted);margin-top:8px">📍 ${m.venue_name}</div>` : ''}
+                    </div>
+                    <div style="display:flex;flex-direction:column;gap:8px;flex-shrink:0;padding-left:16px;border-left:1px solid rgba(255,255,255,0.1)">
+                        ${isFFA ? `
+                            <button class="btn btn-primary" onclick="location.href='/admin/tournaments?id=${m.tournament_id}'">🏆 Manage Event</button>
+                        ` : `
+                            <button class="btn btn-primary" onclick="openScore(${m.id})">📊 Update Score</button>
+                            <button class="btn" style="background:var(--green);color:#000" onclick="openComplete(${m.id})">🏁 Finish Match</button>
+                        `}
+                    </div>
+                </div>`;
+            }).join('');
+        }
+
+
+        function applyFilters() {
+            const status = document.getElementById('f-status').value;
+            const tournId = document.getElementById('f-tournament').value;
+            const date = document.getElementById('f-date').value;
+            const q = document.getElementById('f-search').value.toLowerCase();
+
+            const filtered = allMatches.filter(m => {
+                if (status && m.status !== status) return false;
+                if (tournId && String(m.tournament_id) !== tournId) return false;
+                if (date && safeDate(m.scheduled_date) !== date) return false;
+                if (q) {
+                    const txt = [m.sport_name, m.tournament_name, m.dept_a_name, m.dept_b_name,
+                    m.team_a_name, m.team_b_name, m.venue_name, m.referee_name].join(' ').toLowerCase();
+                    if (!txt.includes(q)) return false;
+                }
+                return true;
+            });
+
+            renderTable(filtered);
+        }
+
+        function clearFilters() {
+            ['f-status', 'f-tournament', 'f-date', 'f-search'].forEach(id => {
+                const el = document.getElementById(id);
+                if (el) el.value = '';
+            });
+            renderTable(allMatches);
+        }
+
+        function renderTable(data) {
+            const tbody = document.getElementById('matches-body');
+            if (!data.length) {
+                tbody.innerHTML = `<tr><td colspan="9">
+                    <div class="empty-state">
+                        <div class="empty-icon">⚔️</div>
+                        <div class="empty-text">No matches found based on your filters.</div>
+                    </div>
+                </td></tr>`;
+                return;
+            }
+
+            let html = '';
+            const ffaFetchQueue = [];
+
+            data.forEach(m => {
+                const nA = m.team_a_name || m.dept_a_name || '—';
+                const nB = m.team_b_name || m.dept_b_name || '—';
+                const cA = m.dept_a_color || '#555';
+                const cB = m.dept_b_color || '#555';
+                const hasScore = m.total_score_a !== null && m.total_score_a !== undefined;
+
+                const isFFA = m.bracket_side === 'ffa' || m.bracket_position === 'FFA Event' || (!m.dept_a_name && !m.dept_b_name);
+                const isLive = m.status === 'ongoing';
+                const isSched = m.status === 'scheduled' || m.status === 'pending';
+                const isDone = m.status === 'completed';
+                const isUnSched = !m.scheduled_date && !isDone && m.status !== 'cancelled';
+
+                const winnerA = m.winner_department_id && m.winner_department_id === m.participant_a_department_id;
+                const winnerB = m.winner_department_id && m.winner_department_id === m.participant_b_department_id;
+
+
+                let dateDisplay = '';
+                if (m.scheduled_date && m.scheduled_date !== 'null') {
+
+                    dateDisplay = `${formatDate(m.scheduled_date)}<br><span style="color:var(--gold);font-family:'Barlow Condensed',sans-serif;font-size:16px;font-weight:800">${m.scheduled_time ? formatTime(m.scheduled_time) : '—'}</span>`;
+                } else {
+                    dateDisplay = `<span style="color:var(--orange);font-size:12px;font-weight:600">⚠️ Unscheduled</span>`;
+                }
+
+
+                let matchupHTML = '';
+                if (isFFA) {
+                    matchupHTML = `
+                        <div style="font-size:14px;font-weight:700;color:var(--gold)">🏃 ALL PARTICIPANTS — FFA EVENT</div>
+                        <div style="font-size:11px;color:var(--muted);margin-top:4px;letter-spacing:0.5px">Event Managed in Tournament</div>
+                    `;
+                } else {
+                    matchupHTML = `
+                        <div style="display:flex;align-items:center;gap:8px;font-size:14px;font-weight:600">
+                            <span style="width:10px;height:10px;border-radius:50%;background:${cA};display:inline-block;flex-shrink:0"></span>
+                            <span style="${winnerA ? 'color:#fff' : 'color:var(--text2)'}">${nA}</span>
+                            <span style="color:var(--muted);font-size:11px;font-weight:400;margin:0 4px">vs</span>
+                            <span style="width:10px;height:10px;border-radius:50%;background:${cB};display:inline-block;flex-shrink:0"></span>
+                            <span style="${winnerB ? 'color:#fff' : 'color:var(--text2)'}">${nB}</span>
+                        </div>
+                        ${m.bracket_position ? `<div style="font-size:11px;color:var(--muted);margin-top:4px;letter-spacing:0.5px">🔖 ${m.bracket_position}</div>` : ''}
+                    `;
+                }
+
+
+                html += `<tr>
+                    <td>
+                        <span style="font-size:20px;vertical-align:middle;margin-right:8px">${sportIcon(m.sport_name)}</span>
+                        <span style="font-size:13px;color:var(--text);font-weight:600">${m.sport_name || '—'}</span>
+                    </td>
+                    <td style="font-size:12px;color:var(--muted);max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${m.tournament_name || ''}">${m.tournament_name || '—'}</td>
+                    <td>${matchupHTML}</td>
+                    <td style="font-size:12px;color:var(--muted)">${dateDisplay}</td>
+                    <td style="font-size:12px;color:var(--muted)">${m.venue_name || '—'}</td>
+                    <td style="font-size:12px;color:var(--muted)">${m.referee_name || '—'}</td>
+                    <td style="font-family:'Barlow Condensed',sans-serif;font-size:24px;font-weight:900;color:var(--gold)">
+                        ${hasScore ? `${m.total_score_a}–${m.total_score_b}` : (isFFA ? 'FFA' : '—')}
+                    </td>
+                    <td>${statusBadge(m.status)}</td>
+                    <td>
+                        <div class="action-group">
+                            ${isFFA ? `
+                                <button class="btn btn-primary btn-sm" style="background:var(--green);color:#000" onclick="location.href='/admin/tournaments?id=${m.tournament_id}'">🏆 Manage FFA Event</button>
+                                ${(isSched || isUnSched) ? `<button class="btn btn-secondary btn-sm" onclick="openSchedule(${m.id})">📅 Schedule</button>` : ''}
+                            ` : `
+                                ${(isSched || isUnSched) ? `<button class="btn btn-secondary btn-sm" onclick="openSchedule(${m.id})">📅 Schedule</button>` : ''}
+                                ${isSched ? `<button class="btn btn-primary btn-sm" onclick="startMatch(${m.id})">▶ Start Match</button>` : ''}
+                                ${isLive ? `<button class="btn btn-primary btn-sm" onclick="openScore(${m.id})">📊 Score</button>` : ''}
+                                ${isLive ? `<button class="btn btn-sm" style="background:var(--green);color:#000;font-weight:800" onclick="openComplete(${m.id})">🏁 Finish</button>` : ''}
+                                ${isDone ? `<button class="btn btn-secondary btn-sm" onclick="openScore(${m.id})">👁 View Details</button>` : ''}
+                                ${!isLive && !isDone ? `<button class="btn btn-secondary btn-sm" onclick="openSchedule(${m.id})" title="Edit Schedule">✏️</button>` : ''}
+                            `}
+                        </div>
+                    </td>
+                </tr>`;
+
+
+                if (isFFA) {
+                    html += `<tr class="ffa-subrow">
+                        <td colspan="9">
+                            <div id="ffa-list-${m.id}" style="padding:10px 16px;color:var(--muted);font-style:italic;">⏳ Loading event participants...</div>
+                        </td>
+                    </tr>`;
+                    ffaFetchQueue.push(m);
+                }
+            });
+
+            tbody.innerHTML = html;
+
+
+            ffaFetchQueue.forEach(m => loadFFADetails(m));
+        }
+
+
+        async function loadFFADetails(match) {
+            try {
+
+                const res = await api(`/matches/ffa-results/${match.tournament_id}`);
+
+                if (!res.success) throw new Error('Failed');
+
+
+                const t = res.data;
+                const scoringType = t.ffa_scoring || 'points';
+                const scoreLabel = scoringType === 'time' ? 'Time (s)' : scoringType === 'distance' ? 'Distance / Score' : 'Points';
+
+                const participants = t.participants || [];
+
+                if (!participants.length) {
+                    document.getElementById(`ffa-list-${match.id}`).innerHTML = `No participants registered yet.`;
+                    return;
+                }
+
+                let subHtml = `
+                    <table class="ffa-table">
+                        <thead>
+                            <tr>
+                                <th style="width:40px">#</th>
+                                <th>Participant</th>
+                                <th style="text-align:right">${scoreLabel}</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                `;
+
+                participants.forEach((p, idx) => {
+                    const init = (p.team_name || p.department_name || '?').split(' ').map(w => w[0]).slice(0, 2).join('').toUpperCase();
+                    const col = p.department_color || '#555';
+                    const nameStr = p.team_name ? `<div style="font-weight:700">${p.team_name}</div><div style="font-size:11px;color:var(--muted)">${p.department_name}</div>` : `<div style="font-weight:700">${p.department_name}</div>`;
+
+
+                    const val = (p.ffa_result_value !== undefined && p.ffa_result_value !== null) ? p.ffa_result_value : '—';
+
+                    subHtml += `
+                        <tr>
+                            <td style="font-family:'Barlow Condensed',sans-serif;font-size:16px;font-weight:700;color:var(--muted)">${idx + 1}</td>
+                            <td>
+                                <div style="display:flex;align-items:center;gap:12px">
+                                    <div style="width:28px;height:28px;border-radius:7px;background:${col};display:flex;align-items:center;justify-content:center;font-family:'Barlow Condensed',sans-serif;font-size:12px;font-weight:900;color:#fff;">${init}</div>
+                                    <div>${nameStr}</div>
+                                </div>
+                            </td>
+                            <td style="text-align:right;font-family:'Barlow Condensed',sans-serif;font-size:20px;font-weight:800;color:var(--gold)">
+                                ${val}
+                            </td>
+                        </tr>
+                    `;
+                });
+
+                subHtml += `</tbody></table>`;
+                document.getElementById(`ffa-list-${match.id}`).innerHTML = subHtml;
+
+            } catch (err) {
+                document.getElementById(`ffa-list-${match.id}`).innerHTML = `<span style="color:var(--red)">Failed to load participants</span>`;
+            }
+        }
+
+
+        function safeDate(val) {
+            if (!val || val === 'null') return '';
+            return String(val).split('T')[0];
+        }
+
+
+        function openSchedule(id) {
+            activeId = id;
+            const m = allMatches.find(x => x.id === id);
+            if (!m) return;
+
+            document.getElementById('sched-preview').innerHTML = matchPreview(m);
+            document.getElementById('sched-date').value = safeDate(m.scheduled_date);
+            document.getElementById('sched-time').value = m.scheduled_time ? String(m.scheduled_time).slice(0, 5) : '';
+            document.getElementById('sched-notes').value = m.notes || '';
+
+            const vSel = document.getElementById('sched-venue');
+            const rSel = document.getElementById('sched-referee');
+            vSel.value = m.venue_id ? String(m.venue_id) : '';
+            rSel.value = m.referee_id ? String(m.referee_id) : '';
+
+            Modal.open('modal-schedule');
+        }
+
+        async function saveSchedule() {
+            const dateRaw = document.getElementById('sched-date').value;
+            const time = document.getElementById('sched-time').value;
+            const venueRaw = document.getElementById('sched-venue').value;
+            const refRaw = document.getElementById('sched-referee').value;
+            const notes = document.getElementById('sched-notes').value;
+
+            const cleanDate = safeDate(dateRaw) || null;
+            const safeId = v => { const n = parseInt(v); return Number.isInteger(n) && n > 0 ? n : null; };
+
+            const body = {
+                scheduled_date: cleanDate,
+                scheduled_time: time || null,
+                venue_id: safeId(venueRaw),
+                referee_id: safeId(refRaw),
+                notes: notes || null,
+            };
+
+            const res = await api(`/matches/${activeId}/schedule`, { method: 'PATCH', body: JSON.stringify(body) });
+            Toast.show(res.message || (res.success ? 'Match schedule saved!' : 'Error'), res.success ? 'success' : 'error');
+            if (res.success) { Modal.close('modal-schedule'); await refresh(); }
+        }
+
+
+        async function startMatch(id) {
+            if (!confirm('Start this match now? It will be marked as LIVE and available for scoring.')) return;
+            const res = await api(`/matches/${id}/start`, { method: 'PATCH' });
+            Toast.show(res.message || (res.success ? 'Match is now LIVE!' : 'Error'), res.success ? 'success' : 'error');
+            if (res.success) await refresh();
+        }
+
+
+        async function openScore(id) {
+            activeId = id;
+            const m = allMatches.find(x => x.id === id);
+            if (!m) return;
+
+            const nA = m.team_a_name || m.dept_a_name || 'A';
+            const nB = m.team_b_name || m.dept_b_name || 'B';
+            document.getElementById('score-col-a').textContent = nA.split(' ')[0];
+            document.getElementById('score-col-b').textContent = nB.split(' ')[0];
+            document.getElementById('score-preview').innerHTML = matchPreview(m);
+            document.getElementById('score-modal-title').textContent = m.status === 'completed' ? '👁 Match Scores (Read Only)' : '📊 Live Scoring';
+
+            const res = await api(`/matches/${id}`);
+            scorePeriods = (res.data?.scores || []).map(s => ({
+                period: s.period,
+                period_label: s.period_label,
+                score_a: s.score_a,
+                score_b: s.score_b,
+            }));
+            if (!scorePeriods.length) scorePeriods = [{ period: 1, period_label: 'Period 1', score_a: 0, score_b: 0 }];
+
+            renderPeriods(m.status === 'completed');
+            Modal.open('modal-score');
+        }
+
+        function renderPeriods(readOnly = false) {
+            const container = document.getElementById('score-periods');
+            container.innerHTML = scorePeriods.map((p, i) => `
+            <div class="period-row">
+                <input class="form-input" style="flex:1;font-size:13px;padding:9px 12px;font-weight:600"
+                    value="${p.period_label || `Period ${i + 1}`}"
+                    ${readOnly ? 'disabled' : `onchange="scorePeriods[${i}].period_label=this.value"`}>
+                <input type="number" class="score-num-input" value="${p.score_a ?? 0}" min="0"
+                    ${readOnly ? 'disabled' : `oninput="scorePeriods[${i}].score_a=+this.value;recalcTotals()"`}>
+                <span class="score-sep">–</span>
+                <input type="number" class="score-num-input" value="${p.score_b ?? 0}" min="0"
+                    ${readOnly ? 'disabled' : `oninput="scorePeriods[${i}].score_b=+this.value;recalcTotals()"`}>
+                ${readOnly ? '<span style="width:32px"></span>' :
+                    `<button onclick="removePeriod(${i})" style="background:none;border:none;color:var(--muted);cursor:pointer;padding:6px;border-radius:6px;transition:all .15s;font-size:16px"
+                           onmouseenter="this.style.color='var(--red)';this.style.backgroundColor='rgba(232,50,59,0.1)'" onmouseleave="this.style.color='var(--muted)';this.style.backgroundColor='transparent'">✕</button>`}
+            </div>`).join('');
+            recalcTotals();
+        }
+
+        function recalcTotals() {
+            const a = scorePeriods.reduce((s, p) => s + (+p.score_a || 0), 0);
+            const b = scorePeriods.reduce((s, p) => s + (+p.score_b || 0), 0);
+            document.getElementById('total-a').textContent = a;
+            document.getElementById('total-b').textContent = b;
+        }
+
+        function addPeriod() {
+            const next = scorePeriods.length + 1;
+            scorePeriods.push({ period: next, period_label: `Period ${next}`, score_a: 0, score_b: 0 });
+            renderPeriods();
+        }
+
+        function removePeriod(i) {
+            scorePeriods.splice(i, 1);
+            scorePeriods.forEach((p, idx) => p.period = idx + 1);
+            renderPeriods();
+        }
+
+        async function saveScores() {
+            let saved = 0;
+            for (const p of scorePeriods) {
+                const res = await api(`/matches/${activeId}/scores`, {
+                    method: 'PUT',
+                    body: JSON.stringify({ period: p.period, period_label: p.period_label, score_a: p.score_a ?? 0, score_b: p.score_b ?? 0 }),
+                });
+                if (res.success) saved++;
+            }
+            Toast.show(`${saved} period${saved !== 1 ? 's' : ''} saved!`, saved > 0 ? 'success' : 'error');
+            Modal.close('modal-score');
+            await refresh();
+        }
+
+
+        function openComplete(id) {
+            activeId = id;
+            _selectedWinner = null;
+            const m = allMatches.find(x => x.id === id);
+            if (!m) return;
+
+            const nA = m.team_a_name || m.dept_a_name || 'Team A';
+            const nB = m.team_b_name || m.dept_b_name || 'Team B';
+            const cA = m.dept_a_color || '#555';
+            const cB = m.dept_b_color || '#555';
+            const iA = nA.split(' ').map(w => w[0]).slice(0, 2).join('').toUpperCase();
+            const iB = nB.split(' ').map(w => w[0]).slice(0, 2).join('').toUpperCase();
+
+            document.getElementById('complete-preview').innerHTML = matchPreview(m);
+            document.getElementById('winner-btns').innerHTML = `
+            <button class="winner-btn" id="win-a" onclick="pickWinner('a')">
+                <div class="winner-logo" style="background:${cA}">${iA}</div>
+                <span class="winner-label">${nA}</span>
+                <span style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin-top:2px">Winner A</span>
+            </button>
+            <button class="winner-btn" id="win-b" onclick="pickWinner('b')">
+                <div class="winner-logo" style="background:${cB}">${iB}</div>
+                <span class="winner-label">${nB}</span>
+                <span style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin-top:2px">Winner B</span>
+            </button>`;
+
+            const ta = scorePeriods.reduce((s, p) => s + (+p.score_a || 0), 0);
+            const tb = scorePeriods.reduce((s, p) => s + (+p.score_b || 0), 0);
+            document.getElementById('win-score-display').value =
+                m.total_score_a !== null && m.total_score_a !== undefined
+                    ? `${m.total_score_a}–${m.total_score_b}`
+                    : (ta || tb ? `${ta}–${tb}` : '');
+
+            document.getElementById('win-type').value = 'normal';
+            document.getElementById('win-duration').value = '';
+
+            Modal.open('modal-complete');
+        }
+
+        function pickWinner(side) {
+            _selectedWinner = side;
+            document.getElementById('win-a').classList.toggle('selected', side === 'a');
+            document.getElementById('win-b').classList.toggle('selected', side === 'b');
+        }
+
+        async function submitComplete() {
+            if (!_selectedWinner) { Toast.show('Please select a winning Grade/Strand', 'error'); return; }
+            const body = {
+                winner_side: _selectedWinner,
+                win_type: document.getElementById('win-type').value,
+                duration_minutes: parseInt(document.getElementById('win-duration').value) || null,
+                final_score_display: document.getElementById('win-score-display').value.trim() || null,
+            };
+            const res = await api(`/matches/${activeId}/complete`, { method: 'POST', body: JSON.stringify(body) });
+            Toast.show(res.message || (res.success ? 'Match finished successfully!' : 'Error'), res.success ? 'success' : 'error');
+            if (res.success) { Modal.closeAll(); await refresh(); }
+        }
+
+
+        function matchPreview(m) {
+            if (m.bracket_side === 'ffa' || m.bracket_position === 'FFA Event' || (!m.dept_a_name && !m.dept_b_name)) {
+                return `
+                <div class="match-header-card" style="justify-content:center; text-align:center;">
+                    <div>
+                        <div style="font-family:'Barlow Condensed',sans-serif;font-size:24px;font-weight:900;color:var(--gold);">🏃 FFA EVENT</div>
+                        <div style="font-size:14px;color:var(--muted);margin-top:4px;">${m.tournament_name || 'Multiple Competitors'}</div>
+                    </div>
+                </div>`;
+            }
+
+            const nA = m.team_a_name || m.dept_a_name || 'TBD';
+            const nB = m.team_b_name || m.dept_b_name || 'TBD';
+            const cA = m.dept_a_color || '#555';
+            const cB = m.dept_b_color || '#555';
+            const iA = nA.split(' ').map(w => w[0]).slice(0, 2).join('').toUpperCase();
+            const iB = nB.split(' ').map(w => w[0]).slice(0, 2).join('').toUpperCase();
+            const hs = m.total_score_a !== null && m.total_score_a !== undefined;
+
+            return `
+        <div class="match-header-card">
+            <div class="mhc-side">
+                <div class="mhc-logo" style="background:${cA}">${iA}</div>
+                <div class="mhc-name">${nA}</div>
+                <div class="mhc-dept">${m.dept_a_name || 'Grade/Strand A'}</div>
+            </div>
+            <div class="mhc-center">
+                ${hs ? `<div class="mhc-score">${m.total_score_a}–${m.total_score_b}</div>` : `<div class="mhc-vs">VS</div>`}
+                <div style="font-size:12px;font-weight:700;color:var(--muted);margin-top:8px;text-transform:uppercase;letter-spacing:1px">${sportIcon(m.sport_name)} ${m.sport_name || ''}</div>
+            </div>
+            <div class="mhc-side">
+                <div class="mhc-logo" style="background:${cB}">${iB}</div>
+                <div class="mhc-name">${nB}</div>
+                <div class="mhc-dept">${m.dept_b_name || 'Grade/Strand B'}</div>
+            </div>
+        </div>`;
+        }
+    </script>
+</body>
+
+</html>

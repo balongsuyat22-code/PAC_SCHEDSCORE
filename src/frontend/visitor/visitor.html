@@ -1,0 +1,3123 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PAC SCHED-SCORE — Live</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;600;700;800&family=DM+Sans:ital,wght@0,300;0,400;0,500;1,300&display=swap"
+        rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.9.3/dist/confetti.browser.min.js"></script>
+    <style>
+        *,
+        *::before,
+        *::after {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0
+        }
+
+        :root {
+            --bg: #0a0c0e;
+            --bg2: #111417;
+            --bg3: #181c20;
+            --bg4: #1e2228;
+            --border: rgba(255, 255, 255, 0.07);
+            --border2: rgba(255, 255, 255, 0.13);
+            --border3: rgba(255, 255, 255, 0.2);
+            --text: #f0f2f4;
+            --muted: #6b7280;
+            --muted2: #9ca3af;
+            --accent: #22c55e;
+            --accent-rgb: 34, 197, 94;
+            --accent-dim: rgba(34, 197, 94, 0.12);
+            --accent-glow: rgba(34, 197, 94, 0.3);
+            --gold: #f59e0b;
+            --gold-rgb: 245, 158, 11;
+            --silver: #94a3b8;
+            --bronze: #c2622a;
+            --red: #ef4444;
+            --blue: #3b82f6;
+            --purple: #8b5cf6;
+            --font-head: 'Barlow Condensed', sans-serif;
+            --font-body: 'DM Sans', sans-serif;
+            --r: 10px;
+            --r2: 16px;
+            --r3: 20px;
+            --transition: cubic-bezier(0.4, 0, 0.2, 1);
+            --sidebar-width: 320px;
+        }
+
+        html {
+            scroll-behavior: smooth
+        }
+
+        body {
+            font-family: var(--font-body);
+            background: var(--bg);
+            color: var(--text);
+            min-height: 100vh;
+            overflow-x: hidden
+        }
+
+        ::-webkit-scrollbar {
+            width: 4px;
+            height: 4px
+        }
+
+        ::-webkit-scrollbar-track {
+            background: var(--bg)
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: var(--bg3);
+            border-radius: 4px
+        }
+
+        /* ── Ticker ── */
+        .ticker-wrap {
+            background: var(--bg3);
+            border-bottom: 1px solid var(--border);
+            overflow: hidden;
+            height: 32px;
+            display: flex;
+            align-items: center;
+            flex-shrink: 0
+        }
+
+        .ticker-label {
+            background: var(--accent);
+            color: #000;
+            font-family: var(--font-head);
+            font-size: 11px;
+            font-weight: 700;
+            letter-spacing: .1em;
+            padding: 0 14px;
+            height: 100%;
+            display: flex;
+            align-items: center;
+            flex-shrink: 0
+        }
+
+        .ticker-track {
+            display: flex;
+            animation: ticker 40s linear infinite
+        }
+
+        .ticker-track:hover {
+            animation-play-state: paused
+        }
+
+        .ticker-item {
+            font-size: 12px;
+            color: var(--muted2);
+            padding: 0 24px;
+            white-space: nowrap
+        }
+
+        .ticker-item b {
+            color: var(--text);
+            font-weight: 500
+        }
+
+        .ticker-accent {
+            color: var(--accent)
+        }
+
+        @keyframes ticker {
+            0% {
+                transform: translateX(0)
+            }
+
+            100% {
+                transform: translateX(-50%)
+            }
+        }
+
+        @keyframes blink {
+
+            0%,
+            100% {
+                opacity: 1;
+                transform: scale(1)
+            }
+
+            50% {
+                opacity: .4;
+                transform: scale(.8)
+            }
+        }
+
+        @keyframes shimmer {
+            0% {
+                background-position: -200% 0
+            }
+
+            100% {
+                background-position: 200% 0
+            }
+        }
+
+        @keyframes spin {
+            to {
+                transform: rotate(360deg)
+            }
+        }
+
+        @keyframes spotlight-pulse {
+
+            0%,
+            100% {
+                box-shadow: 0 0 20px rgba(var(--accent-rgb), .15)
+            }
+
+            50% {
+                box-shadow: 0 0 35px rgba(var(--accent-rgb), .3)
+            }
+        }
+
+        @keyframes crown-float {
+
+            0%,
+            100% {
+                transform: translateX(-50%) translateY(0)
+            }
+
+            50% {
+                transform: translateX(-50%) translateY(-3px)
+            }
+        }
+
+        @keyframes trophy-pulse {
+
+            0%,
+            100% {
+                filter: drop-shadow(0 0 12px rgba(245, 158, 11, .5))
+            }
+
+            50% {
+                filter: drop-shadow(0 0 24px rgba(245, 158, 11, .8))
+            }
+        }
+
+        @keyframes skel-pulse {
+
+            0%,
+            100% {
+                opacity: 1
+            }
+
+            50% {
+                opacity: .5
+            }
+        }
+
+        /* ── Topbar ── */
+        .topbar {
+            position: sticky;
+            top: 0;
+            z-index: 200;
+            background: rgba(10, 12, 14, 0.95);
+            backdrop-filter: blur(14px);
+            border-bottom: 1px solid var(--border)
+        }
+
+        .topbar-inner {
+            max-width: 1400px;
+            margin: auto;
+            padding: .75rem 1.5rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 12px
+        }
+
+        .logo {
+            font-family: var(--font-head);
+            font-size: 20px;
+            font-weight: 800;
+            letter-spacing: .08em;
+            white-space: nowrap
+        }
+
+        .topbar-right {
+            display: flex;
+            align-items: center;
+            gap: 10px
+        }
+
+        .topbar-clock {
+            font-family: var(--font-head);
+            font-size: 14px;
+            font-weight: 600;
+            color: var(--muted2);
+            letter-spacing: .05em;
+            display: none
+        }
+
+        @media(min-width:640px) {
+            .topbar-clock {
+                display: block
+            }
+        }
+
+        .login-btn {
+            background: var(--accent);
+            color: #000;
+            border: none;
+            padding: 8px 20px;
+            border-radius: 999px;
+            font-weight: 600;
+            cursor: pointer;
+            font-size: 13px;
+            font-family: var(--font-body)
+        }
+
+        .login-btn:hover {
+            box-shadow: 0 0 12px var(--accent-glow)
+        }
+
+        /* ── Hero ── */
+        .hero {
+            position: relative;
+            padding: 2.5rem 1.5rem 0;
+            overflow: hidden;
+            background: var(--bg)
+        }
+
+        .hero-grid {
+            position: absolute;
+            inset: 0;
+            background-image: linear-gradient(var(--border) 1px, transparent 1px), linear-gradient(90deg, var(--border) 1px, transparent 1px);
+            background-size: 40px 40px;
+            mask-image: radial-gradient(ellipse 80% 60% at 50% 0%, black 40%, transparent 100%);
+            -webkit-mask-image: radial-gradient(ellipse 80% 60% at 50% 0%, black 40%, transparent 100%)
+        }
+
+        .hero-glow {
+            position: absolute;
+            top: -80px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 700px;
+            height: 350px;
+            background: radial-gradient(ellipse, rgba(var(--accent-rgb), 0.15) 0%, transparent 70%);
+            pointer-events: none
+        }
+
+        .hero-inner {
+            position: relative;
+            text-align: center;
+            max-width: 900px;
+            margin: 0 auto
+        }
+
+        .event-tag {
+            display: inline-flex;
+            align-items: center;
+            gap: 7px;
+            border: 1px solid rgba(var(--accent-rgb), 0.3);
+            background: rgba(var(--accent-rgb), 0.08);
+            color: var(--accent);
+            font-size: 11px;
+            font-weight: 500;
+            letter-spacing: .08em;
+            text-transform: uppercase;
+            padding: 5px 14px;
+            border-radius: 100px;
+            margin-bottom: 1.25rem
+        }
+
+        .live-dot {
+            width: 7px;
+            height: 7px;
+            border-radius: 50%;
+            background: var(--accent);
+            animation: blink 1.3s ease-in-out infinite;
+            flex-shrink: 0
+        }
+
+        .hero h1 {
+            font-family: var(--font-head);
+            font-size: clamp(52px, 10vw, 100px);
+            font-weight: 800;
+            line-height: .92;
+            letter-spacing: -1px;
+            color: var(--text);
+            text-transform: uppercase
+        }
+
+        .hero h1 .accent-word {
+            color: var(--accent)
+        }
+
+        .hero-sub {
+            font-size: 14px;
+            color: var(--muted2);
+            margin-top: .85rem;
+            font-weight: 300;
+            letter-spacing: .02em
+        }
+
+        .spotlight-wrap {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            margin-top: 1.25rem;
+            flex-wrap: wrap
+        }
+
+        .spotlight-label {
+            font-size: 12px;
+            color: var(--muted);
+            letter-spacing: .06em;
+            text-transform: uppercase
+        }
+
+        .spotlight-select {
+            background: var(--bg3);
+            border: 1px solid var(--border2);
+            color: var(--text);
+            font-family: var(--font-body);
+            font-size: 13px;
+            padding: 7px 28px 7px 14px;
+            border-radius: 100px;
+            cursor: pointer;
+            outline: none;
+            appearance: none;
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' fill='%236b7280'%3E%3Cpath d='M0 0l5 6 5-6z'/%3E%3C/svg%3E");
+            background-repeat: no-repeat;
+            background-position: right 10px center;
+            min-width: 200px
+        }
+
+        .spotlight-select:focus {
+            border-color: var(--accent)
+        }
+
+        .spotlight-clear {
+            background: none;
+            border: 1px solid var(--border);
+            color: var(--muted);
+            font-size: 12px;
+            padding: 7px 12px;
+            border-radius: 100px;
+            cursor: pointer;
+            display: none;
+            align-items: center;
+            gap: 5px
+        }
+
+        .spotlight-clear.visible {
+            display: inline-flex
+        }
+
+        .countdown-wrap {
+            margin: 1.5rem auto 0;
+            max-width: 500px;
+            background: rgba(var(--accent-rgb), 0.05);
+            border: 1px solid rgba(var(--accent-rgb), 0.2);
+            border-radius: var(--r2);
+            padding: 1rem 1.25rem;
+            position: relative;
+            overflow: hidden
+        }
+
+        .countdown-wrap::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background: linear-gradient(135deg, rgba(var(--accent-rgb), 0.06) 0%, transparent 60%);
+            pointer-events: none
+        }
+
+        .cd-header {
+            font-size: 10px;
+            font-weight: 500;
+            letter-spacing: .1em;
+            text-transform: uppercase;
+            color: var(--accent);
+            margin-bottom: .6rem;
+            display: flex;
+            align-items: center;
+            gap: 8px
+        }
+
+        .cd-match-name {
+            font-family: var(--font-head);
+            font-size: 16px;
+            font-weight: 700;
+            color: var(--text);
+            margin-bottom: .75rem;
+            text-transform: uppercase;
+            letter-spacing: .5px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis
+        }
+
+        .cd-units {
+            display: flex;
+            gap: 8px;
+            justify-content: center
+        }
+
+        .cd-unit {
+            background: var(--bg3);
+            border: 1px solid var(--border2);
+            border-radius: var(--r);
+            padding: .6rem .8rem;
+            min-width: 58px;
+            text-align: center
+        }
+
+        .cd-num {
+            font-family: var(--font-head);
+            font-size: 28px;
+            font-weight: 800;
+            color: var(--text);
+            line-height: 1;
+            display: block
+        }
+
+        .cd-lbl {
+            font-size: 9px;
+            color: var(--muted);
+            text-transform: uppercase;
+            letter-spacing: .08em;
+            margin-top: 2px;
+            display: block
+        }
+
+        .hero-stats {
+            display: flex;
+            justify-content: center;
+            gap: 0;
+            margin: 1.5rem 0 0;
+            border-top: 1px solid var(--border2);
+            border-left: 1px solid var(--border2);
+            border-radius: var(--r) var(--r) 0 0;
+            overflow: hidden
+        }
+
+        .hstat {
+            flex: 1;
+            padding: .9rem .75rem;
+            text-align: center;
+            border-right: 1px solid var(--border2)
+        }
+
+        .hstat-val {
+            font-family: var(--font-head);
+            font-size: 28px;
+            font-weight: 700;
+            color: var(--accent);
+            line-height: 1
+        }
+
+        .hstat-lbl {
+            font-size: 10px;
+            color: var(--muted);
+            margin-top: 4px;
+            text-transform: uppercase;
+            letter-spacing: .06em
+        }
+
+        /* ── Nav ── */
+        .nav-wrap {
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            background: rgba(10, 12, 14, 0.92);
+            backdrop-filter: blur(16px);
+            border-bottom: 1px solid var(--border2)
+        }
+
+        .nav {
+            display: flex;
+            gap: 0;
+            overflow-x: auto;
+            scrollbar-width: none;
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 0 1rem
+        }
+
+        .nav::-webkit-scrollbar {
+            display: none
+        }
+
+        .tab {
+            display: flex;
+            align-items: center;
+            gap: 7px;
+            padding: 14px 18px;
+            font-family: var(--font-body);
+            font-size: 13px;
+            font-weight: 500;
+            color: var(--muted);
+            background: none;
+            border: none;
+            border-bottom: 2px solid transparent;
+            cursor: pointer;
+            white-space: nowrap;
+            transition: color .2s, border-color .2s
+        }
+
+        .tab.active {
+            color: var(--accent);
+            border-bottom-color: var(--accent)
+        }
+
+        .tab:hover:not(.active) {
+            color: var(--text)
+        }
+
+        .tab-icon {
+            font-size: 15px;
+            line-height: 1
+        }
+
+        .tab-badge {
+            background: var(--red);
+            color: #fff;
+            font-size: 10px;
+            font-weight: 700;
+            padding: 1px 6px;
+            border-radius: 100px;
+            line-height: 16px
+        }
+
+        /* ── Main Layout ── */
+        .main {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 1.5rem 1rem 4rem
+        }
+
+        .section {
+            display: none
+        }
+
+        .section.active {
+            display: block
+        }
+
+        /* Desktop 2-col layout */
+        @media(min-width:1024px) {
+            .main {
+                display: grid;
+                grid-template-columns: 1fr var(--sidebar-width);
+                gap: 28px;
+                align-items: start
+            }
+
+            #sec-scores {
+                grid-column: 1/2
+            }
+
+            #sec-leaderboard {
+                grid-column: 2/3;
+                display: block !important;
+                position: sticky;
+                top: 60px
+            }
+
+            #sec-mvp {
+                grid-column: 2/3
+            }
+
+            #sec-schedule,
+            #sec-highlights {
+                grid-column: 1/-1
+            }
+
+            .sidebar-always {
+                grid-column: 2/3;
+                position: sticky;
+                top: 60px
+            }
+        }
+
+        /* ── Filters ── */
+        .sport-filters {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 1rem;
+            overflow-x: auto;
+            scrollbar-width: none;
+            padding-bottom: 4px
+        }
+
+        .sport-filters::-webkit-scrollbar {
+            display: none
+        }
+
+        .sport-chip {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 3px;
+            padding: 8px 14px;
+            background: var(--bg3);
+            border: 1px solid var(--border);
+            border-radius: var(--r);
+            cursor: pointer;
+            white-space: nowrap;
+            flex-shrink: 0;
+            transition: all .2s
+        }
+
+        .sport-chip:hover,
+        .sport-chip.active {
+            background: rgba(var(--accent-rgb), 0.1);
+            border-color: rgba(var(--accent-rgb), 0.4);
+            color: var(--accent)
+        }
+
+        .sport-chip-icon {
+            font-size: 18px;
+            line-height: 1
+        }
+
+        .sport-chip-label {
+            font-size: 10px;
+            font-weight: 500;
+            color: var(--muted2);
+            text-transform: uppercase;
+            letter-spacing: .05em
+        }
+
+        .sport-chip.active .sport-chip-label {
+            color: var(--accent)
+        }
+
+        .status-filters {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 1.25rem;
+            flex-wrap: wrap
+        }
+
+        .filter-chip {
+            padding: 5px 14px;
+            font-size: 12px;
+            font-family: var(--font-body);
+            background: var(--bg3);
+            border: 1px solid var(--border);
+            border-radius: 100px;
+            color: var(--muted2);
+            cursor: pointer;
+            transition: all .2s
+        }
+
+        .filter-chip.active,
+        .filter-chip:hover {
+            background: rgba(var(--accent-rgb), .1);
+            border-color: rgba(var(--accent-rgb), .4);
+            color: var(--accent)
+        }
+
+        /* ── Section Header ── */
+        .sec-head {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 1.25rem;
+            gap: 12px;
+            flex-wrap: wrap
+        }
+
+        .sec-title {
+            font-family: var(--font-head);
+            font-size: 22px;
+            font-weight: 700;
+            letter-spacing: .5px;
+            text-transform: uppercase
+        }
+
+        .sec-title span {
+            color: var(--accent)
+        }
+
+        .refresh-btn {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            background: var(--bg3);
+            border: 1px solid var(--border2);
+            color: var(--muted2);
+            font-size: 12px;
+            padding: 6px 12px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-family: var(--font-body)
+        }
+
+        .refresh-btn:hover {
+            border-color: var(--accent);
+            color: var(--accent)
+        }
+
+        .refresh-icon {
+            font-size: 14px;
+            display: inline-block
+        }
+
+        .refresh-icon.spin {
+            animation: spin .5s linear
+        }
+
+        /* ── Featured Match ── */
+        .featured-match {
+            background: var(--bg2);
+            border: 1px solid rgba(var(--accent-rgb), 0.35);
+            border-radius: var(--r3);
+            padding: 1.4rem 1.5rem;
+            margin-bottom: 1.5rem;
+            position: relative;
+            overflow: hidden
+        }
+
+        .featured-match::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background: linear-gradient(135deg, rgba(var(--accent-rgb), 0.08) 0%, transparent 50%)
+        }
+
+        .featured-match::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 3px;
+            background: linear-gradient(90deg, transparent, var(--accent), transparent);
+            animation: shimmer 3s linear infinite;
+            background-size: 200% 100%
+        }
+
+        .featured-label {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            font-family: var(--font-head);
+            font-size: 11px;
+            font-weight: 700;
+            letter-spacing: .12em;
+            text-transform: uppercase;
+            color: var(--accent);
+            margin-bottom: .85rem;
+            position: relative
+        }
+
+        .featured-label::before {
+            content: '★';
+            font-size: 12px
+        }
+
+        /* ── Match Card (1v1) ── */
+        .match-card {
+            background: var(--bg2);
+            border: 1px solid var(--border);
+            border-radius: var(--r2);
+            padding: 1.1rem 1.25rem;
+            margin-bottom: 10px;
+            transition: border-color .2s, transform .15s, box-shadow .2s;
+            position: relative;
+            overflow: hidden;
+            cursor: pointer
+        }
+
+        .match-card:hover {
+            border-color: var(--border2);
+            transform: translateY(-1px)
+        }
+
+        .match-card.is-live {
+            border-color: rgba(var(--accent-rgb), .35)
+        }
+
+        .match-card.is-live::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 2px;
+            background: linear-gradient(90deg, transparent, var(--accent), transparent);
+            animation: shimmer 3s linear infinite;
+            background-size: 200%
+        }
+
+        .match-card.spotlight-highlight {
+            border-color: rgba(var(--accent-rgb), .6);
+            box-shadow: 0 0 20px rgba(var(--accent-rgb), .15);
+            animation: spotlight-pulse 2.5s ease-in-out infinite
+        }
+
+        .match-top {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: .85rem;
+            gap: 8px;
+            flex-wrap: wrap
+        }
+
+        .match-meta {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+            flex-wrap: wrap
+        }
+
+        .sport-pill {
+            font-size: 11px;
+            font-weight: 500;
+            background: var(--bg3);
+            border: 1px solid var(--border);
+            color: var(--muted2);
+            padding: 3px 10px;
+            border-radius: 100px;
+            letter-spacing: .03em
+        }
+
+        .tournament-pill {
+            font-size: 11px;
+            color: var(--muted)
+        }
+
+        .status-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            font-size: 11px;
+            font-weight: 600;
+            letter-spacing: .05em;
+            text-transform: uppercase;
+            padding: 3px 10px;
+            border-radius: 100px
+        }
+
+        .status-live {
+            background: rgba(var(--accent-rgb), .12);
+            color: var(--accent);
+            border: 1px solid rgba(var(--accent-rgb), .25)
+        }
+
+        .status-upcoming {
+            background: var(--bg3);
+            color: var(--muted2);
+            border: 1px solid var(--border)
+        }
+
+        .status-done {
+            background: rgba(59, 130, 246, .1);
+            color: #60a5fa;
+            border: 1px solid rgba(59, 130, 246, .2)
+        }
+
+        .status-dot {
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            background: currentColor;
+            flex-shrink: 0
+        }
+
+        .status-live .status-dot {
+            animation: blink 1.3s infinite
+        }
+
+        .teams-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 8px
+        }
+
+        .team {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 8px;
+            text-align: center
+        }
+
+        .dept-avatar-wrap {
+            position: relative
+        }
+
+        .dept-avatar {
+            width: 44px;
+            height: 44px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-family: var(--font-head);
+            font-size: 15px;
+            font-weight: 700;
+            color: #fff;
+            flex-shrink: 0;
+            overflow: hidden
+        }
+
+        .dept-avatar img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            border-radius: 50%
+        }
+
+        .featured-match .dept-avatar {
+            width: 56px;
+            height: 56px;
+            font-size: 18px
+        }
+
+        .winner-crown {
+            position: absolute;
+            top: -10px;
+            left: 50%;
+            transform: translateX(-50%);
+            font-size: 16px;
+            filter: drop-shadow(0 0 6px var(--gold));
+            animation: crown-float 2s ease-in-out infinite
+        }
+
+        .dept-name {
+            font-size: 13px;
+            font-weight: 500;
+            line-height: 1.3;
+            max-width: 110px;
+            word-break: break-word
+        }
+
+        .dept-name.winner {
+            color: var(--accent)
+        }
+
+        .dept-name.winner-final {
+            color: var(--gold);
+            font-weight: 700
+        }
+
+        .score-center {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 4px;
+            flex-shrink: 0;
+            min-width: 90px
+        }
+
+        .score-display {
+            display: flex;
+            align-items: center;
+            gap: 8px
+        }
+
+        .score-num {
+            font-family: var(--font-head);
+            font-size: 42px;
+            font-weight: 800;
+            line-height: 1;
+            min-width: 38px;
+            text-align: center
+        }
+
+        .score-num.winner-score {
+            color: var(--accent)
+        }
+
+        .score-num.winner-score-final {
+            color: var(--gold);
+            text-shadow: 0 0 20px rgba(245, 158, 11, .4)
+        }
+
+        .featured-match .score-num {
+            font-size: 52px
+        }
+
+        .score-sep {
+            font-family: var(--font-head);
+            font-size: 30px;
+            color: var(--muted);
+            font-weight: 300
+        }
+
+        .vs-text {
+            font-family: var(--font-head);
+            font-size: 11px;
+            color: var(--muted);
+            letter-spacing: .1em;
+            text-transform: uppercase
+        }
+
+        .match-footer {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            margin-top: .85rem;
+            padding-top: .75rem;
+            border-top: 1px solid var(--border);
+            font-size: 12px;
+            color: var(--muted);
+            flex-wrap: wrap
+        }
+
+        .match-footer-item {
+            display: flex;
+            align-items: center;
+            gap: 5px
+        }
+
+        .click-hint {
+            font-size: 10px;
+            color: var(--muted);
+            letter-spacing: .05em;
+            text-transform: uppercase;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            margin-left: auto
+        }
+
+        /* ── FFA Match Card (Enhanced Unique Design) ── */
+        .ffa-card {
+            background: linear-gradient(135deg, rgba(139, 92, 246, 0.05), rgba(34, 197, 94, 0.05));
+            border: 1px solid rgba(139, 92, 246, 0.3);
+            border-radius: var(--r3);
+            padding: 1.1rem 1.25rem;
+            margin-bottom: 10px;
+            cursor: pointer;
+            transition: all 0.3s;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .ffa-card:hover {
+            border-color: var(--gold);
+            transform: translateY(-2px);
+            box-shadow: 0 8px 32px rgba(139, 92, 246, 0.15);
+        }
+
+        .ffa-card.is-live {
+            border-color: rgba(var(--accent-rgb), 0.5);
+        }
+
+        .ffa-card.is-live::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 2px;
+            background: linear-gradient(90deg, transparent, var(--accent), transparent);
+            animation: shimmer 3s linear infinite;
+            background-size: 200%;
+        }
+
+        .ffa-card.spotlight-highlight {
+            border-color: rgba(var(--gold-rgb), 0.6);
+            box-shadow: 0 0 20px rgba(var(--gold-rgb), 0.2);
+        }
+
+        .ffa-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            background: rgba(139, 92, 246, 0.15);
+            color: var(--purple);
+            padding: 4px 12px;
+            border-radius: 100px;
+            font-size: 11px;
+            font-weight: 700;
+            letter-spacing: 0.5px;
+            border: 1px solid rgba(139, 92, 246, 0.3);
+        }
+
+        .ffa-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 1rem;
+        }
+
+        .ffa-icon {
+            font-size: 32px;
+        }
+
+        .ffa-title {
+            font-family: var(--font-head);
+            font-size: 18px;
+            font-weight: 700;
+            color: var(--gold);
+        }
+
+        .ffa-participants {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+            gap: 10px;
+            margin: 1rem 0;
+        }
+
+        .ffa-participant {
+            background: var(--bg3);
+            border: 1px solid var(--border);
+            border-radius: var(--r2);
+            padding: 0.8rem;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            transition: all 0.2s;
+            position: relative;
+        }
+
+        .ffa-participant:hover {
+            transform: translateX(4px);
+            border-color: var(--gold-border);
+        }
+
+        .ffa-participant.is-winner {
+            background: rgba(245, 158, 11, 0.1);
+            border-color: rgba(245, 158, 11, 0.4);
+        }
+
+        .ffa-rank {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-family: var(--font-head);
+            font-size: 16px;
+            font-weight: 700;
+            flex-shrink: 0;
+        }
+
+        .rank-gold {
+            background: rgba(245, 158, 11, 0.2);
+            color: var(--gold);
+            border: 1px solid rgba(245, 158, 11, 0.4);
+        }
+
+        .rank-silver {
+            background: rgba(148, 163, 184, 0.2);
+            color: var(--silver);
+            border: 1px solid rgba(148, 163, 184, 0.4);
+        }
+
+        .rank-bronze {
+            background: rgba(194, 98, 42, 0.2);
+            color: var(--bronze);
+            border: 1px solid rgba(194, 98, 42, 0.4);
+        }
+
+        .rank-other {
+            background: var(--bg4);
+            color: var(--muted);
+            border: 1px solid var(--border);
+        }
+
+        .ffa-participant-info {
+            flex: 1;
+            min-width: 0;
+        }
+
+        .ffa-participant-name {
+            font-weight: 600;
+            font-size: 13px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .ffa-participant-dept {
+            font-size: 10px;
+            color: var(--muted);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .ffa-participant-score {
+            font-family: var(--font-head);
+            font-size: 20px;
+            font-weight: 800;
+            color: var(--gold);
+            text-align: right;
+            flex-shrink: 0;
+        }
+
+        .ffa-participant-score.accent {
+            color: var(--accent);
+        }
+
+        .ffa-unit {
+            font-size: 10px;
+            color: var(--muted);
+            margin-left: 2px;
+        }
+
+        .ffa-footer {
+            margin-top: 0.8rem;
+            padding-top: 0.8rem;
+            border-top: 1px solid var(--border);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 11px;
+            color: var(--muted);
+        }
+
+        .ffa-medal {
+            font-size: 20px;
+        }
+
+        /* Winner Banner */
+        .winner-banner {
+            background: linear-gradient(135deg, rgba(245, 158, 11, 0.12) 0%, rgba(245, 158, 11, 0.04) 100%);
+            border: 1px solid rgba(245, 158, 11, 0.4);
+            border-radius: var(--r2);
+            padding: 1.25rem 1.5rem;
+            margin-bottom: 1.25rem;
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            position: relative;
+            overflow: hidden;
+            flex-wrap: wrap
+        }
+
+        .winner-banner::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background: repeating-linear-gradient(-45deg, rgba(245, 158, 11, .03) 0, rgba(245, 158, 11, .03) 1px, transparent 0, transparent 50%);
+            background-size: 8px 8px
+        }
+
+        .wb-trophy {
+            font-size: 40px;
+            flex-shrink: 0;
+            filter: drop-shadow(0 0 12px rgba(245, 158, 11, 0.5));
+            animation: trophy-pulse 2s ease-in-out infinite
+        }
+
+        .wb-body {
+            flex: 1;
+            min-width: 0
+        }
+
+        .wb-label {
+            font-size: 10px;
+            font-weight: 700;
+            letter-spacing: .12em;
+            text-transform: uppercase;
+            color: var(--gold);
+            margin-bottom: 4px
+        }
+
+        .wb-name {
+            font-family: var(--font-head);
+            font-size: 24px;
+            font-weight: 800;
+            text-transform: uppercase;
+            color: var(--gold);
+            line-height: 1.1
+        }
+
+        .wb-sub {
+            font-size: 12px;
+            color: var(--muted2);
+            margin-top: 4px
+        }
+
+        .wb-dept-img {
+            width: 56px;
+            height: 56px;
+            border-radius: 50%;
+            object-fit: cover;
+            border: 2px solid rgba(245, 158, 11, 0.5);
+            flex-shrink: 0
+        }
+
+        .wb-dept-initials {
+            width: 56px;
+            height: 56px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-family: var(--font-head);
+            font-size: 18px;
+            font-weight: 700;
+            color: #fff;
+            border: 2px solid rgba(245, 158, 11, 0.5);
+            flex-shrink: 0
+        }
+
+        /* Leaderboard */
+        .lb-table {
+            background: var(--bg2);
+            border: 1px solid var(--border);
+            border-radius: var(--r2);
+            overflow: hidden
+        }
+
+        .lb-header {
+            display: grid;
+            grid-template-columns: 44px 1fr 100px 90px;
+            padding: .65rem 1.25rem;
+            font-size: 10px;
+            font-weight: 500;
+            letter-spacing: .08em;
+            text-transform: uppercase;
+            color: var(--muted);
+            border-bottom: 1px solid var(--border)
+        }
+
+        .lb-row {
+            display: grid;
+            grid-template-columns: 44px 1fr 100px 90px;
+            align-items: center;
+            padding: .85rem 1.25rem;
+            border-bottom: 1px solid var(--border);
+            transition: background .15s;
+            gap: 8px
+        }
+
+        .lb-row:last-child {
+            border-bottom: none
+        }
+
+        .lb-row:hover {
+            background: var(--bg3)
+        }
+
+        .lb-row.top1 {
+            background: rgba(245, 158, 11, .06)
+        }
+
+        .lb-row.top2 {
+            background: rgba(148, 163, 184, .04)
+        }
+
+        .lb-row.top3 {
+            background: rgba(194, 98, 42, .05)
+        }
+
+        .lb-row.spotlight-lb {
+            border-left: 3px solid var(--accent);
+            background: rgba(var(--accent-rgb), .05)
+        }
+
+        .rank-badge {
+            font-family: var(--font-head);
+            font-size: 20px;
+            font-weight: 700;
+            text-align: center;
+            line-height: 1
+        }
+
+        .rank-1 {
+            color: var(--gold)
+        }
+
+        .rank-2 {
+            color: var(--silver)
+        }
+
+        .rank-3 {
+            color: var(--bronze)
+        }
+
+        .rank-other {
+            color: var(--muted);
+            font-size: 15px
+        }
+
+        .lb-dept {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            min-width: 0
+        }
+
+        .lb-dot {
+            width: 34px;
+            height: 34px;
+            border-radius: 50%;
+            flex-shrink: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-family: var(--font-head);
+            font-size: 12px;
+            font-weight: 700;
+            color: #fff;
+            overflow: hidden
+        }
+
+        .lb-dot img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            border-radius: 50%
+        }
+
+        .lb-name {
+            font-size: 14px;
+            font-weight: 500;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis
+        }
+
+        .lb-medals {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+            justify-content: center
+        }
+
+        .medal-item {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 2px;
+            min-width: 26px;
+            text-align: center
+        }
+
+        .medal-icon {
+            width: 13px;
+            height: 13px;
+            border-radius: 50%
+        }
+
+        .mi-gold {
+            background: var(--gold)
+        }
+
+        .mi-silver {
+            background: var(--silver)
+        }
+
+        .mi-bronze {
+            background: var(--bronze)
+        }
+
+        .medal-count {
+            font-size: 13px;
+            font-weight: 500
+        }
+
+        .lb-pts {
+            font-family: var(--font-head);
+            font-size: 20px;
+            font-weight: 700;
+            color: var(--accent);
+            text-align: right
+        }
+
+        .pts-lbl {
+            font-size: 10px;
+            color: var(--muted);
+            display: block;
+            line-height: 1;
+            margin-top: 1px
+        }
+
+        /* MVP */
+        .mvp-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+            gap: 12px
+        }
+
+        .mvp-card {
+            background: var(--bg2);
+            border: 1px solid var(--border);
+            border-radius: var(--r2);
+            padding: 1.25rem 1rem;
+            text-align: center;
+            transition: border-color .2s, transform .15s;
+            position: relative;
+            overflow: hidden
+        }
+
+        .mvp-card:hover {
+            border-color: var(--border2);
+            transform: translateY(-2px)
+        }
+
+        .mvp-card.featured {
+            border-color: rgba(245, 158, 11, .35)
+        }
+
+        .mvp-card.spotlight-mvp {
+            border-color: rgba(var(--accent-rgb), .5);
+            box-shadow: 0 0 16px rgba(var(--accent-rgb), .1);
+            animation: spotlight-pulse 2.5s ease-in-out infinite
+        }
+
+        .mvp-card.featured::after {
+            content: 'MVP';
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            font-family: var(--font-head);
+            font-size: 9px;
+            font-weight: 700;
+            letter-spacing: .1em;
+            background: rgba(245, 158, 11, .15);
+            color: var(--gold);
+            padding: 2px 7px;
+            border-radius: 100px;
+            border: 1px solid rgba(245, 158, 11, .3)
+        }
+
+        .mvp-photo-wrap {
+            position: relative;
+            width: 70px;
+            height: 70px;
+            margin: 0 auto 12px
+        }
+
+        .mvp-photo {
+            width: 70px;
+            height: 70px;
+            border-radius: 50%;
+            object-fit: cover;
+            border: 2px solid var(--border2)
+        }
+
+        .mvp-initials {
+            width: 70px;
+            height: 70px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-family: var(--font-head);
+            font-size: 22px;
+            font-weight: 700;
+            color: #fff;
+            border: 2px solid var(--border2)
+        }
+
+        .mvp-name {
+            font-family: var(--font-head);
+            font-size: 15px;
+            font-weight: 700;
+            letter-spacing: .3px;
+            text-transform: uppercase;
+            margin-bottom: 4px;
+            line-height: 1.2
+        }
+
+        .mvp-sport {
+            font-size: 11px;
+            color: var(--accent);
+            font-weight: 500;
+            text-transform: uppercase;
+            letter-spacing: .06em
+        }
+
+        .mvp-dept {
+            font-size: 11px;
+            color: var(--muted);
+            margin-top: 3px
+        }
+
+        /* Schedule */
+        .sched-group {
+            margin-bottom: 1.75rem
+        }
+
+        .sched-date-head {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 10px
+        }
+
+        .sched-date-label {
+            font-family: var(--font-head);
+            font-size: 14px;
+            font-weight: 700;
+            letter-spacing: .5px;
+            text-transform: uppercase;
+            color: var(--muted2)
+        }
+
+        .sched-date-label.today {
+            color: var(--accent)
+        }
+
+        .sched-line {
+            flex: 1;
+            height: 1px;
+            background: var(--border)
+        }
+
+        .sched-card {
+            background: var(--bg2);
+            border: 1px solid var(--border);
+            border-radius: var(--r);
+            margin-bottom: 6px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: .8rem 1rem;
+            transition: border-color .15s;
+            flex-wrap: wrap
+        }
+
+        .sched-card:hover {
+            border-color: var(--border2)
+        }
+
+        .sched-card.live-sched {
+            border-color: rgba(var(--accent-rgb), .25)
+        }
+
+        .sched-card.spotlight-sched {
+            border-left: 3px solid var(--accent);
+            background: rgba(var(--accent-rgb), .04)
+        }
+
+        .sched-time-col {
+            min-width: 58px;
+            font-family: var(--font-head);
+            font-size: 15px;
+            font-weight: 700;
+            color: var(--accent);
+            flex-shrink: 0
+        }
+
+        .sched-info {
+            flex: 1;
+            min-width: 0
+        }
+
+        .sched-match-name {
+            font-size: 13px;
+            font-weight: 500;
+            margin-bottom: 3px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis
+        }
+
+        .sched-meta-row {
+            font-size: 11px;
+            color: var(--muted);
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap
+        }
+
+        /* Highlights */
+        .highlight-card {
+            background: var(--bg2);
+            border: 1px solid var(--border);
+            border-radius: var(--r2);
+            padding: 1.1rem 1.25rem;
+            margin-bottom: 10px;
+            display: flex;
+            gap: 1rem;
+            align-items: flex-start;
+            transition: border-color .2s
+        }
+
+        .highlight-card:hover {
+            border-color: var(--border2)
+        }
+
+        .hl-icon {
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            background: rgba(var(--accent-rgb), .1);
+            border: 1px solid rgba(var(--accent-rgb), .2);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 16px;
+            flex-shrink: 0
+        }
+
+        .hl-body {
+            flex: 1;
+            min-width: 0
+        }
+
+        .hl-title {
+            font-size: 14px;
+            font-weight: 500;
+            margin-bottom: 4px
+        }
+
+        .hl-desc {
+            font-size: 13px;
+            color: var(--muted2);
+            line-height: 1.5
+        }
+
+        .hl-sub {
+            font-size: 11px;
+            color: var(--muted);
+            margin-top: 5px
+        }
+
+        .hl-score {
+            font-family: var(--font-head);
+            font-size: 20px;
+            font-weight: 700;
+            color: var(--accent);
+            flex-shrink: 0
+        }
+
+        /* Modal */
+        .modal-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.75);
+            backdrop-filter: blur(8px);
+            z-index: 1000;
+            display: flex;
+            align-items: flex-end;
+            justify-content: center;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity .3s
+        }
+
+        .modal-overlay.open {
+            opacity: 1;
+            pointer-events: all
+        }
+
+        .modal {
+            background: var(--bg2);
+            border: 1px solid var(--border2);
+            border-radius: var(--r3) var(--r3) 0 0;
+            width: 100%;
+            max-width: 560px;
+            max-height: 90vh;
+            overflow-y: auto;
+            transform: translateY(20px);
+            transition: transform .3s var(--transition);
+            padding: 0
+        }
+
+        .modal-overlay.open .modal {
+            transform: translateY(0)
+        }
+
+        @media(min-width:600px) {
+            .modal-overlay {
+                align-items: center
+            }
+
+            .modal {
+                border-radius: var(--r3);
+                max-height: 80vh
+            }
+        }
+
+        .modal-handle {
+            width: 36px;
+            height: 4px;
+            background: var(--border2);
+            border-radius: 2px;
+            margin: 12px auto 0
+        }
+
+        .modal-header {
+            padding: 1.25rem 1.5rem 1rem;
+            border-bottom: 1px solid var(--border)
+        }
+
+        .modal-sport {
+            font-size: 11px;
+            color: var(--accent);
+            text-transform: uppercase;
+            letter-spacing: .08em;
+            font-weight: 500;
+            margin-bottom: 6px;
+            display: flex;
+            align-items: center;
+            gap: 6px
+        }
+
+        .modal-title {
+            font-family: var(--font-head);
+            font-size: 20px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: .5px
+        }
+
+        .modal-teams {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 8px;
+            padding: 1.25rem 1.5rem;
+            border-bottom: 1px solid var(--border)
+        }
+
+        .modal-team {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 8px;
+            text-align: center
+        }
+
+        .modal-dept-avatar {
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-family: var(--font-head);
+            font-size: 17px;
+            font-weight: 700;
+            color: #fff;
+            overflow: hidden
+        }
+
+        .modal-dept-avatar img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            border-radius: 50%
+        }
+
+        .modal-dept-name {
+            font-family: var(--font-head);
+            font-size: 14px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: .4px
+        }
+
+        .modal-dept-name.winner {
+            color: var(--gold)
+        }
+
+        .modal-final-score {
+            text-align: center;
+            padding: .5rem
+        }
+
+        .modal-score-big {
+            font-family: var(--font-head);
+            font-size: 48px;
+            font-weight: 800;
+            line-height: 1;
+            color: var(--text)
+        }
+
+        .modal-score-label {
+            font-size: 10px;
+            color: var(--muted);
+            text-transform: uppercase;
+            letter-spacing: .08em;
+            margin-top: 4px
+        }
+
+        .modal-breakdown {
+            padding: 1.25rem 1.5rem
+        }
+
+        .modal-breakdown-title {
+            font-size: 11px;
+            font-weight: 500;
+            letter-spacing: .08em;
+            text-transform: uppercase;
+            color: var(--muted);
+            margin-bottom: 10px
+        }
+
+        .period-table {
+            width: 100%;
+            border-collapse: collapse
+        }
+
+        .period-table th {
+            font-size: 10px;
+            color: var(--muted);
+            text-transform: uppercase;
+            letter-spacing: .06em;
+            padding: 4px 8px;
+            text-align: center
+        }
+
+        .period-table th:first-child {
+            text-align: left
+        }
+
+        .period-table td {
+            font-size: 14px;
+            padding: 8px 8px;
+            text-align: center;
+            border-bottom: 1px solid var(--border)
+        }
+
+        .period-table td:first-child {
+            text-align: left;
+            font-size: 12px;
+            color: var(--muted2)
+        }
+
+        .period-table tr:last-child td {
+            border-bottom: none
+        }
+
+        .period-table .total-row td {
+            font-family: var(--font-head);
+            font-size: 18px;
+            font-weight: 700;
+            color: var(--text);
+            padding-top: 12px
+        }
+
+        .period-table .total-row td:first-child {
+            color: var(--muted2);
+            font-size: 12px;
+            font-family: var(--font-body);
+            font-weight: 400
+        }
+
+        .period-table .winner-score-cell {
+            color: var(--accent)
+        }
+
+        .modal-meta {
+            padding: 0 1.5rem 1.5rem;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px
+        }
+
+        .modal-meta-item {
+            font-size: 12px;
+            color: var(--muted);
+            display: flex;
+            align-items: center;
+            gap: 5px
+        }
+
+        .modal-close {
+            position: absolute;
+            top: 1rem;
+            right: 1.25rem;
+            background: var(--bg3);
+            border: 1px solid var(--border);
+            color: var(--muted2);
+            font-size: 16px;
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all .2s
+        }
+
+        .modal-close:hover {
+            border-color: var(--accent);
+            color: var(--accent)
+        }
+
+        /* Desktop Matches Grid */
+        @media(min-width:1024px) {
+            #matches-container {
+                display: grid;
+                grid-template-columns: repeat(2, 1fr);
+                gap: 12px
+            }
+
+            .match-card,
+            .ffa-card {
+                margin-bottom: 0
+            }
+        }
+
+        /* Mobile */
+        @media(max-width:600px) {
+            .hero {
+                padding: 2rem .85rem 0
+            }
+
+            .main {
+                padding: 1rem .75rem 4rem
+            }
+
+            .tab {
+                padding: 12px 12px;
+                font-size: 12px
+            }
+
+            .tab-icon {
+                display: none
+            }
+
+            .lb-header {
+                display: none
+            }
+
+            .lb-row {
+                grid-template-columns: 36px 1fr 80px;
+                padding: .75rem .85rem
+            }
+
+            .lb-medals {
+                display: none
+            }
+
+            .score-num {
+                font-size: 34px
+            }
+
+            .featured-match .score-num {
+                font-size: 40px
+            }
+
+            .dept-avatar {
+                width: 36px;
+                height: 36px;
+                font-size: 12px
+            }
+
+            .dept-name {
+                font-size: 12px;
+                max-width: 80px
+            }
+
+            .match-card,
+            .ffa-card {
+                padding: .9rem .85rem
+            }
+
+            .mvp-grid {
+                grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+                gap: 8px
+            }
+
+            .hero-stats .hstat {
+                padding: .75rem .4rem
+            }
+
+            .hstat-val {
+                font-size: 22px
+            }
+
+            .hstat-lbl {
+                font-size: 9px
+            }
+
+            .cd-units {
+                gap: 5px
+            }
+
+            .cd-unit {
+                min-width: 50px;
+                padding: .5rem .6rem
+            }
+
+            .cd-num {
+                font-size: 24px
+            }
+
+            .click-hint {
+                display: none
+            }
+
+            .ffa-participants {
+                grid-template-columns: 1fr
+            }
+
+            .ffa-participant {
+                padding: 0.6rem;
+            }
+        }
+
+        @media(max-width:400px) {
+            .score-num {
+                font-size: 28px
+            }
+
+            .score-center {
+                min-width: 65px
+            }
+
+            .dept-name {
+                font-size: 11px;
+                max-width: 65px
+            }
+        }
+
+        a {
+            text-decoration-line: none;
+            color: white;
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 3rem 1rem;
+            color: var(--muted)
+        }
+
+        .empty-icon {
+            font-size: 36px;
+            display: block;
+            margin-bottom: 12px;
+            opacity: .4
+        }
+
+        .empty-title {
+            font-size: 15px;
+            color: var(--muted2);
+            margin-bottom: 6px
+        }
+
+        .empty-sub {
+            font-size: 13px
+        }
+
+        .skeleton {
+            background: var(--bg2);
+            border: 1px solid var(--border);
+            border-radius: var(--r2);
+            padding: 1.1rem 1.25rem;
+            margin-bottom: 10px;
+            animation: skel-pulse 1.6s ease-in-out infinite
+        }
+
+        .skel-line {
+            height: 12px;
+            border-radius: 6px;
+            background: var(--bg3);
+            margin-bottom: 10px
+        }
+
+        .skel-line.short {
+            width: 40%
+        }
+
+        .skel-line.medium {
+            width: 70%
+        }
+
+        .search-wrap {
+            position: relative;
+            margin: 0 0 1.25rem
+        }
+
+        .search-input {
+            width: 100%;
+            background: var(--bg2);
+            border: 1px solid var(--border2);
+            color: var(--text);
+            font-family: var(--font-body);
+            font-size: 13px;
+            padding: 10px 16px 10px 40px;
+            border-radius: 100px;
+            outline: none
+        }
+
+        .search-input:focus {
+            border-color: var(--accent)
+        }
+
+        .search-icon {
+            position: absolute;
+            left: 14px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: var(--muted);
+            font-size: 15px;
+            pointer-events: none
+        }
+
+        .search-clear {
+            position: absolute;
+            right: 12px;
+            top: 50%;
+            transform: translateY(-50%);
+            background: var(--bg3);
+            border: none;
+            color: var(--muted);
+            cursor: pointer;
+            border-radius: 50%;
+            width: 20px;
+            height: 20px;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            font-size: 12px
+        }
+
+        .search-clear.visible {
+            display: flex
+        }
+
+        .hidden-by-search {
+            display: none !important
+        }
+    </style>
+</head>
+
+<body>
+
+    <header class="topbar">
+        <div class="topbar-inner">
+            <div class="logo">PAC SCHED-SCORE</div>
+            <div class="topbar-right">
+                <div class="topbar-clock" id="topbar-clock">00:00:00 AM</div>
+                <button class="login-btn"><a href="/login">Login</a></button>
+            </div>
+        </div>
+    </header>
+
+
+    <div class="ticker-wrap">
+        <span class="ticker-label" id="ticker-label">LIVE</span>
+        <div style="overflow:hidden;flex:1;">
+            <div class="ticker-track" id="ticker-track">
+                <span class="ticker-item">Sport Fest 2025 · Live Coverage · Stay tuned</span>
+                <span class="ticker-item">Sport Fest 2025 · Live Coverage · Stay tuned</span>
+            </div>
+        </div>
+    </div>
+
+
+    <div class="hero">
+        <div class="hero-grid"></div>
+        <div class="hero-glow" id="hero-glow"></div>
+        <div class="hero-inner">
+            <div class="event-tag"><span class="live-dot"></span>Sport Fest 2025 · Live Coverage</div>
+            <h1>Sport<span class="accent-word">Fest</span><br>2025</h1>
+            <p class="hero-sub">Follow every match, score every point, celebrate every champion</p>
+            <div class="spotlight-wrap">
+                <span class="spotlight-label">Follow:</span>
+                <select class="spotlight-select" id="spotlight-select" onchange="applySpotlight(this.value)">
+                    <option value="">All Departments</option>
+                </select>
+                <button class="spotlight-clear" id="spotlight-clear" onclick="clearSpotlight()">✕ Clear</button>
+            </div>
+            <div class="countdown-wrap" id="countdown-wrap" style="display:none;">
+                <div class="cd-header"><span class="live-dot"></span>Next Match</div>
+                <div class="cd-match-name" id="cd-match-name">Loading...</div>
+                <div class="cd-units">
+                    <div class="cd-unit"><span class="cd-num" id="cd-d">00</span><span class="cd-lbl">Days</span></div>
+                    <div class="cd-unit"><span class="cd-num" id="cd-h">00</span><span class="cd-lbl">Hrs</span></div>
+                    <div class="cd-unit"><span class="cd-num" id="cd-m">00</span><span class="cd-lbl">Min</span></div>
+                    <div class="cd-unit"><span class="cd-num" id="cd-s">00</span><span class="cd-lbl">Sec</span></div>
+                </div>
+            </div>
+            <div class="hero-stats">
+                <div class="hstat">
+                    <div class="hstat-val" id="h-live">—</div>
+                    <div class="hstat-lbl">Live now</div>
+                </div>
+                <div class="hstat">
+                    <div class="hstat-val" id="h-today">—</div>
+                    <div class="hstat-lbl">Today</div>
+                </div>
+                <div class="hstat">
+                    <div class="hstat-val" id="h-done">—</div>
+                    <div class="hstat-lbl">Completed</div>
+                </div>
+                <div class="hstat">
+                    <div class="hstat-val" id="h-sports">—</div>
+                    <div class="hstat-lbl">Sports</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+
+    <div class="nav-wrap">
+        <nav class="nav" role="tablist">
+            <button class="tab active" onclick="switchTab('scores',this)"><span class="tab-icon">⚡</span> Scores <span
+                    class="tab-badge" id="live-badge" style="display:none">0</span></button>
+            <button class="tab" onclick="switchTab('leaderboard',this)"><span class="tab-icon">🏆</span>
+                Standings</button>
+            <button class="tab" onclick="switchTab('mvp',this)"><span class="tab-icon">⭐</span> MVPs</button>
+            <button class="tab" onclick="switchTab('schedule',this)"><span class="tab-icon">📅</span> Schedule</button>
+            <button class="tab" onclick="switchTab('highlights',this)"><span class="tab-icon">🎯</span>
+                Highlights</button>
+        </nav>
+    </div>
+
+
+    <main class="main">
+
+
+        <div id="sec-scores" class="section active">
+            <div class="sec-head">
+                <div class="sec-title">Live <span>Scores</span></div>
+                <button class="refresh-btn" onclick="refreshScores(this)"><span class="refresh-icon">↻</span>
+                    Refresh</button>
+            </div>
+            <div class="auto-refresh-strip"><span class="arf-dot"></span><span id="refresh-ts">Auto-refreshes every 30
+                    seconds</span></div>
+            <div class="sport-filters" id="sport-filters">
+                <div class="sport-chip active" data-sport="all" onclick="filterBySport('all',this)"><span
+                        class="sport-chip-icon">🏅</span><span class="sport-chip-label">All</span></div>
+            </div>
+            <div class="status-filters" id="status-filters">
+                <span class="filter-chip active" data-filter="all" onclick="filterByStatus('all',this)">All</span>
+                <span class="filter-chip" data-filter="ongoing" onclick="filterByStatus('ongoing',this)">Live</span>
+                <span class="filter-chip" data-filter="scheduled"
+                    onclick="filterByStatus('scheduled',this)">Upcoming</span>
+                <span class="filter-chip" data-filter="completed"
+                    onclick="filterByStatus('completed',this)">Final</span>
+            </div>
+            <div id="featured-match-wrap"></div>
+            <div id="matches-container">
+                <div class="skeleton">
+                    <div class="skel-line short"></div>
+                    <div class="skel-line medium"></div>
+                </div>
+                <div class="skeleton">
+                    <div class="skel-line short"></div>
+                    <div class="skel-line medium"></div>
+                </div>
+            </div>
+        </div>
+
+
+        <div id="sec-leaderboard" class="section sidebar-always">
+            <div class="sec-head">
+                <div class="sec-title">Overall <span>Standings</span></div>
+                <button class="refresh-btn" onclick="loadLeaderboard()"><span class="refresh-icon">↻</span>
+                    Refresh</button>
+            </div>
+            <div id="lb-container">
+                <div class="skeleton">
+                    <div class="skel-line medium"></div>
+                </div>
+                <div class="skeleton">
+                    <div class="skel-line medium"></div>
+                </div>
+            </div>
+        </div>
+
+
+        <div id="sec-mvp" class="section">
+            <div class="sec-head">
+                <div class="sec-title">Most Valuable <span>Players</span></div>
+            </div>
+            <div class="search-wrap"><span class="search-icon">🔍</span><input type="text" class="search-input"
+                    id="mvp-search" placeholder="Search player or sport..." oninput="filterMVPs(this.value)"><button
+                    class="search-clear" id="mvp-search-clear" onclick="clearSearch('mvp')">✕</button></div>
+            <div class="mvp-grid" id="mvp-container">
+                <div class="empty-state" style="grid-column:1/-1"><span class="empty-icon">⭐</span>
+                    <div class="empty-title">Loading MVPs...</div>
+                </div>
+            </div>
+        </div>
+
+
+        <div id="sec-schedule" class="section">
+            <div class="sec-head">
+                <div class="sec-title">Full <span>Schedule</span></div>
+            </div>
+            <div class="search-wrap"><span class="search-icon">🔍</span><input type="text" class="search-input"
+                    id="sched-search" placeholder="Search sport, team, or venue..."
+                    oninput="filterSchedule(this.value)"><button class="search-clear" id="sched-search-clear"
+                    onclick="clearSearch('sched')">✕</button></div>
+            <div id="schedule-container">
+                <div class="skeleton">
+                    <div class="skel-line short"></div>
+                    <div class="skel-line medium"></div>
+                </div>
+            </div>
+        </div>
+
+
+        <div id="sec-highlights" class="section">
+            <div class="sec-head">
+                <div class="sec-title">Recent <span>Highlights</span></div>
+            </div>
+            <div id="highlights-container">
+                <div class="empty-state"><span class="empty-icon">🎯</span>
+                    <div class="empty-title">Loading...</div>
+                </div>
+            </div>
+        </div>
+
+    </main>
+
+
+    <div class="modal-overlay" id="modal-overlay" onclick="closeModalOnBg(event)">
+        <div class="modal" id="modal">
+            <div class="modal-handle"></div>
+            <button class="modal-close" onclick="closeModal()">✕</button>
+            <div id="modal-body"></div>
+        </div>
+    </div>
+
+    <script>
+        const BASE = window.location.origin;
+        let allMatches = [], allDepts = [], allLbData = [];
+        let currentStatusFilter = 'all', currentSportFilter = 'all', currentSpotlight = '';
+        let countdownInterval = null, refreshTimer = null, confettiFired = false;
+        let ffaDataCache = {};
+
+
+        const TIME_BASED_SPORTS = ['swimming', 'athletics', 'track', 'cycling', 'running', 'gymnastics', 'triathlon'];
+
+        const SPORT_ICONS = {
+            'Basketball': '🏀', 'Volleyball': '🏐', 'Football': '⚽', 'Soccer': '⚽', 'Badminton': '🏸',
+            'Table Tennis': '🏓', 'Tennis': '🎾', 'Swimming': '🏊', 'Track and Field': '🏃', 'Athletics': '🏃',
+            'Chess': '♟', 'Sepak Takraw': '🦵', 'Softball': '🥎', 'Baseball': '⚾', 'Cycling': '🚴',
+            'Boxing': '🥊', 'Futsal': '⚽', 'Arnis': '🥋', 'default': '🏅'
+        };
+
+        function esc(s) { return String(s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;') }
+        function initials(n) { if (!n) return '?'; const p = n.trim().split(/\s+/); return p.length >= 2 ? (p[0][0] + p[1][0]).toUpperCase() : n.slice(0, 2).toUpperCase() }
+        function deptColor(s) { if (!s) return '#4b5563'; let h = 0; for (let i = 0; i < s.length; i++)h = s.charCodeAt(i) + ((h << 5) - h); const c = ['#16a34a', '#2563eb', '#dc2626', '#9333ea', '#ea580c', '#0891b2', '#be185d', '#854d0e', '#0f766e', '#7c3aed']; return c[Math.abs(h) % c.length] }
+        function sportIcon(n) { for (const k of Object.keys(SPORT_ICONS)) { if (n && n.toLowerCase().includes(k.toLowerCase())) return SPORT_ICONS[k] } return SPORT_ICONS.default }
+        function fmtTime(t) { if (!t) return 'TBD'; const p = String(t).split(':'); let h = parseInt(p[0]), m = p[1] || '00'; const ap = h >= 12 ? 'PM' : 'AM'; h = h % 12 || 12; return `${h}:${m} ${ap}` }
+        function fmtDate(d) {
+            if (!d) return 'TBD';
+            const ds = d instanceof Date ? d.toISOString().split('T')[0] : String(d).split('T')[0];
+            const dt = new Date(ds + 'T00:00');
+            const today = new Date(); today.setHours(0, 0, 0, 0);
+            const tom = new Date(today); tom.setDate(today.getDate() + 1);
+            if (dt.getTime() === today.getTime()) return 'Today';
+            if (dt.getTime() === tom.getTime()) return 'Tomorrow';
+            return dt.toLocaleDateString('en-PH', { weekday: 'short', month: 'short', day: 'numeric' })
+        }
+        function isToday(d) { if (!d) return false; const ds = d instanceof Date ? d.toISOString().split('T')[0] : String(d).split('T')[0]; const dt = new Date(ds + 'T00:00'); const t = new Date(); t.setHours(0, 0, 0, 0); return dt.getTime() === t.getTime() }
+        function fmtScore(v, sportName) {
+            if (v === undefined || v === null) return '—';
+            const isTime = TIME_BASED_SPORTS.some(s => sportName && sportName.toLowerCase().includes(s));
+            if (isTime) return String(v);
+            const n = Number(v);
+            if (isNaN(n)) return String(v);
+            return String(Math.round(n));
+        }
+        function isTimeBased(sportName) { return TIME_BASED_SPORTS.some(s => sportName && sportName.toLowerCase().includes(s)) }
+        function isFFA(m) {
+            const format = (m.tournament_format || '').toLowerCase();
+            return format === 'free_for_all' || format === 'team_ranking' || m.bracket_side === 'ffa' || m.bracket_position === 'FFA Event';
+        }
+
+        async function loadFFAData(tournamentId) {
+            if (ffaDataCache[tournamentId]) return ffaDataCache[tournamentId];
+            try {
+                const res = await fetch(`${BASE}/api/tournaments/ffa-results/${tournamentId}`);
+                const data = await res.json();
+                if (data.success && data.data) {
+                    const participants = data.data.participants || [];
+                    const ffaScoring = data.data.ffa_scoring || 'points';
+                    const lowerBetter = ffaScoring === 'time';
+                    const withScores = participants.filter(p => p.ffa_result_value !== null);
+                    const withoutScores = participants.filter(p => p.ffa_result_value === null);
+                    withScores.sort((a, b) => lowerBetter ? a.ffa_result_value - b.ffa_result_value : b.ffa_result_value - a.ffa_result_value);
+                    ffaDataCache[tournamentId] = {
+                        participants: [...withScores, ...withoutScores],
+                        scoring: ffaScoring,
+                        unit: ffaScoring === 'time' ? 's' : (ffaScoring === 'distance' ? 'm' : 'pts'),
+                        lowerBetter
+                    };
+                    return ffaDataCache[tournamentId];
+                }
+            } catch (err) {
+                console.error('Error loading FFA data:', err);
+            }
+            return null;
+        }
+
+        function updateClock() {
+            const now = new Date();
+            document.getElementById('topbar-clock').textContent = now.toLocaleTimeString('en-PH', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+        }
+        setInterval(updateClock, 1000); updateClock();
+
+        function applyDynamicTheme(color) {
+            if (!color || !color.startsWith('#')) return;
+            const hex = color.replace('#', '');
+            const r = parseInt(hex.slice(0, 2), 16), g = parseInt(hex.slice(2, 4), 16), b = parseInt(hex.slice(4, 6), 16);
+            document.documentElement.style.setProperty('--accent', color);
+            document.documentElement.style.setProperty('--accent-rgb', `${r},${g},${b}`);
+            document.documentElement.style.setProperty('--accent-dim', `rgba(${r},${g},${b},0.12)`);
+            document.documentElement.style.setProperty('--accent-glow', `rgba(${r},${g},${b},0.3)`);
+            document.getElementById('hero-glow').style.background = `radial-gradient(ellipse,rgba(${r},${g},${b},0.15) 0%,transparent 70%)`;
+            document.getElementById('ticker-label').style.background = color;
+        }
+
+        function setupCountdown(matches) {
+            clearInterval(countdownInterval);
+            const now = Date.now();
+            const upcoming = matches
+                .filter(m => m.status === 'scheduled' || m.status === 'pending')
+                .filter(m => m.scheduled_date && m.scheduled_time)
+                .map(m => { const dt = new Date(m.scheduled_date + 'T' + m.scheduled_time); return { ...m, _ts: dt.getTime() } })
+                .filter(m => m._ts > now).sort((a, b) => a._ts - b._ts);
+            const wrap = document.getElementById('countdown-wrap');
+            if (!upcoming.length) { wrap.style.display = 'none'; return }
+            const next = upcoming[0];
+            const na = next.dept_a_name || next.dept_a || 'TBD';
+            const nb = next.dept_b_name || next.dept_b || 'TBD';
+            document.getElementById('cd-match-name').textContent = `${na} vs ${nb} · ${next.sport_name || ''}`;
+            wrap.style.display = 'block';
+            function tick() {
+                const diff = next._ts - Date.now();
+                if (diff <= 0) { clearInterval(countdownInterval);['cd-d', 'cd-h', 'cd-m', 'cd-s'].forEach(id => document.getElementById(id).textContent = '00'); return }
+                const d = Math.floor(diff / 86400000), h = Math.floor((diff % 86400000) / 3600000), mi = Math.floor((diff % 3600000) / 60000), s = Math.floor((diff % 60000) / 1000);
+                document.getElementById('cd-d').textContent = String(d).padStart(2, '0');
+                document.getElementById('cd-h').textContent = String(h).padStart(2, '0');
+                document.getElementById('cd-m').textContent = String(mi).padStart(2, '0');
+                document.getElementById('cd-s').textContent = String(s).padStart(2, '0');
+            }
+            tick(); countdownInterval = setInterval(tick, 1000);
+        }
+
+        function populateSpotlightSelect(depts) {
+            const sel = document.getElementById('spotlight-select');
+            const existing = [...sel.options].map(o => o.value);
+            depts.forEach(d => { if (!existing.includes(String(d.id))) { const opt = document.createElement('option'); opt.value = d.id; opt.textContent = d.name; sel.appendChild(opt) } });
+        }
+
+        function applySpotlight(val) {
+            currentSpotlight = val;
+            document.getElementById('spotlight-clear').classList.toggle('visible', !!val);
+            renderMatches();
+            if (document.getElementById('sec-leaderboard').classList.contains('active')) renderLeaderboard();
+            if (document.getElementById('sec-mvp').classList.contains('active')) applyMVPSpotlight();
+            if (document.getElementById('sec-schedule').classList.contains('active')) renderSchedule();
+        }
+        function clearSpotlight() { document.getElementById('spotlight-select').value = ''; applySpotlight('') }
+
+        function isSpotlighted(m) {
+            if (!currentSpotlight) return false;
+            return String(m.participant_a_department_id) === String(currentSpotlight) ||
+                String(m.participant_b_department_id) === String(currentSpotlight) ||
+                String(m.dept_a_id) === String(currentSpotlight) ||
+                String(m.dept_b_id) === String(currentSpotlight);
+        }
+
+        function buildSportFilters(matches) {
+            const sports = [...new Set(matches.map(m => m.sport_name).filter(Boolean))];
+            const container = document.getElementById('sport-filters');
+            container.querySelectorAll('[data-sport]:not([data-sport="all"])').forEach(e => e.remove());
+            sports.forEach(s => {
+                const div = document.createElement('div');
+                div.className = 'sport-chip'; div.dataset.sport = s;
+                div.onclick = function () { filterBySport(s, this) };
+                div.innerHTML = `<span class="sport-chip-icon">${sportIcon(s)}</span><span class="sport-chip-label">${s}</span>`;
+                container.appendChild(div);
+            });
+        }
+
+        function statusBadgeHTML(s) {
+            if (s === 'ongoing') return `<span class="status-badge status-live"><span class="status-dot"></span>Live</span>`;
+            if (s === 'completed') return `<span class="status-badge status-done"><span class="status-dot"></span>Final</span>`;
+            return `<span class="status-badge status-upcoming"><span class="status-dot"></span>Upcoming</span>`;
+        }
+
+        function deptAvatarHTML(name, color, logoUrl, size = 'sm') {
+            const sz = size === 'lg' ? '56px' : size === 'md' ? '50px' : '44px';
+            const fs = size === 'lg' ? '18px' : size === 'md' ? '16px' : '15px';
+            if (logoUrl) return `<div class="dept-avatar" style="width:${sz};height:${sz};background:${color}"><img src="${esc(logoUrl)}" alt="${esc(name)}" onerror="this.parentElement.innerHTML='<span style=font-size:${fs};font-weight:700>${initials(name)}</span>'" style="width:100%;height:100%;object-fit:cover;border-radius:50%;"></div>`;
+            return `<div class="dept-avatar" style="width:${sz};height:${sz};background:${color};font-size:${fs}">${initials(name)}</div>`;
+        }
+
+        // FFA match card
+        function ffaCardHTML(m) {
+            const ffaData = m.tournament_id ? ffaDataCache[m.tournament_id] : null;
+            const participants = ffaData?.participants || [];
+            const unit = ffaData?.unit || 'pts';
+            const live = m.status === 'ongoing';
+            const done = m.status === 'completed';
+            const spotClass = isSpotlighted(m) ? ' spotlight-highlight' : '';
+            const sport = esc(m.sport_name || 'Sport');
+
+            const participantsHTML = participants.slice(0, 8).map((p, idx) => {
+                const rank = idx + 1;
+                let rankClass = 'rank-other';
+                let medal = rank;
+                if (rank === 1) { rankClass = 'rank-gold'; medal = '🥇'; }
+                else if (rank === 2) { rankClass = 'rank-silver'; medal = '🥈'; }
+                else if (rank === 3) { rankClass = 'rank-bronze'; medal = '🥉'; }
+                const hasScore = p.ffa_result_value !== null;
+                const score = hasScore ? p.ffa_result_value : '—';
+                const isWinner = done && rank === 1;
+                const color = p.department_color || deptColor(p.department_name || '');
+                return `<div class="ffa-participant${isWinner ? ' is-winner' : ''}">
+                    <div class="ffa-rank ${rankClass}">${medal}</div>
+                    <div class="ffa-participant-info">
+                        <div class="ffa-participant-name">${esc(p.department_name || 'Unknown')}</div>
+                        <div class="ffa-participant-dept">${esc(p.team_name || 'Individual')}</div>
+                    </div>
+                    <div class="ffa-participant-score${isWinner ? ' accent' : ''}">${score}<span class="ffa-unit">${unit}</span></div>
+                </div>`;
+            }).join('');
+
+            const remaining = participants.length - 8;
+            const totalParticipants = participants.length;
+
+            return `<div class="ffa-card${live ? ' is-live' : ''}${spotClass}" onclick="openMatchModal(${m.id})" data-match-id="${m.id}">
+                <div class="match-top">
+                    <div class="match-meta">
+                        <span class="sport-pill">${sportIcon(m.sport_name)} ${sport}</span>
+                        <span class="ffa-badge">🏃 FREE-FOR-ALL</span>
+                        ${m.tournament_name ? `<span class="tournament-pill">${esc(m.tournament_name)}</span>` : ''}
+                    </div>
+                    ${statusBadgeHTML(m.status)}
+                </div>
+                <div class="ffa-header">
+                    <div class="ffa-icon">🏆</div>
+                    <div class="ffa-title">${totalParticipants} Participants</div>
+                </div>
+                <div class="ffa-participants">
+                    ${participantsHTML}
+                    ${remaining > 0 ? `<div style="text-align:center; padding:8px; color:var(--muted); font-size:12px; grid-column:1/-1;">+${remaining} more participants</div>` : ''}
+                </div>
+                <div class="ffa-footer">
+                    <div class="ffa-medal">${done ? '🏆 Champion crowned!' : '⏳ Live rankings'}</div>
+                    <div>${done ? 'Final results' : 'Updating automatically'}</div>
+                </div>
+                <div class="match-footer">
+                    ${m.venue_name ? `<span class="match-footer-item">📍 ${esc(m.venue_name)}</span>` : ''}
+                    ${m.scheduled_time ? `<span class="match-footer-item">🕐 ${fmtTime(m.scheduled_time)}</span>` : ''}
+                    ${m.scheduled_date ? `<span class="match-footer-item">📅 ${fmtDate(m.scheduled_date)}</span>` : ''}
+                    <span class="click-hint">🔍 Tap for details</span>
+                </div>
+            </div>`;
+        }
+
+
+        function matchCardHTML(m, featured = false) {
+            const na = esc(m.dept_a_name || m.dept_a || 'TBD');
+            const nb = esc(m.dept_b_name || m.dept_b || 'TBD');
+            const colorA = m.dept_a_color || deptColor(na);
+            const colorB = m.dept_b_color || deptColor(nb);
+            const logoA = m.dept_a_logo || m.dept_a_logo_url || null;
+            const logoB = m.dept_b_logo || m.dept_b_logo_url || null;
+            const sa = fmtScore(m.total_score_a !== undefined ? m.total_score_a : m.live_score_a, m.sport_name);
+            const sb = fmtScore(m.total_score_b !== undefined ? m.total_score_b : m.live_score_b, m.sport_name);
+            const live = m.status === 'ongoing';
+            const done = m.status === 'completed';
+            const winA = done && m.winner_side === 'a';
+            const winB = done && m.winner_side === 'b';
+            const spotClass = isSpotlighted(m) ? ' spotlight-highlight' : '';
+            const cls = featured ? 'featured-match' : `match-card${live ? ' is-live' : ''}${spotClass}`;
+            const avatarSize = featured ? 'lg' : 'sm';
+
+            const scoreClassA = winA ? 'score-num winner-score-final' : live && sa > sb ? 'score-num winner-score' : 'score-num';
+            const scoreClassB = winB ? 'score-num winner-score-final' : live && sb > sa ? 'score-num winner-score' : 'score-num';
+
+            const avatarA = `<div class="dept-avatar-wrap">${deptAvatarHTML(na, colorA, logoA, avatarSize)}${winA && done ? '<div class="winner-crown">👑</div>' : ''}</div>`;
+            const avatarB = `<div class="dept-avatar-wrap">${deptAvatarHTML(nb, colorB, logoB, avatarSize)}${winB && done ? '<div class="winner-crown">👑</div>' : ''}</div>`;
+
+            return `<div class="${cls}" onclick="openMatchModal(${m.id})" data-match-id="${m.id}">
+                ${featured ? '<div class="featured-label">Match of the Day</div>' : ''}
+                <div class="match-top">
+                    <div class="match-meta">
+                        <span class="sport-pill">${sportIcon(m.sport_name)} ${esc(m.sport_name || 'Sport')}</span>
+                        ${m.tournament_name ? `<span class="tournament-pill">${esc(m.tournament_name)}</span>` : ''}
+                    </div>
+                    ${statusBadgeHTML(m.status)}
+                </div>
+                <div class="teams-row">
+                    <div class="team">
+                        ${avatarA}
+                        <div class="dept-name${winA ? ' winner-final' : ''}">${na}</div>
+                    </div>
+                    <div class="score-center">
+                        <div class="score-display">
+                            <div class="${scoreClassA}">${sa}</div>
+                            <div class="score-sep">–</div>
+                            <div class="${scoreClassB}">${sb}</div>
+                        </div>
+                        ${!live && !done ? '<div class="vs-text">vs</div>' : ''}
+                        ${done && (winA || winB) ? `<div style="font-size:11px;color:var(--gold);letter-spacing:.05em;text-transform:uppercase;margin-top:2px;">Winner ✓</div>` : ''}
+                    </div>
+                    <div class="team">
+                        ${avatarB}
+                        <div class="dept-name${winB ? ' winner-final' : ''}">${nb}</div>
+                    </div>
+                </div>
+                <div class="match-footer">
+                    ${m.venue_name ? `<span class="match-footer-item">📍 ${esc(m.venue_name)}</span>` : ''}
+                    ${m.scheduled_time ? `<span class="match-footer-item">🕐 ${fmtTime(m.scheduled_time)}</span>` : ''}
+                    ${m.scheduled_date ? `<span class="match-footer-item">📅 ${fmtDate(m.scheduled_date)}</span>` : ''}
+                    <span class="click-hint">🔍 Tap for details</span>
+                </div>
+            </div>`;
+        }
+
+        async function renderMatches() {
+            const el = document.getElementById('matches-container');
+            const featWrap = document.getElementById('featured-match-wrap');
+            let data = [...allMatches];
+
+
+            for (const match of data) {
+                if (isFFA(match) && match.tournament_id && !ffaDataCache[match.tournament_id]) {
+                    await loadFFAData(match.tournament_id);
+                }
+            }
+
+            if (currentStatusFilter !== 'all') data = data.filter(m => m.status === currentStatusFilter);
+            if (currentSportFilter !== 'all') data = data.filter(m => m.sport_name === currentSportFilter);
+
+            const liveMatches = allMatches.filter(m => m.status === 'ongoing');
+            const todayMatches = allMatches.filter(m => isToday(m.scheduled_date));
+            const featured = liveMatches[0] || todayMatches[0] || null;
+
+            if (featured && currentStatusFilter === 'all' && currentSportFilter === 'all' && !isFFA(featured)) {
+                featWrap.innerHTML = matchCardHTML(featured, true);
+                data = data.filter(m => m.id !== featured.id);
+            } else { featWrap.innerHTML = '' }
+
+            if (!data.length) { el.innerHTML = `<div class="empty-state"><span class="empty-icon">⚡</span><div class="empty-title">No matches found</div></div>`; return }
+            if (currentSpotlight) data.sort((a, b) => (isSpotlighted(b) ? 1 : 0) - (isSpotlighted(a) ? 1 : 0));
+            el.innerHTML = data.map(m => isFFA(m) ? ffaCardHTML(m) : matchCardHTML(m)).join('');
+        }
+
+        function filterByStatus(f, el) { currentStatusFilter = f; document.querySelectorAll('.filter-chip').forEach(c => c.classList.remove('active')); el.classList.add('active'); renderMatches() }
+        function filterBySport(s, el) { currentSportFilter = s; document.querySelectorAll('.sport-chip').forEach(c => c.classList.remove('active')); el.classList.add('active'); renderMatches() }
+
+        async function loadMatches() {
+            try {
+                const r = await fetch(`${BASE}/api/matches`);
+                if (!r.ok) throw new Error();
+                const j = await r.json();
+                allMatches = j.data || [];
+                const deptMap = {};
+                allMatches.forEach(m => {
+                    if (m.participant_a_department_id && m.dept_a_name) deptMap[m.participant_a_department_id] = { id: m.participant_a_department_id, name: m.dept_a_name };
+                    if (m.participant_b_department_id && m.dept_b_name) deptMap[m.participant_b_department_id] = { id: m.participant_b_department_id, name: m.dept_b_name };
+                });
+                populateSpotlightSelect(Object.values(deptMap));
+                buildSportFilters(allMatches);
+                setupCountdown(allMatches);
+                const live = allMatches.filter(m => m.status === 'ongoing').length;
+                const today = allMatches.filter(m => isToday(m.scheduled_date)).length;
+                const done = allMatches.filter(m => m.status === 'completed').length;
+                const sports = [...new Set(allMatches.map(m => m.sport_name).filter(Boolean))].length;
+                document.getElementById('h-live').textContent = live;
+                document.getElementById('h-today').textContent = today;
+                document.getElementById('h-done').textContent = done;
+                document.getElementById('h-sports').textContent = sports || '—';
+                const badge = document.getElementById('live-badge');
+                if (live > 0) { badge.textContent = live; badge.style.display = '' } else badge.style.display = 'none';
+                const now = new Date();
+                document.getElementById('refresh-ts').textContent = `Last updated ${now.toLocaleTimeString('en-PH', { hour: '2-digit', minute: '2-digit' })} · Auto-refreshes every 30s`;
+                await renderMatches(); renderHighlights(); renderSchedule(); updateTicker();
+            } catch {
+                document.getElementById('matches-container').innerHTML = `<div class="empty-state"><span class="empty-icon">⚡</span><div class="empty-title">Could not load matches</div><div class="empty-sub">Check server connection</div></div>`;
+            }
+        }
+
+        function refreshScores(btn) {
+            const icon = btn.querySelector('.refresh-icon');
+            icon.classList.add('spin'); setTimeout(() => icon.classList.remove('spin'), 500);
+            loadMatches();
+        }
+
+        async function loadLeaderboard() {
+            const el = document.getElementById('lb-container');
+            try {
+                const r = await fetch(`${BASE}/api/leaderboard`);
+                if (!r.ok) throw new Error();
+                const j = await r.json();
+                allLbData = j.data || [];
+                renderLeaderboard();
+                if (allLbData.length && allLbData[0].color) applyDynamicTheme(allLbData[0].color);
+            } catch {
+                el.innerHTML = `<div class="empty-state"><span class="empty-icon">🏆</span><div class="empty-title">Standings unavailable</div></div>`;
+            }
+        }
+
+        function renderLeaderboard() {
+            const el = document.getElementById('lb-container');
+            const data = allLbData;
+            if (!data.length) { el.innerHTML = `<div class="empty-state"><span class="empty-icon">🏆</span><div class="empty-title">No standings yet</div></div>`; return }
+            const rankLabel = n => { if (n === 1) return `<div class="rank-badge rank-1">1st</div>`; if (n === 2) return `<div class="rank-badge rank-2">2nd</div>`; if (n === 3) return `<div class="rank-badge rank-3">3rd</div>`; return `<div class="rank-badge rank-other">${n}</div>` };
+            const topClass = n => n === 1 ? 'top1' : n === 2 ? 'top2' : n === 3 ? 'top3' : '';
+            el.innerHTML = `<div class="lb-table">
+                <div class="lb-header"><div>#</div><div>Department</div><div style="text-align:center">Medals</div><div style="text-align:right">Points</div></div>
+                ${data.map((d, i) => {
+                const rank = d.rank || i + 1;
+                const col = d.color || deptColor(d.name);
+                const spotClass = currentSpotlight && String(d.id) === String(currentSpotlight) ? ' spotlight-lb' : '';
+                const logoHtml = d.logo_url ? `<div class="lb-dot" style="background:${col}"><img src="${esc(d.logo_url)}" alt="${esc(d.name)}" style="width:100%;height:100%;object-fit:cover;border-radius:50%;"></div>` : `<div class="lb-dot" style="background:${col}">${initials(d.name)}</div>`;
+                return `<div class="lb-row ${topClass(rank)}${spotClass}">
+                        ${rankLabel(rank)}
+                        <div class="lb-dept">${logoHtml}<div class="lb-name">${esc(d.name)}</div></div>
+                        <div class="lb-medals">
+                            <div class="medal-item"><div class="medal-icon mi-gold"></div><div class="medal-count">${d.gold_medals || 0}</div></div>
+                            <div class="medal-item"><div class="medal-icon mi-silver"></div><div class="medal-count">${d.silver_medals || 0}</div></div>
+                            <div class="medal-item"><div class="medal-icon mi-bronze"></div><div class="medal-count">${d.bronze_medals || 0}</div></div>
+                        </div>
+                        <div class="lb-pts">${d.total_points || 0}<span class="pts-lbl">pts</span></div>
+                    </div>`;
+            }).join('')}
+            </div>`;
+        }
+
+        async function checkAndFireConfetti() {
+            if (confettiFired) return;
+            try {
+                const r = await fetch(`${BASE}/api/leaderboard/champion`);
+                if (!r.ok) return;
+                const j = await r.json();
+                if (j.data && j.data.is_final && j.data.champion) fireConfetti(j.data.champion);
+            } catch { }
+        }
+
+        function fireConfetti(champion) {
+            confettiFired = true;
+            const col = champion.color || '#22c55e';
+            const cfg = { particleCount: 180, spread: 100, startVelocity: 55, colors: [col, '#ffffff', '#f59e0b', col + '88'], origin: { y: 0.55 } };
+            confetti({ ...cfg, angle: 60, origin: { x: 0, y: 0.6 } });
+            confetti({ ...cfg, angle: 120, origin: { x: 1, y: 0.6 } });
+            setTimeout(() => confetti({ ...cfg, particleCount: 80, origin: { x: 0.5, y: 0.4 } }), 400);
+            const container = document.getElementById('lb-container');
+            const imgHtml = champion.logo_url ? `<img src="${esc(champion.logo_url)}" class="wb-dept-img" alt="${esc(champion.name)}">` : `<div class="wb-dept-initials" style="background:${champion.color || deptColor(champion.name)}">${initials(champion.name)}</div>`;
+            const banner = document.createElement('div');
+            banner.className = 'winner-banner';
+            banner.innerHTML = `<div class="wb-trophy">🏆</div>${imgHtml}<div class="wb-body"><div class="wb-label">Overall Champion</div><div class="wb-name">${esc(champion.name)}</div><div class="wb-sub">${champion.total_points || 0} pts · ${champion.gold_medals || 0} Gold · ${champion.silver_medals || 0} Silver · ${champion.bronze_medals || 0} Bronze</div></div>`;
+            container.insertBefore(banner, container.firstChild);
+        }
+
+        async function loadMVPs() {
+            const el = document.getElementById('mvp-container');
+            try {
+                const r = await fetch(`${BASE}/api/players?status=approved`);
+                if (!r.ok) throw new Error();
+                const j = await r.json();
+                let data = j.data || [];
+                if (!data.length) throw new Error();
+                el.innerHTML = data.slice(0, 24).map((p, i) => {
+                    const full = `${p.first_name || ''} ${p.last_name || ''}`.trim() || 'Unknown';
+                    const col = p.department_color || deptColor(p.department_name);
+                    const featured = i < 3;
+                    const spotClass = currentSpotlight && String(p.department_id) === String(currentSpotlight) ? ' spotlight-mvp' : '';
+                    const imgHtml = p.photo_url ? `<img src="${esc(p.photo_url)}" class="mvp-photo" alt="${esc(full)}" onerror="this.outerHTML='<div class=mvp-initials style=background:${col}>${initials(full)}</div>'">` : `<div class="mvp-initials" style="background:${col}">${initials(full)}</div>`;
+                    return `<div class="mvp-card${featured ? ' featured' : ''}${spotClass}" data-name="${esc(full.toLowerCase())}" data-sport="${esc((p.sport_name || '').toLowerCase())}" data-dept="${esc((p.department_name || '').toLowerCase())}">
+                        <div class="mvp-photo-wrap">${imgHtml}</div>
+                        <div class="mvp-name">${esc(full)}</div>
+                        <div class="mvp-sport">${esc(p.sport_name || '')}</div>
+                        <div class="mvp-dept">${esc(p.department_name || '')}</div>
+                    </div>`;
+                }).join('');
+            } catch {
+                el.innerHTML = `<div class="empty-state" style="grid-column:1/-1"><span class="empty-icon">⭐</span><div class="empty-title">MVPs will be announced</div><div class="empty-sub">Check back as tournaments conclude</div></div>`;
+            }
+        }
+
+        function applyMVPSpotlight() {
+            if (!currentSpotlight) return;
+            document.querySelectorAll('.mvp-card').forEach(c => { c.classList.toggle('spotlight-mvp', c.dataset.deptId === String(currentSpotlight)) });
+        }
+
+        function filterMVPs(q) {
+            document.getElementById('mvp-search-clear').classList.toggle('visible', q.length > 0);
+            const ql = q.toLowerCase();
+            document.querySelectorAll('.mvp-card').forEach(c => { c.classList.toggle('hidden-by-search', !!ql && !c.dataset.name.includes(ql) && !c.dataset.sport.includes(ql) && !c.dataset.dept.includes(ql)) });
+        }
+
+        function renderSchedule() {
+            const el = document.getElementById('schedule-container');
+            if (!allMatches.length) { el.innerHTML = `<div class="empty-state"><span class="empty-icon">📅</span><div class="empty-title">No schedule available</div></div>`; return }
+            const sorted = [...allMatches].sort((a, b) => ((a.scheduled_date || '9999') + (a.scheduled_time || '99:99')).localeCompare((b.scheduled_date || '9999') + (b.scheduled_time || '99:99')));
+            const grouped = {};
+            sorted.forEach(m => { const d = m.scheduled_date || 'TBD'; if (!grouped[d]) grouped[d] = []; grouped[d].push(m) });
+            el.innerHTML = Object.entries(grouped).map(([date, matches]) => {
+                const label = fmtDate(date); const tod = isToday(date);
+                return `<div class="sched-group">
+                    <div class="sched-date-head"><div class="sched-date-label${tod ? ' today' : ''}">${label}</div><div class="sched-line"></div></div>
+                    ${matches.map(m => {
+                    const na = esc(m.dept_a_name || m.dept_a || 'TBD');
+                    const nb = esc(m.dept_b_name || m.dept_b || 'TBD');
+                    const live = m.status === 'ongoing';
+                    const spotClass = isSpotlighted(m) ? ' spotlight-sched' : '';
+                    const sport = esc(m.sport_name || '');
+                    const matchName = isFFA(m) ? `${sport} — Free-for-All` : `${na} vs ${nb}`;
+                    return `<div class="sched-card${live ? ' live-sched' : ''}${spotClass}" data-text="${na.toLowerCase()} ${nb.toLowerCase()} ${sport.toLowerCase()} ${esc((m.venue_name || '').toLowerCase())}">
+                            <div class="sched-time-col">${fmtTime(m.scheduled_time)}</div>
+                            <div class="sched-info">
+                                <div class="sched-match-name">${matchName}</div>
+                                <div class="sched-meta-row"><span>${sportIcon(m.sport_name)} ${sport}</span>${m.venue_name ? `<span>📍 ${esc(m.venue_name)}</span>` : ''}</div>
+                            </div>
+                            ${statusBadgeHTML(m.status)}
+                        </div>`;
+                }).join('')}
+                </div>`;
+            }).join('');
+        }
+
+        function filterSchedule(q) {
+            document.getElementById('sched-search-clear').classList.toggle('visible', q.length > 0);
+            const ql = q.toLowerCase();
+            document.querySelectorAll('.sched-card').forEach(c => c.classList.toggle('hidden-by-search', !!ql && !c.dataset.text.includes(ql)));
+        }
+
+        function clearSearch(type) {
+            if (type === 'mvp') { document.getElementById('mvp-search').value = ''; filterMVPs('') }
+            if (type === 'sched') { document.getElementById('sched-search').value = ''; filterSchedule('') }
+        }
+
+        function renderHighlights() {
+            const el = document.getElementById('highlights-container');
+            const done = allMatches.filter(m => m.status === 'completed');
+            if (!done.length) { el.innerHTML = `<div class="empty-state"><span class="empty-icon">🎯</span><div class="empty-title">No completed matches yet</div></div>`; return }
+            el.innerHTML = done.slice().reverse().slice(0, 20).map(m => {
+                const na = esc(m.dept_a_name || m.dept_a || '?');
+                const nb = esc(m.dept_b_name || m.dept_b || '?');
+                const sa = fmtScore(m.total_score_a, m.sport_name);
+                const sb = fmtScore(m.total_score_b, m.sport_name);
+                const winner = m.winner_side === 'a' ? na : m.winner_side === 'b' ? nb : null;
+                const display = m.final_score_display || `${sa} – ${sb}`;
+                return `<div class="highlight-card">
+                    <div class="hl-icon">${sportIcon(m.sport_name)}</div>
+                    <div class="hl-body">
+                        <div class="hl-title">${isFFA(m) ? `${esc(m.sport_name || 'FFA')} — Free-for-All` : na + ' vs ' + nb}</div>
+                        <div class="hl-desc">${winner ? `<strong>${winner}</strong> wins ·` : ''} Final: ${display}</div>
+                        <div class="hl-sub">${esc(m.sport_name || '')}${m.tournament_name ? ' · ' + esc(m.tournament_name) : ''}${m.venue_name ? ' · ' + esc(m.venue_name) : ''}</div>
+                    </div>
+                    <div class="hl-score">${display}</div>
+                </div>`;
+            }).join('');
+        }
+
+        function updateTicker() {
+            const track = document.getElementById('ticker-track');
+            const items = allMatches.filter(m => m.status === 'ongoing' || m.status === 'completed').slice(0, 12);
+            if (!items.length) { track.innerHTML = '<span class="ticker-item">Sport Fest 2025 · Live Coverage · Stay tuned for match updates</span><span class="ticker-item">Sport Fest 2025 · Live Coverage · Stay tuned</span>'; return }
+            const html = items.map(m => {
+                const na = m.dept_a_name || m.dept_a || '?'; const nb = m.dept_b_name || m.dept_b || '?';
+                const sa = fmtScore(m.total_score_a !== undefined ? m.total_score_a : (m.live_score_a || 0), m.sport_name);
+                const sb = fmtScore(m.total_score_b !== undefined ? m.total_score_b : (m.live_score_b || 0), m.sport_name);
+                const tag = m.status === 'ongoing' ? '<span class="ticker-accent">LIVE</span>' : 'FINAL';
+                return `<span class="ticker-item">${tag} · <b>${na}</b> ${sa}–${sb} <b>${nb}</b> · ${sportIcon(m.sport_name)} ${m.sport_name || ''}</span>`;
+            }).join('');
+            track.innerHTML = html + html;
+        }
+
+        async function openMatchModal(matchId) {
+            const overlay = document.getElementById('modal-overlay');
+            const body = document.getElementById('modal-body');
+            overlay.classList.add('open');
+            document.body.style.overflow = 'hidden';
+            body.innerHTML = `<div style="padding:2rem;text-align:center;color:var(--muted)"><div class="live-dot" style="margin:0 auto 12px"></div>Loading details...</div>`;
+            try {
+                const r = await fetch(`${BASE}/api/matches/${matchId}`);
+                if (!r.ok) throw new Error();
+                const j = await r.json();
+                const m = j.data;
+                const scores = m.scores || [];
+                const result = m.result || null;
+                const na = esc(m.dept_a_name || 'TBD');
+                const nb = esc(m.dept_b_name || 'TBD');
+                const colorA = m.dept_a_color || deptColor(na);
+                const colorB = m.dept_b_color || deptColor(nb);
+                const logoA = m.dept_a_logo || m.dept_a_logo_url || null;
+                const logoB = m.dept_b_logo || m.dept_b_logo_url || null;
+                const done = m.status === 'completed';
+                const winA = done && (result?.winner_side === 'a');
+                const winB = done && (result?.winner_side === 'b');
+                const totalA = fmtScore(result?.total_score_a ?? scores.reduce((s, r) => s + (r.score_a || 0), 0), m.sport_name);
+                const totalB = fmtScore(result?.total_score_b ?? scores.reduce((s, r) => s + (r.score_b || 0), 0), m.sport_name);
+                const display = result?.final_score_display || `${totalA} – ${totalB}`;
+                const avatarA = logoA ? `<div class="modal-dept-avatar" style="background:${colorA}"><img src="${esc(logoA)}" style="width:100%;height:100%;object-fit:cover;border-radius:50%;"></div>` : `<div class="modal-dept-avatar" style="background:${colorA}">${initials(na)}</div>`;
+                const avatarB = logoB ? `<div class="modal-dept-avatar" style="background:${colorB}"><img src="${esc(logoB)}" style="width:100%;height:100%;object-fit:cover;border-radius:50%;"></div>` : `<div class="modal-dept-avatar" style="background:${colorB}">${initials(nb)}</div>`;
+                const periodRows = scores.length ? scores.map(s => {
+                    const wA = done && winA && (s.score_a > s.score_b);
+                    const wB = done && winB && (s.score_b > s.score_a);
+                    return `<tr><td>${esc(s.period_label || 'Period ' + s.period)}</td><td class="${wA ? 'winner-score-cell' : ''}">${fmtScore(s.score_a, m.sport_name)}</td><td class="${wB ? 'winner-score-cell' : ''}">${fmtScore(s.score_b, m.sport_name)}</td></tr>`;
+                }).join('') : `<tr><td colspan="3" style="text-align:center;color:var(--muted);padding:1rem">No period data yet</td></tr>`;
+                body.innerHTML = `
+                    <div class="modal-header" style="position:relative;">
+                        <div class="modal-sport">${sportIcon(m.sport_name)} ${esc(m.sport_name || 'Sport')} ${statusBadgeHTML(m.status)}</div>
+                        <div class="modal-title">${na} vs ${nb}</div>
+                    </div>
+                    <div class="modal-teams">
+                        <div class="modal-team">
+                            <div style="position:relative">${avatarA}${winA ? '<div class="winner-crown">👑</div>' : ''}</div>
+                            <div class="modal-dept-name${winA ? ' winner' : ''}">${na}</div>
+                        </div>
+                        <div class="modal-final-score">
+                            <div class="modal-score-big">${display}</div>
+                            <div class="modal-score-label">${done ? 'Final Score' : 'Current Score'}</div>
+                        </div>
+                        <div class="modal-team">
+                            <div style="position:relative">${avatarB}${winB ? '<div class="winner-crown">👑</div>' : ''}</div>
+                            <div class="modal-dept-name${winB ? ' winner' : ''}">${nb}</div>
+                        </div>
+                    </div>
+                    <div class="modal-breakdown">
+                        <div class="modal-breakdown-title">Period Breakdown</div>
+                        <table class="period-table">
+                            <thead><tr><th>Period</th><th>${na}</th><th>${nb}</th></tr></thead>
+                            <tbody>${periodRows}</tbody>
+                            ${scores.length ? `<tfoot><tr class="total-row"><td>Total</td><td class="${winA ? 'winner-score-cell' : ''}">${totalA}</td><td class="${winB ? 'winner-score-cell' : ''}">${totalB}</td></tr></tfoot>` : ''}
+                        </table>
+                    </div>
+                    <div class="modal-meta">
+                        ${m.venue_name ? `<span class="modal-meta-item">📍 ${esc(m.venue_name)}</span>` : ''}
+                        ${m.scheduled_time ? `<span class="modal-meta-item">🕐 ${fmtTime(m.scheduled_time)}</span>` : ''}
+                        ${m.scheduled_date ? `<span class="modal-meta-item">📅 ${fmtDate(m.scheduled_date)}</span>` : ''}
+                        ${m.referee_name ? `<span class="modal-meta-item">👤 ${esc(m.referee_name)}</span>` : ''}
+                        ${result?.win_type && result.win_type !== 'normal' ? `<span class="modal-meta-item">⚡ ${esc(result.win_type)}</span>` : ''}
+                    </div>`;
+            } catch {
+                const m = allMatches.find(x => x.id === matchId || String(x.id) === String(matchId));
+                if (m) {
+                    const na = esc(m.dept_a_name || m.dept_a || 'TBD'); const nb = esc(m.dept_b_name || m.dept_b || 'TBD');
+                    const sa = fmtScore(m.total_score_a !== undefined ? m.total_score_a : m.live_score_a, m.sport_name);
+                    const sb = fmtScore(m.total_score_b !== undefined ? m.total_score_b : m.live_score_b, m.sport_name);
+                    body.innerHTML = `<div style="padding:1.5rem;"><div class="modal-sport">${sportIcon(m.sport_name)} ${esc(m.sport_name || 'Sport')} ${statusBadgeHTML(m.status)}</div><div class="modal-title" style="margin:8px 0 1.5rem">${na} vs ${nb}</div><div class="modal-final-score"><div class="modal-score-big">${sa} – ${sb}</div><div class="modal-score-label">Score</div></div><div style="margin-top:1rem;font-size:12px;color:var(--muted)">Detailed breakdown unavailable</div></div>`;
+                } else { body.innerHTML = `<div style="padding:2rem;text-align:center;color:var(--muted)">Could not load match details</div>` }
+            }
+        }
+
+        function closeModal() { document.getElementById('modal-overlay').classList.remove('open'); document.body.style.overflow = '' }
+        function closeModalOnBg(e) { if (e.target === document.getElementById('modal-overlay')) closeModal() }
+        document.addEventListener('keydown', e => { if (e.key === 'Escape') closeModal() });
+
+        function switchTab(name, el) {
+            document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+            document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+            el.classList.add('active');
+            document.getElementById('sec-' + name).classList.add('active');
+            if (name === 'leaderboard') { loadLeaderboard().then(() => checkAndFireConfetti()) }
+            if (name === 'mvp') loadMVPs();
+            if (name === 'schedule') renderSchedule();
+            if (name === 'highlights') renderHighlights();
+        }
+
+        loadMatches();
+        refreshTimer = setInterval(loadMatches, 30000);
+    </script>
+</body>
+
+</html>
