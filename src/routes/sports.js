@@ -1,12 +1,18 @@
-const router = require('express').Router();
+const express = require('express');
+const router = express.Router();
 const sc = require('../controllers/sportsController');
 const { authenticate, authorize } = require('../middleware/auth');
 
+// Public / all-roles reads
 router.get('/', sc.getAll);
-router.get('/:id', sc.getOne);
 router.get('/:id/tournaments', sc.getTournaments);
-router.post('/', authenticate, authorize('admin'), sc.create);
-router.put('/:id', authenticate, authorize('admin'), sc.update);
-router.delete('/:id', authenticate, authorize('admin'), sc.remove);
+router.get('/:id', sc.getOne);
+
+// Protected writes
+router.use(authenticate);
+
+router.post('/', authorize('admin', 'sgo_president'), sc.create);
+router.put('/:id', authorize('admin', 'sgo_president'), sc.update);
+router.delete('/:id', authorize('admin', 'sgo_president'), sc.remove);
 
 module.exports = router;

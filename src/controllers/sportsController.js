@@ -1,6 +1,8 @@
 const { pool } = require('../config/database');
 const { logActivity } = require('../utils/logger');
 
+const VALID_SCORING = ['points', 'time', 'sets', 'binary', 'custom'];
+const VALID_CATEGORY = ['individual', 'team'];
 
 const getAll = async (req, res, next) => {
     try {
@@ -14,36 +16,23 @@ const getAll = async (req, res, next) => {
             GROUP BY s.id
             ORDER BY s.name
         `);
-
         res.json({ success: true, data: rows });
-
     } catch (err) {
         next(err);
     }
 };
-
 
 const getOne = async (req, res, next) => {
     try {
-        const [rows] = await pool.execute(
-            `SELECT * FROM sports WHERE id = ?`,
-            [req.params.id]
-        );
-
+        const [rows] = await pool.execute(`SELECT * FROM sports WHERE id = ?`, [req.params.id]);
         if (!rows.length) {
-            return res.status(404).json({
-                success: false,
-                message: 'Sport not found'
-            });
+            return res.status(404).json({ success: false, message: 'Sport not found' });
         }
-
         res.json({ success: true, data: rows[0] });
-
     } catch (err) {
         next(err);
     }
 };
-
 
 const getTournaments = async (req, res, next) => {
     try {
@@ -51,151 +40,127 @@ const getTournaments = async (req, res, next) => {
             SELECT t.*,
                    COUNT(DISTINCT tp.department_id) as participant_count
             FROM tournaments t
-            LEFT JOIN tournament_participants tp 
-                ON t.id = tp.tournament_id
+            LEFT JOIN tournament_participants tp ON t.id = tp.tournament_id
             WHERE t.sport_id = ?
             GROUP BY t.id
             ORDER BY t.created_at DESC
         `, [req.params.id]);
-
         res.json({ success: true, data: rows });
-
     } catch (err) {
         next(err);
     }
 };
 
-
 const create = async (req, res, next) => {
     try {
         const {
-            name,
-            code,
-            category,
-            description,
-            min_players,
-            max_players,
-            team_size,
-            scoring_type,
-            icon
+            name, code, category, description,
+            min_players, max_players, team_size,
+            scoring_type, sets_to_win, icon,
         } = req.body;
 
+        if (!name || !code) {
+            return res.status(400).json({ success: false, message: 'Name and code are required.' });
+        }
 
-        const validScoringTypes = ['points', 'time', 'binary'];
-        const finalScoringType = validScoringTypes.includes(scoring_type)
-            ? scoring_type
-            : 'points';
+        const finalScoring = VALID_SCORING.includes(scoring_type) ? scoring_type : 'points';
+        const finalCategory = VALID_CATEGORY.includes(category) ? category : 'team';
+        const finalSets = finalScoring === 'sets' ? (parseInt(sets_to_win) || 2) : null;
 
         const [result] = await pool.execute(
-            `INSERT INTO sports 
-             (name, code, category, description, min_players, max_players, team_size, scoring_type, icon)
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+            `INSERT INTO sports
+             (name, code, category, description, min_players, max_players, team_size,
+              scoring_type, sets_to_win, icon, is_team_sport)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
             [
-                name,
-                code.toUpperCase(),
-                category,
+                name.trim(),
+                code.toUpperCase().trim(),
+                finalCategory,
                 description || null,
                 min_players || 1,
                 max_players || 1,
                 team_size || 1,
-                finalScoringType,
-                icon || null
+                finalScoring,
+                finalSets,
+                icon || null,
+                finalCategory === 'team' ? 1 : 0,
             ]
         );
 
         await logActivity(
-            req.user.id,
-            'SPORT_CREATED',
-            'sport',
-            result.insertId,
-            `Sport created: ${name} (Scoring: ${finalScoringType})`
+            req.user.id, 'SPORT_CREATED', 'sport', result.insertId,
+            `Sport created: ${name} (Scoring: ${finalScoring})`
         );
 
         res.status(201).json({
             success: true,
             message: 'Sport created successfully',
-            data: {
-                id: result.insertId,
-                scoring_type: finalScoringType
-            }
+            data: { id: result.insertId, scoring_type: finalScoring },
         });
-
     } catch (err) {
         next(err);
     }
 };
-
 
 const update = async (req, res, next) => {
     try {
         const {
-            name,
-            code,
-            category,
-            description,
-            min_players,
-            max_players,
-            team_size,
-            scoring_type,
-            icon,
-            is_active
+            name, code, category, description,
+            min_players, max_players, team_size,
+            scoring_type, sets_to_win, icon, is_active,
         } = req.body;
 
+        const finalScoring = VALID_SCORING.includes(scoring_type) ? scoring_type : 'points';
+        const finalCategory = VALID_CATEGORY.includes(category) ? category : undefined;
+        const finalSets = finalScoring === 'sets' ? (parseInt(sets_to_win) || 2) : null;
+
         await pool.execute(
-            `UPDATE sports 
-             SET name = ?, 
-                 code = ?, 
-                 category = ?, 
-                 description = ?, 
-                 min_players = ?, 
-                 max_players = ?, 
-                 team_size = ?, 
-                 scoring_type = ?, 
-                 icon = ?, 
-                 is_active = ?
+            `UPDATE sports
+             SET name = COALESCE(?, name),
+                 code = COALESCE(?, code),
+                 category = COALESCE(?, category),
+                 description = ?,
+                 min_players = COALESCE(?, min_players),
+                 max_players = COALESCE(?, max_players),
+                 team_size = COALESCE(?, team_size),
+                 scoring_type = ?,
+                 sets_to_win = ?,
+                 icon = ?,
+                 is_active = COALESCE(?, is_active),
+                 is_team_sport = IF(? IS NOT NULL, IF(? = 'team', 1, 0), is_team_sport),
+                 updated_at = NOW()
              WHERE id = ?`,
             [
-                name,
-                code?.toUpperCase(),
-                category,
+                name || null,
+                code ? code.toUpperCase() : null,
+                finalCategory || null,
                 description || null,
-                min_players || 1,
-                max_players || 1,
-                team_size || 1,
-                scoring_type || 'points',
+                min_players || null,
+                max_players || null,
+                team_size || null,
+                finalScoring,
+                finalSets,
                 icon || null,
-                is_active !== undefined ? is_active : 1,
-                req.params.id
+                is_active !== undefined ? Number(is_active) : null,
+                finalCategory || null,
+                finalCategory || null,
+                req.params.id,
             ]
         );
 
         res.json({ success: true, message: 'Sport updated' });
-
     } catch (err) {
         next(err);
     }
 };
-
 
 const remove = async (req, res, next) => {
     try {
-        await pool.execute(
-            `UPDATE sports SET is_active = 0 WHERE id = ?`,
-            [req.params.id]
-        );
-
+        await pool.execute(`UPDATE sports SET is_active = 0 WHERE id = ?`, [req.params.id]);
         res.json({ success: true, message: 'Sport deactivated' });
-
     } catch (err) {
         next(err);
     }
 };
 
-module.exports = {
-    getAll,
-    getOne,
-    getTournaments,
-    create,
-    update,
-    remove
-};
+module.exports = { getAll, getOne, getTournaments, create, update, remove };

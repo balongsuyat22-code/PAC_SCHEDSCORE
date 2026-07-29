@@ -1,0 +1,670 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PAC SCHED-SCORE — Reports & Logs</title>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;600;700;800;900&family=Barlow:wght@300;400;500;600&display=swap"
+        rel="stylesheet">
+    <link rel="stylesheet" href="../css/shared.css">
+    <style>
+        .rp-tabs {
+            display: flex;
+            gap: 4px;
+            margin-bottom: 20px;
+            background: var(--bg2);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            padding: 4px;
+            flex-wrap: wrap;
+        }
+
+        .rp-tab {
+            flex: 1;
+            text-align: center;
+            padding: 9px 10px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 13px;
+            font-weight: 600;
+            color: var(--muted);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+            min-width: 80px;
+            transition: all 0.15s;
+        }
+
+        .rp-tab .icon {
+            width: 16px;
+            height: 16px;
+        }
+
+        .rp-tab.active {
+            background: var(--bg3);
+            color: var(--text);
+        }
+
+        .rp-tab:hover:not(.active) {
+            color: var(--text);
+        }
+
+        .log-row {
+            display: flex;
+            align-items: flex-start;
+            gap: 12px;
+            padding: 11px 16px;
+            border-bottom: 1px solid rgba(255, 255, 255, .04);
+            font-size: 13px;
+        }
+
+        .log-row:last-child {
+            border-bottom: none;
+        }
+
+        .log-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            margin-top: 5px;
+            flex-shrink: 0;
+        }
+
+        .stat-mini {
+            background: var(--bg2);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            padding: 14px 16px;
+        }
+
+        .stat-mini .icon {
+            width: 18px;
+            height: 18px;
+            color: var(--gold);
+        }
+
+        .stat-mini-val {
+            font-family: 'Barlow Condensed', sans-serif;
+            font-size: 26px;
+            font-weight: 900;
+            color: var(--gold);
+        }
+
+        .stat-mini-lbl {
+            font-size: 11px;
+            color: var(--muted);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .dept-report-row {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            padding: 12px 16px;
+            border-bottom: 1px solid rgba(255, 255, 255, .04);
+            flex-wrap: wrap;
+        }
+
+        .dept-report-row:last-child {
+            border-bottom: none;
+        }
+
+        .dept-report-row .icon {
+            width: 18px;
+            height: 18px;
+            color: var(--gold);
+        }
+
+        .filter-bar {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 16px;
+            flex-wrap: wrap;
+            align-items: center;
+        }
+
+        .filter-bar select,
+        .filter-bar input {
+            background: var(--bg3);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 9px 14px;
+            color: var(--text);
+            font-family: 'Barlow', sans-serif;
+            font-size: 13px;
+            outline: none;
+        }
+
+        .filter-bar select:focus,
+        .filter-bar input:focus {
+            border-color: var(--border-gold);
+        }
+
+        .filter-bar input[type="date"] {
+            min-width: 160px;
+        }
+
+        .filter-bar select {
+            min-width: 160px;
+        }
+
+        .modal-title .icon {
+            width: 18px;
+            height: 18px;
+            color: var(--gold);
+        }
+
+        @media (max-width: 768px) {
+            .rp-tabs {
+                flex-direction: column;
+            }
+
+            .rp-tab {
+                flex: none;
+                justify-content: center;
+                padding: 8px 12px;
+            }
+
+            .filter-bar {
+                flex-direction: column;
+            }
+
+            .filter-bar select,
+            .filter-bar input {
+                width: 100% !important;
+                min-width: unset !important;
+            }
+
+            .stat-mini {
+                padding: 10px 12px;
+            }
+
+            .stat-mini-val {
+                font-size: 20px;
+            }
+
+            .dept-report-row {
+                flex-direction: column;
+                text-align: center;
+                gap: 6px;
+            }
+
+            .topbar {
+                flex-wrap: wrap;
+                height: auto;
+                padding: 10px 16px;
+                gap: 8px;
+            }
+
+            .topbar-title {
+                font-size: 16px;
+            }
+
+            .topbar-actions {
+                flex-wrap: wrap;
+            }
+
+            .content {
+                padding: 16px;
+            }
+
+            .table-wrap {
+                overflow-x: auto;
+            }
+
+            table {
+                font-size: 12px;
+            }
+
+            th,
+            td {
+                padding: 6px 8px;
+            }
+
+            .modal {
+                width: 98vw;
+                max-width: 98vw;
+            }
+
+            .modal-body {
+                padding: 16px;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .log-row {
+                flex-direction: column;
+                align-items: stretch;
+                padding: 10px 12px;
+            }
+
+            .log-dot {
+                margin-top: 0;
+            }
+
+            .rp-tab {
+                font-size: 12px;
+                padding: 6px 10px;
+            }
+
+            .rp-tab .icon {
+                width: 14px;
+                height: 14px;
+            }
+
+            table {
+                font-size: 11px;
+            }
+
+            th,
+            td {
+                padding: 4px 6px;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <!-- Sidebar injected by renderSidebar -->
+    <main class="main">
+        <div class="topbar">
+            <div class="topbar-title">
+                <span class="icon" style="width:20px;height:20px;color:var(--gold);">
+                    <svg viewBox="0 0 24 24">
+                        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                        <polyline points="14 2 14 8 20 8"></polyline>
+                        <line x1="16" y1="13" x2="8" y2="13"></line>
+                        <line x1="16" y1="17" x2="8" y2="17"></line>
+                    </svg>
+                </span>
+                Reports & Logs
+            </div>
+            <div class="topbar-actions">
+                <button class="btn btn-secondary btn-sm" onclick="refreshActive()">
+                    <span class="icon" style="width:14px;height:14px;"><svg viewBox="0 0 24 24">
+                            <polyline points="23 4 23 10 17 10"></polyline>
+                            <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"></path>
+                        </svg></span>
+                    Refresh
+                </button>
+            </div>
+        </div>
+        <div class="content">
+
+            <div class="rp-tabs">
+                <div class="rp-tab active" onclick="switchTab('matches',this)">
+                    <span class="icon"><svg viewBox="0 0 24 24">
+                            <line x1="5" y1="19" x2="19" y2="5"></line>
+                            <polyline points="14 5 19 5 19 10"></polyline>
+                            <line x1="19" y1="19" x2="5" y2="5"></line>
+                            <polyline points="10 19 5 19 5 14"></polyline>
+                        </svg></span>
+                    Match History
+                </div>
+                <div class="rp-tab" onclick="switchTab('departments',this)">
+                    <span class="icon"><svg viewBox="0 0 24 24">
+                            <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"></path>
+                            <path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"></path>
+                        </svg></span>
+                    Department Report
+                </div>
+                <div class="rp-tab" onclick="switchTab('tournaments',this)">
+                    <span class="icon"><svg viewBox="0 0 24 24">
+                            <circle cx="12" cy="8" r="7"></circle>
+                            <polyline points="8.21 13.89 7 23 12 20 17 23 15.79 13.88"></polyline>
+                        </svg></span>
+                    Tournament Report
+                </div>
+                <div class="rp-tab" onclick="switchTab('activity',this)">
+                    <span class="icon"><svg viewBox="0 0 24 24">
+                            <circle cx="12" cy="12" r="10"></circle>
+                            <polyline points="12 6 12 12 16 14"></polyline>
+                        </svg></span>
+                    Activity Log
+                </div>
+            </div>
+
+            <!-- MATCH HISTORY -->
+            <div id="tab-matches">
+                <div class="filter-bar">
+                    <select id="mh-sport" onchange="loadMatchHistory()">
+                        <option value="">All Sports</option>
+                    </select>
+                    <select id="mh-dept" onchange="loadMatchHistory()">
+                        <option value="">All Departments</option>
+                    </select>
+                    <input type="date" id="mh-from" onchange="loadMatchHistory()">
+                    <input type="date" id="mh-to" onchange="loadMatchHistory()">
+                    <button class="btn btn-secondary btn-sm" onclick="clearMHFilters()">
+                        <span class="icon" style="width:14px;height:14px;"><svg viewBox="0 0 24 24">
+                                <line x1="18" y1="6" x2="6" y2="18"></line>
+                                <line x1="6" y1="6" x2="18" y2="18"></line>
+                            </svg></span>
+                        Clear
+                    </button>
+                </div>
+                <div class="card">
+                    <div class="table-wrap">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Sport</th>
+                                    <th>Tournament</th>
+                                    <th>Matchup</th>
+                                    <th>Score</th>
+                                    <th>Winner</th>
+                                    <th>Venue</th>
+                                    <th>Referee</th>
+                                    <th>Completed</th>
+                                </tr>
+                            </thead>
+                            <tbody id="mh-body">
+                                <tr>
+                                    <td colspan="8">
+                                        <div class="empty-state">
+                                            <div class="empty-icon">
+                                                <span class="icon"
+                                                    style="width:44px;height:44px;color:var(--muted);"><svg
+                                                        viewBox="0 0 24 24">
+                                                        <circle cx="12" cy="12" r="10"></circle>
+                                                        <line x1="12" y1="8" x2="12" y2="12"></line>
+                                                        <line x1="12" y1="16" x2="12.01" y2="16"></line>
+                                                    </svg></span>
+                                            </div>
+                                            <div class="empty-text">Loading...</div>
+                                        </div>
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- DEPARTMENT REPORT -->
+            <div id="tab-departments" style="display:none">
+                <div class="filter-bar">
+                    <select id="dr-dept" onchange="loadDeptReport()" style="flex:1;max-width:320px">
+                        <option value="">Select a department...</option>
+                    </select>
+                </div>
+                <div id="dr-body">
+                    <div class="empty-state">
+                        <div class="empty-icon">
+                            <span class="icon" style="width:44px;height:44px;color:var(--muted);"><svg
+                                    viewBox="0 0 24 24">
+                                    <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"></path>
+                                    <path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"></path>
+                                </svg></span>
+                        </div>
+                        <div class="empty-text">Select a department to view its report.</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- TOURNAMENT REPORT -->
+            <div id="tab-tournaments" style="display:none">
+                <div class="filter-bar">
+                    <select id="tr-tourney" onchange="loadTourneyReport()" style="flex:1;max-width:320px">
+                        <option value="">Select a tournament...</option>
+                    </select>
+                </div>
+                <div id="tr-body">
+                    <div class="empty-state">
+                        <div class="empty-icon">
+                            <span class="icon" style="width:44px;height:44px;color:var(--muted);"><svg
+                                    viewBox="0 0 24 24">
+                                    <circle cx="12" cy="8" r="7"></circle>
+                                    <polyline points="8.21 13.89 7 23 12 20 17 23 15.79 13.88"></polyline>
+                                </svg></span>
+                        </div>
+                        <div class="empty-text">Select a tournament to view its report.</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ACTIVITY LOG -->
+            <div id="tab-activity" style="display:none">
+                <div class="card">
+                    <div id="al-body"></div>
+                </div>
+                <div style="display:flex;justify-content:center;margin-top:14px">
+                    <button class="btn btn-secondary btn-sm" id="al-more" onclick="loadMoreActivity()">
+                        <span class="icon" style="width:14px;height:14px;"><svg viewBox="0 0 24 24">
+                                <polyline points="6 9 12 15 18 9"></polyline>
+                            </svg></span>
+                        Load more
+                    </button>
+                </div>
+            </div>
+
+        </div>
+    </main>
+
+    <script src="../js/shared.js"></script>
+    <script src="../js/admin-sidebar.js"></script>
+    <script>
+        let activeTab = 'matches';
+        let alOffset = 0;
+        const AL_LIMIT = 50;
+
+        document.addEventListener('DOMContentLoaded', async () => {
+            Auth.requireAuth('admin');
+            if (typeof renderSidebar === 'function') {
+                renderSidebar('reports');
+            }
+            const [sRes, dRes, tRes] = await Promise.all([api('/sports'), api('/departments'), api('/tournaments')]);
+            const sOpts = (sRes.data || []).map(s => `<option value="${s.id}">${s.name}</option>`).join('');
+            const dOpts = (dRes.data || []).map(d => `<option value="${d.id}">${d.name}</option>`).join('');
+            const tOpts = (tRes.data || []).map(t => `<option value="${t.id}">${t.name}</option>`).join('');
+            document.getElementById('mh-sport').innerHTML += sOpts;
+            document.getElementById('mh-dept').innerHTML += dOpts;
+            document.getElementById('dr-dept').innerHTML += dOpts;
+            document.getElementById('tr-tourney').innerHTML += tOpts;
+            await loadMatchHistory();
+        });
+
+        function switchTab(name, el) {
+            activeTab = name;
+            ['matches', 'departments', 'tournaments', 'activity'].forEach(t =>
+                document.getElementById(`tab-${t}`).style.display = t === name ? '' : 'none'
+            );
+            document.querySelectorAll('.rp-tab').forEach(b => b.classList.remove('active'));
+            el.classList.add('active');
+            if (name === 'activity' && !document.getElementById('al-body').children.length) {
+                alOffset = 0;
+                loadActivity();
+            }
+        }
+
+        function refreshActive() {
+            if (activeTab === 'matches') loadMatchHistory();
+            else if (activeTab === 'departments') loadDeptReport();
+            else if (activeTab === 'tournaments') loadTourneyReport();
+            else {
+                alOffset = 0;
+                document.getElementById('al-body').innerHTML = '';
+                loadActivity();
+            }
+        }
+
+        function clearMHFilters() {
+            ['mh-sport', 'mh-dept', 'mh-from', 'mh-to'].forEach(id => document.getElementById(id).value = '');
+            loadMatchHistory();
+        }
+
+        async function loadMatchHistory() {
+            const sport_id = document.getElementById('mh-sport').value;
+            const department_id = document.getElementById('mh-dept').value;
+            const from_date = document.getElementById('mh-from').value;
+            const to_date = document.getElementById('mh-to').value;
+            let url = '/reports/match-history?';
+            if (sport_id) url += `sport_id=${sport_id}&`;
+            if (department_id) url += `department_id=${department_id}&`;
+            if (from_date) url += `from_date=${from_date}&`;
+            if (to_date) url += `to_date=${to_date}&`;
+            const res = await api(url);
+            const tbody = document.getElementById('mh-body');
+            const rows = res.data || [];
+            if (!rows.length) {
+                tbody.innerHTML =
+                    `<tr><td colspan="8"><div class="empty-state"><div class="empty-icon"><span class="icon" style="width:44px;height:44px;color:var(--muted);"><svg viewBox="0 0 24 24"><line x1="5" y1="19" x2="19" y2="5"></line><polyline points="14 5 19 5 19 10"></polyline><line x1="19" y1="19" x2="5" y2="5"></line><polyline points="10 19 5 19 5 14"></polyline></svg></span></div><div class="empty-text">No matches found.</div></div></td></tr>`;
+                return;
+            }
+            tbody.innerHTML = rows.map(m => `
+                <tr>
+                    <td>${m.sport_name}</td>
+                    <td style="font-size:12px;color:var(--muted)">${m.tournament_name}</td>
+                    <td>
+                        <div style="display:flex;align-items:center;gap:6px;font-size:13px;flex-wrap:wrap">
+                            <span style="width:8px;height:8px;border-radius:50%;background:${m.color_a || '#555'}"></span>${m.team_a_name || m.team_a_dept || '—'}
+                            <span style="color:var(--muted)">vs</span>
+                            <span style="width:8px;height:8px;border-radius:50%;background:${m.color_b || '#555'}"></span>${m.team_b_name || m.team_b_dept || '—'}
+                        </div>
+                    </td>
+                    <td style="font-family:'Barlow Condensed',sans-serif;font-size:18px;font-weight:800;color:var(--gold)">${m.final_score_display || (m.total_score_a != null ? `${m.total_score_a}–${m.total_score_b}` : '—')}</td>
+                    <td style="color:var(--green);font-weight:700">${m.winner_dept || '—'}</td>
+                    <td style="color:var(--muted);font-size:12px">${m.venue_name || '—'}</td>
+                    <td style="color:var(--muted);font-size:12px">${m.referee_name || '—'}</td>
+                    <td style="color:var(--muted);font-size:12px">${m.completed_at ? formatDate(m.completed_at) : '—'}</td>
+                </tr>`).join('');
+        }
+
+        async function loadDeptReport() {
+            const id = document.getElementById('dr-dept').value;
+            const el = document.getElementById('dr-body');
+            if (!id) {
+                el.innerHTML =
+                    `<div class="empty-state"><div class="empty-icon"><span class="icon" style="width:44px;height:44px;color:var(--muted);"><svg viewBox="0 0 24 24"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"></path><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"></path></svg></span></div><div class="empty-text">Select a department to view its report.</div></div>`;
+                return;
+            }
+            el.innerHTML =
+                `<div class="empty-state"><div class="empty-icon"><span class="icon" style="width:44px;height:44px;color:var(--muted);"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line></svg></span></div><div class="empty-text">Loading...</div></div>`;
+            const res = await api(`/reports/departments/${id}`);
+            if (!res.success) {
+                el.innerHTML =
+                    `<div class="empty-state"><div class="empty-icon"><span class="icon" style="width:44px;height:44px;color:var(--red);"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"></circle><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"></line></svg></span></div><div class="empty-text">${res.message || 'Failed to load report'}</div></div>`;
+                return;
+            }
+            const { department: d, win_loss: wl, sport_breakdown: sb, players } = res.data;
+            el.innerHTML = `
+                <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:12px;margin-bottom:20px">
+                    ${[
+                    ['Points', d.total_points || 0],
+                    ['Gold', d.gold_medals || 0],
+                    ['Silver', d.silver_medals || 0],
+                    ['Bronze', d.bronze_medals || 0],
+                    ['Wins', wl.wins || 0],
+                    ['Losses', wl.losses || 0]
+                ].map(([l, v]) => `
+                        <div class="stat-mini"><div class="stat-mini-val">${v}</div><div class="stat-mini-lbl">${l}</div></div>`).join('')}
+                </div>
+                <div style="font-family:'Barlow Condensed',sans-serif;font-size:14px;font-weight:800;color:var(--muted);margin-bottom:8px">Sport Breakdown</div>
+                <div class="card" style="margin-bottom:20px">
+                    ${(sb || []).map(s => `
+                        <div class="dept-report-row">
+                            <span class="icon">${sportIconSVG(s.sport_name)}</span>
+                            <div style="flex:1"><div style="font-weight:600">${s.sport_name}</div><div style="font-size:11px;color:var(--muted)">${s.tournament}</div></div>
+                            <div style="font-size:18px">${s.medal === 'gold' ? '🥇' : s.medal === 'silver' ? '🥈' : s.medal === 'bronze' ? '🥉' : '—'}</div>
+                            <div style="font-family:'Barlow Condensed',sans-serif;font-size:18px;font-weight:800;color:var(--gold)">+${s.sport_fest_points}</div>
+                        </div>`).join('') || `<div style="padding:14px;color:var(--muted);font-size:13px">No results yet.</div>`}
+                </div>
+                <div style="font-family:'Barlow Condensed',sans-serif;font-size:14px;font-weight:800;color:var(--muted);margin-bottom:8px">Roster</div>
+                <div class="card">
+                    ${(players || []).map(p => `
+                        <div class="dept-report-row"><div style="flex:1">${p.first_name} ${p.last_name}</div><div style="color:var(--muted);font-size:12px">${p.position || '—'}</div><div style="color:var(--gold);font-size:12px">${p.jersey_number ? '#' + p.jersey_number : ''}</div></div>`).join('') || `<div style="padding:14px;color:var(--muted);font-size:13px">No players on record.</div>`}
+                </div>`;
+        }
+
+        async function loadTourneyReport() {
+            const id = document.getElementById('tr-tourney').value;
+            const el = document.getElementById('tr-body');
+            if (!id) {
+                el.innerHTML =
+                    `<div class="empty-state"><div class="empty-icon"><span class="icon" style="width:44px;height:44px;color:var(--muted);"><svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="7"></circle><polyline points="8.21 13.89 7 23 12 20 17 23 15.79 13.88"></polyline></svg></span></div><div class="empty-text">Select a tournament to view its report.</div></div>`;
+                return;
+            }
+            el.innerHTML =
+                `<div class="empty-state"><div class="empty-icon"><span class="icon" style="width:44px;height:44px;color:var(--muted);"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line></svg></span></div><div class="empty-text">Loading...</div></div>`;
+            const res = await api(`/reports/tournaments/${id}`);
+            if (!res.success) {
+                el.innerHTML =
+                    `<div class="empty-state"><div class="empty-icon"><span class="icon" style="width:44px;height:44px;color:var(--red);"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"></circle><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"></line></svg></span></div><div class="empty-text">${res.message || 'Failed to load report'}</div></div>`;
+                return;
+            }
+            const { tournament: t, stats: s, results } = res.data;
+            el.innerHTML = `
+                <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:12px;margin-bottom:20px">
+                    ${[
+                    ['Total', s.total_matches || 0],
+                    ['Completed', s.completed || 0],
+                    ['Ongoing', s.ongoing || 0],
+                    ['Scheduled', s.scheduled || 0]
+                ].map(([l, v]) => `
+                        <div class="stat-mini"><div class="stat-mini-val">${v}</div><div class="stat-mini-lbl">${l}</div></div>`).join('')}
+                </div>
+                <div style="font-family:'Barlow Condensed',sans-serif;font-size:14px;font-weight:800;color:var(--muted);margin-bottom:8px">Final Results</div>
+                <div class="card">
+                    ${(results || []).map(r => `
+                        <div class="dept-report-row">
+                            <div style="font-family:'Barlow Condensed',sans-serif;font-weight:900;font-size:18px;width:28px;color:${r.rank === 1 ? '#FFD700' : r.rank === 2 ? '#C0C0C0' : r.rank === 3 ? '#CD7F32' : 'var(--muted)'}">${r.rank}</div>
+                            <span style="width:10px;height:10px;border-radius:50%;background:${r.color || '#555'}"></span>
+                            <div style="flex:1">${r.department_name}${r.team_name ? ` <span style="color:var(--muted);font-size:11px">(${r.team_name})</span>` : ''}</div>
+                            <div style="font-size:18px">${r.medal === 'gold' ? '🥇' : r.medal === 'silver' ? '🥈' : r.medal === 'bronze' ? '🥉' : ''}</div>
+                            <div style="font-family:'Barlow Condensed',sans-serif;font-size:18px;font-weight:800;color:var(--gold)">+${r.sport_fest_points}</div>
+                        </div>`).join('') || `<div style="padding:14px;color:var(--muted);font-size:13px">Not finalized yet.</div>`}
+                </div>`;
+        }
+
+        const ACTION_COLOR = {
+            USER: '#818CF8',
+            PLAYER: 'var(--green)',
+            MATCH: 'var(--red)',
+            TOURNAMENT: 'var(--gold)',
+            DEPARTMENT: '#60A5FA',
+            TEAM: '#A78BFA',
+            SPORT: 'var(--orange)',
+            VENUE: 'var(--muted)'
+        };
+
+        async function loadActivity() {
+            const res = await api(`/reports/activity-log?limit=${AL_LIMIT}&offset=${alOffset}`);
+            const rows = res.data || [];
+            const el = document.getElementById('al-body');
+            if (!alOffset && !rows.length) {
+                el.innerHTML =
+                    `<div class="empty-state"><div class="empty-icon"><span class="icon" style="width:44px;height:44px;color:var(--muted);"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg></span></div><div class="empty-text">No activity yet.</div></div>`;
+                document.getElementById('al-more').style.display = 'none';
+                return;
+            }
+            el.insertAdjacentHTML('beforeend', rows.map(l => {
+                const key = Object.keys(ACTION_COLOR).find(k => (l.action || '').includes(k)) || 'USER';
+                const color = ACTION_COLOR[key];
+                const action = (l.action || '').replace(/_/g, ' ').toLowerCase();
+                return `<div class="log-row"><div class="log-dot" style="background:${color}"></div><div style="flex:1"><div><strong>${l.user_name || 'System'}</strong> <span style="color:var(--muted)">${action}</span></div>${l.description ? `<div style="font-size:12px;color:var(--muted);margin-top:2px">${l.description}</div>` : ''}<div style="font-size:11px;color:var(--muted);margin-top:2px">${l.created_at ? new Date(l.created_at).toLocaleString('en-PH', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : '—'}</div></div><span class="badge badge-muted" style="font-size:9px">${l.role || '—'}</span></div>`;
+            }).join(''));
+            alOffset += rows.length;
+            document.getElementById('al-more').style.display = rows.length < AL_LIMIT ? 'none' : '';
+        }
+
+        function loadMoreActivity() { loadActivity(); }
+
+        function sportIconSVG(name) {
+            const icons = {
+                'basketball': `<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"></circle><path d="M2 12h20"></path><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path></svg>`,
+                'volleyball': `<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"></circle><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path><line x1="2" y1="12" x2="22" y2="12"></line></svg>`
+            };
+            const lower = (name || '').toLowerCase();
+            for (const [key, svg] of Object.entries(icons)) {
+                if (lower.includes(key)) return svg;
+            }
+            return `<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"></circle><circle cx="12" cy="12" r="6"></circle><circle cx="12" cy="12" r="2"></circle></svg>`;
+        }
+    </script>
+</body>
+
+</html>

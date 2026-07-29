@@ -1,0 +1,435 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PAC SCHED-SCORE — Player Registration</title>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;600;700;800;900&family=Barlow:wght@300;400;500;600&display=swap"
+        rel="stylesheet">
+    <link rel="stylesheet" href="/css/shared.css">
+    <link rel="stylesheet" href="/css/dean.css">
+    <style>
+        .tab-bar {
+            display: flex;
+            gap: 4px;
+            margin-bottom: 20px;
+            background: var(--bg2);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            padding: 4px
+        }
+
+        .tab-pill {
+            flex: 1;
+            text-align: center;
+            padding: 8px 12px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 13px;
+            font-weight: 600;
+            color: var(--muted);
+            transition: all .15s
+        }
+
+        .tab-pill.active {
+            background: var(--bg3);
+            color: var(--text);
+            box-shadow: 0 1px 4px rgba(0, 0, 0, .2)
+        }
+
+        .import-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 8px;
+            padding: 8px;
+            background: var(--bg3);
+            border-radius: 6px;
+            margin-bottom: 6px;
+            font-size: 13px;
+            align-items: center
+        }
+
+        .import-row-error {
+            background: rgba(232, 50, 59, .08);
+            border: 1px solid rgba(232, 50, 59, .2)
+        }
+    </style>
+</head>
+
+<body>
+    <main class="main">
+        <div class="topbar">
+            <div class="topbar-title" style="display:flex;align-items:center;gap:8px">
+                <span class="icon icon-md"><svg viewBox="0 0 24 24">
+                        <path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2" />
+                        <circle cx="12" cy="7" r="4" />
+                    </svg></span>
+                Player Registration
+            </div>
+            <div class="topbar-actions">
+                <button class="btn btn-secondary btn-sm" onclick="loadPage()">Refresh</button>
+                <button class="btn btn-secondary btn-sm" onclick="Modal.open('modal-import')">Import List</button>
+                <button class="btn btn-primary btn-sm" onclick="openRegister()">+ Register Player</button>
+            </div>
+        </div>
+        <div class="content">
+            <div class="stat-strip" id="reg-stats"></div>
+            <div class="tab-bar">
+                <div class="tab-pill active" onclick="switchTab('all',this)">All Players</div>
+                <div class="tab-pill" onclick="switchTab('pending',this)">Pending</div>
+                <div class="tab-pill" onclick="switchTab('approved',this)">Approved</div>
+                <div class="tab-pill" onclick="switchTab('rejected',this)">Rejected</div>
+            </div>
+            <div style="display:flex;gap:10px;margin-bottom:16px;flex-wrap:wrap">
+                <select id="f-sport" class="form-select" style="width:200px" onchange="applyFilters()">
+                    <option value="">All Sports</option>
+                </select>
+                <select id="f-gender" class="form-select" style="width:140px" onchange="applyFilters()">
+                    <option value="">All Genders</option>
+                    <option value="Male">Male</option>
+                    <option value="Female">Female</option>
+                </select>
+                <input id="f-search" class="form-input" style="flex:1;min-width:200px"
+                    placeholder="Search name, jersey..." oninput="applyFilters()">
+            </div>
+            <div id="player-grid" class="player-grid">
+                <div class="empty-state" style="grid-column:1/-1">
+                    <div class="empty-text">Loading...</div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <div class="modal-overlay" id="modal-register" onclick="if(event.target===this)Modal.close('modal-register')">
+        <div class="modal" style="max-width:560px">
+            <div class="modal-header">
+                <div class="modal-title" id="reg-modal-title">Register Player</div>
+                <button class="modal-close" onclick="Modal.close('modal-register')">X</button>
+            </div>
+            <div class="modal-body">
+                <input type="hidden" id="edit-player-id">
+                <div style="display:flex;flex-direction:column;align-items:center;gap:12px;margin-bottom:20px">
+                    <div id="avatar-preview"
+                        style="width:88px;height:88px;border-radius:18px;background:var(--bg3);border:2px dashed var(--border);display:flex;align-items:center;justify-content:center;font-size:22px;font-weight:900;cursor:pointer;overflow:hidden"
+                        onclick="document.getElementById('avatar-file').click()">?</div>
+                    <input type="file" id="avatar-file" accept="image/*" style="display:none"
+                        onchange="previewAvatar(this)">
+                    <div style="display:flex;gap:8px;align-items:center;width:100%">
+                        <input type="url" id="p-image-url" class="form-input" placeholder="Or paste image URL...">
+                        <button class="btn btn-secondary btn-sm" onclick="applyAvatarUrl()">Preview</button>
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group"><label class="form-label">First Name *</label><input type="text"
+                            id="p-first" class="form-input" placeholder="e.g. Juan"></div>
+                    <div class="form-group"><label class="form-label">Last Name *</label><input type="text" id="p-last"
+                            class="form-input" placeholder="e.g. Dela Cruz"></div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group"><label class="form-label">Gender *</label>
+                        <select id="p-gender" class="form-select">
+                            <option value="">Select...</option>
+                            <option value="Male">Male</option>
+                            <option value="Female">Female</option>
+                        </select>
+                    </div>
+                    <div class="form-group"><label class="form-label">Sport *</label>
+                        <select id="p-sport" class="form-select" onchange="loadTeamsForSport()">
+                            <option value="">Select Sport...</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group"><label class="form-label">Team <span
+                                style="color:var(--muted);font-weight:400;text-transform:none;letter-spacing:0">optional</span></label>
+                        <select id="p-team" class="form-select">
+                            <option value="">No team (Individual)</option>
+                        </select>
+                    </div>
+                    <div class="form-group"><label class="form-label">Jersey #</label><input type="text" id="p-jersey"
+                            class="form-input" placeholder="e.g. 23"></div>
+                </div>
+                <div class="form-group"><label class="form-label">Position</label><input type="text" id="p-position"
+                        class="form-input" placeholder="e.g. Point Guard"></div>
+                <div id="elig-check"
+                    style="display:none;padding:10px 14px;border-radius:8px;font-size:13px;margin-top:4px"></div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="Modal.close('modal-register')">Cancel</button>
+                <button class="btn btn-primary" onclick="savePlayer()">Save Player</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal-overlay" id="modal-import" onclick="if(event.target===this)Modal.close('modal-import')">
+        <div class="modal" style="max-width:580px">
+            <div class="modal-header">
+                <div class="modal-title">Import Player List</div>
+                <button class="modal-close" onclick="Modal.close('modal-import')">X</button>
+            </div>
+            <div class="modal-body">
+                <div
+                    style="background:var(--bg3);border-radius:8px;padding:12px 14px;font-size:12px;color:var(--muted);margin-bottom:16px">
+                    CSV format: <code>first_name, last_name, gender, sport_code, jersey_number, position</code><br>
+                    Gender: <code>Male</code> or <code>Female</code> · Sport code must match existing sports
+                </div>
+                <div class="form-group"><label class="form-label">Default Sport (if not in CSV)</label>
+                    <select id="import-sport" class="form-select">
+                        <option value="">— Select —</option>
+                    </select>
+                </div>
+                <div class="import-zone" id="import-zone" onclick="document.getElementById('csv-file').click()"
+                    ondragover="dragOver(event)" ondrop="dropFile(event)">
+                    <div class="import-zone-icon" style="font-size:28px;font-weight:900;color:var(--muted)">CSV</div>
+                    <div class="import-zone-text">Click or drag &amp; drop a CSV file here</div>
+                    <input type="file" id="csv-file" accept=".csv,.txt" style="display:none" onchange="parseCSV(this)">
+                </div>
+                <div id="import-preview" style="margin-top:16px;display:none">
+                    <div
+                        style="font-family:'Barlow Condensed',sans-serif;font-size:14px;font-weight:800;color:var(--muted);margin-bottom:10px;text-transform:uppercase;letter-spacing:1px">
+                        PREVIEW (<span id="import-count">0</span> players)</div>
+                    <div id="import-list"
+                        style="max-height:280px;overflow-y:auto;display:flex;flex-direction:column;gap:4px"></div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="Modal.close('modal-import')">Cancel</button>
+                <button class="btn btn-primary" id="import-btn" onclick="submitImport()" style="display:none">Import
+                    All</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal-overlay" id="modal-elig" onclick="if(event.target===this)Modal.close('modal-elig')">
+        <div class="modal" style="max-width:480px">
+            <div class="modal-header">
+                <div class="modal-title">Eligibility Check</div>
+                <button class="modal-close" onclick="Modal.close('modal-elig')">X</button>
+            </div>
+            <div class="modal-body" id="elig-modal-body"></div>
+            <div class="modal-footer"><button class="btn btn-secondary"
+                    onclick="Modal.close('modal-elig')">Close</button></div>
+        </div>
+    </div>
+
+    <script src="/js/shared.js"></script>
+    <script src="/js/dean-sidebar.js"></script>
+    <script>
+        let allPlayers = [], allSports = [], allTeams = [], currentTab = 'all', importRows = [];
+        const user = Auth.getUser(), deptId = user?.department_id;
+
+        document.addEventListener('DOMContentLoaded', async () => {
+            Auth.requireAuth('dean_adviser'); renderSidebar('players');
+            const sRes = await api('/sports'); allSports = sRes.data || [];
+            const sportOpts = allSports.map(s => `<option value="${s.id}" data-code="${s.code}">${s.name}</option>`).join('');
+            ['f-sport', 'p-sport', 'import-sport'].forEach(id => { const el = document.getElementById(id); if (el) el.innerHTML += sportOpts });
+            const tab = new URLSearchParams(window.location.search).get('tab');
+            if (tab) switchTab(tab, document.querySelector(`[onclick*="'${tab}'"]`));
+            await loadPage();
+        });
+
+        async function loadPage() {
+            if (!deptId) return;
+            const res = await api(`/players?department_id=${deptId}`); allPlayers = res.data || [];
+            const tRes = await api(`/teams?department_id=${deptId}`); allTeams = tRes.data || [];
+            renderStats(); applyFilters();
+        }
+
+        function renderStats() {
+            const total = allPlayers.length;
+            const approved = allPlayers.filter(p => p.status === 'approved').length;
+            const pending = allPlayers.filter(p => p.status === 'pending').length;
+            const rejected = allPlayers.filter(p => p.status === 'rejected').length;
+            document.getElementById('reg-stats').innerHTML = [
+                { val: total, lbl: 'Total Registered', color: 'var(--gold)' },
+                { val: approved, lbl: 'Approved', color: 'var(--green)' },
+                { val: pending, lbl: 'Pending Review', color: '#FBBF24' },
+                { val: rejected, lbl: 'Rejected', color: 'var(--red)' },
+            ].map(s => `<div class="stat-strip-card"><div><div class="stat-strip-val" style="color:${s.color}">${s.val}</div><div class="stat-strip-lbl">${s.lbl}</div></div></div>`).join('');
+        }
+
+        function switchTab(tab, el) {
+            currentTab = tab;
+            document.querySelectorAll('.tab-pill').forEach(t => t.classList.remove('active'));
+            if (el) el.classList.add('active'); else document.querySelector(`[onclick*="'${tab}'"]`)?.classList.add('active');
+            applyFilters();
+        }
+
+        function applyFilters() {
+            const sport = document.getElementById('f-sport').value;
+            const gender = document.getElementById('f-gender').value;
+            const q = document.getElementById('f-search').value.toLowerCase();
+            let filtered = allPlayers;
+            if (currentTab !== 'all') filtered = filtered.filter(p => p.status === currentTab);
+            if (sport) filtered = filtered.filter(p => String(p.sport_id) === sport);
+            if (gender) filtered = filtered.filter(p => p.gender === gender);
+            if (q) filtered = filtered.filter(p => (`${p.first_name} ${p.last_name} ${p.jersey_number || ''}`).toLowerCase().includes(q));
+            renderGrid(filtered);
+        }
+
+        function renderGrid(players) {
+            const el = document.getElementById('player-grid');
+            if (!players.length) { el.innerHTML = `<div class="empty-state" style="grid-column:1/-1"><div class="empty-text">No players found</div></div>`; return }
+            el.innerHTML = players.map(p => {
+                const initials = `${p.first_name?.[0] || '?'}${p.last_name?.[0] || ''}`.toUpperCase();
+                const avatarBg = p.gender === 'Female' ? '#EC4899' : '#3B82F6';
+                const avatarHtml = p.image_url ? `<img src="${p.image_url}" style="width:100%;height:100%;object-fit:cover;border-radius:12px" onerror="this.style.display='none'">` : `<span>${initials}</span>`;
+                const statusClass = { approved: 'pill-approved', pending: 'pill-pending', rejected: 'pill-rejected' }[p.status] || 'pill-pending';
+                return `<div class="player-card">
+<div class="player-card-accent" style="background:${avatarBg}"></div>
+<div class="player-card-body">
+<div class="player-avatar-lg" style="background:${avatarBg}20;border:2px solid ${avatarBg}40">${avatarHtml}</div>
+<div class="player-card-info">
+<div class="player-card-name">${p.first_name} ${p.last_name}</div>
+<div class="player-card-meta">
+<span>${p.sport_name || '—'}</span>
+${p.jersey_number ? `<span>#${p.jersey_number}</span>` : ''}
+${p.position ? `<span>${p.position}</span>` : ''}
+</div>
+<div style="margin-top:6px">
+<span class="pill ${statusClass}">${p.status}</span>
+${p.team_name ? `<span class="pill" style="background:rgba(59,130,246,0.1);color:#60A5FA;margin-left:4px">${p.team_name}</span>` : ''}
+</div></div></div>
+<div class="player-card-footer">
+<button class="btn btn-secondary btn-sm" style="flex:1" onclick="openEdit(${p.id})">Edit</button>
+<button class="btn btn-secondary btn-sm" onclick="checkElig(${p.id})">Eligibility</button>
+${p.status === 'pending' ? `
+<button class="btn btn-sm" style="background:var(--green);color:#000;font-weight:800;flex:1" onclick="changeStatus(${p.id},'approved')">Approve</button>
+<button class="btn btn-sm" style="background:rgba(232,50,59,0.12);color:var(--red);border:1px solid rgba(232,50,59,0.3)" onclick="changeStatus(${p.id},'rejected')">Reject</button>
+`: p.status === 'approved' ? `
+<button class="btn btn-sm btn-secondary" style="flex:1" onclick="changeStatus(${p.id},'pending')">Revoke</button>
+`: `
+<button class="btn btn-sm" style="background:var(--green);color:#000;font-weight:800;flex:1" onclick="changeStatus(${p.id},'approved')">Re-approve</button>
+`}
+</div></div>`;
+            }).join('');
+        }
+
+        function openRegister() {
+            document.getElementById('reg-modal-title').textContent = 'Register Player';
+            document.getElementById('edit-player-id').value = '';
+            ['p-first', 'p-last', 'p-jersey', 'p-position', 'p-image-url'].forEach(id => document.getElementById(id).value = '');
+            document.getElementById('p-gender').value = ''; document.getElementById('p-sport').value = '';
+            document.getElementById('p-team').innerHTML = '<option value="">No team (Individual)</option>';
+            document.getElementById('avatar-preview').textContent = '?';
+            document.getElementById('elig-check').style.display = 'none';
+            Modal.open('modal-register');
+        }
+
+        function openEdit(id) {
+            const p = allPlayers.find(x => x.id === id); if (!p) return;
+            document.getElementById('reg-modal-title').textContent = `Edit — ${p.first_name} ${p.last_name}`;
+            document.getElementById('edit-player-id').value = id;
+            document.getElementById('p-first').value = p.first_name || '';
+            document.getElementById('p-last').value = p.last_name || '';
+            document.getElementById('p-gender').value = p.gender || '';
+            document.getElementById('p-sport').value = p.sport_id || '';
+            document.getElementById('p-jersey').value = p.jersey_number || '';
+            document.getElementById('p-position').value = p.position || '';
+            document.getElementById('p-image-url').value = p.image_url || '';
+            const prev = document.getElementById('avatar-preview');
+            if (p.image_url) prev.innerHTML = `<img src="${p.image_url}" style="width:100%;height:100%;object-fit:cover;border-radius:16px">`;
+            else prev.textContent = `${p.first_name?.[0] || '?'}${p.last_name?.[0] || ''}`.toUpperCase();
+            loadTeamsForSport().then(() => { document.getElementById('p-team').value = p.team_id || '' });
+            Modal.open('modal-register');
+        }
+
+        async function loadTeamsForSport() {
+            const sportId = document.getElementById('p-sport').value;
+            const sel = document.getElementById('p-team');
+            sel.innerHTML = '<option value="">No team (Individual)</option>';
+            if (!sportId || !deptId) return;
+            const res = await api(`/teams?department_id=${deptId}&sport_id=${sportId}`);
+            (res.data || []).forEach(t => { const opt = document.createElement('option'); opt.value = t.id; opt.textContent = `${t.name} (${t.gender})`; sel.appendChild(opt) });
+        }
+
+        function previewAvatar(input) {
+            const file = input.files[0]; if (!file) return;
+            const reader = new FileReader();
+            reader.onload = e => { document.getElementById('avatar-preview').innerHTML = `<img src="${e.target.result}" style="width:100%;height:100%;object-fit:cover;border-radius:16px">` };
+            reader.readAsDataURL(file);
+        }
+        function applyAvatarUrl() {
+            const url = document.getElementById('p-image-url').value.trim(); if (!url) return;
+            document.getElementById('avatar-preview').innerHTML = `<img src="${url}" onerror="this.parentElement.textContent='ERR'" style="width:100%;height:100%;object-fit:cover;border-radius:16px">`;
+        }
+
+        async function savePlayer() {
+            const id = document.getElementById('edit-player-id').value;
+            const first = document.getElementById('p-first').value.trim();
+            const last = document.getElementById('p-last').value.trim();
+            const gender = document.getElementById('p-gender').value;
+            const sport_id = parseInt(document.getElementById('p-sport').value) || null;
+            const team_id = parseInt(document.getElementById('p-team').value) || null;
+            const jersey = document.getElementById('p-jersey').value.trim() || null;
+            const position = document.getElementById('p-position').value.trim() || null;
+            const image_url = document.getElementById('p-image-url').value.trim() || null;
+            if (!first || !last || !gender || !sport_id) { Toast.show('First name, last name, gender and sport are required.', 'error'); return }
+            const body = { first_name: first, last_name: last, gender, sport_id, team_id, jersey_number: jersey, position, image_url, department_id: deptId };
+            const res = id ? await api(`/players/${id}`, { method: 'PUT', body: JSON.stringify(body) }) : await api('/players', { method: 'POST', body: JSON.stringify(body) });
+            Toast.show(res.message || (res.success ? (id ? 'Player updated!' : 'Player registered!') : 'Error'), res.success ? 'success' : 'error');
+            if (res.success) { Modal.close('modal-register'); await loadPage() }
+        }
+
+        async function changeStatus(id, status) {
+            const res = await api(`/players/${id}/status`, { method: 'PATCH', body: JSON.stringify({ status }) });
+            Toast.show(res.message || (res.success ? `Player ${status}!` : 'Error'), res.success ? 'success' : 'error');
+            if (res.success) await loadPage();
+        }
+
+        async function checkElig(id) {
+            const res = await api(`/players/${id}/eligibility`);
+            const body = document.getElementById('elig-modal-body');
+            if (!res.success) { body.innerHTML = '<div style="color:var(--red)">Failed to check eligibility.</div>'; Modal.open('modal-elig'); return }
+            const d = res.data;
+            const color = d.is_eligible ? 'var(--green)' : '#FBBF24';
+            body.innerHTML = `<div style="text-align:center;margin-bottom:20px">
+<div style="font-family:'Barlow Condensed',sans-serif;font-size:22px;font-weight:900;color:${color}">${d.is_eligible ? 'ELIGIBLE' : 'ISSUES FOUND'}</div>
+<div style="font-size:14px;color:var(--muted);margin-top:4px">${d.name} · ${d.department}</div></div>
+${d.issues?.length ? `<div style="background:rgba(245,158,11,0.08);border:1px solid rgba(245,158,11,0.2);border-radius:10px;padding:14px">
+<div style="font-size:12px;font-weight:700;color:#FBBF24;text-transform:uppercase;letter-spacing:1px;margin-bottom:8px">Issues</div>
+${d.issues.map(i => `<div style="font-size:13px;color:var(--text2);padding:4px 0">• ${i}</div>`).join('')}
+</div>`: `<div style="text-align:center;color:var(--muted);font-size:13px">No eligibility issues found.</div>`}`;
+            Modal.open('modal-elig');
+        }
+
+        function dragOver(e) { e.preventDefault(); document.getElementById('import-zone').classList.add('drag-over') }
+        function dropFile(e) { e.preventDefault(); document.getElementById('import-zone').classList.remove('drag-over'); const file = e.dataTransfer.files[0]; if (file) parseCSVFile(file) }
+        function parseCSV(input) { if (input.files[0]) parseCSVFile(input.files[0]) }
+        function parseCSVFile(file) {
+            const reader = new FileReader();
+            reader.onload = e => {
+                const lines = e.target.result.split('\n').map(l => l.trim()).filter(Boolean);
+                const header = lines[0].toLowerCase().includes('first') ? 1 : 0;
+                importRows = lines.slice(header).map(line => {
+                    const [first_name, last_name, gender, sport_code, jersey_number, position] = line.split(',').map(s => s?.trim());
+                    const sport = allSports.find(s => s.code?.toUpperCase() === sport_code?.toUpperCase());
+                    return { first_name, last_name, gender, sport_code, sport_id: sport?.id || null, jersey_number: jersey_number || null, position: position || null, _valid: !!(first_name && last_name && gender) };
+                });
+                document.getElementById('import-count').textContent = importRows.length;
+                document.getElementById('import-preview').style.display = '';
+                document.getElementById('import-btn').style.display = '';
+                document.getElementById('import-list').innerHTML = importRows.map(r => `
+<div class="import-row ${r._valid ? '' : 'import-row-error'}">
+<span>${r._valid ? 'OK' : 'ERR'} ${r.first_name || '?'} ${r.last_name || '?'}</span>
+<span style="color:var(--muted)">${r.gender || '—'}</span>
+<span style="color:var(--muted)">${r.sport_code || '—'}${r.jersey_number ? ` · #${r.jersey_number}` : ''}</span>
+</div>`).join('');
+            };
+            reader.readAsText(file);
+        }
+
+        async function submitImport() {
+            const defaultSport = parseInt(document.getElementById('import-sport').value) || null;
+            const validRows = importRows.filter(r => r._valid).map(r => ({ ...r, sport_id: r.sport_id || defaultSport }));
+            if (!validRows.length) { Toast.show('No valid rows to import.', 'error'); return }
+            const res = await api('/players/import', { method: 'POST', body: JSON.stringify({ players: validRows, department_id: deptId }) });
+            Toast.show(res.message || (res.success ? 'Import complete!' : 'Error'), res.success ? 'success' : 'error');
+            if (res.success) { Modal.close('modal-import'); importRows = []; document.getElementById('import-preview').style.display = 'none'; document.getElementById('import-btn').style.display = 'none'; await loadPage() }
+        }
+    </script>
+</body>
+
+</html>

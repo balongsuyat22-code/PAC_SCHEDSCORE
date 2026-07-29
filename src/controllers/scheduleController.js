@@ -1,6 +1,6 @@
 const { pool } = require('../config/database');
 const { logActivity } = require('../utils/logger');
-
+const { getActiveSportFestId } = require('../utils/season');
 
 const getAll = async (req, res, next) => {
     try {
@@ -45,6 +45,17 @@ const getAll = async (req, res, next) => {
 
 const getToday = async (req, res, next) => {
     try {
+        const sportFestId = await getActiveSportFestId();
+        const params = [];
+        let seasonClause = '';
+        if (sportFestId) {
+            seasonClause = `AND EXISTS (
+                SELECT 1 FROM sport_fest_tournaments sft
+                WHERE sft.tournament_id = t.id AND sft.sport_fest_id = ?
+            )`;
+            params.push(sportFestId);
+        }
+
         const [rows] = await pool.execute(`
             SELECT 
                 m.id as match_id,
@@ -53,12 +64,8 @@ const getToday = async (req, res, next) => {
                 m.bracket_position,
                 s.name as sport_name,
                 t.name as tournament_name,
-                da.name as dept_a,
-                da.color as dept_a_color,
-                da.logo_url as dept_a_logo,
-                db.name as dept_b,
-                db.color as dept_b_color,
-                 db.logo_url as dept_b_logo,
+                da.name as dept_a, da.color as dept_a_color, da.logo_url as dept_a_logo,
+                db.name as dept_b, db.color as dept_b_color, db.logo_url as dept_b_logo,
                 v.name as venue_name,
                 CONCAT(ru.first_name,' ',ru.last_name) as referee_name
             FROM matches m
@@ -71,15 +78,11 @@ const getToday = async (req, res, next) => {
             LEFT JOIN users ru ON r.user_id = ru.id
             WHERE m.scheduled_date = CURDATE() 
               AND m.status NOT IN ('cancelled')
+              ${seasonClause}
             ORDER BY m.scheduled_time ASC
-        `);
+        `, params);
 
-        res.json({
-            success: true,
-            data: rows,
-            date: new Date().toISOString().split('T')[0]
-        });
-
+        res.json({ success: true, data: rows, date: new Date().toISOString().split('T')[0] });
     } catch (err) {
         next(err);
     }

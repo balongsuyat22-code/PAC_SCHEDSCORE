@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PAC SCHED-SCORE — Live Scores</title>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;600;700;800;900&family=Barlow:wght@300;400;500;600&display=swap"
+        rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <link rel="stylesheet" href="../css/sgo_president.css">
+</head>
+
+<body>
+    <main class="main">
+        <div class="topbar">
+            <div style="display:flex;align-items:center">
+                <button class="burger-menu" onclick="toggleSidebar()" aria-label="Open menu">
+                    <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2"
+                        stroke-linecap="round" stroke-linejoin="round">
+                        <line x1="4" x2="20" y1="12" y2="12" />
+                        <line x1="4" x2="20" y1="6" y2="6" />
+                        <line x1="4" x2="20" y1="18" y2="18" />
+                    </svg>
+                </button>
+                <div class="topbar-title"><span class="live-dot"></span>Live Scores</div>
+            </div>
+            <div class="topbar-actions">
+                <button class="btn btn-secondary btn-sm" onclick="loadAll()" aria-label="Refresh">
+                    <i class="fa-solid fa-arrows-rotate"></i> Refresh
+                </button>
+            </div>
+        </div>
+        <div class="content">
+            <div class="card" style="margin-bottom:24px">
+                <div class="card-header">
+                    <div class="card-title">
+                        <span class="live-dot"></span> Ongoing Right Now
+                    </div>
+                </div>
+                <div class="card-body" id="live-list">
+                    <div class="empty-state">
+                        <div class="empty-text">Loading…</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-header">
+                    <div class="card-title">
+                        <i class="fa-solid fa-calendar-days" style="margin-right:8px;opacity:.7"></i>
+                        Ready to Start
+                    </div>
+                </div>
+                <div class="card-body" id="scheduled-list">
+                    <div class="empty-state">
+                        <div class="empty-text">Loading…</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <script src="../js/api.js"></script>
+    <script src="../js/sgo_president.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', async () => {
+            Auth.requireAuth('sgo_president');
+            renderSidebar('live');
+            NotifBell.init();
+            await loadAll();
+            setInterval(loadAll, 15000);
+        });
+
+        async function loadAll() {
+            await Promise.all([loadLive(), loadScheduled()]);
+        }
+
+        async function loadLive() {
+            const res = await api('/matches/live');
+            const el = document.getElementById('live-list');
+            if (!res.success || !res.data.length) {
+                el.innerHTML = `
+                    <div class="empty-state">
+                        <div class="empty-icon"><i class="fa-regular fa-moon" style="font-size:2rem;opacity:.5"></i></div>
+                        <div class="empty-text">No live matches right now</div>
+                    </div>`;
+                return;
+            }
+            el.innerHTML = res.data.map(m => `
+        <div class="live-card">
+            <div class="live-sport-icon">${sportIcon(m.sport_name)}</div>
+            <div style="flex:1">
+                <div style="font-size:12px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:var(--green);margin-bottom:6px">
+                    <span class="live-dot"></span>LIVE · ${m.sport_name} · ${m.tournament_name}
+                </div>
+                <div style="display:flex;align-items:center;gap:16px">
+                    <div style="text-align:center;flex:1">
+                        <div style="font-family:'Barlow Condensed',sans-serif;font-size:18px;font-weight:800">${m.dept_a || '?'}</div>
+                    </div>
+                    <div style="font-family:'Barlow Condensed',sans-serif;font-size:44px;font-weight:900;color:var(--gold);text-align:center;min-width:100px">${m.live_score_a}–${m.live_score_b}</div>
+                    <div style="text-align:center;flex:1">
+                        <div style="font-family:'Barlow Condensed',sans-serif;font-size:18px;font-weight:800">${m.dept_b || '?'}</div>
+                    </div>
+                </div>
+                <div style="font-size:12px;color:var(--muted);margin-top:8px;display:flex;align-items:center;gap:6px">
+                    <i class="fa-solid fa-location-dot"></i> ${m.venue_name || '—'}
+                </div>
+            </div>
+        </div>`).join('');
+        }
+
+        async function loadScheduled() {
+            const res = await api(`/matches?status=scheduled`);
+            const el = document.getElementById('scheduled-list');
+            const upcoming = (res.data || []).filter(m => m.dept_a_name || m.dept_b_name);
+            if (!res.success || !upcoming.length) {
+                el.innerHTML = `
+                    <div class="empty-state">
+                        <div class="empty-icon"><i class="fa-solid fa-calendar-days" style="font-size:2rem;opacity:.5"></i></div>
+                        <div class="empty-text">No matches ready to start</div>
+                    </div>`;
+                return;
+            }
+            el.innerHTML = upcoming.map(m => `
+        <div class="match-card">
+            <div class="match-sport-icon">${sportIcon(m.sport_name)}</div>
+            <div class="match-info">
+                <div class="match-teams">${m.dept_a_name || 'TBD'} <span style="color:var(--muted)">vs</span> ${m.dept_b_name || 'TBD'}</div>
+                <div class="match-meta">
+                    ${m.tournament_name} · ${formatDate(m.scheduled_date)} ${formatTime(m.scheduled_time)}
+                    · <i class="fa-solid fa-location-dot"></i> ${m.venue_name || 'TBD'}
+                </div>
+            </div>
+            <button class="btn btn-success btn-sm" onclick="startMatch(${m.id})">
+                <i class="fa-solid fa-play"></i> Start Match
+            </button>
+        </div>`).join('');
+        }
+
+        async function startMatch(id) {
+            const res = await api(`/matches/${id}/start`, { method: 'PATCH' });
+            Toast.show(res.message || (res.success ? 'Match started!' : 'Error'), res.success ? 'success' : 'error');
+            if (res.success) loadAll();
+        }
+    </script>
+</body>
+
+</html>

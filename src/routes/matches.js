@@ -1,30 +1,36 @@
 const express = require('express');
 const router = express.Router();
-const matchController = require('../controllers/matchController');
+const matchCtrl = require('../controllers/matchController');
+const { authenticate, authorize } = require('../middleware/auth');
 
-// Match routes
-router.get('/', matchController.getAll);
-router.get('/live', matchController.getLive);
-router.get('/referees', matchController.getReferees);
+// ═══════════════════════════════════════════════════════════
+// PUBLIC (no auth) — used by visitor live scores / schedule
+// ═══════════════════════════════════════════════════════════
+router.get('/live', matchCtrl.getLive);
+router.get('/mvps', matchCtrl.getMVPs);
+router.get('/ffa/:tournamentId', matchCtrl.getFFAResults);  // or keep restricted if FFA is internal-only
+router.get('/', matchCtrl.getAll);
+router.get('/:id', matchCtrl.getOne);
+router.get('/:id/scoreboard', matchCtrl.getScoreboard);
+router.get('/:id/watchers', matchCtrl.getWatchers);
 
-// FFA routes
-router.get('/ffa-results/:tournamentId', matchController.getFFAResultsForTournament);
-router.get('/:tournamentId/ffa-results', matchController.getFFAResultsForTournament);
-router.post('/:tournamentId/ffa-save-results', matchController.saveFFAResults);
-router.post('/:matchId/complete-ffa', matchController.completeFFAMatch);
+// ═══════════════════════════════════════════════════════════
+// AUTHENTICATED from here down
+// ═══════════════════════════════════════════════════════════
+router.use(authenticate);
 
-// Player routes (for MVP selection)
-router.get('/players/department/:department_id', matchController.getPlayersByDepartment);
+router.get('/officers', authorize('sgo_president', 'admin'), matchCtrl.getAvailableOfficers);
+router.get('/my-assignments', authorize('sgo_officer'), matchCtrl.getMyAssignments);
+router.get('/players/department/:departmentId', authorize('sgo_officer', 'sgo_president', 'admin'), matchCtrl.getPlayersByDepartment);
+router.post('/ffa/:tournamentId/results', authorize('sgo_officer', 'sgo_president', 'admin'), matchCtrl.saveFFAResults);
+router.post('/ffa/:matchId/complete', authorize('sgo_officer', 'sgo_president', 'admin'), matchCtrl.completeFFAMatch);
 
-// ⭐ MVP ROUTE - MAKE SURE THIS IS HERE ⭐
-router.get('/mvps', matchController.getMVPs);
+router.get('/:id/score-history', authorize('admin', 'sgo_president', 'sgo_officer'), matchCtrl.getScoreHistory);
+router.get('/:id/players', authorize('sgo_officer', 'sgo_president', 'admin'), matchCtrl.getMatchPlayers);
 
-// Individual match routes - ORDER MATTERS! Put specific routes before generic ones
-router.get('/:id', matchController.getOne);
-router.get('/:id/scoreboard', matchController.getScoreboard);
-router.patch('/:id/schedule', matchController.schedule);
-router.patch('/:id/start', matchController.startMatch);
-router.put('/:id/scores', matchController.updateScore);
-router.post('/:id/complete', matchController.completeMatch);
+router.put('/:id/schedule', authorize('sgo_president', 'admin'), matchCtrl.schedule);
+router.patch('/:id/start', authorize('sgo_officer', 'sgo_president', 'admin'), matchCtrl.startMatch);
+router.put('/:id/score', authorize('sgo_officer', 'admin'), matchCtrl.updateScore);
+router.post('/:id/complete', authorize('sgo_officer', 'sgo_president', 'admin'), matchCtrl.completeMatch);
 
 module.exports = router;

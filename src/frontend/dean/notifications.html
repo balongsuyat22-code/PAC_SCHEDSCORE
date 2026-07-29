@@ -1,0 +1,524 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PAC SCHED-SCORE — Notifications</title>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;600;700;800;900&family=Barlow:wght@300;400;500;600&display=swap"
+        rel="stylesheet">
+    <link rel="stylesheet" href="/css/shared.css">
+    <link rel="stylesheet" href="/css/dean.css">
+    <style>
+        .notif-list-card {
+            background: var(--bg2);
+            border: 1px solid var(--border);
+            border-radius: 14px;
+            overflow: hidden;
+        }
+
+        .notif-item {
+            display: flex;
+            align-items: flex-start;
+            gap: 16px;
+            padding: 16px 20px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+            transition: background 0.1s;
+            cursor: pointer;
+        }
+
+        .notif-item:hover {
+            background: rgba(255, 255, 255, 0.02);
+        }
+
+        .notif-item:last-child {
+            border-bottom: none;
+        }
+
+        .notif-item.unread {
+            background: rgba(99, 102, 241, 0.05);
+            border-left: 3px solid #818CF8;
+        }
+
+        .notif-item.unread:hover {
+            background: rgba(99, 102, 241, 0.08);
+        }
+
+        .notif-icon-wrap {
+            width: 44px;
+            height: 44px;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 12px;
+            font-weight: 800;
+            flex-shrink: 0;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .notif-body {
+            flex: 1;
+            min-width: 0;
+        }
+
+        .notif-title {
+            font-size: 14px;
+            font-weight: 700;
+            margin-bottom: 4px;
+            line-height: 1.3;
+        }
+
+        .notif-text {
+            font-size: 13px;
+            color: var(--text2);
+            line-height: 1.5;
+            margin-bottom: 6px;
+        }
+
+        .notif-meta {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        .notif-time {
+            font-size: 11px;
+            color: var(--muted);
+        }
+
+        .notif-type-badge {
+            font-size: 10px;
+            font-weight: 700;
+            padding: 2px 7px;
+            border-radius: 20px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .type-score {
+            background: rgba(34, 197, 94, 0.12);
+            color: var(--green);
+        }
+
+        .type-schedule {
+            background: rgba(59, 130, 246, 0.12);
+            color: #60A5FA;
+        }
+
+        .type-announce {
+            background: rgba(245, 184, 0, 0.12);
+            color: var(--gold);
+        }
+
+        .type-reminder {
+            background: rgba(139, 92, 246, 0.12);
+            color: #A78BFA;
+        }
+
+        .type-system {
+            background: rgba(255, 255, 255, 0.06);
+            color: var(--muted);
+        }
+
+        .type-result {
+            background: rgba(245, 184, 0, 0.12);
+            color: var(--gold);
+        }
+
+        .unread-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: #818CF8;
+            flex-shrink: 0;
+            margin-top: 6px;
+        }
+
+        .notif-filter-bar {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            flex-wrap: wrap;
+            margin-bottom: 16px;
+        }
+
+        .notif-filter-pill {
+            padding: 6px 14px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 700;
+            cursor: pointer;
+            border: 1px solid var(--border);
+            background: var(--bg3);
+            color: var(--muted);
+            transition: all 0.15s;
+        }
+
+        .notif-filter-pill.active {
+            background: #818CF8;
+            color: #fff;
+            border-color: #818CF8;
+        }
+
+        .notif-filter-pill:hover:not(.active) {
+            border-color: #818CF8;
+            color: #818CF8;
+        }
+
+        .notif-empty {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 64px 24px;
+            text-align: center;
+        }
+
+        .notif-empty-text {
+            font-size: 15px;
+            color: var(--muted);
+        }
+
+        .bulk-bar {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 10px 20px;
+            background: var(--bg3);
+            border-bottom: 1px solid var(--border);
+        }
+
+        .bulk-bar-count {
+            font-size: 13px;
+            color: var(--muted);
+        }
+
+        .notif-detail-header {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            margin-bottom: 16px;
+            padding-bottom: 16px;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .notif-detail-icon {
+            width: 52px;
+            height: 52px;
+            border-radius: 14px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 12px;
+            font-weight: 800;
+            flex-shrink: 0;
+            text-transform: uppercase;
+        }
+
+        .score-alert-card {
+            background: linear-gradient(135deg, rgba(34, 197, 94, 0.06), transparent);
+            border-left: 4px solid var(--green);
+        }
+
+        .announce-card {
+            background: linear-gradient(135deg, rgba(245, 184, 0, 0.06), transparent);
+            border-left: 4px solid var(--gold);
+        }
+
+        @keyframes pulse {
+
+            0%,
+            100% {
+                opacity: 1;
+                transform: scale(1);
+            }
+
+            50% {
+                opacity: .6;
+                transform: scale(1.2);
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <main class="main">
+        <div class="topbar">
+            <div class="topbar-title" style="display:flex;align-items:center;gap:8px;">
+                <span class="icon icon-md"><svg viewBox="0 0 24 24">
+                        <path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9" />
+                        <path d="M10.3 21a1.94 1.94 0 0 0 3.4 0" />
+                    </svg></span>
+                Notifications
+            </div>
+            <div class="topbar-actions">
+                <button class="btn btn-secondary btn-sm" onclick="loadPage()">Refresh</button>
+                <button class="btn btn-secondary btn-sm" onclick="markAllRead()">Mark All Read</button>
+            </div>
+        </div>
+        <div class="content">
+            <div class="stat-strip" id="notif-stats" style="margin-bottom:20px"></div>
+
+            <div class="notif-filter-bar">
+                <div class="notif-filter-pill active" onclick="setFilter('all',this)">All</div>
+                <div class="notif-filter-pill" onclick="setFilter('unread',this)">Unread</div>
+                <div class="notif-filter-pill" onclick="setFilter('score',this)">Scores</div>
+                <div class="notif-filter-pill" onclick="setFilter('schedule',this)">Schedule</div>
+                <div class="notif-filter-pill" onclick="setFilter('announce',this)">Announcements</div>
+                <div class="notif-filter-pill" onclick="setFilter('result',this)">Results</div>
+                <div class="notif-filter-pill" onclick="setFilter('reminder',this)">Reminders</div>
+            </div>
+
+            <div class="notif-list-card">
+                <div class="bulk-bar">
+                    <span class="bulk-bar-count" id="notif-count-label">Loading...</span>
+                    <button class="btn btn-secondary btn-sm" onclick="markAllRead()">Mark All Read</button>
+                </div>
+                <div id="notif-list">
+                    <div class="notif-empty">
+                        <div class="notif-empty-text">Loading notifications...</div>
+                    </div>
+                </div>
+            </div>
+
+            <div style="margin-top:24px" id="live-alerts-section">
+                <div
+                    style="font-family:'Barlow Condensed',sans-serif;font-size:14px;font-weight:800;color:var(--green);text-transform:uppercase;letter-spacing:1px;margin-bottom:12px">
+                    Live Score Alerts — Our Matches
+                </div>
+                <div id="live-alerts">
+                    <div
+                        style="padding:20px;text-align:center;color:var(--muted);font-size:13px;background:var(--bg2);border:1px solid var(--border);border-radius:12px">
+                        Loading live match alerts...
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <div class="modal-overlay" id="modal-notif" onclick="if(event.target===this)Modal.close('modal-notif')">
+        <div class="modal" style="max-width:480px">
+            <div class="modal-header">
+                <div class="modal-title">Notification</div>
+                <button class="modal-close" onclick="Modal.close('modal-notif')">X</button>
+            </div>
+            <div class="modal-body" id="notif-detail-body"></div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="Modal.close('modal-notif')">Close</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="/js/shared.js"></script>
+    <script src="/js/dean-sidebar.js"></script>
+    <script>
+        let allNotifs = [];
+        let currentFilter = 'all';
+        let liveTimer;
+        const user = Auth.getUser();
+        const deptId = user?.department_id;
+
+        function getNotifStyle(n) {
+            const t = ((n.title || '') + ' ' + (n.message || '')).toLowerCase();
+            if (t.includes('score') || t.includes('live')) return { label: 'SCR', bg: 'rgba(34,197,94,0.12)', cls: 'type-score', cardCls: 'score-alert-card' };
+            if (t.includes('schedule') || t.includes('reschedule')) return { label: 'SCH', bg: 'rgba(59,130,246,0.12)', cls: 'type-schedule', cardCls: '' };
+            if (t.includes('result') || t.includes('champion') || t.includes('medal')) return { label: 'RES', bg: 'rgba(245,184,0,0.12)', cls: 'type-result', cardCls: 'announce-card' };
+            if (t.includes('reminder') || t.includes('upcoming')) return { label: 'REM', bg: 'rgba(139,92,246,0.12)', cls: 'type-reminder', cardCls: '' };
+            if (t.includes('announcement') || t.includes('alert')) return { label: 'ANN', bg: 'rgba(245,184,0,0.12)', cls: 'type-announce', cardCls: 'announce-card' };
+            return { label: 'SYS', bg: 'rgba(255,255,255,0.06)', cls: 'type-system', cardCls: '' };
+        }
+
+        function getTypeKey(n) {
+            const t = ((n.title || '') + ' ' + (n.message || '')).toLowerCase();
+            if (t.includes('score') || t.includes('live')) return 'score';
+            if (t.includes('schedule') || t.includes('reschedule')) return 'schedule';
+            if (t.includes('result') || t.includes('champion') || t.includes('medal')) return 'result';
+            if (t.includes('reminder') || t.includes('upcoming')) return 'reminder';
+            if (t.includes('announcement') || t.includes('alert')) return 'announce';
+            return 'system';
+        }
+
+        function timeAgo(dateStr) {
+            if (!dateStr) return '—';
+            const diff = Date.now() - new Date(dateStr).getTime();
+            const mins = Math.floor(diff / 60000);
+            if (mins < 1) return 'Just now';
+            if (mins < 60) return mins + 'm ago';
+            const hrs = Math.floor(mins / 60);
+            if (hrs < 24) return hrs + 'h ago';
+            const days = Math.floor(hrs / 24);
+            if (days < 7) return days + 'd ago';
+            return formatDate(dateStr);
+        }
+
+        document.addEventListener('DOMContentLoaded', async () => {
+            Auth.requireAuth('dean_adviser');
+            renderSidebar('notifications');
+            await loadPage();
+            liveTimer = setInterval(loadLiveAlerts, 15000);
+        });
+
+        async function loadPage() {
+            // Try notifications endpoint; empty list if 404
+            const res = await api('/sport-fest/notifications?limit=50');
+            allNotifs = (res.success && res.data) ? res.data : [];
+            renderStats();
+            applyFilter();
+            await loadLiveAlerts();
+        }
+
+        function renderStats() {
+            const total = allNotifs.length;
+            const unread = allNotifs.filter(n => !n.is_read).length;
+            const scores = allNotifs.filter(n => getTypeKey(n) === 'score').length;
+            const sched = allNotifs.filter(n => getTypeKey(n) === 'schedule').length;
+            document.getElementById('notif-stats').innerHTML = [
+                { val: total, lbl: 'Total', color: 'var(--text)' },
+                { val: unread, lbl: 'Unread', color: '#818CF8' },
+                { val: scores, lbl: 'Scores', color: 'var(--green)' },
+                { val: sched, lbl: 'Schedule', color: '#60A5FA' },
+            ].map(s => '<div class="stat-strip-card"><div><div class="stat-strip-val" style="color:' + s.color + '">' + s.val +
+                '</div><div class="stat-strip-lbl">' + s.lbl + '</div></div></div>').join('');
+        }
+
+        function setFilter(f, el) {
+            currentFilter = f;
+            document.querySelectorAll('.notif-filter-pill').forEach(p => p.classList.remove('active'));
+            el.classList.add('active');
+            applyFilter();
+        }
+
+        function applyFilter() {
+            let filtered = allNotifs;
+            if (currentFilter === 'unread') filtered = filtered.filter(n => !n.is_read);
+            else if (currentFilter !== 'all') filtered = filtered.filter(n => getTypeKey(n) === currentFilter);
+            renderList(filtered);
+        }
+
+        function renderList(notifs) {
+            const el = document.getElementById('notif-list');
+            const unread = notifs.filter(n => !n.is_read).length;
+            document.getElementById('notif-count-label').textContent =
+                notifs.length + ' notification' + (notifs.length !== 1 ? 's' : '') + ' · ' + unread + ' unread';
+
+            if (!notifs.length) {
+                el.innerHTML = '<div class="notif-empty"><div class="notif-empty-text">No notifications found</div></div>';
+                return;
+            }
+
+            el.innerHTML = notifs.map(n => {
+                const style = getNotifStyle(n);
+                return '<div class="notif-item ' + (n.is_read ? '' : 'unread') + ' ' + style.cardCls + '" onclick="openNotif(' + n.id + ')">' +
+                    '<div class="notif-icon-wrap" style="background:' + style.bg + ';color:inherit">' + style.label + '</div>' +
+                    '<div class="notif-body">' +
+                    '<div class="notif-title">' + (n.title || 'Notification') + '</div>' +
+                    '<div class="notif-text">' + (n.message || '') + '</div>' +
+                    '<div class="notif-meta">' +
+                    '<span class="notif-time">' + timeAgo(n.created_at) + '</span>' +
+                    '<span class="notif-type-badge ' + style.cls + '">' + getTypeKey(n) + '</span>' +
+                    (n.is_read ? '' : '<span style="font-size:10px;color:#818CF8;font-weight:700">NEW</span>') +
+                    '</div></div>' +
+                    (!n.is_read ? '<div class="unread-dot"></div>' : '') +
+                    '</div>';
+            }).join('');
+        }
+
+        async function openNotif(id) {
+            const n = allNotifs.find(x => x.id === id);
+            if (!n) return;
+            if (!n.is_read) {
+                await api('/sport-fest/notifications/' + id + '/read', { method: 'PATCH' });
+                n.is_read = 1;
+                renderStats();
+                applyFilter();
+            }
+            const style = getNotifStyle(n);
+            document.getElementById('notif-detail-body').innerHTML =
+                '<div class="notif-detail-header">' +
+                '<div class="notif-detail-icon" style="background:' + style.bg + '">' + style.label + '</div>' +
+                '<div><div style="font-size:16px;font-weight:700">' + (n.title || 'Notification') + '</div>' +
+                '<div style="font-size:12px;color:var(--muted);margin-top:3px">' +
+                '<span class="notif-type-badge ' + style.cls + '">' + getTypeKey(n) + '</span>' +
+                '<span style="margin-left:8px">' + timeAgo(n.created_at) + '</span></div></div></div>' +
+                '<div style="font-size:14px;color:var(--text2);line-height:1.6;white-space:pre-wrap">' + (n.message || '') + '</div>' +
+                '<div style="margin-top:16px;padding-top:14px;border-top:1px solid var(--border);font-size:12px;color:var(--muted)">' +
+                'Received: ' + (n.created_at ? new Date(n.created_at).toLocaleString('en-PH') : '—') + '</div>';
+            Modal.open('modal-notif');
+        }
+
+        async function markAllRead() {
+            const res = await api('/sport-fest/notifications/read-all', { method: 'PATCH' });
+            if (res.success) {
+                allNotifs.forEach(n => n.is_read = 1);
+                renderStats();
+                applyFilter();
+                Toast.show('All notifications marked as read.', 'success');
+            } else {
+                Toast.show(res.message || 'Could not mark as read (endpoint may be missing).', 'error');
+            }
+        }
+
+        async function loadLiveAlerts() {
+            if (!deptId) return;
+            const el = document.getElementById('live-alerts');
+            const res = await api('/matches/live');
+            const live = (res.data || []).filter(m =>
+                m.participant_a_department_id == deptId || m.participant_b_department_id == deptId);
+
+            const todayRes = await api('/schedules/today');
+            const upcoming = (todayRes.data || []).filter(m =>
+                (m.participant_a_department_id == deptId || m.participant_b_department_id == deptId) &&
+                m.status === 'scheduled');
+
+            if (!live.length && !upcoming.length) {
+                el.innerHTML = '<div style="padding:20px;text-align:center;color:var(--muted);font-size:13px;background:var(--bg2);border:1px solid var(--border);border-radius:12px">No live or upcoming matches for your department right now.</div>';
+                return;
+            }
+
+            let html = '';
+            live.forEach(m => {
+                const isOurA = m.participant_a_department_id == deptId;
+                const ourScore = isOurA ? (m.live_score_a || 0) : (m.live_score_b || 0);
+                const oppScore = isOurA ? (m.live_score_b || 0) : (m.live_score_a || 0);
+                const oppName = isOurA ? (m.dept_b || m.dept_b_name || 'Opponent') : (m.dept_a || m.dept_a_name || 'Opponent');
+                const winning = ourScore > oppScore;
+                const tied = ourScore === oppScore;
+                const statusText = winning ? 'WINNING' : tied ? 'TIED' : 'TRAILING';
+                const statusColor = winning ? 'var(--green)' : tied ? 'var(--gold)' : 'var(--red)';
+                html += '<div style="background:linear-gradient(135deg,rgba(34,197,94,0.08),transparent);border:1px solid rgba(34,197,94,0.3);border-radius:12px;padding:16px 20px;margin-bottom:10px">' +
+                    '<div style="font-size:11px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:var(--green);margin-bottom:12px;display:flex;align-items:center;gap:8px">' +
+                    '<span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--green);animation:pulse 1.2s infinite"></span>' +
+                    'LIVE · ' + (m.sport_name || '') + ' · ' + (m.tournament_name || '') + '</div>' +
+                    '<div style="display:flex;align-items:center;justify-content:space-between;gap:16px">' +
+                    '<div><div style="font-size:12px;color:var(--muted);margin-bottom:2px">Our Score</div>' +
+                    '<div style="font-family:\'Barlow Condensed\',sans-serif;font-size:52px;font-weight:900;line-height:1;color:' + statusColor + '">' + ourScore + '</div></div>' +
+                    '<div style="text-align:center"><div style="font-family:\'Barlow Condensed\',sans-serif;font-size:18px;font-weight:900;color:var(--muted)">VS</div>' +
+                    '<div style="font-size:12px;color:' + statusColor + ';font-weight:700;margin-top:4px">' + statusText + '</div></div>' +
+                    '<div style="text-align:right"><div style="font-size:12px;color:var(--muted);margin-bottom:2px">' + oppName + '</div>' +
+                    '<div style="font-family:\'Barlow Condensed\',sans-serif;font-size:52px;font-weight:900;line-height:1;color:var(--muted)">' + oppScore + '</div></div></div>' +
+                    '<div style="margin-top:10px;font-size:12px;color:var(--muted)">' + (m.venue_name || '') + '</div>' +
+                    '<a href="/dean/live" class="btn btn-secondary btn-sm" style="margin-top:12px;display:inline-block">Full Scoreboard</a></div>';
+            });
+
+            if (upcoming.length) {
+                html += '<div style="font-size:11px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:var(--muted);margin:16px 0 8px">UPCOMING TODAY</div>';
+                upcoming.forEach(m => {
+                    const isOurA = m.participant_a_department_id == deptId;
+                    const oppName = isOurA ? (m.dept_b || m.dept_b_name || 'Opponent') : (m.dept_a || m.dept_a_name || 'Opponent');
+                    html += '<div style="background:var(--bg2);border:1px solid var(--border);border-radius:12px;padding:14px 18px;margin-bottom:8px;display:flex;align-items:center;gap:16px">' +
+                        '<div style="flex:1"><div style="font-size:14px;font-weight:700">vs <span style="color:var(--text2)">' + oppName + '</span></div>' +
+                        '<div style="font-size:12px;color:var(--muted);margin-top:2px">' + (m.tournament_name || '') + ' · ' + (m.venue_name || 'Venue TBD') + '</div></div>' +
+                        '<div style="text-align:right"><div style="font-family:\'Barlow Condensed\',sans-serif;font-size:20px;font-weight:900;color:var(--gold)">' +
+                        (formatTime(m.scheduled_time) || 'TBD') + '</div>' + statusBadge(m.status) + '</div></div>';
+                });
+            }
+            el.innerHTML = html;
+        }
+    </script>
+</body>
+
+</html>

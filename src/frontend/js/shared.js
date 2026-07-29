@@ -79,90 +79,6 @@ const api = async (path, options = {}) => {
     }
 };
 
-// ── Toast ─────────────────────────────────────────────────────
-const Toast = {
-    show(msg, type = 'success', duration = 3000) {
-        let t = document.getElementById('sf-toast');
-        if (!t) {
-            t = document.createElement('div');
-            t.id = 'sf-toast';
-            t.className = 'toast';
-            document.body.appendChild(t);
-        }
-        const icons = { success: '✅', error: '❌', info: 'ℹ️' };
-        t.innerHTML = `<span>${icons[type] || '📢'}</span> ${msg}`;
-        t.className = `toast ${type} show`;
-        clearTimeout(t._timer);
-        t._timer = setTimeout(() => t.classList.remove('show'), duration);
-    }
-};
-
-// ── Modal ─────────────────────────────────────────────────────
-const Modal = {
-    open(id) { document.getElementById(id)?.classList.add('open'); },
-    close(id) { document.getElementById(id)?.classList.remove('open'); },
-    closeAll() { document.querySelectorAll('.modal-overlay').forEach(m => m.classList.remove('open')); }
-};
-
-// ── Render Helpers ────────────────────────────────────────────
-const statusBadge = (status) => {
-    const formatRank = (rank) => {
-        if (!rank) return '—';
-        if (rank === 1) return '1st';
-        if (rank === 2) return '2nd';
-        if (rank === 3) return '3rd';
-        return `${rank}th`;
-    };
-    const map = {
-        ongoing: ['badge-pulse badge-green', '🟢 LIVE'],
-        scheduled: ['badge-muted', '📅 Scheduled'],
-        completed: ['badge-blue', '✅ Done'],
-        cancelled: ['badge-red', '❌ Cancelled'],
-        postponed: ['badge-orange', '⏸ Postponed'],
-        walkover: ['badge-muted', '🚶 Walkover'],
-        draft: ['badge-muted', '📝 Draft'],
-        registration: ['badge-blue', '📋 Registration'],
-    };
-    const [cls, label] = map[status] || ['badge-muted', status];
-    return `<span class="badge ${cls}">${label}</span>`;
-};
-
-const medalBadge = (medal) => ({ gold: '🥇', silver: '🥈', bronze: '🥉', participation: '🎖' }[medal] || '—');
-const formatRank = (rank) => {
-    if (!rank) return '—';
-    if (rank === 1) return '1st';
-    if (rank === 2) return '2nd';
-    if (rank === 3) return '3rd';
-    return `${rank}th`;
-};
-const sportIcon = (name = '') => {
-    const formatRank = (rank) => {
-        if (!rank) return '—';
-        if (rank === 1) return '1st';
-        if (rank === 2) return '2nd';
-        if (rank === 3) return '3rd';
-        return `${rank}th`;
-    };
-    const n = name.toLowerCase();
-    if (n.includes('basket')) return '🏀';
-    if (n.includes('volley')) return '🏐';
-    if (n.includes('badmin')) return '🏸';
-    if (n.includes('chess')) return '♟️';
-    if (n.includes('relay') || n.includes('4x')) return '🏃';
-    if (n.includes('track') || n.includes('sprint') || n.includes('100') || n.includes('200') || n.includes('400')) return '🏃';
-    if (n.includes('mobile') || n.includes('legend')) return '🎮';
-    if (n.includes('valorant') || n.includes('esport')) return '🎮';
-    if (n.includes('swim')) return '🏊';
-    if (n.includes('tennis')) return '🎾';
-    if (n.includes('table')) return '🏓';
-    if (n.includes('football') || n.includes('soccer')) return '⚽';
-    return '🏅';
-};
-
-const formatDate = (d) => d
-    ? new Date(d).toLocaleDateString('en-PH', { month: 'short', day: 'numeric', year: 'numeric' })
-    : '—';
-const formatTime = (t) => t ? t.slice(0, 5) : '—';
 
 // ── Sidebar Init ──────────────────────────────────────────────
 const initSidebar = () => {
@@ -228,6 +144,69 @@ function filterTable(tableId, query) {
     const q = query.toLowerCase();
     rows.forEach(r => r.style.display = r.textContent.toLowerCase().includes(q) ? '' : 'none');
 }
+// ── Toast ─────────────────────────────────────────────────────
+const Toast = {
+    show(msg, type = 'success', duration = 3000) {
+        let t = document.getElementById('sf-toast');
+        if (!t) {
+            t = document.createElement('div');
+            t.id = 'sf-toast';
+            t.className = 'toast';
+            document.body.appendChild(t);
+        }
+        // No emoji — use short text labels
+        const icons = { success: 'OK', error: 'ERR', info: 'i' };
+        t.innerHTML = `<span style="font-weight:800;margin-right:6px">${icons[type] || '•'}</span> ${msg}`;
+        t.className = `toast ${type} show`;
+        clearTimeout(t._timer);
+        t._timer = setTimeout(() => t.classList.remove('show'), duration);
+    }
+};
+
+// ── Modal ─────────────────────────────────────────────────────
+const Modal = {
+    open(id) { document.getElementById(id)?.classList.add('open'); },
+    close(id) { document.getElementById(id)?.classList.remove('open'); },
+    closeAll() { document.querySelectorAll('.modal-overlay').forEach(m => m.classList.remove('open')); }
+};
+
+// ── Render Helpers (NO EMOJI — plain text / CSS badges) ───────
+const statusBadge = (status) => {
+    const map = {
+        ongoing: ['badge-ongoing', 'Live'],
+        scheduled: ['badge-scheduled', 'Scheduled'],
+        completed: ['badge-completed', 'Done'],
+        cancelled: ['badge-cancelled', 'Cancelled'],
+        postponed: ['badge-muted', 'Postponed'],
+        walkover: ['badge-muted', 'Walkover'],
+        draft: ['badge-muted', 'Draft'],
+        registration: ['badge-blue', 'Registration'],
+        pending: ['badge-upcoming', 'Pending'],
+    };
+    const [cls, label] = map[status] || ['badge-muted', status || '—'];
+    return `<span class="badge ${cls}">${label}</span>`;
+};
+
+const medalBadge = (medal) => {
+    const map = { gold: 'Gold', silver: 'Silver', bronze: 'Bronze', participation: 'Part.' };
+    return map[medal] || '—';
+};
+
+const formatRank = (rank) => {
+    if (!rank) return '—';
+    if (rank === 1) return '1st';
+    if (rank === 2) return '2nd';
+    if (rank === 3) return '3rd';
+    return `${rank}th`;
+};
+
+// Returns empty string (no emoji). Pages can show sport name as text instead.
+const sportIcon = (name = '') => '';
+
+const formatDate = (d) => d
+    ? new Date(d).toLocaleDateString('en-PH', { month: 'short', day: 'numeric', year: 'numeric' })
+    : '—';
+const formatTime = (t) => t ? String(t).slice(0, 5) : '—';
 
 /* ============================================================
    ADMIN DASHBOARD TAB FUNCTIONS

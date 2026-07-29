@@ -1,13 +1,18 @@
 require('dotenv').config();
 
 const express = require('express');
+const http = require('http');
+const socketIo = require('socket.io');
 const cors = require('cors');
 const path = require('path');
 const fs = require('fs');
+const app = express();
+app.set('trust proxy', 1);
 
 const { testConnection } = require('./config/database');
 const { errorHandler, notFound } = require('./middleware/errorHandler');
 
+// Import routes
 const authRoutes = require('./routes/auth');
 const departmentRoutes = require('./routes/departments');
 const sportsRoutes = require('./routes/sports');
@@ -22,62 +27,65 @@ const sportFestRoutes = require('./routes/sportFest');
 const reportRoutes = require('./routes/reports');
 const playerRoutes = require('./routes/player');
 
+// Import socket utilities
+const { initSocket } = require('./utils/socketEmit');
+
 const app = express();
+const server = http.createServer(app);
 const PORT = process.env.PORT || 3000;
 
+// ── SOCKET.IO SETUP ──
+const io = socketIo(server, {
+    cors: {
+        origin: process.env.CORS_ORIGIN || '*',
+        methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+        credentials: true,
+        allowedHeaders: ['Content-Type', 'Authorization']
+    },
+    transports: ['websocket', 'polling'],
+    pingTimeout: 60000,
+    pingInterval: 25000,
+});
 
+// Initialize socket handlers and get helpers
+const socketHelpers = require('./socket')(io);
+initSocket(socketHelpers);
+
+// Make io available to routes
+app.set('io', io);
+
+// ── Frontend directories ────────────────────────────────────────
 const frontendRoot = path.join(__dirname, 'frontend');
 const frontendAdmin = path.join(__dirname, 'frontend', 'admin');
 const frontendReferee = path.join(__dirname, 'frontend', 'referee');
-const frontendPlayer = path.join(__dirname, 'frontend', 'player');
 const frontendVisitor = path.join(__dirname, 'frontend', 'visitor');
+const frontendDean = path.join(__dirname, 'frontend', 'dean');
+const frontendPresident = path.join(__dirname, 'frontend', 'SGO_PRESIDENT');
 
-
-const resolvePage = (filename) => {
-    const v = path.join(frontendVisitor, filename);
-    if (fs.existsSync(v)) return v;
-
-    const a = path.join(frontendAdmin, filename);
-    if (fs.existsSync(a)) return a;
-
-    const r = path.join(frontendReferee, filename);
-    if (fs.existsSync(r)) return r;
-
-    const p = path.join(frontendPlayer, filename);
-    if (fs.existsSync(p)) return p;
-
-    const b = path.join(frontendRoot, filename);
-    if (fs.existsSync(b)) return b;
-
-    return null;
-};
-
-
-const sendPage = (filename) => (req, res) => {
-    const p = resolvePage(filename);
-    if (p) return res.sendFile(p);
+// ── Directory-scoped page sender ────────────────────────────────
+const sendPageFrom = (dir, filename) => (req, res) => {
+    const p = path.join(dir, filename);
+    if (fs.existsSync(p)) return res.sendFile(p);
     res.status(404).send(
         `<h2>Page not found: <code>${filename}</code></h2>` +
-        `<p>Looked in:</p><ul>` +
-        `<li><code>${path.join(frontendAdmin, filename)}</code></li>` +
-        `<li><code>${path.join(frontendReferee, filename)}</code></li>` +
-        `<li><code>${path.join(frontendPlayer, filename)}</code></li>` + // <--- NEW
-        `<li><code>${path.join(frontendRoot, filename)}</code></li>` +
-        `</ul>`
+        `<p>Looked in:</p><ul><li><code>${p}</code></li></ul>`
     );
 };
 
-app.use('/uploads', express.static('uploads'));
-
-
+// ── MIDDLEWARE ──
 app.use(cors({
     origin: process.env.CORS_ORIGIN || '*',
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization'],
 }));
+
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true }));
 
+// Static files
+app.use('/uploads', express.static('uploads'));
+
+// Logging (dev only)
 if (process.env.NODE_ENV === 'development') {
     app.use((req, _res, next) => {
         console.log(`[${new Date().toISOString()}] ${req.method} ${req.originalUrl}`);
@@ -85,11 +93,36 @@ if (process.env.NODE_ENV === 'development') {
     });
 }
 
-
+// ── HEALTH CHECK ──
 app.get('/health', (_req, res) => res.json({ status: 'ok', service: 'Sport Fest', version: '1.0.0' }));
-app.get('/player-registration', sendPage('player_registration.html'));
 
+// ── WEBSOCKET STATUS ENDPOINT ──
+app.get('/socket-status', (req, res) => {
+    res.json({
+        success: true,
+        data: {
+            connected: socketHelpers.getConnectedUsers(),
+            rooms: {
+                matches: 'dynamic',
+                tournaments: 'dynamic',
+                leaderboard: io.sockets.adapter.rooms.get('leaderboard')?.size || 0
+            }
+        }
+    });
+});
 
+// ── PUBLIC PAGES ──
+app.get('/player-registration', sendPageFrom(frontendRoot, 'player_registration.html'));
+
+// ── PUBLIC LIVE SCOREBOARD (visitor) ──
+app.get('/live', sendPageFrom(frontendVisitor, 'index.html'));
+app.get('/live/scores', sendPageFrom(frontendVisitor, 'index.html'));
+app.get('/live/standings', sendPageFrom(frontendVisitor, 'standings.html'));
+app.get('/live/schedule', sendPageFrom(frontendVisitor, 'schedule.html'));
+app.get('/live/mvp', sendPageFrom(frontendVisitor, 'mvp.html'));
+app.get('/live/highlights', sendPageFrom(frontendVisitor, 'highlights.html'));
+
+// ── API ROUTES ──
 const API = '/api';
 app.use(`${API}/auth`, authRoutes);
 app.use(`${API}/departments`, departmentRoutes);
@@ -106,103 +139,174 @@ app.use(`${API}/reports`, reportRoutes);
 app.use(`${API}/players`, playerRoutes);
 
 app.get(`${API}`, (_req, res) => res.json({
-    service: 'Sport Fest Management System API', version: '1.0.0',
+    service: 'Sport Fest Management System API',
+    version: '1.0.0',
+    websocket: 'enabled',
     endpoints: {
-        auth: `${API}/auth`, departments: `${API}/departments`, sports: `${API}/sports`,
-        tournaments: `${API}/tournaments`, matches: `${API}/matches`, teams: `${API}/teams`,
-        users: `${API}/users`, venues: `${API}/venues`, schedules: `${API}/schedules`,
-        leaderboard: `${API}/leaderboard`, champion: `${API}/leaderboard/champion`,
-        sportFest: `${API}/sport-fest`, reports: `${API}/reports`,
+        auth: `${API}/auth`,
+        departments: `${API}/departments`,
+        sports: `${API}/sports`,
+        tournaments: `${API}/tournaments`,
+        matches: `${API}/matches`,
+        teams: `${API}/teams`,
+        users: `${API}/users`,
+        venues: `${API}/venues`,
+        schedules: `${API}/schedules`,
+        leaderboard: `${API}/leaderboard`,
+        sportFest: `${API}/sport-fest`,
+        reports: `${API}/reports`,
+        players: `${API}/players`,
     },
 }));
 
+// ── ROOT AND LOGIN ──
+app.get('/', sendPageFrom(frontendVisitor, 'index.html')); // live board as home
+app.get('/login', sendPageFrom(frontendRoot, 'login.html'));
 
-app.get('/', sendPage('visitor.html'));
-app.get('/login', sendPage('login.html'));
+// ── Admin pages ──────────────────────────────────────────────
+app.get('/admin', sendPageFrom(frontendAdmin, 'admin.html'));
+app.get('/admin/dashboard', sendPageFrom(frontendAdmin, 'admin.html'));
+app.get('/admin/tournaments', sendPageFrom(frontendAdmin, 'admin-tournaments.html'));
+app.get('/admin/matches', sendPageFrom(frontendAdmin, 'admin-matches.html'));
+app.get('/admin/leaderboard', sendPageFrom(frontendAdmin, 'admin-leaderboard.html'));
+app.get('/admin/live', sendPageFrom(frontendAdmin, 'admin-live.html'));
+app.get('/admin/sports', sendPageFrom(frontendAdmin, 'admin-sports.html'));
+app.get('/admin/teams', sendPageFrom(frontendAdmin, 'admin-teams.html'));
+app.get('/admin/venues', sendPageFrom(frontendAdmin, 'admin-venues.html'));
+app.get('/admin/users', sendPageFrom(frontendAdmin, 'admin-users.html'));
+app.get('/admin/schedule', sendPageFrom(frontendAdmin, 'admin-schedule.html'));
+app.get('/admin/departments', sendPageFrom(frontendAdmin, 'admin-departments.html'));
+app.get('/admin/sport-fest', sendPageFrom(frontendAdmin, 'admin-sport-fest.html'));
+app.get('/admin/reports', sendPageFrom(frontendAdmin, 'admin-reports.html'));
 
+// ── Dean Adviser pages ────────────────────────────────────────
+app.get('/dean', sendPageFrom(frontendDean, 'dashboard.html'));
+app.get('/dean/dashboard', sendPageFrom(frontendDean, 'dashboard.html'));
+app.get('/dean/live', sendPageFrom(frontendDean, 'live.html'));
+app.get('/dean/leaderboard', sendPageFrom(frontendDean, 'leaderboard.html'));
+app.get('/dean/schedule', sendPageFrom(frontendDean, 'schedule.html'));
+app.get('/dean/notifications', sendPageFrom(frontendDean, 'notifications.html'));
+app.get('/dean/players', sendPageFrom(frontendDean, 'player.html'));
+app.get('/dean/teams', sendPageFrom(frontendDean, 'teams.html'));
+app.get('/dean/matches', sendPageFrom(frontendDean, 'matches.html'));
+app.get('/dean/scores', sendPageFrom(frontendDean, 'scores.html'));
+app.get('/dean/reports', sendPageFrom(frontendDean, 'reports.html'));
+app.get('/dean/standings', sendPageFrom(frontendDean, 'standings.html'));
 
-app.get('/admin', sendPage('admin.html'));
-app.get('/admin/dashboard', sendPage('admin.html'));
-app.get('/admin/tournaments', sendPage('admin-tournaments.html'));
-app.get('/admin/tournaments/:id', sendPage('admin-tournament-detail.html'));
-app.get('/admin/matches', sendPage('admin-matches.html'));
-app.get('/admin/leaderboard', sendPage('admin-leaderboard.html'));
-app.get('/admin/live', sendPage('admin-live.html'));
-app.get('/admin/sports', sendPage('admin-sports.html'));
-app.get('/admin/teams', sendPage('admin-teams.html'));
-app.get('/admin/venues', sendPage('admin-venues.html'));
-app.get('/admin/users', sendPage('admin-users.html'));
-app.get('/admin/schedule', sendPage('admin-schedule.html'));
-app.get('/admin/departments', sendPage('admin-departments.html'));
+// ── SGO President pages ──────────────────────────────────────
+app.get('/president', sendPageFrom(frontendPresident, 'dashboard.html'));
+app.get('/president/dashboard', sendPageFrom(frontendPresident, 'dashboard.html'));
+app.get('/president/dashboard.html', sendPageFrom(frontendPresident, 'dashboard.html'));
+app.get('/president/bracketing', sendPageFrom(frontendPresident, 'bracketing.html'));
+app.get('/president/bracketing.html', sendPageFrom(frontendPresident, 'bracketing.html'));
+app.get('/president/game-setup', sendPageFrom(frontendPresident, 'game-setup.html'));
+app.get('/president/game-setup.html', sendPageFrom(frontendPresident, 'game-setup.html'));
+app.get('/president/schedule', sendPageFrom(frontendPresident, 'schedule.html'));
+app.get('/president/schedule.html', sendPageFrom(frontendPresident, 'schedule.html'));
+app.get('/president/venues', sendPageFrom(frontendPresident, 'venues.html'));
+app.get('/president/venues.html', sendPageFrom(frontendPresident, 'venues.html'));
+app.get('/president/assignment', sendPageFrom(frontendPresident, 'game-assignment.html'));
+app.get('/president/assignment.html', sendPageFrom(frontendPresident, 'game-assignment.html'));
+app.get('/president/live', sendPageFrom(frontendPresident, 'live-scores.html'));
+app.get('/president/live-scores.html', sendPageFrom(frontendPresident, 'live-scores.html'));
+app.get('/president/reports', sendPageFrom(frontendPresident, 'reports.html'));
+app.get('/president/reports.html', sendPageFrom(frontendPresident, 'reports.html'));
+app.get('/president/notifications', sendPageFrom(frontendPresident, 'notifications.html'));
+app.get('/president/notifications.html', sendPageFrom(frontendPresident, 'notifications.html'));
+app.get('/president/sports', sendPageFrom(frontendPresident, 'sports.html'));
+app.get('/president/sports.html', sendPageFrom(frontendPresident, 'sports.html'));
 
+// SGO_PRESIDENT static assets
+app.use('/SGO_PRESIDENT', express.static(frontendPresident));
+app.use('/sgo_president', express.static(frontendPresident));
 
-app.get('/player', sendPage('profile.html'));
-app.get('/player/profile', sendPage('profile.html'));
-app.get('/player/athletes', sendPage('athletes.html'));
-app.get('/player/mvp', sendPage('mvp.html'));
-app.get('/player/scores', sendPage('scores.html'));
-app.get('/player/standings', sendPage('standings.html'));
+app.get('/sgo_president', (req, res) => {
+    res.redirect('/president');
+});
+app.get('/sgo_president/*', (req, res) => {
+    const subpath = req.params[0] || '';
+    if (subpath) {
+        res.redirect(`/president/${subpath}`);
+    } else {
+        res.redirect('/president');
+    }
+});
 
+// ── SGO Officer pages ──
+app.get('/officer', (req, res) => res.redirect('/referee'));
+app.get('/officer/dashboard', (req, res) => res.redirect('/referee'));
+app.get('/officer/matches', (req, res) => res.redirect('/referee/matches'));
+app.get('/officer/scoring', (req, res) => res.redirect('/referee/scoring'));
+app.get('/officer/history', (req, res) => res.redirect('/referee/history'));
+app.get('/officer/standings', (req, res) => res.redirect('/referee/leaderboard'));
 
-app.get('/referee', sendPage('referee.html'));
-app.get('/referee/history', sendPage('history.html'));
-app.get('/referee/leaderboard', sendPage('leaderboard.html'));
-app.get('/referee/matches', sendPage('matches.html'));
-app.get('/referee/scoring', sendPage('scoring.html'));
-app.get('/referee/schedule', sendPage('schedule.html'));
-app.get('/referee/tournaments', sendPage('tournaments.html'));
+// ── Referee pages ──
+app.get('/referee', sendPageFrom(frontendReferee, 'schedule.html'));
+app.get('/referee/history', sendPageFrom(frontendReferee, 'history.html'));
+app.get('/referee/leaderboard', sendPageFrom(frontendReferee, 'leaderboard.html'));
+app.get('/referee/matches', sendPageFrom(frontendReferee, 'matches.html'));
+app.get('/referee/scoring', sendPageFrom(frontendReferee, 'scoring.html'));
+app.get('/referee/schedule', sendPageFrom(frontendReferee, 'schedule.html'));
+app.get('/referee/tournaments', sendPageFrom(frontendReferee, 'tournaments.html'));
 
-
+// ── Static files ──────────────────────────────────────────────
 app.use(express.static(frontendRoot));
 app.use(express.static(frontendAdmin));
+app.use(express.static(frontendDean));
+app.use(express.static(frontendPresident));
 app.use(express.static(frontendReferee));
-app.use(express.static(frontendPlayer));
 app.use(express.static(frontendVisitor));
 
-
+// ── Catch-all route ──
 app.get('*', (req, res, next) => {
     if (req.originalUrl.startsWith('/api')) return next();
-    const p = resolvePage('login.html');
-    if (p) return res.sendFile(p);
+
+    const ext = path.extname(req.originalUrl).toLowerCase();
+    if (['.css', '.js', '.png', '.jpg', '.jpeg', '.gif', '.svg', '.ico', '.webp'].includes(ext)) {
+        return res.status(404).send('File not found');
+    }
+
+    const loginPath = path.join(frontendRoot, 'login.html');
+    if (fs.existsSync(loginPath)) return res.sendFile(loginPath);
     next();
 });
 
+// ── ERROR HANDLING ──
 app.use(notFound);
 app.use(errorHandler);
 
-
+// ── START SERVER ──
 const start = async () => {
     try {
         await testConnection();
-        app.listen(PORT, () => {
-            console.log('');
-            console.log('  🏆  Sport Fest Management System');
-            console.log(`  🚀  http://localhost:${PORT}`);
-            console.log(`  ⚙️   Admin       → http://localhost:${PORT}/admin`);
-            console.log(`  哨  Referee     → http://localhost:${PORT}/referee`);
-            console.log(`  🏃  Player      → http://localhost:${PORT}/player`);
-            console.log(`  📖  API Docs    → http://localhost:${PORT}/api`);
-            console.log('');
-            console.log(`  📁  Root    → ${frontendRoot}`);
-            console.log(`  📁  Admin   → ${frontendAdmin}`);
-            console.log(`  📁  Referee → ${frontendReferee}`);
-            console.log(`  📁  Player  → ${frontendPlayer}`);
 
-            if (!fs.existsSync(frontendRoot))
-                console.warn(`  ⚠️  MISSING: ${frontendRoot}`);
-            if (!fs.existsSync(frontendAdmin))
-                console.warn(`  ⚠️  MISSING: ${frontendAdmin}  (create this folder)`);
-            if (!fs.existsSync(frontendReferee))
-                console.warn(`  ⚠️  MISSING: ${frontendReferee}  (create this folder)`);
-            if (!fs.existsSync(frontendPlayer))
-                console.warn(`  ⚠️  MISSING: ${frontendPlayer}  (create this folder)`); // <--- NEW
-            console.log('');
+        const requiredDirs = [
+            frontendRoot,
+            frontendAdmin,
+            frontendDean,
+            frontendPresident,
+            frontendReferee,
+            frontendVisitor,
+        ];
+        const missing = requiredDirs.filter((d) => !fs.existsSync(d));
+        if (missing.length) {
+            missing.forEach((d) => console.warn(`⚠️  Missing folder: ${d}`));
+        }
+
+        server.listen(PORT, () => {
+            console.log(`Sport Fest running on http://localhost:${PORT}`);
+            console.log(`WebSocket ws://localhost:${PORT}`);
+            if (process.env.NODE_ENV === 'development') {
+                console.log(`Live board → http://localhost:${PORT}/live`);
+                console.log(`API        → http://localhost:${PORT}/api`);
+            }
         });
     } catch (err) {
-        console.error('❌ Server failed to start:', err.message);
+        console.error('Server failed to start:', err.message);
         process.exit(1);
     }
 };
 
 start();
-module.exports = app;
+
+module.exports = { app, server, io };

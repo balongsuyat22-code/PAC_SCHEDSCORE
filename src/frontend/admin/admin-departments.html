@@ -8,13 +8,12 @@
     <link
         href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;600;700;800;900&family=Barlow:wght@300;400;500;600&display=swap"
         rel="stylesheet">
-    <link rel="stylesheet" href="../css/shared.css">
+    <link rel="stylesheet" href="/css/shared.css">
     <style>
         .dept-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-            gap: 20px;
-            margin-bottom: 32px;
+            grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+            gap: 20px
         }
 
         .dept-card {
@@ -22,59 +21,31 @@
             border: 1px solid var(--border);
             border-radius: 16px;
             overflow: hidden;
-            transition: all 0.2s;
-            position: relative;
+            transition: all .2s
         }
 
         .dept-card:hover {
             border-color: var(--border-gold);
             transform: translateY(-3px);
-            box-shadow: 0 16px 48px rgba(0, 0, 0, 0.3);
+            box-shadow: 0 16px 40px rgba(0, 0, 0, .3)
         }
 
         .dept-card-accent {
-            height: 6px;
-            width: 100%;
+            height: 6px
         }
 
-        .dept-card-logo-area {
-            padding: 24px 20px 16px;
+        .dept-card-body {
+            padding: 20px;
             display: flex;
             flex-direction: column;
             align-items: center;
-            gap: 12px;
-            position: relative;
+            gap: 10px
         }
 
-        .dept-logo-wrap {
-            width: 88px;
-            height: 88px;
-            border-radius: 18px;
-            border: 3px solid rgba(255, 255, 255, 0.08);
-            overflow: hidden;
-            position: relative;
-            cursor: pointer;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            transition: all 0.2s;
-        }
-
-        .dept-logo-wrap:hover .logo-edit-overlay {
-            opacity: 1;
-        }
-
-        .dept-logo-wrap img {
-            width: 100%;
-            height: 100%;
-            object-fit: cover;
-            border-radius: 15px;
-        }
-
-        .dept-logo-initials {
-            width: 100%;
-            height: 100%;
-            border-radius: 15px;
+        .dept-logo {
+            width: 80px;
+            height: 80px;
+            border-radius: 16px;
             display: flex;
             align-items: center;
             justify-content: center;
@@ -82,62 +53,73 @@
             font-size: 28px;
             font-weight: 900;
             color: #fff;
-            letter-spacing: 1px;
+            overflow: hidden;
+            cursor: pointer;
+            position: relative
         }
 
-        .logo-edit-overlay {
+        .dept-logo img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            border-radius: 14px
+        }
+
+        .dept-logo-overlay {
             position: absolute;
             inset: 0;
-            border-radius: 15px;
-            background: rgba(0, 0, 0, 0.65);
+            border-radius: 14px;
+            background: rgba(0, 0, 0, .6);
             display: flex;
             align-items: center;
             justify-content: center;
+            font-size: 12px;
+            font-weight: 700;
             opacity: 0;
-            transition: opacity 0.15s;
-            font-size: 20px;
-            color: #fff;
+            transition: opacity .15s;
             cursor: pointer;
+            color: #fff
         }
 
-        .dept-card-name {
+        .dept-logo:hover .dept-logo-overlay {
+            opacity: 1
+        }
+
+        .dept-name {
             font-family: 'Barlow Condensed', sans-serif;
             font-size: 20px;
             font-weight: 900;
-            text-align: center;
             text-transform: uppercase;
-            letter-spacing: 0.5px;
+            text-align: center
         }
 
-        .dept-card-short {
+        .dept-code {
             font-size: 12px;
             color: var(--muted);
-            text-align: center;
-            margin-top: -8px;
             text-transform: uppercase;
-            letter-spacing: 1px;
+            letter-spacing: 1px
         }
 
         .dept-stats {
             display: grid;
             grid-template-columns: repeat(3, 1fr);
-            border-top: 1px solid var(--border);
+            border-top: 1px solid var(--border)
         }
 
         .dept-stat {
             padding: 12px 8px;
             text-align: center;
-            border-right: 1px solid var(--border);
+            border-right: 1px solid var(--border)
         }
 
         .dept-stat:last-child {
-            border-right: none;
+            border-right: none
         }
 
         .dept-stat-val {
             font-family: 'Barlow Condensed', sans-serif;
             font-size: 22px;
-            font-weight: 900;
+            font-weight: 900
         }
 
         .dept-stat-lbl {
@@ -145,33 +127,33 @@
             color: var(--muted);
             text-transform: uppercase;
             letter-spacing: 1px;
-            margin-top: 1px;
+            margin-top: 1px
         }
 
-        .dept-card-actions {
+        .dept-actions {
             padding: 12px 16px;
             border-top: 1px solid var(--border);
             display: flex;
             gap: 8px;
+            flex-wrap: wrap
         }
 
-        /* VS Matchup */
         .vs-section {
             background: var(--bg2);
             border: 1px solid var(--border);
             border-radius: 16px;
             padding: 24px;
-            margin-bottom: 28px;
+            margin-bottom: 28px
         }
 
         .vs-title {
             font-family: 'Barlow Condensed', sans-serif;
-            font-size: 18px;
+            font-size: 16px;
             font-weight: 800;
             text-transform: uppercase;
             letter-spacing: 1px;
-            margin-bottom: 16px;
             color: var(--muted);
+            margin-bottom: 16px
         }
 
         .vs-selector {
@@ -179,12 +161,12 @@
             align-items: center;
             gap: 16px;
             flex-wrap: wrap;
-            margin-bottom: 20px;
+            margin-bottom: 16px
         }
 
         .vs-select {
             flex: 1;
-            min-width: 160px;
+            min-width: 140px;
             background: var(--bg3);
             border: 1px solid var(--border);
             border-radius: 8px;
@@ -193,14 +175,14 @@
             font-family: 'Barlow', sans-serif;
             font-size: 14px;
             outline: none;
-            cursor: pointer;
+            cursor: pointer
         }
 
         .vs-vs-label {
             font-family: 'Barlow Condensed', sans-serif;
-            font-size: 24px;
+            font-size: 22px;
             font-weight: 900;
-            color: var(--muted);
+            color: var(--muted)
         }
 
         .vs-display {
@@ -210,107 +192,114 @@
             padding: 24px;
             align-items: center;
             gap: 20px;
+            flex-wrap: wrap;
+            justify-content: center
         }
 
         .vs-display.visible {
-            display: flex;
+            display: flex
         }
 
         .vs-side {
             flex: 1;
+            min-width: 140px;
             display: flex;
             flex-direction: column;
             align-items: center;
-            gap: 12px;
+            gap: 10px
         }
 
         .vs-logo {
-            width: 100px;
-            height: 100px;
-            border-radius: 20px;
+            width: 88px;
+            height: 88px;
+            border-radius: 18px;
             display: flex;
             align-items: center;
             justify-content: center;
             font-family: 'Barlow Condensed', sans-serif;
-            font-size: 32px;
+            font-size: 30px;
             font-weight: 900;
             color: #fff;
-            overflow: hidden;
+            overflow: hidden
         }
 
         .vs-logo img {
             width: 100%;
             height: 100%;
-            object-fit: cover;
+            object-fit: cover
         }
 
         .vs-dept-name {
             font-family: 'Barlow Condensed', sans-serif;
-            font-size: 22px;
+            font-size: 20px;
             font-weight: 900;
             text-transform: uppercase;
-            text-align: center;
+            text-align: center
         }
 
-        .vs-dept-pts {
+        .vs-pts {
             font-family: 'Barlow Condensed', sans-serif;
-            font-size: 36px;
+            font-size: 34px;
             font-weight: 900;
-            color: var(--gold);
+            color: var(--gold)
         }
 
         .vs-center {
             text-align: center;
-            flex-shrink: 0;
+            flex-shrink: 0
         }
 
-        .vs-vs-big {
+        .vs-big {
             font-family: 'Barlow Condensed', sans-serif;
-            font-size: 56px;
+            font-size: 52px;
             font-weight: 900;
             color: var(--muted);
-            line-height: 1;
+            line-height: 1
         }
 
-        .vs-head2head {
-            font-size: 12px;
-            color: var(--muted);
-            margin-top: 8px;
-        }
-
-        /* Upload area */
-        .logo-upload-area {
-            border: 2px dashed var(--border);
-            border-radius: 10px;
-            padding: 20px;
-            text-align: center;
-            cursor: pointer;
-            transition: all 0.15s;
-            margin-top: 12px;
-        }
-
-        .logo-upload-area:hover {
-            border-color: var(--border-gold);
-            background: var(--gold-bg);
-        }
-
-        .logo-preview-large {
-            width: 100px;
-            height: 100px;
+        .logo-preview {
+            width: 88px;
+            height: 88px;
             border-radius: 16px;
-            margin: 0 auto 12px;
+            margin: 0 auto 10px;
             display: flex;
             align-items: center;
             justify-content: center;
-            font-size: 36px;
+            font-size: 14px;
+            font-weight: 700;
+            color: var(--muted);
             overflow: hidden;
+            border: 2px dashed var(--border);
+            cursor: pointer
         }
 
-        .logo-preview-large img {
+        .logo-preview img {
             width: 100%;
             height: 100%;
             object-fit: cover;
-            border-radius: 14px;
+            border-radius: 14px
+        }
+
+        @media(max-width:600px) {
+            .vs-section {
+                padding: 16px
+            }
+
+            .vs-big {
+                font-size: 36px
+            }
+
+            .dept-grid {
+                grid-template-columns: 1fr
+            }
+
+            .topbar {
+                flex-wrap: wrap;
+                height: auto;
+                min-height: 60px;
+                gap: 8px;
+                padding: 12px 16px
+            }
         }
     </style>
 </head>
@@ -318,360 +307,121 @@
 <body>
     <main class="main">
         <div class="topbar">
-            <div class="topbar-title">🎓 Grades & Strands</div>
+            <div class="topbar-title">Grades & Strands</div>
             <div class="topbar-actions">
-                <button class="btn btn-secondary btn-sm" onclick="loadPage()">🔄 Refresh</button>
-                <button class="btn btn-primary btn-sm" onclick="openCreate()">+ New Grade / Strand</button>
+                <button class="btn btn-secondary btn-sm" onclick="loadPage()">Refresh</button>
+                <button class="btn btn-primary btn-sm" onclick="openCreate()">+ New Grade/Strand</button>
             </div>
         </div>
-
         <div class="content">
-
             <div class="vs-section">
-                <div class="vs-title">⚔️ Head-to-Head Comparison</div>
+                <div class="vs-title">Head-to-Head Comparison</div>
                 <div class="vs-selector">
-                    <select class="vs-select" id="vs-dept-a" onchange="updateVS()">
-                        <option value="">Select Grade/Strand A...</option>
+                    <select class="vs-select" id="vs-a" onchange="updateVS()">
+                        <option value="">Select A...</option>
                     </select>
                     <div class="vs-vs-label">VS</div>
-                    <select class="vs-select" id="vs-dept-b" onchange="updateVS()">
-                        <option value="">Select Grade/Strand B...</option>
+                    <select class="vs-select" id="vs-b" onchange="updateVS()">
+                        <option value="">Select B...</option>
                     </select>
                 </div>
                 <div class="vs-display" id="vs-display">
                     <div class="vs-side" id="vs-side-a"></div>
                     <div class="vs-center">
-                        <div class="vs-vs-big">VS</div>
-                        <div class="vs-head2head" id="vs-h2h"></div>
+                        <div class="vs-big">VS</div>
+                        <div id="vs-h2h" style="font-size:12px;color:var(--muted);margin-top:8px"></div>
                     </div>
                     <div class="vs-side" id="vs-side-b"></div>
                 </div>
             </div>
-
-
-            <div id="dept-grid" class="dept-grid">
+            <div style="display:flex;gap:10px;margin-bottom:20px">
+                <input id="f-search" class="form-input" placeholder="Search grades & strands..." oninput="applyFilter()"
+                    style="flex:1">
+            </div>
+            <div class="dept-grid" id="dept-grid">
                 <div class="empty-state" style="grid-column:1/-1">
-                    <div class="empty-icon">⏳</div>
-                    <div class="empty-text">Loading Grades & Strands...</div>
+                    <div class="empty-text">Loading...</div>
                 </div>
             </div>
         </div>
     </main>
 
-
-    <div class="modal-overlay" id="modal-create-dept" onclick="if(event.target===this)Modal.close('modal-create-dept')">
+    <div class="modal-overlay" id="modal-dept" onclick="if(event.target===this)Modal.close('modal-dept')">
         <div class="modal" style="max-width:520px">
             <div class="modal-header">
-                <div class="modal-title" id="dept-modal-title">🎓 New Grade / Strand</div>
-                <button class="modal-close" onclick="Modal.close('modal-create-dept')">✕</button>
+                <div class="modal-title" id="dept-modal-title">New Grade / Strand</div>
+                <button class="modal-close" onclick="Modal.close('modal-dept')">X</button>
             </div>
             <div class="modal-body">
                 <input type="hidden" id="dept-edit-id">
-
                 <div class="form-group">
-                    <label class="form-label">Grade / Strand Logo</label>
-                    <div class="logo-upload-area" onclick="document.getElementById('dept-logo-file').click()">
-                        <div class="logo-preview-large" id="logo-preview-large">🎓</div>
-                        <div style="font-size:13px;color:var(--muted)">Click to upload logo image</div>
-                    </div>
-                    <input type="file" id="dept-logo-file" accept="image/*" style="display:none"
-                        onchange="handleLogoFile(this)">
-                    <div style="display:flex;align-items:center;gap:8px;margin-top:8px">
-                        <input type="url" id="dept-logo-url" class="form-input"
-                            placeholder="Or paste image URL: https://...">
+                    <label class="form-label">Logo</label>
+                    <div class="logo-preview" id="logo-preview" onclick="document.getElementById('logo-file').click()">
+                        Click to upload</div>
+                    <input type="file" id="logo-file" accept="image/*" style="display:none"
+                        onchange="previewLogo(this)">
+                    <div style="display:flex;gap:8px;margin-top:8px;flex-wrap:wrap">
+                        <input type="url" id="dept-logo-url" class="form-input" placeholder="Or paste image URL..."
+                            style="flex:1;min-width:160px">
                         <button class="btn btn-secondary btn-sm" onclick="applyLogoUrl()">Preview</button>
                     </div>
                 </div>
-
                 <div class="form-row">
-                    <div class="form-group">
-                        <label class="form-label">Full Name *</label>
-                        <input type="text" id="dept-name" class="form-input" placeholder="e.g. Grade 11 STEM">
-                    </div>
-                    <div class="form-group">
-                        <label class="form-label">Short Name</label>
-                        <input type="text" id="dept-short" class="form-input" placeholder="e.g. G11 STEM">
-                    </div>
+                    <div class="form-group"><label class="form-label">Full Name *</label><input type="text"
+                            id="dept-name" class="form-input" placeholder="e.g. Grade 11 STEM"></div>
+                    <div class="form-group"><label class="form-label">Short Name</label><input type="text"
+                            id="dept-short" class="form-input" placeholder="e.g. G11 STEM"></div>
                 </div>
                 <div class="form-row">
-                    <div class="form-group">
-                        <label class="form-label">Code *</label>
-                        <input type="text" id="dept-code" class="form-input" placeholder="e.g. STEM">
+                    <div class="form-group"><label class="form-label">Code *</label><input type="text" id="dept-code"
+                            class="form-input" placeholder="e.g. STEM" oninput="this.value=this.value.toUpperCase()">
                     </div>
-                    <div class="form-group">
-                        <label class="form-label">Theme Color</label>
-                        <input type="color" id="dept-color" class="form-input" value="#3B82F6"
-                            style="height:44px;padding:6px">
-                    </div>
+                    <div class="form-group"><label class="form-label">Theme Color</label><input type="color"
+                            id="dept-color" class="form-input" value="#3B82F6" style="height:44px;padding:6px"></div>
                 </div>
-                <div class="form-group">
-                    <label class="form-label">Description</label>
-                    <textarea id="dept-desc" class="form-textarea" placeholder="Optional description..."></textarea>
-                </div>
+                <div class="form-group"><label class="form-label">Description</label><textarea id="dept-desc"
+                        class="form-textarea" placeholder="Optional description..."></textarea></div>
             </div>
             <div class="modal-footer">
-                <button class="btn btn-secondary" onclick="Modal.close('modal-create-dept')">Cancel</button>
-                <button class="btn btn-primary" id="dept-save-btn" onclick="saveDepartment()">Create
-                    Grade/Strand</button>
+                <button class="btn btn-secondary" onclick="Modal.close('modal-dept')">Cancel</button>
+                <button class="btn btn-primary" id="dept-save-btn" onclick="saveDept()">Create</button>
             </div>
         </div>
     </div>
 
-
-    <div class="modal-overlay" id="modal-dept-detail" onclick="if(event.target===this)Modal.close('modal-dept-detail')">
-        <div class="modal" style="max-width:600px">
+    <div class="modal-overlay" id="modal-detail" onclick="if(event.target===this)Modal.close('modal-detail')">
+        <div class="modal" style="max-width:580px">
             <div class="modal-header">
-                <div class="modal-title" id="detail-title">Grade / Strand Details</div>
-                <button class="modal-close" onclick="Modal.close('modal-dept-detail')">✕</button>
+                <div class="modal-title" id="detail-title">Details</div>
+                <button class="modal-close" onclick="Modal.close('modal-detail')">X</button>
             </div>
             <div class="modal-body" id="detail-body"></div>
             <div class="modal-footer">
-                <button class="btn btn-secondary" onclick="Modal.close('modal-dept-detail')">Close</button>
-                <button class="btn btn-primary" id="detail-edit-btn" onclick="">Edit</button>
+                <button class="btn btn-secondary" onclick="Modal.close('modal-detail')">Close</button>
+                <button class="btn btn-primary" id="detail-edit-btn">Edit</button>
             </div>
         </div>
     </div>
 
-    <script src="../js/shared.js"></script>
-    <script src="../js/admin-sidebar.js"></script>
+    <script src="/js/shared.js"></script>
     <script>
+        const ADMIN_ICONS = { dashboard: `<svg viewBox="0 0 24 24"><line x1="18" y1="20" x2="18" y2="10"></line><line x1="12" y1="20" x2="12" y2="4"></line><line x1="6" y1="20" x2="6" y2="14"></line></svg>`, live: `<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="2"></circle><path d="M16.24 7.76a6 6 0 0 1 0 8.49m-8.48-.01a6 6 0 0 1 0-8.49m11.31-2.82a10 10 0 0 1 0 14.14m-14.14 0a10 10 0 0 1 0-14.14"></path></svg>`, leaderboard: `<svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="7"></circle><polyline points="8.21 13.89 7 23 12 20 17 23 15.79 13.88"></polyline></svg>`, tournaments: `<svg viewBox="0 0 24 24"><path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"></path><line x1="4" y1="22" x2="4" y2="15"></line></svg>`, matches: `<svg viewBox="0 0 24 24"><line x1="5" y1="19" x2="19" y2="5"></line><polyline points="14 5 19 5 19 10"></polyline><line x1="19" y1="19" x2="5" y2="5"></line><polyline points="10 19 5 19 5 14"></polyline></svg>`, departments: `<svg viewBox="0 0 24 24"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"></path><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"></path></svg>`, sports: `<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"></circle><circle cx="12" cy="12" r="6"></circle><circle cx="12" cy="12" r="2"></circle></svg>`, teams: `<svg viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>`, venues: `<svg viewBox="0 0 24 24"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path><circle cx="12" cy="10" r="3"></circle></svg>`, users: `<svg viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>`, schedule: `<svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>`, sportFest: `<svg viewBox="0 0 24 24"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>`, reports: `<svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line></svg>`, trophy: `<svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="7"></circle><polyline points="8.21 13.89 7 23 12 20 17 23 15.79 13.88"></polyline></svg>`, settings: `<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>`, logout: `<svg viewBox="0 0 24 24"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><polyline points="16 17 21 12 16 7"></polyline><line x1="21" y1="12" x2="9" y2="12"></line></svg>` };
+        const ADMIN_NAV = [{ section: 'Overview' }, { key: 'dashboard', icon: ADMIN_ICONS.dashboard, label: 'Dashboard', href: '/admin' }, { key: 'live', icon: ADMIN_ICONS.live, label: 'Live Matches', href: '/admin/live', badge: 'live' }, { key: 'leaderboard', icon: ADMIN_ICONS.leaderboard, label: 'Leaderboard', href: '/admin/leaderboard' }, { section: 'Management' }, { key: 'tournaments', icon: ADMIN_ICONS.tournaments, label: 'Tournaments', href: '/admin/tournaments' }, { key: 'matches', icon: ADMIN_ICONS.matches, label: 'Matches', href: '/admin/matches' }, { key: 'departments', icon: ADMIN_ICONS.departments, label: 'Grades & Strands', href: '/admin/departments' }, { key: 'sports', icon: ADMIN_ICONS.sports, label: 'Sports', href: '/admin/sports' }, { key: 'teams', icon: ADMIN_ICONS.teams, label: 'Teams', href: '/admin/teams' }, { key: 'venues', icon: ADMIN_ICONS.venues, label: 'Venues', href: '/admin/venues' }, { section: 'System' }, { key: 'users', icon: ADMIN_ICONS.users, label: 'Users', href: '/admin/users' }, { key: 'schedule', icon: ADMIN_ICONS.schedule, label: 'Schedule', href: '/admin/schedule' }, { key: 'sport-fest', icon: ADMIN_ICONS.sportFest, label: 'Sport Fest', href: '/admin/sport-fest' }, { key: 'reports', icon: ADMIN_ICONS.reports, label: 'Reports & Logs', href: '/admin/reports' }];
+        function renderSidebar(activePage) { const user = (typeof Auth !== 'undefined' && Auth.getUser) ? Auth.getUser() : null; const name = user ? (`${user.first_name || ''} ${user.last_name || ''}`).trim() || user.username || 'Admin' : 'Admin'; const avatar = (user?.first_name?.[0] || user?.username?.[0] || 'A').toUpperCase(); const currentPath = window.location.pathname; const navHtml = ADMIN_NAV.map(item => { if (item.section) return `<div class="nav-section-title">${item.section}</div>`; const isActive = item.key === activePage || (item.href !== '/admin' && currentPath.startsWith(item.href)) || (item.href === '/admin' && (currentPath === '/admin' || currentPath === '/admin/dashboard')); const badgeHtml = item.badge === 'live' ? `<span class="nav-badge" id="sb-live-count" style="background:var(--red);display:none">0</span>` : ''; return `<a class="nav-item${isActive ? ' active' : ''}" href="${item.href}"><span class="nav-icon"><span class="icon">${item.icon}</span></span>${item.label}${badgeHtml}</a>` }).join('\n'); document.getElementById('admin-sidebar')?.remove(); const html = `<aside class="sidebar" id="admin-sidebar"><div class="sidebar-logo"><div class="logo-icon"><span class="icon">${ADMIN_ICONS.trophy}</span></div><div class="logo-text">PAC <span>SCHED-SCORE</span></div></div><div class="sidebar-role role-admin"><span class="icon">${ADMIN_ICONS.settings}</span> Administrator</div><nav class="sidebar-nav">${navHtml}</nav><div class="sidebar-footer"><div class="user-card"><div class="user-avatar">${avatar}</div><div class="user-info"><div class="user-name">${name}</div><div class="user-role">Admin</div></div><button class="logout-btn" id="logout-btn" title="Logout"><span class="icon">${ADMIN_ICONS.logout}</span></button></div></div></aside>`; const mainEl = document.querySelector('main.main') || document.querySelector('main'); if (mainEl) mainEl.insertAdjacentHTML('beforebegin', html); else document.body.insertAdjacentHTML('afterbegin', html); document.getElementById('logout-btn')?.addEventListener('click', () => { if (typeof Auth !== 'undefined' && Auth.logout) Auth.logout() }); if (typeof api === 'function') { api('/matches/live').then(r => { const badge = document.getElementById('sb-live-count'); if (!badge) return; const count = r.data?.length || 0; badge.textContent = count; badge.style.display = count > 0 ? '' : 'none' }).catch(() => { }) } }
         let allDepts = [];
-        let editingId = null;
-
-        document.addEventListener('DOMContentLoaded', async () => {
-            if (typeof renderSidebar === 'function') renderSidebar('departments');
-            await loadPage();
-        });
-
-        async function loadPage() {
-            const res = await api('/departments');
-            if (!res.success) return;
-            allDepts = res.data || [];
-            renderGrid();
-            populateVSSelects();
-        }
-
-        function renderGrid() {
-            const el = document.getElementById('dept-grid');
-            if (!allDepts.length) {
-                el.innerHTML = `<div class="empty-state" style="grid-column:1/-1"><div class="empty-icon">🎓</div><div class="empty-text">No Grades/Strands yet. Create one above.</div></div>`;
-                return;
-            }
-            el.innerHTML = allDepts.map(d => renderDeptCard(d)).join('');
-        }
-
-        function renderDeptCard(d) {
-            const logo = buildLogoHtml(d, 88);
-            return `
-            <div class="dept-card">
-              <div class="dept-card-accent" style="background:${d.color}"></div>
-              <div class="dept-card-logo-area">
-                <div class="dept-logo-wrap" onclick="openEdit(${d.id})" style="background:${d.color}20; border-color:${d.color}40">
-                  ${logo}
-                  <div class="logo-edit-overlay">✏️</div>
-                </div>
-                <div class="dept-card-name">${d.name}</div>
-                <div class="dept-card-short">${d.short_name || d.code}</div>
-              </div>
-              <div class="dept-stats">
-                <div class="dept-stat">
-                  <div class="dept-stat-val" style="color:var(--gold)">${d.total_points || 0}</div>
-                  <div class="dept-stat-lbl">Points</div>
-                </div>
-                <div class="dept-stat">
-                  <div class="dept-stat-val">🥇${d.gold_medals || 0}</div>
-                  <div class="dept-stat-lbl">Gold</div>
-                </div>
-                <div class="dept-stat">
-                  <div class="dept-stat-val" style="color:var(--muted)">${d.total_members || 0}</div>
-                  <div class="dept-stat-lbl">Members</div>
-                </div>
-              </div>
-              <div class="dept-card-actions">
-                <button class="btn btn-secondary btn-sm" style="flex:1" onclick="viewDetail(${d.id})">👁 View</button>
-                <button class="btn btn-primary btn-sm" style="flex:1" onclick="openEdit(${d.id})">✏️ Edit</button>
-              </div>
-            </div>`;
-        }
-
-        function buildLogoHtml(d, size = 88) {
-            const url = d.logo_url;
-            const initials = (d.short_name || d.name).split(' ').map(w => w[0]).slice(0, 2).join('').toUpperCase();
-            if (url) {
-                return `<img src="${url}" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">
-                <div class="dept-logo-initials" style="background:${d.color};display:none">${initials}</div>`;
-            }
-            return `<div class="dept-logo-initials" style="background:${d.color}">${initials}</div>`;
-        }
-
-        function populateVSSelects() {
-            const opts = allDepts.map(d => `<option value="${d.id}">${d.name}</option>`).join('');
-            document.getElementById('vs-dept-a').innerHTML = '<option value="">Select Grade/Strand A...</option>' + opts;
-            document.getElementById('vs-dept-b').innerHTML = '<option value="">Select Grade/Strand B...</option>' + opts;
-        }
-
-        function updateVS() {
-            const aId = parseInt(document.getElementById('vs-dept-a').value);
-            const bId = parseInt(document.getElementById('vs-dept-b').value);
-            const disp = document.getElementById('vs-display');
-            if (!aId || !bId || aId === bId) { disp.classList.remove('visible'); return; }
-
-            const a = allDepts.find(d => d.id === aId);
-            const b = allDepts.find(d => d.id === bId);
-            disp.classList.add('visible');
-            document.getElementById('vs-side-a').innerHTML = renderVSSide(a);
-            document.getElementById('vs-side-b').innerHTML = renderVSSide(b);
-            document.getElementById('vs-h2h').innerHTML = `${a.gold_medals || 0}🥇 vs ${b.gold_medals || 0}🥇 gold medals`;
-        }
-
-        function renderVSSide(d) {
-            const url = d.logo_url;
-            const initials = (d.short_name || d.name).split(' ').map(w => w[0]).slice(0, 2).join('').toUpperCase();
-            const logoHtml = url ? `<img src="${url}">` : `<span style="font-size:32px;font-weight:900">${initials}</span>`;
-            return `
-            <div class="vs-logo" style="background:${d.color}20;border:2px solid ${d.color}40">${logoHtml}</div>
-            <div class="vs-dept-name" style="color:${d.color}">${d.name}</div>
-            <div class="vs-dept-pts">${d.total_points || 0}</div>
-            <div style="font-size:11px;color:var(--muted)">points</div>
-            <div class="vs-dept-medals">🥇${d.gold_medals || 0} 🥈${d.silver_medals || 0} 🥉${d.bronze_medals || 0}</div>`;
-        }
-
-        async function viewDetail(id) {
-            const d = allDepts.find(x => x.id === id);
-            if (!d) return;
-            document.getElementById('detail-title').textContent = d.name;
-            document.getElementById('detail-edit-btn').onclick = () => { Modal.close('modal-dept-detail'); openEdit(id); };
-
-            const [scoresRes, playersRes] = await Promise.all([
-                api(`/departments/${id}/scores`),
-                api(`/departments/${id}/players`)
-            ]);
-
-            const url = d.logo_url;
-            const initials = (d.short_name || d.name).split(' ').map(w => w[0]).slice(0, 2).join('').toUpperCase();
-            const logoHtml = url ? `<img src="${url}" style="width:100%;height:100%;object-fit:cover">` : `<span style="font-size:36px;color:#fff;font-weight:900">${initials}</span>`;
-
-            document.getElementById('detail-body').innerHTML = `
-            <div style="display:flex;align-items:center;gap:20px;margin-bottom:24px">
-              <div style="width:88px;height:88px;border-radius:18px;background:${d.color}20;border:2px solid ${d.color}40;display:flex;align-items:center;justify-content:center;overflow:hidden">${logoHtml}</div>
-              <div>
-                <div style="font-family:'Barlow Condensed',sans-serif;font-size:28px;font-weight:900">${d.name}</div>
-                <div style="font-size:13px;color:var(--muted)">${d.short_name || d.code} · ${d.description || 'No description'}</div>
-              </div>
-            </div>
-            <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:20px">
-              ${[['Points', d.total_points || 0, 'var(--gold)'], ['Gold', d.gold_medals || 0, '#FFD700'], ['Silver', d.silver_medals || 0, '#C0C0C0'], ['Members', d.total_members || 0, 'var(--text)']].map(([l, v, c]) => `
-                <div style="background:var(--bg3);border-radius:8px;padding:12px;text-align:center">
-                  <div style="font-family:'Barlow Condensed',sans-serif;font-size:26px;font-weight:900;color:${c}">${v}</div>
-                  <div style="font-size:11px;color:var(--muted);text-transform:uppercase">${l}</div>
-                </div>`).join('')}
-            </div>
-            <div style="font-family:'Barlow Condensed',sans-serif;font-size:14px;font-weight:800;color:var(--muted);margin-bottom:10px">RECENT RESULTS</div>
-            ${(scoresRes.data || []).slice(0, 5).map(s => `
-                <div style="display:flex;align-items:center;gap:12px;padding:8px 0;border-bottom:1px solid rgba(255,255,255,0.05)">
-                    <span>${s.medal === 'gold' ? '🥇' : s.medal === 'silver' ? '🥈' : '🥉'}</span>
-                    <div style="flex:1"><div style="font-size:13px;font-weight:600">${s.tournament_name}</div><div style="font-size:11px;color:var(--muted)">${s.sport_name}</div></div>
-                    <div style="font-family:'Barlow Condensed',sans-serif;font-size:18px;font-weight:900;color:var(--gold)">+${s.sport_fest_points}</div>
-                </div>`).join('') || 'No results yet'}
-            `;
-            Modal.open('modal-dept-detail');
-        }
-
-        function openCreate() {
-            editingId = null;
-            document.getElementById('dept-modal-title').textContent = '🎓 New Grade / Strand';
-            document.getElementById('dept-save-btn').textContent = 'Create Grade/Strand';
-            document.getElementById('dept-edit-id').value = '';
-            document.getElementById('dept-name').value = '';
-            document.getElementById('dept-short').value = '';
-            document.getElementById('dept-code').value = '';
-            document.getElementById('dept-color').value = '#3B82F6';
-            document.getElementById('dept-desc').value = '';
-            document.getElementById('dept-logo-url').value = '';
-            document.getElementById('dept-logo-file').value = '';
-            document.getElementById('logo-preview-large').innerHTML = '🎓';
-            Modal.open('modal-create-dept');
-        }
-
-        function openEdit(id) {
-            const d = allDepts.find(x => x.id === id);
-            if (!d) return;
-            editingId = id;
-            document.getElementById('dept-modal-title').textContent = `✏️ Edit: ${d.name}`;
-            document.getElementById('dept-save-btn').textContent = 'Save Changes';
-            document.getElementById('dept-edit-id').value = id;
-            document.getElementById('dept-name').value = d.name;
-            document.getElementById('dept-short').value = d.short_name || '';
-            document.getElementById('dept-code').value = d.code;
-            document.getElementById('dept-color').value = d.color || '#3B82F6';
-            document.getElementById('dept-desc').value = d.description || '';
-            document.getElementById('dept-logo-url').value = d.logo_url || '';
-
-            const prev = document.getElementById('logo-preview-large');
-            if (d.logo_url) {
-                prev.innerHTML = `<img src="${d.logo_url}" style="width:100%;height:100%;object-fit:cover">`;
-            } else {
-                const initials = (d.short_name || d.name).split(' ').map(w => w[0]).slice(0, 2).join('').toUpperCase();
-                prev.innerHTML = `<div style="width:100%;height:100%;border-radius:14px;background:${d.color};display:flex;align-items:center;justify-content:center;font-family:'Barlow Condensed',sans-serif;font-size:32px;font-weight:900;color:#fff">${initials}</div>`;
-            }
-            Modal.open('modal-create-dept');
-        }
-
-        function handleLogoFile(input) {
-            const file = input.files[0];
-            if (!file) return;
-            const reader = new FileReader();
-            reader.onload = e => {
-                document.getElementById('logo-preview-large').innerHTML = `<img src="${e.target.result}" style="width:100%;height:100%;object-fit:cover">`;
-            };
-            reader.readAsDataURL(file);
-        }
-
-        function applyLogoUrl() {
-            const url = document.getElementById('dept-logo-url').value.trim();
-            if (!url) return;
-            document.getElementById('logo-preview-large').innerHTML = `<img src="${url}" onerror="this.parentElement.innerHTML='❌ Invalid URL'" style="width:100%;height:100%;object-fit:cover">`;
-        }
-
-        async function saveDepartment() {
-            const name = document.getElementById('dept-name').value.trim();
-            const code = document.getElementById('dept-code').value.trim();
-            const short_name = document.getElementById('dept-short').value.trim();
-            const color = document.getElementById('dept-color').value;
-            const description = document.getElementById('dept-desc').value.trim();
-            const logoUrl = document.getElementById('dept-logo-url').value.trim();
-
-            if (!name || !code) { Toast.show('Full name and code are required', 'error'); return; }
-
-
-            const formData = new FormData();
-            formData.append('name', name);
-            formData.append('code', code);
-            formData.append('short_name', short_name);
-            formData.append('color', color);
-            formData.append('description', description);
-            formData.append('logo_url', logoUrl);
-
-            const fileInput = document.getElementById('dept-logo-file');
-            if (fileInput.files[0]) {
-                formData.append('logo', fileInput.files[0]);
-            }
-
-            let res;
-            if (editingId) {
-                res = await api(`/departments/${editingId}`, { method: 'PUT', body: formData });
-            } else {
-                res = await api('/departments', { method: 'POST', body: formData });
-            }
-
-            if (res.success) {
-                Toast.show(res.message || 'Saved successfully!', 'success');
-                Modal.closeAll();
-                await loadPage();
-            } else {
-                Toast.show(res.message || 'Error saving', 'error');
-            }
-        }
+        document.addEventListener('DOMContentLoaded', async () => { if (typeof Auth !== 'undefined' && Auth.requireAuth) Auth.requireAuth('admin'); renderSidebar('departments'); await loadPage() });
+        async function loadPage() { const res = await api('/departments'); if (!res.success) return; allDepts = res.data || []; renderGrid(allDepts); populateVS() }
+        function applyFilter() { const q = document.getElementById('f-search').value.toLowerCase(); renderGrid(allDepts.filter(d => (d.name + d.code + (d.short_name || '')).toLowerCase().includes(q))) }
+        function renderGrid(depts) { const el = document.getElementById('dept-grid'); if (!depts.length) { el.innerHTML = `<div class="empty-state" style="grid-column:1/-1"><div class="empty-text">No grades/strands found.</div></div>`; return } el.innerHTML = depts.map(d => { const init = (d.short_name || d.name).split(' ').map(w => w[0]).slice(0, 2).join('').toUpperCase(); const logo = d.logo_url ? `<img src="${d.logo_url}" alt="" onerror="this.style.display='none'"><span style="display:none">${init}</span>` : `<span>${init}</span>`; return `<div class="dept-card"><div class="dept-card-accent" style="background:${d.color}"></div><div class="dept-card-body"><div class="dept-logo" style="background:${d.logo_url ? d.color + '20' : d.color};border:${d.logo_url ? '2px solid ' + d.color + '40' : 'none'}" onclick="openEdit(${d.id})">${logo}<div class="dept-logo-overlay">Edit</div></div><div class="dept-name">${d.name}</div><div class="dept-code">${d.short_name || d.code}</div></div><div class="dept-stats"><div class="dept-stat"><div class="dept-stat-val" style="color:var(--gold)">${d.total_points || 0}</div><div class="dept-stat-lbl">Points</div></div><div class="dept-stat"><div class="dept-stat-val" style="color:#FFD700">${d.gold_medals || 0}</div><div class="dept-stat-lbl">Gold</div></div><div class="dept-stat"><div class="dept-stat-val" style="color:var(--muted)">${d.total_members || 0}</div><div class="dept-stat-lbl">Members</div></div></div><div class="dept-actions"><button class="btn btn-secondary btn-sm" style="flex:1" onclick="viewDetail(${d.id})">View</button><button class="btn btn-primary btn-sm" style="flex:1" onclick="openEdit(${d.id})">Edit</button></div></div>` }).join('') }
+        function populateVS() { const opts = allDepts.map(d => `<option value="${d.id}">${d.name}</option>`).join('');['vs-a', 'vs-b'].forEach(id => { document.getElementById(id).innerHTML = '<option value="">Select...</option>' + opts }) }
+        function updateVS() { const aId = parseInt(document.getElementById('vs-a').value), bId = parseInt(document.getElementById('vs-b').value); const disp = document.getElementById('vs-display'); if (!aId || !bId || aId === bId) { disp.classList.remove('visible'); return } const a = allDepts.find(d => d.id === aId), b = allDepts.find(d => d.id === bId); disp.classList.add('visible'); document.getElementById('vs-side-a').innerHTML = renderVSSide(a); document.getElementById('vs-side-b').innerHTML = renderVSSide(b); document.getElementById('vs-h2h').innerHTML = `Gold ${a.gold_medals || 0} vs ${b.gold_medals || 0}` }
+        function renderVSSide(d) { const init = (d.short_name || d.name).split(' ').map(w => w[0]).slice(0, 2).join('').toUpperCase(); const logo = d.logo_url ? `<img src="${d.logo_url}" alt="">` : `<span>${init}</span>`; return `<div class="vs-logo" style="background:${d.color || '#555'}">${logo}</div><div class="vs-dept-name" style="color:${d.color}">${d.name}</div><div class="vs-pts">${d.total_points || 0}</div><div style="font-size:11px;color:var(--muted)">points</div><div style="font-size:14px">G ${d.gold_medals || 0} · S ${d.silver_medals || 0} · B ${d.bronze_medals || 0}</div>` }
+        async function viewDetail(id) { const d = allDepts.find(x => x.id === id); if (!d) return; document.getElementById('detail-title').textContent = d.name; document.getElementById('detail-edit-btn').onclick = () => { Modal.close('modal-detail'); openEdit(id) }; const scoresRes = await api(`/departments/${id}/scores`); const init = (d.short_name || d.name).split(' ').map(w => w[0]).slice(0, 2).join('').toUpperCase(); const logoHtml = d.logo_url ? `<img src="${d.logo_url}" alt="" style="width:100%;height:100%;object-fit:cover;border-radius:14px">` : `<span style="font-size:32px;font-weight:900;color:#fff">${init}</span>`; document.getElementById('detail-body').innerHTML = `<div style="display:flex;align-items:center;gap:20px;margin-bottom:24px;flex-wrap:wrap"><div style="width:80px;height:80px;border-radius:16px;background:${d.logo_url ? d.color + '20' : d.color};border:${d.logo_url ? '2px solid ' + d.color + '40' : 'none'};display:flex;align-items:center;justify-content:center;overflow:hidden">${logoHtml}</div><div><div style="font-family:'Barlow Condensed',sans-serif;font-size:26px;font-weight:900">${d.name}</div><div style="font-size:13px;color:var(--muted)">${d.short_name || d.code} · ${d.description || 'No description'}</div></div></div><div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(80px,1fr));gap:10px;margin-bottom:20px">${[['Points', d.total_points || 0, 'var(--gold)'], ['Gold', d.gold_medals || 0, '#FFD700'], ['Silver', d.silver_medals || 0, '#C0C0C0'], ['Members', d.total_members || 0, 'var(--text)']].map(([l, v, c]) => `<div style="background:var(--bg3);border-radius:8px;padding:12px;text-align:center"><div style="font-family:'Barlow Condensed',sans-serif;font-size:24px;font-weight:900;color:${c}">${v}</div><div style="font-size:11px;color:var(--muted);text-transform:uppercase">${l}</div></div>`).join('')}</div><div style="font-family:'Barlow Condensed',sans-serif;font-size:13px;font-weight:800;color:var(--muted);margin-bottom:10px">RECENT RESULTS</div>${(scoresRes.data || []).slice(0, 5).map(s => `<div style="display:flex;align-items:center;gap:12px;padding:8px 0;border-bottom:1px solid rgba(255,255,255,.05)"><span style="font-size:12px;font-weight:700;color:var(--muted);text-transform:uppercase;min-width:56px">${s.medal || '—'}</span><div style="flex:1"><div style="font-size:13px;font-weight:600">${s.tournament_name}</div><div style="font-size:11px;color:var(--muted)">${s.sport_name}</div></div><div style="font-family:'Barlow Condensed',sans-serif;font-size:18px;font-weight:900;color:var(--gold)">+${s.sport_fest_points}</div></div>`).join('') || '<div style="color:var(--muted);font-size:13px;padding:12px 0">No results yet</div>'}`; Modal.open('modal-detail') }
+        function openCreate() { document.getElementById('dept-modal-title').textContent = 'New Grade / Strand'; document.getElementById('dept-save-btn').textContent = 'Create'; document.getElementById('dept-edit-id').value = '';['dept-name', 'dept-short', 'dept-code', 'dept-desc', 'dept-logo-url'].forEach(id => document.getElementById(id).value = ''); document.getElementById('dept-color').value = '#3B82F6'; document.getElementById('logo-preview').innerHTML = 'Click to upload'; document.getElementById('logo-file').value = ''; Modal.open('modal-dept') }
+        function openEdit(id) { const d = allDepts.find(x => x.id === id); if (!d) return; document.getElementById('dept-modal-title').textContent = d.name; document.getElementById('dept-save-btn').textContent = 'Save Changes'; document.getElementById('dept-edit-id').value = id; document.getElementById('dept-name').value = d.name; document.getElementById('dept-short').value = d.short_name || ''; document.getElementById('dept-code').value = d.code; document.getElementById('dept-color').value = d.color || '#3B82F6'; document.getElementById('dept-desc').value = d.description || ''; document.getElementById('dept-logo-url').value = d.logo_url || ''; document.getElementById('logo-file').value = ''; const prev = document.getElementById('logo-preview'); if (d.logo_url) prev.innerHTML = `<img src="${d.logo_url}" alt="" style="width:100%;height:100%;object-fit:cover;border-radius:14px">`; else { const init = (d.short_name || d.name).split(' ').map(w => w[0]).slice(0, 2).join('').toUpperCase(); prev.innerHTML = `<div style="width:100%;height:100%;border-radius:14px;background:${d.color};display:flex;align-items:center;justify-content:center;font-family:'Barlow Condensed',sans-serif;font-size:28px;font-weight:900;color:#fff">${init}</div>` } Modal.open('modal-dept') }
+        function previewLogo(input) { const file = input.files[0]; if (!file) return; const reader = new FileReader(); reader.onload = e => { document.getElementById('logo-preview').innerHTML = `<img src="${e.target.result}" alt="" style="width:100%;height:100%;object-fit:cover;border-radius:14px">` }; reader.readAsDataURL(file) }
+        function applyLogoUrl() { const url = document.getElementById('dept-logo-url').value.trim(); if (!url) return; document.getElementById('logo-preview').innerHTML = `<img src="${url}" alt="" onerror="this.parentElement.textContent='Invalid URL'" style="width:100%;height:100%;object-fit:cover;border-radius:14px">` }
+        async function saveDept() { const id = document.getElementById('dept-edit-id').value; const name = document.getElementById('dept-name').value.trim(); const code = document.getElementById('dept-code').value.trim(); if (!name || !code) { Toast.show('Name and code are required', 'error'); return } const formData = new FormData(); formData.append('name', name); formData.append('code', code); formData.append('short_name', document.getElementById('dept-short').value.trim()); formData.append('color', document.getElementById('dept-color').value); formData.append('description', document.getElementById('dept-desc').value.trim()); formData.append('logo_url', document.getElementById('dept-logo-url').value.trim()); const file = document.getElementById('logo-file').files[0]; if (file) formData.append('logo', file); const res = id ? await api(`/departments/${id}`, { method: 'PUT', body: formData }) : await api('/departments', { method: 'POST', body: formData }); Toast.show(res.message || (res.success ? 'Saved!' : 'Error'), res.success ? 'success' : 'error'); if (res.success) { Modal.close('modal-dept'); await loadPage() } }
     </script>
 </body>
 

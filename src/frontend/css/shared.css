@@ -36,6 +36,29 @@ body {
   overflow-x: hidden;
 }
 
+/* ── ICONS ──
+   Usage: <span class="icon" style="width:18px;height:18px"><svg viewBox="0 0 24 24">...</svg></span>
+   Sizing is controlled per-instance via inline width/height (or a parent font-size + em sizing below). */
+.icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 1.15em;
+  height: 1.15em;
+  vertical-align: middle;
+}
+.icon svg {
+  width: 100%;
+  height: 100%;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.icon-fill svg { fill: currentColor; stroke: none; }
+
 /* ── SIDEBAR ── */
 .sidebar {
   width: 240px; flex-shrink: 0;
@@ -53,7 +76,9 @@ body {
 .logo-icon {
   width: 36px; height: 36px; background: var(--gold); border-radius: 8px;
   display: flex; align-items: center; justify-content: center; font-size: 18px; flex-shrink: 0;
+  color: #000;
 }
+.logo-icon .icon { width: 20px; height: 20px; }
 .logo-text {
   font-family: 'Barlow Condensed', sans-serif;
   font-size: 19px; font-weight: 800; text-transform: uppercase; letter-spacing: 1px;
@@ -67,6 +92,7 @@ body {
   font-size: 11px; font-weight: 700; letter-spacing: 1.5px; text-transform: uppercase;
   display: flex; align-items: center; gap: 8px;
 }
+.sidebar-role .icon { width: 14px; height: 14px; }
 .role-admin { background: rgba(245,184,0,0.12); color: var(--gold); border: 1px solid var(--border-gold); }
 .role-referee { background: rgba(232,50,59,0.12); color: var(--red); border: 1px solid rgba(232,50,59,0.25); }
 .role-player { background: rgba(34,197,94,0.12); color: var(--green); border: 1px solid rgba(34,197,94,0.25); }
@@ -88,7 +114,8 @@ body {
   background: var(--gold-bg); color: var(--gold);
   border-color: var(--border-gold);
 }
-.nav-icon { font-size: 17px; width: 24px; text-align: center; flex-shrink: 0; }
+.nav-icon { font-size: 17px; width: 24px; text-align: center; flex-shrink: 0; display: flex; align-items: center; justify-content: center; }
+.nav-icon .icon { width: 18px; height: 18px; }
 .nav-badge {
   margin-left: auto; background: var(--red); color: #fff;
   font-size: 10px; font-weight: 700; padding: 2px 6px; border-radius: 10px;
@@ -117,7 +144,9 @@ body {
 .logout-btn {
   background: none; border: none; color: var(--muted); cursor: pointer;
   font-size: 16px; padding: 4px; border-radius: 4px; transition: color 0.15s;
+  display: flex; align-items: center; justify-content: center;
 }
+.logout-btn .icon { width: 16px; height: 16px; }
 .logout-btn:hover { color: var(--red); }
 
 /* ── MAIN CONTENT ── */
@@ -134,14 +163,18 @@ body {
 .topbar-title {
   font-family: 'Barlow Condensed', sans-serif;
   font-size: 20px; font-weight: 800; text-transform: uppercase; letter-spacing: 1px;
+  display: flex; align-items: center; gap: 10px;
 }
+.topbar-title .icon { width: 20px; height: 20px; color: var(--gold); }
 .topbar-actions { display: flex; align-items: center; gap: 10px; }
 .btn {
   padding: 8px 18px; border-radius: 7px; border: none;
   font-family: 'Barlow Condensed', sans-serif;
   font-size: 14px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase;
   cursor: pointer; transition: all 0.15s;
+  display: inline-flex; align-items: center; gap: 6px;
 }
+.btn .icon { width: 14px; height: 14px; }
 .btn-primary { background: var(--gold); color: #000; }
 .btn-primary:hover { background: #ffc926; }
 .btn-secondary { background: var(--bg3); color: var(--text2); border: 1px solid var(--border); }
@@ -182,13 +215,15 @@ body {
 .stat-purple::before { background: var(--purple); }
 .stat-orange::before { background: var(--orange); }
 .stat-icon { font-size: 26px; margin-bottom: 12px; }
+.stat-icon .icon { width: 26px; height: 26px; }
 .stat-value {
   font-family: 'Barlow Condensed', sans-serif;
   font-size: 36px; font-weight: 900; line-height: 1;
   margin-bottom: 4px;
 }
 .stat-label { font-size: 12px; color: var(--muted); text-transform: uppercase; letter-spacing: 1px; font-weight: 600; }
-.stat-trend { font-size: 12px; margin-top: 8px; color: var(--green); }
+.stat-trend { font-size: 12px; margin-top: 8px; color: var(--green); display: flex; align-items: center; gap: 4px; }
+.stat-trend .icon { width: 12px; height: 12px; }
 
 /* ── CARDS ── */
 .card {
@@ -204,6 +239,7 @@ body {
   font-size: 16px; font-weight: 800; text-transform: uppercase; letter-spacing: 1px;
   display: flex; align-items: center; gap: 8px;
 }
+.card-title .icon { width: 16px; height: 16px; color: var(--gold); }
 .card-body { padding: 20px; }
 
 /* ── TABLES ── */
@@ -231,6 +267,7 @@ tr:last-child td { border-bottom: none; }
   font-size: 11px; font-weight: 700; letter-spacing: 0.5px;
   text-transform: uppercase;
 }
+.badge .icon { width: 11px; height: 11px; }
 .badge-gold { background: rgba(245,184,0,0.15); color: var(--gold); }
 .badge-green { background: rgba(34,197,94,0.15); color: var(--green); }
 .badge-red { background: rgba(232,50,59,0.15); color: var(--red); }
@@ -274,6 +311,7 @@ tr:last-child td { border-bottom: none; }
 }
 .match-card:hover { border-color: var(--border-gold); }
 .match-sport-icon { font-size: 24px; flex-shrink: 0; }
+.match-sport-icon .icon { width: 24px; height: 24px; }
 .match-info { flex: 1; min-width: 0; }
 .match-teams { font-size: 14px; font-weight: 600; }
 .match-meta { font-size: 12px; color: var(--muted); margin-top: 3px; }
@@ -388,7 +426,8 @@ tr:last-child td { border-bottom: none; }
 
 /* ── EMPTY STATE ── */
 .empty-state { text-align: center; padding: 48px 24px; color: var(--muted); }
-.empty-icon { font-size: 48px; margin-bottom: 12px; opacity: 0.4; }
+.empty-icon { font-size: 48px; margin-bottom: 12px; opacity: 0.4; display: flex; align-items: center; justify-content: center; }
+.empty-icon .icon { width: 44px; height: 44px; }
 .empty-text { font-size: 15px; }
 
 /* ── PROGRESS BAR ── */
@@ -465,7 +504,9 @@ tr:last-child td { border-bottom: none; }
 .nav-bell {
     font-size: 20px;
     transition: transform 0.2s;
+    display: flex; align-items: center; justify-content: center;
 }
+.nav-bell .icon { width: 20px; height: 20px; }
 
 .nav-bell:hover {
     transform: scale(1.1);
@@ -527,7 +568,9 @@ tr:last-child td { border-bottom: none; }
 
 .notif-icon {
     font-size: 18px;
+    display: flex; align-items: center; justify-content: center;
 }
+.notif-icon .icon { width: 18px; height: 18px; }
 
 .notif-content {
     font-size: 13px;
@@ -561,7 +604,9 @@ tr:last-child td { border-bottom: none; }
     cursor: pointer;
     font-weight: 600;
     transition: all 0.2s;
+    display: flex; align-items: center; justify-content: center; gap: 8px;
 }
+.logout-btn-full .icon { width: 16px; height: 16px; }
 .logout-btn-full:hover {
     background: #ef4444;
     color: white;
@@ -577,7 +622,9 @@ tr:last-child td { border-bottom: none; }
     margin-right: 15px;
     padding: 5px;
     transition: color 0.2s;
+    align-items: center; justify-content: center;
 }
+.burger-menu .icon { width: 22px; height: 22px; }
 
 .burger-menu:hover {
     color: var(--gold);
@@ -586,7 +633,7 @@ tr:last-child td { border-bottom: none; }
 /* Mobile Sidebar Logic */
 @media (max-width: 900px) {
     .burger-menu {
-        display: block; /* Show on mobile */
+        display: flex; /* Show on mobile */
     }
 
     .sidebar {
@@ -631,4 +678,222 @@ tr:last-child td { border-bottom: none; }
 
 .ffa-input {
     width: 100px;
+}
+
+/* ── MATCHUP TEXT (referee-style, reused on admin results table) ── */
+.matchup-primary { font-weight: 700; font-size: 15px; }
+.matchup-vs { color: var(--muted); font-weight: 400; margin: 0 5px; font-size: 12px; }
+/* ── CUSTOM SCROLLBAR ── */
+/* WebKit browsers (Chrome, Safari, Edge) */
+::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+}
+
+::-webkit-scrollbar-track {
+    background: var(--bg3);
+    border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb {
+    background: var(--bg4);
+    border-radius: 3px;
+    border: 1px solid var(--border);
+    transition: background 0.2s;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: var(--gold);
+    border-color: var(--border-gold);
+}
+
+/* Firefox */
+* {
+    scrollbar-width: thin;
+    scrollbar-color: var(--bg4) var(--bg3);
+}
+
+/* For better visibility on hover */
+.sidebar:hover::-webkit-scrollbar-thumb,
+.content:hover::-webkit-scrollbar-thumb,
+.modal:hover::-webkit-scrollbar-thumb,
+.table-wrap:hover::-webkit-scrollbar-thumb {
+    background: var(--gold-dim);
+    border-color: var(--border-gold);
+}
+
+/* ── SIDEBAR SPECIFIC SCROLLBAR ── */
+.sidebar-nav::-webkit-scrollbar {
+    width: 4px;
+}
+
+.sidebar-nav::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.sidebar-nav::-webkit-scrollbar-thumb {
+    background: var(--bg4);
+    border-radius: 2px;
+}
+
+.sidebar-nav::-webkit-scrollbar-thumb:hover {
+    background: var(--gold);
+}
+
+/* ── DARK SCROLLBAR FOR MODALS ── */
+.modal-body::-webkit-scrollbar {
+    width: 5px;
+}
+
+.modal-body::-webkit-scrollbar-track {
+    background: var(--bg3);
+    border-radius: 3px;
+}
+
+.modal-body::-webkit-scrollbar-thumb {
+    background: var(--bg4);
+    border-radius: 3px;
+}
+
+.modal-body::-webkit-scrollbar-thumb:hover {
+    background: var(--gold);
+}
+
+/* ── TABLES SCROLLBAR ── */
+.table-wrap::-webkit-scrollbar {
+    height: 6px;
+}
+
+.table-wrap::-webkit-scrollbar-track {
+    background: var(--bg3);
+    border-radius: 3px;
+}
+
+.table-wrap::-webkit-scrollbar-thumb {
+    background: var(--bg4);
+    border-radius: 3px;
+}
+
+.table-wrap::-webkit-scrollbar-thumb:hover {
+    background: var(--gold);
+}
+
+/* ── TOAST SCROLLBAR ── */
+.toast-list::-webkit-scrollbar {
+    width: 4px;
+}
+
+.toast-list::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.toast-list::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.15);
+    border-radius: 2px;
+}
+
+.toast-list::-webkit-scrollbar-thumb:hover {
+    background: rgba(255, 255, 255, 0.25);
+}
+
+.logout-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 9999;
+    background: rgba(0, 0, 0, 0.55);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.2s ease;
+}
+.logout-overlay.show {
+    opacity: 1;
+    pointer-events: auto;
+}
+
+.logout-modal {
+    background: var(--surface, #1a1d24);
+    border: 1px solid var(--border, rgba(255, 255, 255, 0.08));
+    border-radius: 16px;
+    padding: 28px 24px 20px;
+    width: min(360px, 92vw);
+    text-align: center;
+    box-shadow: 0 20px 50px rgba(0, 0, 0, 0.4);
+    animation: logoutPop 0.22s ease;
+}
+@keyframes logoutPop {
+    from { transform: scale(0.94); opacity: 0; }
+    to   { transform: scale(1); opacity: 1; }
+}
+
+.logout-modal-icon {
+    width: 56px;
+    height: 56px;
+    margin: 0 auto 14px;
+    border-radius: 14px;
+    background: rgba(232, 50, 59, 0.12);
+    color: var(--red, #E8323B);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.35rem;
+}
+.logout-modal-icon svg,
+.logout-modal-icon .icon svg {
+    width: 26px;
+    height: 26px;
+    stroke: currentColor;
+    fill: none;
+    stroke-width: 2;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+}
+
+.logout-modal-title {
+    margin: 0 0 6px;
+    font-size: 1.15rem;
+    font-weight: 700;
+    color: var(--text, #fff);
+}
+.logout-modal-text {
+    margin: 0 0 22px;
+    font-size: 0.9rem;
+    line-height: 1.45;
+    color: var(--muted, rgba(255, 255, 255, 0.55));
+}
+
+.logout-modal-actions {
+    display: flex;
+    gap: 10px;
+}
+.logout-cancel-btn,
+.logout-confirm-btn {
+    flex: 1;
+    padding: 11px 14px;
+    border-radius: 10px;
+    font-size: 0.9rem;
+    font-weight: 600;
+    cursor: pointer;
+    border: none;
+    transition: background 0.15s, filter 0.15s, transform 0.1s;
+}
+.logout-cancel-btn {
+    background: var(--surface-2, rgba(255, 255, 255, 0.06));
+    color: var(--text, #fff);
+}
+.logout-cancel-btn:hover {
+    background: rgba(255, 255, 255, 0.1);
+}
+.logout-confirm-btn {
+    background: var(--red, #E8323B);
+    color: #fff;
+}
+.logout-confirm-btn:hover {
+    filter: brightness(1.08);
+}
+.logout-cancel-btn:active,
+.logout-confirm-btn:active {
+    transform: scale(0.97);
 }

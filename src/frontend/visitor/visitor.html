@@ -8,9 +8,10 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link
-        href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;600;700;800&family=DM+Sans:ital,wght@0,300;0,400;0,500;1,300&display=swap"
+        href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;600;700;800;900&family=DM+Sans:ital,wght@0,300;0,400;0,500;1,300&family=JetBrains+Mono:wght@400;500;700&display=swap"
         rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.9.3/dist/confetti.browser.min.js"></script>
+    <script src="https://cdn.socket.io/4.8.1/socket.io.min.js"></script>
     <style>
         *,
         *::before,
@@ -31,10 +32,17 @@
             --text: #f0f2f4;
             --muted: #6b7280;
             --muted2: #9ca3af;
-            --accent: #22c55e;
-            --accent-rgb: 34, 197, 94;
-            --accent-dim: rgba(34, 197, 94, 0.12);
-            --accent-glow: rgba(34, 197, 94, 0.3);
+
+            /* Default scoreboard accent — retinted at runtime to the current
+               standings leader's department color via applyDynamicTheme(). */
+            --accent: #ffb020 !important;
+            --accent-rgb: 255, 176, 32;
+            --accent-dim: rgba(255, 176, 32, 0.12);
+            --accent-glow: rgba(255, 176, 32, 0.3);
+
+            /* Semantic colors — LIVE stays green regardless of accent theme */
+            --live: #22c55e;
+            --live-rgb: 34, 197, 94;
             --gold: #f59e0b;
             --gold-rgb: 245, 158, 11;
             --silver: #94a3b8;
@@ -42,13 +50,18 @@
             --red: #ef4444;
             --blue: #3b82f6;
             --purple: #8b5cf6;
+
             --font-head: 'Barlow Condensed', sans-serif;
             --font-body: 'DM Sans', sans-serif;
+            --font-mono: 'JetBrains Mono', ui-monospace, monospace;
+
             --r: 10px;
             --r2: 16px;
             --r3: 20px;
             --transition: cubic-bezier(0.4, 0, 0.2, 1);
-            --sidebar-width: 320px;
+
+            --maxw: 1680px;
+            --sidebar-width: 388px;
         }
 
         html {
@@ -77,24 +90,24 @@
             border-radius: 4px
         }
 
-        /* ── Ticker ── */
+        /* ── Ticker (broadcast LED scoreboard strip) ── */
         .ticker-wrap {
-            background: var(--bg3);
+            background: #050607;
             border-bottom: 1px solid var(--border);
             overflow: hidden;
-            height: 32px;
+            height: 34px;
             display: flex;
             align-items: center;
             flex-shrink: 0
         }
 
         .ticker-label {
-            background: var(--accent);
+            background: var(--live);
             color: #000;
-            font-family: var(--font-head);
+            font-family: var(--font-mono);
             font-size: 11px;
             font-weight: 700;
-            letter-spacing: .1em;
+            letter-spacing: .12em;
             padding: 0 14px;
             height: 100%;
             display: flex;
@@ -112,10 +125,12 @@
         }
 
         .ticker-item {
+            font-family: var(--font-mono);
             font-size: 12px;
             color: var(--muted2);
-            padding: 0 24px;
-            white-space: nowrap
+            padding: 0 26px;
+            white-space: nowrap;
+            letter-spacing: .01em
         }
 
         .ticker-item b {
@@ -124,7 +139,8 @@
         }
 
         .ticker-accent {
-            color: var(--accent)
+            color: var(--live);
+            font-weight: 700
         }
 
         @keyframes ticker {
@@ -215,6 +231,22 @@
             }
         }
 
+        @keyframes flash-score {
+            0% {
+                background: rgba(var(--accent-rgb), 0.3);
+                transform: scale(1.05);
+            }
+
+            100% {
+                background: transparent;
+                transform: scale(1);
+            }
+        }
+
+        .score-flash {
+            animation: flash-score 0.6s ease-out;
+        }
+
         /* ── Topbar ── */
         .topbar {
             position: sticky;
@@ -226,9 +258,9 @@
         }
 
         .topbar-inner {
-            max-width: 1400px;
+            max-width: var(--maxw);
             margin: auto;
-            padding: .75rem 1.5rem;
+            padding: .8rem clamp(1.25rem, 3vw, 2.5rem);
             display: flex;
             justify-content: space-between;
             align-items: center;
@@ -237,25 +269,70 @@
 
         .logo {
             font-family: var(--font-head);
-            font-size: 20px;
+            font-size: 21px;
             font-weight: 800;
             letter-spacing: .08em;
-            white-space: nowrap
+            white-space: nowrap;
+            display: flex;
+            align-items: center;
+            gap: 8px
+        }
+
+        .logo::before {
+            content: '';
+            width: 9px;
+            height: 9px;
+            border-radius: 2px;
+            background: var(--accent);
+            flex-shrink: 0
         }
 
         .topbar-right {
             display: flex;
             align-items: center;
-            gap: 10px
+            gap: 14px
         }
 
         .topbar-clock {
-            font-family: var(--font-head);
+            font-family: var(--font-mono);
             font-size: 14px;
-            font-weight: 600;
+            font-weight: 500;
             color: var(--muted2);
-            letter-spacing: .05em;
-            display: none
+            letter-spacing: .04em;
+            display: none;
+            padding: 5px 12px;
+            background: var(--bg3);
+            border: 1px solid var(--border2);
+            border-radius: 6px
+        }
+
+        .ws-status {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 11px;
+            color: var(--muted);
+            font-family: var(--font-mono);
+            padding: 4px 10px;
+            border-radius: 100px;
+            background: var(--bg3);
+            border: 1px solid var(--border);
+        }
+
+        .ws-dot {
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            flex-shrink: 0;
+        }
+
+        .ws-dot.connected {
+            background: var(--live);
+            animation: blink 1.3s ease-in-out infinite;
+        }
+
+        .ws-dot.disconnected {
+            background: var(--red);
         }
 
         @media(min-width:640px) {
@@ -270,7 +347,7 @@
             border: none;
             padding: 8px 20px;
             border-radius: 999px;
-            font-weight: 600;
+            font-weight: 700;
             cursor: pointer;
             font-size: 13px;
             font-family: var(--font-body)
@@ -283,9 +360,18 @@
         /* ── Hero ── */
         .hero {
             position: relative;
-            padding: 2.5rem 1.5rem 0;
+            padding: clamp(2rem, 4vw, 3.25rem) clamp(1.25rem, 3vw, 2.5rem) 0;
             overflow: hidden;
             background: var(--bg)
+        }
+
+        .hero-glow {
+            opacity: 0;
+            transition: opacity 0.3s;
+        }
+
+        .hero-glow.themed {
+            opacity: 1;
         }
 
         .hero-grid {
@@ -302,50 +388,51 @@
             top: -80px;
             left: 50%;
             transform: translateX(-50%);
-            width: 700px;
-            height: 350px;
+            width: 900px;
+            height: 380px;
             background: radial-gradient(ellipse, rgba(var(--accent-rgb), 0.15) 0%, transparent 70%);
             pointer-events: none
         }
 
         .hero-inner {
             position: relative;
-            text-align: center;
-            max-width: 900px;
-            margin: 0 auto
+            max-width: var(--maxw);
+            margin: 0 auto;
+            text-align: center
         }
 
         .event-tag {
             display: inline-flex;
             align-items: center;
             gap: 7px;
-            border: 1px solid rgba(var(--accent-rgb), 0.3);
-            background: rgba(var(--accent-rgb), 0.08);
-            color: var(--accent);
+            border: 1px solid rgba(var(--live-rgb), 0.35);
+            background: rgba(var(--live-rgb), 0.08);
+            color: var(--live);
             font-size: 11px;
-            font-weight: 500;
+            font-weight: 600;
             letter-spacing: .08em;
             text-transform: uppercase;
             padding: 5px 14px;
             border-radius: 100px;
-            margin-bottom: 1.25rem
+            margin-bottom: 1.25rem;
+            font-family: var(--font-mono)
         }
 
         .live-dot {
             width: 7px;
             height: 7px;
             border-radius: 50%;
-            background: var(--accent);
+            background: var(--live);
             animation: blink 1.3s ease-in-out infinite;
             flex-shrink: 0
         }
 
         .hero h1 {
             font-family: var(--font-head);
-            font-size: clamp(52px, 10vw, 100px);
+            font-size: clamp(56px, 8vw, 118px);
             font-weight: 800;
-            line-height: .92;
-            letter-spacing: -1px;
+            line-height: .9;
+            letter-spacing: -1.5px;
             color: var(--text);
             text-transform: uppercase
         }
@@ -357,9 +444,69 @@
         .hero-sub {
             font-size: 14px;
             color: var(--muted2);
-            margin-top: .85rem;
+            margin-top: .9rem;
             font-weight: 300;
             letter-spacing: .02em
+        }
+
+        /* Desktop: put the follow-selector / countdown / stat rail side by
+           side instead of stacking, so wide viewports get used instead of
+           just centering a narrow column. */
+        .hero-controls {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 1.25rem;
+            margin-top: 1.5rem
+        }
+
+        @media(min-width:1100px) {
+            .hero-controls {
+                flex-direction: row;
+                align-items: stretch;
+                justify-content: center;
+                gap: 1.25rem
+            }
+
+            .spotlight-wrap {
+                flex-direction: column;
+                align-items: flex-start;
+                text-align: left;
+                justify-content: center;
+                background: var(--bg2);
+                border: 1px solid var(--border2);
+                border-radius: var(--r2);
+                padding: 1rem 1.25rem;
+                min-width: 260px
+            }
+
+            .countdown-wrap {
+                margin: 0 !important;
+                flex: 1;
+                max-width: 480px
+            }
+
+            .hero-stats {
+                flex-direction: column;
+                border-top: none;
+                border-left: 1px solid var(--border2);
+                border-radius: 0 var(--r2) var(--r2) 0;
+                margin: 0 !important;
+                width: 168px
+            }
+
+            .hstat {
+                border-right: none;
+                border-bottom: 1px solid var(--border2);
+                flex: 1;
+                display: flex;
+                flex-direction: column;
+                justify-content: center
+            }
+
+            .hstat:last-child {
+                border-bottom: none
+            }
         }
 
         .spotlight-wrap {
@@ -367,15 +514,15 @@
             align-items: center;
             justify-content: center;
             gap: 10px;
-            margin-top: 1.25rem;
             flex-wrap: wrap
         }
 
         .spotlight-label {
-            font-size: 12px;
+            font-size: 11px;
             color: var(--muted);
-            letter-spacing: .06em;
-            text-transform: uppercase
+            letter-spacing: .08em;
+            text-transform: uppercase;
+            font-weight: 600
         }
 
         .spotlight-select {
@@ -384,15 +531,16 @@
             color: var(--text);
             font-family: var(--font-body);
             font-size: 13px;
-            padding: 7px 28px 7px 14px;
+            padding: 8px 30px 8px 14px;
             border-radius: 100px;
             cursor: pointer;
             outline: none;
             appearance: none;
             background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' fill='%236b7280'%3E%3Cpath d='M0 0l5 6 5-6z'/%3E%3C/svg%3E");
             background-repeat: no-repeat;
-            background-position: right 10px center;
-            min-width: 200px
+            background-position: right 12px center;
+            min-width: 200px;
+            width: 100%
         }
 
         .spotlight-select:focus {
@@ -420,7 +568,7 @@
             margin: 1.5rem auto 0;
             max-width: 500px;
             background: rgba(var(--accent-rgb), 0.05);
-            border: 1px solid rgba(var(--accent-rgb), 0.2);
+            border: 1px solid rgba(var(--accent-rgb), 0.25);
             border-radius: var(--r2);
             padding: 1rem 1.25rem;
             position: relative;
@@ -437,14 +585,15 @@
 
         .cd-header {
             font-size: 10px;
-            font-weight: 500;
+            font-weight: 600;
             letter-spacing: .1em;
             text-transform: uppercase;
             color: var(--accent);
             margin-bottom: .6rem;
             display: flex;
             align-items: center;
-            gap: 8px
+            gap: 8px;
+            font-family: var(--font-mono)
         }
 
         .cd-match-name {
@@ -472,16 +621,18 @@
             border-radius: var(--r);
             padding: .6rem .8rem;
             min-width: 58px;
-            text-align: center
+            text-align: center;
+            flex: 1
         }
 
         .cd-num {
-            font-family: var(--font-head);
-            font-size: 28px;
-            font-weight: 800;
+            font-family: var(--font-mono);
+            font-size: 26px;
+            font-weight: 700;
             color: var(--text);
             line-height: 1;
-            display: block
+            display: block;
+            font-variant-numeric: tabular-nums
         }
 
         .cd-lbl {
@@ -512,11 +663,12 @@
         }
 
         .hstat-val {
-            font-family: var(--font-head);
-            font-size: 28px;
+            font-family: var(--font-mono);
+            font-size: 26px;
             font-weight: 700;
             color: var(--accent);
-            line-height: 1
+            line-height: 1;
+            font-variant-numeric: tabular-nums
         }
 
         .hstat-lbl {
@@ -542,9 +694,9 @@
             gap: 0;
             overflow-x: auto;
             scrollbar-width: none;
-            max-width: 1400px;
+            max-width: var(--maxw);
             margin: 0 auto;
-            padding: 0 1rem
+            padding: 0 clamp(1rem, 2.5vw, 2rem)
         }
 
         .nav::-webkit-scrollbar {
@@ -555,10 +707,10 @@
             display: flex;
             align-items: center;
             gap: 7px;
-            padding: 14px 18px;
+            padding: 15px 20px;
             font-family: var(--font-body);
             font-size: 13px;
-            font-weight: 500;
+            font-weight: 600;
             color: var(--muted);
             background: none;
             border: none;
@@ -589,14 +741,15 @@
             font-weight: 700;
             padding: 1px 6px;
             border-radius: 100px;
-            line-height: 16px
+            line-height: 16px;
+            font-family: var(--font-mono)
         }
 
         /* ── Main Layout ── */
         .main {
-            max-width: 1400px;
+            max-width: var(--maxw);
             margin: 0 auto;
-            padding: 1.5rem 1rem 4rem
+            padding: 1.75rem clamp(1rem, 2.5vw, 2rem) 4rem
         }
 
         .section {
@@ -607,12 +760,12 @@
             display: block
         }
 
-        /* Desktop 2-col layout */
+        /* Desktop 2-col layout — widened sidebar, more breathing room */
         @media(min-width:1024px) {
             .main {
                 display: grid;
                 grid-template-columns: 1fr var(--sidebar-width);
-                gap: 28px;
+                gap: 32px;
                 align-items: start
             }
 
@@ -624,7 +777,7 @@
                 grid-column: 2/3;
                 display: block !important;
                 position: sticky;
-                top: 60px
+                top: 66px
             }
 
             #sec-mvp {
@@ -639,7 +792,16 @@
             .sidebar-always {
                 grid-column: 2/3;
                 position: sticky;
-                top: 60px
+                top: 66px
+            }
+        }
+
+        /* Ultra-wide: give the scores column more room to breathe and let
+           match cards sit two-up with real width instead of stretching. */
+        @media(min-width:1600px) {
+            .main {
+                grid-template-columns: 1fr 420px;
+                gap: 40px
             }
         }
 
@@ -734,7 +896,7 @@
 
         .sec-title {
             font-family: var(--font-head);
-            font-size: 22px;
+            font-size: 24px;
             font-weight: 700;
             letter-spacing: .5px;
             text-transform: uppercase
@@ -772,12 +934,31 @@
             animation: spin .5s linear
         }
 
+        .auto-refresh-strip {
+            display: flex;
+            align-items: center;
+            gap: 7px;
+            font-size: 11px;
+            color: var(--muted);
+            font-family: var(--font-mono);
+            margin-bottom: 1rem
+        }
+
+        .arf-dot {
+            width: 5px;
+            height: 5px;
+            border-radius: 50%;
+            background: var(--live);
+            flex-shrink: 0;
+            animation: blink 1.3s ease-in-out infinite
+        }
+
         /* ── Featured Match ── */
         .featured-match {
             background: var(--bg2);
             border: 1px solid rgba(var(--accent-rgb), 0.35);
             border-radius: var(--r3);
-            padding: 1.4rem 1.5rem;
+            padding: 1.5rem 1.75rem;
             margin-bottom: 1.5rem;
             position: relative;
             overflow: hidden
@@ -806,7 +987,7 @@
             display: inline-flex;
             align-items: center;
             gap: 6px;
-            font-family: var(--font-head);
+            font-family: var(--font-mono);
             font-size: 11px;
             font-weight: 700;
             letter-spacing: .12em;
@@ -835,12 +1016,64 @@
         }
 
         .match-card:hover {
-            border-color: var(--border2);
-            transform: translateY(-1px)
+            border-color: var(--border3);
+            transform: translateY(-1px);
+            color: #fff
+        }
+
+        .match-card:hover .dept-name,
+        .match-card:hover .match-footer,
+        .match-card:hover .match-footer-item,
+        .match-card:hover .click-hint,
+        .match-card:hover .tournament-pill,
+        .match-card:hover .vs-text,
+        .match-card:hover .set-progress-note {
+            color: #e5e7eb
+        }
+
+        .match-card:hover .sport-pill {
+            color: #f3f4f6;
+            border-color: var(--border3)
+        }
+
+        .ffa-card:hover {
+            color: #fff
+        }
+
+        .ffa-card:hover .ffa-participant-name,
+        .ffa-card:hover .ffa-footer {
+            color: #f3f4f6
+        }
+
+        .ffa-card:hover .ffa-participant-dept {
+            color: #d1d5db
+        }
+
+        .sched-card:hover {
+            color: #fff
+        }
+
+        .sched-card:hover .sched-match-name,
+        .sched-card:hover .sched-meta-row {
+            color: #e5e7eb
+        }
+
+        .lb-row:hover {
+            background: var(--bg3);
+            color: #fff
+        }
+
+        .lb-row:hover .lb-name {
+            color: #f9fafb
+        }
+
+        .lb-row:hover .medal-count,
+        .lb-row:hover .pts-lbl {
+            color: #d1d5db
         }
 
         .match-card.is-live {
-            border-color: rgba(var(--accent-rgb), .35)
+            border-color: rgba(var(--live-rgb), .4)
         }
 
         .match-card.is-live::after {
@@ -850,7 +1083,7 @@
             left: 0;
             right: 0;
             height: 2px;
-            background: linear-gradient(90deg, transparent, var(--accent), transparent);
+            background: linear-gradient(90deg, transparent, var(--live), transparent);
             animation: shimmer 3s linear infinite;
             background-size: 200%
         }
@@ -888,6 +1121,40 @@
             letter-spacing: .03em
         }
 
+        .format-pill {
+            font-size: 10px;
+            font-weight: 700;
+            letter-spacing: .05em;
+            padding: 3px 10px;
+            border-radius: 100px;
+            font-family: var(--font-mono);
+            border: 1px solid transparent
+        }
+
+        .format-pill.sets {
+            background: rgba(59, 130, 246, .12);
+            color: #60a5fa;
+            border-color: rgba(59, 130, 246, .3)
+        }
+
+        .format-pill.binary {
+            background: rgba(34, 197, 94, .12);
+            color: var(--live);
+            border-color: rgba(34, 197, 94, .3)
+        }
+
+        .format-pill.points {
+            background: rgba(255, 176, 32, .12);
+            color: var(--accent);
+            border-color: rgba(255, 176, 32, .3)
+        }
+
+        .format-pill.time {
+            background: rgba(59, 130, 246, .12);
+            color: #60a5fa;
+            border-color: rgba(59, 130, 246, .3)
+        }
+
         .tournament-pill {
             font-size: 11px;
             color: var(--muted)
@@ -898,17 +1165,18 @@
             align-items: center;
             gap: 5px;
             font-size: 11px;
-            font-weight: 600;
-            letter-spacing: .05em;
+            font-weight: 700;
+            letter-spacing: .06em;
             text-transform: uppercase;
             padding: 3px 10px;
-            border-radius: 100px
+            border-radius: 100px;
+            font-family: var(--font-mono)
         }
 
         .status-live {
-            background: rgba(var(--accent-rgb), .12);
-            color: var(--accent);
-            border: 1px solid rgba(var(--accent-rgb), .25)
+            background: rgba(var(--live-rgb), .12);
+            color: var(--live);
+            border: 1px solid rgba(var(--live-rgb), .3)
         }
 
         .status-upcoming {
@@ -978,20 +1246,181 @@
         }
 
         .featured-match .dept-avatar {
-            width: 56px;
-            height: 56px;
-            font-size: 18px
+            width: 60px;
+            height: 60px;
+            font-size: 19px
         }
+
 
         .winner-crown {
             position: absolute;
-            top: -10px;
+            top: -12px;
             left: 50%;
             transform: translateX(-50%);
-            font-size: 16px;
-            filter: drop-shadow(0 0 6px var(--gold));
-            animation: crown-float 2s ease-in-out infinite
+            width: 26px;
+            height: 26px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #fbbf24, #d97706);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 0 12px rgba(245, 158, 11, .55), 0 2px 6px rgba(0, 0, 0, .35);
+            animation: crown-float 2s ease-in-out infinite;
+            z-index: 2
         }
+
+        .winner-crown .ico {
+            width: 14px;
+            height: 14px;
+            color: #1a1205
+        }
+
+        .ico {
+            width: 1em;
+            height: 1em;
+            display: inline-block;
+            vertical-align: -0.15em;
+            flex-shrink: 0
+        }
+
+        .match-card.is-winner-card,
+        .ffa-card.is-winner-card {
+            border-color: rgba(var(--gold-rgb), .45);
+            background: linear-gradient(160deg, rgba(245, 158, 11, 0.08) 0%, var(--bg2) 55%)
+        }
+
+        .match-card.is-winner-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 2px;
+            background: linear-gradient(90deg, transparent, var(--gold), transparent)
+        }
+
+        .winner-ribbon {
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            font-family: var(--font-mono);
+            font-size: 10px;
+            font-weight: 700;
+            letter-spacing: .08em;
+            text-transform: uppercase;
+            color: var(--gold);
+            background: rgba(245, 158, 11, .12);
+            border: 1px solid rgba(245, 158, 11, .35);
+            padding: 3px 10px;
+            border-radius: 100px;
+            margin-top: 4px
+        }
+
+        .winner-ribbon .ico {
+            width: 12px;
+            height: 12px
+        }
+
+        .dept-avatar.is-winner-ring {
+            box-shadow: 0 0 0 2px var(--gold), 0 0 14px rgba(245, 158, 11, .4)
+        }
+
+        .sport-pill .ico {
+            width: 13px;
+            height: 13px;
+            margin-right: 2px
+        }
+
+        .sport-chip-icon .ico {
+            width: 20px;
+            height: 20px
+        }
+
+        .hl-icon .ico {
+            width: 18px;
+            height: 18px
+        }
+
+        .match-footer-item .ico {
+            width: 12px;
+            height: 12px;
+            opacity: .7
+        }
+
+        .empty-icon .ico {
+            width: 36px;
+            height: 36px;
+            color: var(--muted)
+        }
+
+        .wb-trophy .ico {
+            width: 40px;
+            height: 40px;
+            color: var(--gold)
+        }
+
+        .search-icon .ico {
+            width: 15px;
+            height: 15px
+        }
+
+        .ffa-rank .ico {
+            width: 16px;
+            height: 16px
+        }
+
+        .ffa-icon .ico {
+            width: 28px;
+            height: 28px;
+            color: var(--gold)
+        }
+
+        .ffa-badge .ico {
+            width: 12px;
+            height: 12px
+        }
+
+        .set-dots {
+            display: flex;
+            gap: 4px;
+            justify-content: center;
+            margin-top: 6px;
+        }
+
+        .set-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: var(--bg4);
+            border: 1px solid var(--border2);
+        }
+
+        .set-dot.on {
+            background: var(--accent);
+            border-color: var(--accent);
+            box-shadow: 0 0 6px rgba(var(--accent-rgb), .45);
+        }
+
+        .match-card.sets-card .score-num {
+            color: var(--text);
+        }
+
+        .match-card.binary-card .score-center {
+            min-width: 100px;
+        }
+
+        .format-pill {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .format-pill .ico {
+            width: 11px;
+            height: 11px;
+        }
+
+
 
         .dept-name {
             font-size: 13px;
@@ -1002,7 +1431,7 @@
         }
 
         .dept-name.winner {
-            color: var(--accent)
+            color: var(--live)
         }
 
         .dept-name.winner-final {
@@ -1031,11 +1460,12 @@
             font-weight: 800;
             line-height: 1;
             min-width: 38px;
-            text-align: center
+            text-align: center;
+            font-variant-numeric: tabular-nums
         }
 
         .score-num.winner-score {
-            color: var(--accent)
+            color: var(--live)
         }
 
         .score-num.winner-score-final {
@@ -1044,7 +1474,7 @@
         }
 
         .featured-match .score-num {
-            font-size: 52px
+            font-size: 56px
         }
 
         .score-sep {
@@ -1055,11 +1485,18 @@
         }
 
         .vs-text {
-            font-family: var(--font-head);
+            font-family: var(--font-mono);
             font-size: 11px;
             color: var(--muted);
             letter-spacing: .1em;
             text-transform: uppercase
+        }
+
+        .set-progress-note {
+            text-align: center;
+            font-size: 11px;
+            color: var(--muted);
+            margin-top: 8px
         }
 
         .match-footer {
@@ -1091,9 +1528,9 @@
             margin-left: auto
         }
 
-        /* ── FFA Match Card (Enhanced Unique Design) ── */
+        /* ── FFA Match Card ── */
         .ffa-card {
-            background: linear-gradient(135deg, rgba(139, 92, 246, 0.05), rgba(34, 197, 94, 0.05));
+            background: linear-gradient(135deg, rgba(139, 92, 246, 0.06), rgba(var(--accent-rgb), 0.04));
             border: 1px solid rgba(139, 92, 246, 0.3);
             border-radius: var(--r3);
             padding: 1.1rem 1.25rem;
@@ -1111,7 +1548,7 @@
         }
 
         .ffa-card.is-live {
-            border-color: rgba(var(--accent-rgb), 0.5);
+            border-color: rgba(var(--live-rgb), 0.5);
         }
 
         .ffa-card.is-live::after {
@@ -1121,7 +1558,7 @@
             left: 0;
             right: 0;
             height: 2px;
-            background: linear-gradient(90deg, transparent, var(--accent), transparent);
+            background: linear-gradient(90deg, transparent, var(--live), transparent);
             animation: shimmer 3s linear infinite;
             background-size: 200%;
         }
@@ -1143,6 +1580,7 @@
             font-weight: 700;
             letter-spacing: 0.5px;
             border: 1px solid rgba(139, 92, 246, 0.3);
+            font-family: var(--font-mono)
         }
 
         .ffa-header {
@@ -1165,7 +1603,7 @@
 
         .ffa-participants {
             display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+            grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
             gap: 10px;
             margin: 1rem 0;
         }
@@ -1184,7 +1622,7 @@
 
         .ffa-participant:hover {
             transform: translateX(4px);
-            border-color: var(--gold-border);
+            border-color: var(--gold);
         }
 
         .ffa-participant.is-winner {
@@ -1251,16 +1689,16 @@
         }
 
         .ffa-participant-score {
-            font-family: var(--font-head);
-            font-size: 20px;
-            font-weight: 800;
+            font-family: var(--font-mono);
+            font-size: 19px;
+            font-weight: 700;
             color: var(--gold);
             text-align: right;
             flex-shrink: 0;
         }
 
         .ffa-participant-score.accent {
-            color: var(--accent);
+            color: var(--live);
         }
 
         .ffa-unit {
@@ -1325,7 +1763,8 @@
             letter-spacing: .12em;
             text-transform: uppercase;
             color: var(--gold);
-            margin-bottom: 4px
+            margin-bottom: 4px;
+            font-family: var(--font-mono)
         }
 
         .wb-name {
@@ -1378,20 +1817,21 @@
         .lb-header {
             display: grid;
             grid-template-columns: 44px 1fr 100px 90px;
-            padding: .65rem 1.25rem;
+            padding: .7rem 1.25rem;
             font-size: 10px;
-            font-weight: 500;
+            font-weight: 600;
             letter-spacing: .08em;
             text-transform: uppercase;
             color: var(--muted);
-            border-bottom: 1px solid var(--border)
+            border-bottom: 1px solid var(--border);
+            font-family: var(--font-mono)
         }
 
         .lb-row {
             display: grid;
             grid-template-columns: 44px 1fr 100px 90px;
             align-items: center;
-            padding: .85rem 1.25rem;
+            padding: .9rem 1.25rem;
             border-bottom: 1px solid var(--border);
             transition: background .15s;
             gap: 8px
@@ -1520,30 +1960,39 @@
 
         .medal-count {
             font-size: 13px;
-            font-weight: 500
+            font-weight: 500;
+            font-family: var(--font-mono)
         }
 
         .lb-pts {
-            font-family: var(--font-head);
-            font-size: 20px;
+            font-family: var(--font-mono);
+            font-size: 19px;
             font-weight: 700;
-            color: var(--accent);
+            color: #f5f5f5;
             text-align: right
+        }
+
+        .lb-pts .pts-num {
+            color: var(--accent);
         }
 
         .pts-lbl {
             font-size: 10px;
-            color: var(--muted);
+            color: #9ca3af;
             display: block;
             line-height: 1;
             margin-top: 1px
         }
 
+        .lb-name {
+            color: #e8eaed
+        }
+
         /* MVP */
         .mvp-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
-            gap: 12px
+            grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+            gap: 14px
         }
 
         .mvp-card {
@@ -1577,7 +2026,7 @@
             position: absolute;
             top: 10px;
             right: 10px;
-            font-family: var(--font-head);
+            font-family: var(--font-mono);
             font-size: 9px;
             font-weight: 700;
             letter-spacing: .1em;
@@ -1590,22 +2039,22 @@
 
         .mvp-photo-wrap {
             position: relative;
-            width: 70px;
-            height: 70px;
+            width: 72px;
+            height: 72px;
             margin: 0 auto 12px
         }
 
         .mvp-photo {
-            width: 70px;
-            height: 70px;
+            width: 72px;
+            height: 72px;
             border-radius: 50%;
             object-fit: cover;
             border: 2px solid var(--border2)
         }
 
         .mvp-initials {
-            width: 70px;
-            height: 70px;
+            width: 72px;
+            height: 72px;
             border-radius: 50%;
             display: flex;
             align-items: center;
@@ -1690,7 +2139,7 @@
         }
 
         .sched-card.live-sched {
-            border-color: rgba(var(--accent-rgb), .25)
+            border-color: rgba(var(--live-rgb), .3)
         }
 
         .sched-card.spotlight-sched {
@@ -1699,9 +2148,9 @@
         }
 
         .sched-time-col {
-            min-width: 58px;
-            font-family: var(--font-head);
-            font-size: 15px;
+            min-width: 62px;
+            font-family: var(--font-mono);
+            font-size: 14px;
             font-weight: 700;
             color: var(--accent);
             flex-shrink: 0
@@ -1783,8 +2232,8 @@
         }
 
         .hl-score {
-            font-family: var(--font-head);
-            font-size: 20px;
+            font-family: var(--font-mono);
+            font-size: 19px;
             font-weight: 700;
             color: var(--accent);
             flex-shrink: 0
@@ -1928,9 +2377,9 @@
         }
 
         .modal-score-big {
-            font-family: var(--font-head);
-            font-size: 48px;
-            font-weight: 800;
+            font-family: var(--font-mono);
+            font-size: 46px;
+            font-weight: 700;
             line-height: 1;
             color: var(--text)
         }
@@ -1978,13 +2427,15 @@
             font-size: 14px;
             padding: 8px 8px;
             text-align: center;
-            border-bottom: 1px solid var(--border)
+            border-bottom: 1px solid var(--border);
+            font-family: var(--font-mono)
         }
 
         .period-table td:first-child {
             text-align: left;
             font-size: 12px;
-            color: var(--muted2)
+            color: var(--muted2);
+            font-family: var(--font-body)
         }
 
         .period-table tr:last-child td {
@@ -1992,7 +2443,7 @@
         }
 
         .period-table .total-row td {
-            font-family: var(--font-head);
+            font-family: var(--font-mono);
             font-size: 18px;
             font-weight: 700;
             color: var(--text);
@@ -2025,6 +2476,18 @@
             gap: 5px
         }
 
+        .modal-live-pulse {
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            font-size: 10px;
+            color: var(--live);
+            font-family: var(--font-mono);
+            letter-spacing: .06em;
+            text-transform: uppercase;
+            padding: 4px 1.5rem
+        }
+
         .modal-close {
             position: absolute;
             top: 1rem;
@@ -2053,7 +2516,7 @@
             #matches-container {
                 display: grid;
                 grid-template-columns: repeat(2, 1fr);
-                gap: 12px
+                gap: 14px
             }
 
             .match-card,
@@ -2284,6 +2747,30 @@
         .hidden-by-search {
             display: none !important
         }
+
+        /* Real-time indicator */
+        .ws-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            font-size: 9px;
+            font-family: var(--font-mono);
+            color: var(--muted);
+            padding: 2px 8px;
+            border-radius: 100px;
+            background: var(--bg3);
+            border: 1px solid var(--border);
+        }
+
+        .ws-badge .live-dot {
+            width: 4px;
+            height: 4px;
+        }
+
+        .ws-badge.realtime {
+            border-color: rgba(var(--live-rgb), 0.3);
+            color: var(--live);
+        }
     </style>
 </head>
 
@@ -2294,6 +2781,10 @@
             <div class="logo">PAC SCHED-SCORE</div>
             <div class="topbar-right">
                 <div class="topbar-clock" id="topbar-clock">00:00:00 AM</div>
+                <div class="ws-status" id="ws-status">
+                    <span class="ws-dot disconnected" id="ws-dot"></span>
+                    <span id="ws-label">Connecting...</span>
+                </div>
                 <button class="login-btn"><a href="/login">Login</a></button>
             </div>
         </div>
@@ -2318,39 +2809,48 @@
             <div class="event-tag"><span class="live-dot"></span>Sport Fest 2025 · Live Coverage</div>
             <h1>Sport<span class="accent-word">Fest</span><br>2025</h1>
             <p class="hero-sub">Follow every match, score every point, celebrate every champion</p>
-            <div class="spotlight-wrap">
-                <span class="spotlight-label">Follow:</span>
-                <select class="spotlight-select" id="spotlight-select" onchange="applySpotlight(this.value)">
-                    <option value="">All Departments</option>
-                </select>
-                <button class="spotlight-clear" id="spotlight-clear" onclick="clearSpotlight()">✕ Clear</button>
-            </div>
-            <div class="countdown-wrap" id="countdown-wrap" style="display:none;">
-                <div class="cd-header"><span class="live-dot"></span>Next Match</div>
-                <div class="cd-match-name" id="cd-match-name">Loading...</div>
-                <div class="cd-units">
-                    <div class="cd-unit"><span class="cd-num" id="cd-d">00</span><span class="cd-lbl">Days</span></div>
-                    <div class="cd-unit"><span class="cd-num" id="cd-h">00</span><span class="cd-lbl">Hrs</span></div>
-                    <div class="cd-unit"><span class="cd-num" id="cd-m">00</span><span class="cd-lbl">Min</span></div>
-                    <div class="cd-unit"><span class="cd-num" id="cd-s">00</span><span class="cd-lbl">Sec</span></div>
+
+            <div class="hero-controls">
+                <div class="spotlight-wrap">
+                    <span class="spotlight-label">Follow:</span>
+                    <select class="spotlight-select" id="spotlight-select" onchange="applySpotlight(this.value)">
+                        <option value="">All Departments</option>
+                    </select>
+                    <button class="spotlight-clear" id="spotlight-clear" onclick="clearSpotlight()">✕ Clear</button>
                 </div>
-            </div>
-            <div class="hero-stats">
-                <div class="hstat">
-                    <div class="hstat-val" id="h-live">—</div>
-                    <div class="hstat-lbl">Live now</div>
+
+                <div class="countdown-wrap" id="countdown-wrap" style="display:none;">
+                    <div class="cd-header"><span class="live-dot"></span>Next Match</div>
+                    <div class="cd-match-name" id="cd-match-name">Loading...</div>
+                    <div class="cd-units">
+                        <div class="cd-unit"><span class="cd-num" id="cd-d">00</span><span class="cd-lbl">Days</span>
+                        </div>
+                        <div class="cd-unit"><span class="cd-num" id="cd-h">00</span><span class="cd-lbl">Hrs</span>
+                        </div>
+                        <div class="cd-unit"><span class="cd-num" id="cd-m">00</span><span class="cd-lbl">Min</span>
+                        </div>
+                        <div class="cd-unit"><span class="cd-num" id="cd-s">00</span><span class="cd-lbl">Sec</span>
+                        </div>
+                    </div>
                 </div>
-                <div class="hstat">
-                    <div class="hstat-val" id="h-today">—</div>
-                    <div class="hstat-lbl">Today</div>
-                </div>
-                <div class="hstat">
-                    <div class="hstat-val" id="h-done">—</div>
-                    <div class="hstat-lbl">Completed</div>
-                </div>
-                <div class="hstat">
-                    <div class="hstat-val" id="h-sports">—</div>
-                    <div class="hstat-lbl">Sports</div>
+
+                <div class="hero-stats">
+                    <div class="hstat">
+                        <div class="hstat-val" id="h-live">—</div>
+                        <div class="hstat-lbl">Live now</div>
+                    </div>
+                    <div class="hstat">
+                        <div class="hstat-val" id="h-today">—</div>
+                        <div class="hstat-lbl">Today</div>
+                    </div>
+                    <div class="hstat">
+                        <div class="hstat-val" id="h-done">—</div>
+                        <div class="hstat-lbl">Completed</div>
+                    </div>
+                    <div class="hstat">
+                        <div class="hstat-val" id="h-sports">—</div>
+                        <div class="hstat-lbl">Sports</div>
+                    </div>
                 </div>
             </div>
         </div>
@@ -2380,8 +2880,8 @@
                 <button class="refresh-btn" onclick="refreshScores(this)"><span class="refresh-icon">↻</span>
                     Refresh</button>
             </div>
-            <div class="auto-refresh-strip"><span class="arf-dot"></span><span id="refresh-ts">Auto-refreshes every 30
-                    seconds</span></div>
+            <div class="auto-refresh-strip"><span class="arf-dot"></span><span id="refresh-ts">Live · auto-updates
+                    every few seconds</span></div>
             <div class="sport-filters" id="sport-filters">
                 <div class="sport-chip active" data-sport="all" onclick="filterBySport('all',this)"><span
                         class="sport-chip-icon">🏅</span><span class="sport-chip-label">All</span></div>
@@ -2411,9 +2911,10 @@
         <div id="sec-leaderboard" class="section sidebar-always">
             <div class="sec-head">
                 <div class="sec-title">Overall <span>Standings</span></div>
-                <button class="refresh-btn" onclick="loadLeaderboard()"><span class="refresh-icon">↻</span>
+                <button class="refresh-btn" onclick="refreshLeaderboard(this)"><span class="refresh-icon">↻</span>
                     Refresh</button>
             </div>
+            <div class="auto-refresh-strip"><span class="arf-dot"></span><span>Updates automatically</span></div>
             <div id="lb-container">
                 <div class="skeleton">
                     <div class="skel-line medium"></div>
@@ -2429,11 +2930,15 @@
             <div class="sec-head">
                 <div class="sec-title">Most Valuable <span>Players</span></div>
             </div>
-            <div class="search-wrap"><span class="search-icon">🔍</span><input type="text" class="search-input"
-                    id="mvp-search" placeholder="Search player or sport..." oninput="filterMVPs(this.value)"><button
+            <div class="search-wrap"><span class="search-icon"><svg class="ico" viewBox="0 0 24 24" fill="none"
+                        stroke="currentColor" stroke-width="2">
+                        <circle cx="11" cy="11" r="7" />
+                        <path d="M21 21l-4.3-4.3" />
+                    </svg></span><input type="text" class="search-input" id="mvp-search"
+                    placeholder="Search player or sport..." oninput="filterMVPs(this.value)"><button
                     class="search-clear" id="mvp-search-clear" onclick="clearSearch('mvp')">✕</button></div>
             <div class="mvp-grid" id="mvp-container">
-                <div class="empty-state" style="grid-column:1/-1"><span class="empty-icon">⭐</span>
+                <div class="empty-state" style="grid-column:1/-1"><span class="empty-icon">${I.star}</span>
                     <div class="empty-title">Loading MVPs...</div>
                 </div>
             </div>
@@ -2444,10 +2949,13 @@
             <div class="sec-head">
                 <div class="sec-title">Full <span>Schedule</span></div>
             </div>
-            <div class="search-wrap"><span class="search-icon">🔍</span><input type="text" class="search-input"
-                    id="sched-search" placeholder="Search sport, team, or venue..."
-                    oninput="filterSchedule(this.value)"><button class="search-clear" id="sched-search-clear"
-                    onclick="clearSearch('sched')">✕</button></div>
+            <div class="search-wrap"><span class="search-icon"><svg class="ico" viewBox="0 0 24 24" fill="none"
+                        stroke="currentColor" stroke-width="2">
+                        <circle cx="11" cy="11" r="7" />
+                        <path d="M21 21l-4.3-4.3" />
+                    </svg></span><input type="text" class="search-input" id="sched-search"
+                    placeholder="Search sport, team, or venue..." oninput="filterSchedule(this.value)"><button
+                    class="search-clear" id="sched-search-clear" onclick="clearSearch('sched')">✕</button></div>
             <div id="schedule-container">
                 <div class="skeleton">
                     <div class="skel-line short"></div>
@@ -2462,7 +2970,7 @@
                 <div class="sec-title">Recent <span>Highlights</span></div>
             </div>
             <div id="highlights-container">
-                <div class="empty-state"><span class="empty-icon">🎯</span>
+                <div class="empty-state"><span class="empty-icon">${I.star}</span>
                     <div class="empty-title">Loading...</div>
                 </div>
             </div>
@@ -2478,28 +2986,409 @@
             <div id="modal-body"></div>
         </div>
     </div>
-
     <script>
+        // Add this at the VERY TOP of your script section
+        (function () {
+            let themeApplied = false;
+
+            async function preloadTheme() {
+                try {
+                    // Fetch the leaderboard data
+                    const response = await fetch('/api/leaderboard');
+                    const data = await response.json();
+
+                    if (data.data && data.data.length > 0 && data.data[0].color) {
+                        const color = data.data[0].color;
+                        const hex = color.replace('#', '');
+                        const r = parseInt(hex.slice(0, 2), 16);
+                        const g = parseInt(hex.slice(2, 4), 16);
+                        const b = parseInt(hex.slice(4, 6), 16);
+
+                        // Apply ALL theme properties
+                        const root = document.documentElement;
+                        root.style.setProperty('--accent', color);
+                        root.style.setProperty('--accent-rgb', `${r},${g},${b}`);
+                        root.style.setProperty('--accent-dim', `rgba(${r},${g},${b},0.12)`);
+                        root.style.setProperty('--accent-glow', `rgba(${r},${g},${b},0.3)`);
+
+                        // Also update the hero glow
+                        const heroGlow = document.getElementById('hero-glow');
+                        if (heroGlow) {
+                            heroGlow.style.background = `radial-gradient(ellipse, rgba(${r},${g},${b},0.15) 0%, transparent 70%)`;
+                        }
+
+                        // Update ticker label
+                        const tickerLabel = document.getElementById('ticker-label');
+                        if (tickerLabel) {
+                            tickerLabel.style.background = color;
+                        }
+
+                        themeApplied = true;
+                    }
+                } catch (err) {
+                    console.warn('Could not preload theme:', err);
+                }
+            }
+
+            // Run immediately
+            preloadTheme();
+
+            // Override applyDynamicTheme to prevent it from overriding our preload
+            // but still allow it to update if needed
+            const originalApplyTheme = window.applyDynamicTheme;
+            window.applyDynamicTheme = function (color) {
+                if (!themeApplied) {
+                    // Only apply if not already applied
+                    if (color && color.startsWith('#')) {
+                        const hex = color.replace('#', '');
+                        const r = parseInt(hex.slice(0, 2), 16);
+                        const g = parseInt(hex.slice(2, 4), 16);
+                        const b = parseInt(hex.slice(4, 6), 16);
+
+                        const root = document.documentElement;
+                        root.style.setProperty('--accent', color);
+                        root.style.setProperty('--accent-rgb', `${r},${g},${b}`);
+                        root.style.setProperty('--accent-dim', `rgba(${r},${g},${b},0.12)`);
+                        root.style.setProperty('--accent-glow', `rgba(${r},${g},${b},0.3)`);
+
+                        const heroGlow = document.getElementById('hero-glow');
+                        if (heroGlow) {
+                            heroGlow.style.background = `radial-gradient(ellipse, rgba(${r},${g},${b},0.15) 0%, transparent 70%)`;
+                        }
+
+                        const tickerLabel = document.getElementById('ticker-label');
+                        if (tickerLabel) {
+                            tickerLabel.style.background = color;
+                        }
+                    }
+                }
+                themeApplied = true;
+            };
+        })();
+    </script>
+    <script>
+        async function preloadTheme() {
+            try {
+                // Fetch the leaderboard data first
+                const response = await fetch('/api/leaderboard');
+                const data = await response.json();
+
+                if (data.data && data.data.length > 0 && data.data[0].color) {
+                    // Apply the theme BEFORE the page renders
+                    const color = data.data[0].color;
+                    const hex = color.replace('#', '');
+                    const r = parseInt(hex.slice(0, 2), 16);
+                    const g = parseInt(hex.slice(2, 4), 16);
+                    const b = parseInt(hex.slice(4, 6), 16);
+
+                    // Apply to root
+                    document.documentElement.style.setProperty('--accent', color);
+                    document.documentElement.style.setProperty('--accent-rgb', `${r},${g},${b}`);
+                    document.documentElement.style.setProperty('--accent-dim', `rgba(${r},${g},${b},0.12)`);
+                    document.documentElement.style.setProperty('--accent-glow', `rgba(${r},${g},${b},0.3)`);
+                }
+            } catch (err) {
+                console.warn('Could not preload theme:', err);
+            }
+        }
+
+        // Run this immediately
+        preloadTheme();
+
         const BASE = window.location.origin;
+        const WS_URL = BASE.replace(/^http/, 'ws') || 'ws://localhost:5000';
         let allMatches = [], allDepts = [], allLbData = [];
         let currentStatusFilter = 'all', currentSportFilter = 'all', currentSpotlight = '';
-        let countdownInterval = null, refreshTimer = null, confettiFired = false;
+        let countdownInterval = null, matchesRefreshTimer = null, lbRefreshTimer = null, modalRefreshTimer = null, confettiFired = false;
         let ffaDataCache = {};
+        let setsDataCache = {};
+        let openModalMatchId = null;
+        let socket = null;
+        let isConnected = false;
+        let activeMatchRooms = new Set();
 
+        // Real-time polling cadence — matches/scores refresh fast, standings a
+        // little slower since they change less often (only on match completion).
+        const MATCHES_POLL_MS = 5000;
+        const LEADERBOARD_POLL_MS = 8000;
+        const MODAL_POLL_MS = 4000;
 
         const TIME_BASED_SPORTS = ['swimming', 'athletics', 'track', 'cycling', 'running', 'gymnastics', 'triathlon'];
 
-        const SPORT_ICONS = {
-            'Basketball': '🏀', 'Volleyball': '🏐', 'Football': '⚽', 'Soccer': '⚽', 'Badminton': '🏸',
-            'Table Tennis': '🏓', 'Tennis': '🎾', 'Swimming': '🏊', 'Track and Field': '🏃', 'Athletics': '🏃',
-            'Chess': '♟', 'Sepak Takraw': '🦵', 'Softball': '🥎', 'Baseball': '⚾', 'Cycling': '🚴',
-            'Boxing': '🥊', 'Futsal': '⚽', 'Arnis': '🥋', 'default': '🏅'
+        // ── SOCKET.IO SETUP ──
+        function initSocket() {
+            try {
+                socket = io(WS_URL, {
+                    transports: ['websocket', 'polling'],
+                    reconnection: true,
+                    reconnectionAttempts: 10,
+                    reconnectionDelay: 1000,
+                    reconnectionDelayMax: 5000,
+                });
+
+                socket.on('connect', () => {
+                    console.log('🔗 WebSocket connected');
+                    isConnected = true;
+                    updateWSStatus(true);
+
+                    // Join leaderboard room for automatic updates
+                    socket.emit('joinLeaderboard');
+
+                    // Get initial live matches
+                    socket.emit('getLiveMatches');
+                    socket.emit('getLeaderboard');
+                });
+
+                socket.on('disconnect', () => {
+                    console.log('🔌 WebSocket disconnected');
+                    isConnected = false;
+                    updateWSStatus(false);
+                });
+
+                socket.on('reconnect', () => {
+                    console.log('🔄 WebSocket reconnected');
+                    isConnected = true;
+                    updateWSStatus(true);
+                    socket.emit('joinLeaderboard');
+                    socket.emit('getLiveMatches');
+                    socket.emit('getLeaderboard');
+                    // Re-join previously watched matches
+                    activeMatchRooms.forEach(matchId => {
+                        socket.emit('joinMatch', matchId);
+                    });
+                });
+
+                // ── SCORE UPDATE (real-time) ──
+                socket.on('score:update', (data) => {
+                    console.log('📊 Score update:', data);
+                    handleScoreUpdate(data);
+                });
+
+                // ── MATCH STARTED ──
+                socket.on('match:started', (data) => {
+                    console.log('▶️ Match started:', data);
+                    loadMatches(); // Refresh to show live status
+                });
+
+                // ── MATCH COMPLETED ──
+                socket.on('match:completed', (data) => {
+                    console.log('🏁 Match completed:', data);
+                    loadMatches();
+                    loadLeaderboard();
+                    if (data.match_id === openModalMatchId) {
+                        loadAndRenderModal(data.match_id, true);
+                    }
+                });
+
+                // ── LEADERBOARD CHANGED ──
+                socket.on('leaderboard:changed', (data) => {
+                    console.log('🏆 Leaderboard changed:', data);
+                    loadLeaderboard();
+                });
+
+                // ── LIVE MATCHES LIST ──
+                socket.on('live:matches', (matches) => {
+                    // Merge with existing matches for live updates
+                    if (matches && matches.length) {
+                        matches.forEach(lm => {
+                            const existing = allMatches.find(m => m.id === lm.id);
+                            if (existing) {
+                                Object.assign(existing, lm);
+                            } else {
+                                allMatches.push(lm);
+                            }
+                        });
+                        if (document.getElementById('sec-scores').classList.contains('active')) {
+                            renderMatches();
+                        }
+                    }
+                });
+
+                // ── LIVE TICK ──
+                socket.on('live:tick', (data) => {
+                    // Update the match in the list without full refresh
+                    updateMatchScore(data);
+                });
+
+                // ── LEADERBOARD DATA ──
+                socket.on('leaderboard:data', (data) => {
+                    if (data && data.length) {
+                        allLbData = data;
+                        renderLeaderboard();
+                        if (allLbData.length && allLbData[0].color) {
+                            applyDynamicTheme(allLbData[0].color);
+                        }
+                    }
+                });
+
+                // ── MATCH STATE (when joining a match) ──
+                socket.on('match:state', (data) => {
+                    if (data.match) {
+                        // Update local cache
+                        const existing = allMatches.find(m => m.id === data.match.id);
+                        if (existing) {
+                            Object.assign(existing, data.match);
+                        } else {
+                            allMatches.push(data.match);
+                        }
+                        if (data.scores) {
+                            // Cache scores for the match
+                            setsDataCache[data.match.id] = {
+                                setsWonA: data.match.sets_won_a || 0,
+                                setsWonB: data.match.sets_won_b || 0,
+                                currentSet: data.scores[data.scores.length - 1] || null
+                            };
+                        }
+                        renderMatches();
+                    }
+                });
+
+                socket.on('connect_error', (err) => {
+                    console.warn('WebSocket connection error:', err);
+                    updateWSStatus(false);
+                });
+
+            } catch (err) {
+                console.warn('WebSocket init error:', err);
+                updateWSStatus(false);
+            }
+        }
+
+        function updateWSStatus(connected) {
+            const dot = document.getElementById('ws-dot');
+            const label = document.getElementById('ws-label');
+            if (connected) {
+                dot.className = 'ws-dot connected';
+                label.textContent = 'Live';
+            } else {
+                dot.className = 'ws-dot disconnected';
+                label.textContent = 'Offline';
+            }
+        }
+
+        function handleScoreUpdate(data) {
+            // Update match in allMatches
+            const match = allMatches.find(m => m.id === data.match_id);
+            if (match) {
+                match.live_score_a = data.total_a;
+                match.live_score_b = data.total_b;
+                match.total_score_a = data.total_a;
+                match.total_score_b = data.total_b;
+                if (data.all_scores) {
+                    setsDataCache[data.match_id] = {
+                        setsWonA: data.all_scores.filter(s => s.score_a > s.score_b).length,
+                        setsWonB: data.all_scores.filter(s => s.score_b > s.score_a).length,
+                        currentSet: data.all_scores[data.all_scores.length - 1] || null
+                    };
+                }
+                // Re-render if scores tab is active
+                if (document.getElementById('sec-scores').classList.contains('active')) {
+                    renderMatches();
+                }
+                // Update ticker
+                updateTicker();
+                // If modal is open for this match, update it
+                if (openModalMatchId === data.match_id) {
+                    loadAndRenderModal(data.match_id, true);
+                }
+                // Flash effect on the score
+                flashScore(data.match_id);
+            }
+        }
+
+        function updateMatchScore(data) {
+            const match = allMatches.find(m => m.id === data.match_id);
+            if (match) {
+                match.live_score_a = data.total_a;
+                match.live_score_b = data.total_b;
+                match.total_score_a = data.total_a;
+                match.total_score_b = data.total_b;
+                if (document.getElementById('sec-scores').classList.contains('active')) {
+                    renderMatches();
+                }
+            }
+        }
+
+        function flashScore(matchId) {
+            const cards = document.querySelectorAll(`.match-card[data-match-id="${matchId}"], .ffa-card[data-match-id="${matchId}"]`);
+            cards.forEach(card => {
+                card.classList.remove('score-flash');
+                // Force reflow
+                void card.offsetWidth;
+                card.classList.add('score-flash');
+            });
+        }
+
+        function joinMatchRoom(matchId) {
+            if (socket && isConnected) {
+                socket.emit('joinMatch', matchId);
+                activeMatchRooms.add(matchId);
+            }
+        }
+
+        function leaveMatchRoom(matchId) {
+            if (socket && isConnected) {
+                socket.emit('leaveMatch', matchId);
+                activeMatchRooms.delete(matchId);
+            }
+        }
+
+        // ── THEME ──
+        function applyDynamicTheme(color) {
+            if (!color || !color.startsWith('#')) return;
+            const hex = color.replace('#', '');
+            const r = parseInt(hex.slice(0, 2), 16), g = parseInt(hex.slice(2, 4), 16), b = parseInt(hex.slice(4, 6), 16);
+            document.documentElement.style.setProperty('--accent', color);
+            document.documentElement.style.setProperty('--accent-rgb', `${r},${g},${b}`);
+            document.documentElement.style.setProperty('--accent-dim', `rgba(${r},${g},${b},0.12)`);
+            document.documentElement.style.setProperty('--accent-glow', `rgba(${r},${g},${b},0.3)`);
+            document.getElementById('hero-glow').style.background = `radial-gradient(ellipse,rgba(${r},${g},${b},0.15) 0%,transparent 70%)`;
+            document.getElementById('ticker-label').style.background = color;
+        }
+
+        const I = {
+            trophy: '<svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 21h8M12 17v4M7 4h10v4a5 5 0 01-10 0V4z"/><path d="M17 4h2a2 2 0 012 2v1a4 4 0 01-4 4M7 4H5a2 2 0 00-2 2v1a4 4 0 004 4"/></svg>',
+            medal: '<svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="6"/><path d="M8.5 8L7 2h4l1 4M15.5 8L17 2h-4l-1 4"/></svg>',
+            crown: '<svg class="ico ico-crown" viewBox="0 0 24 24" fill="currentColor"><path d="M3 17l2.5-9 4 4L12 5l2.5 7 4-4 2.5 9H3z"/></svg>',
+            check: '<svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg>',
+            live: '<svg class="ico" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="12" r="6"/></svg>',
+            clock: '<svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>',
+            pin: '<svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 21s7-4.5 7-11a7 7 0 10-14 0c0 6.5 7 11 7 11z"/><circle cx="12" cy="10" r="2.5"/></svg>',
+            calendar: '<svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 9h18M8 3v4M16 3v4"/></svg>',
+            search: '<svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg>',
+            zap: '<svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>',
+            star: '<svg class="ico" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l2.9 6.9L22 10.3l-5 4.9 1.2 7-6.2-3.4L5.8 22 7 15.2 2 10.3l7.1-1.4L12 2z"/></svg>',
+            sets: '<svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>',
+            binary: '<svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 12l2 2 4-4"/><circle cx="12" cy="12" r="9"/></svg>',
+            ffa: '<svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v4M12 18v4M4.9 4.9l2.8 2.8M16.3 16.3l2.8 2.8M2 12h4M18 12h4M4.9 19.1l2.8-2.8M16.3 7.7l2.8-2.8"/></svg>',
+            basketball: '<svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="9"/><path d="M5 7c3 2 8 2 11 0M5 17c3-2 8-2 11 0M12 3v18M3 12h18"/></svg>',
+            volleyball: '<svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="9"/><path d="M12 3c2 3 2 9 0 18M5 7c4 1 9 4 12 10M19 7c-4 1-9 4-12 10"/></svg>',
+            football: '<svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="9"/><path d="M12 8l2.5 1.8-.9 2.9H10.4l-.9-2.9L12 8z"/></svg>',
+            chess: '<svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M8 18h8M9 18l1-6h4l1 6M10 12V9h4v3M11 9V7h2v2M10 7c0-1.5 1-2 2-2s2 .5 2 2"/></svg>',
+            swim: '<svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M2 16c2-1 3-1 5 0s3 1 5 0 3-1 5 0 3 1 5 0M2 20c2-1 3-1 5 0s3 1 5 0 3-1 5 0 3 1 5 0"/><circle cx="16" cy="7" r="2"/></svg>',
+            run: '<svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="14" cy="5" r="2"/><path d="M8 21l3-6 3 2 3-5M5 12l4 1 2-3 4 1"/></svg>',
+            racket: '<svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><ellipse cx="11" cy="9" rx="6" ry="7"/><path d="M15 14l5 7M8 9h6M11 4v10"/></svg>',
+            defaultSport: '<svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>'
+        };
+
+        const SPORT_ICON_MAP = {
+            'basketball': I.basketball, 'volleyball': I.volleyball, 'football': I.football, 'soccer': I.football,
+            'futsal': I.football, 'badminton': I.racket, 'table tennis': I.racket, 'tennis': I.racket,
+            'swimming': I.swim, 'track': I.run, 'athletics': I.run, 'chess': I.chess, 'cycling': I.run,
+            'default': I.defaultSport
         };
 
         function esc(s) { return String(s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;') }
         function initials(n) { if (!n) return '?'; const p = n.trim().split(/\s+/); return p.length >= 2 ? (p[0][0] + p[1][0]).toUpperCase() : n.slice(0, 2).toUpperCase() }
         function deptColor(s) { if (!s) return '#4b5563'; let h = 0; for (let i = 0; i < s.length; i++)h = s.charCodeAt(i) + ((h << 5) - h); const c = ['#16a34a', '#2563eb', '#dc2626', '#9333ea', '#ea580c', '#0891b2', '#be185d', '#854d0e', '#0f766e', '#7c3aed']; return c[Math.abs(h) % c.length] }
-        function sportIcon(n) { for (const k of Object.keys(SPORT_ICONS)) { if (n && n.toLowerCase().includes(k.toLowerCase())) return SPORT_ICONS[k] } return SPORT_ICONS.default }
+        function sportIcon(n) {
+            if (!n) return SPORT_ICON_MAP.default;
+            const lower = n.toLowerCase();
+            for (const k of Object.keys(SPORT_ICON_MAP)) {
+                if (k !== 'default' && lower.includes(k)) return SPORT_ICON_MAP[k];
+            }
+            return SPORT_ICON_MAP.default;
+        }
         function fmtTime(t) { if (!t) return 'TBD'; const p = String(t).split(':'); let h = parseInt(p[0]), m = p[1] || '00'; const ap = h >= 12 ? 'PM' : 'AM'; h = h % 12 || 12; return `${h}:${m} ${ap}` }
         function fmtDate(d) {
             if (!d) return 'TBD';
@@ -2525,11 +3414,13 @@
             const format = (m.tournament_format || '').toLowerCase();
             return format === 'free_for_all' || format === 'team_ranking' || m.bracket_side === 'ffa' || m.bracket_position === 'FFA Event';
         }
+        function isSets(m) { return m.scoring_type === 'sets' }
+        function isBinary(m) { return m.scoring_type === 'binary' }
 
-        async function loadFFAData(tournamentId) {
-            if (ffaDataCache[tournamentId]) return ffaDataCache[tournamentId];
+        async function loadFFAData(tournamentId, force = false) {
+            if (!force && ffaDataCache[tournamentId]) return ffaDataCache[tournamentId];
             try {
-                const res = await fetch(`${BASE}/api/tournaments/ffa-results/${tournamentId}`);
+                const res = await fetch(`${BASE}/api/matches/ffa/${tournamentId}`);
                 const data = await res.json();
                 if (data.success && data.data) {
                     const participants = data.data.participants || [];
@@ -2549,25 +3440,27 @@
             } catch (err) {
                 console.error('Error loading FFA data:', err);
             }
-            return null;
+            return ffaDataCache[tournamentId] || null;
+        }
+
+        async function loadSetsData(matchId, force = false) {
+            if (!force && setsDataCache[matchId]) return setsDataCache[matchId];
+            const m = allMatches.find(x => x.id === matchId || String(x.id) === String(matchId));
+            if (!m) return setsDataCache[matchId] || { setsWonA: 0, setsWonB: 0, currentSet: null };
+
+            let setsWonA = Number(m.sets_won_a ?? m.setsWonA);
+            let setsWonB = Number(m.sets_won_b ?? m.setsWonB);
+            if (Number.isNaN(setsWonA)) setsWonA = Number(m.total_score_a ?? m.live_score_a ?? 0) || 0;
+            if (Number.isNaN(setsWonB)) setsWonB = Number(m.total_score_b ?? m.live_score_b ?? 0) || 0;
+
+            const result = { setsWonA, setsWonB, currentSet: null };
+            setsDataCache[matchId] = result;
+            return result;
         }
 
         function updateClock() {
             const now = new Date();
             document.getElementById('topbar-clock').textContent = now.toLocaleTimeString('en-PH', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
-        }
-        setInterval(updateClock, 1000); updateClock();
-
-        function applyDynamicTheme(color) {
-            if (!color || !color.startsWith('#')) return;
-            const hex = color.replace('#', '');
-            const r = parseInt(hex.slice(0, 2), 16), g = parseInt(hex.slice(2, 4), 16), b = parseInt(hex.slice(4, 6), 16);
-            document.documentElement.style.setProperty('--accent', color);
-            document.documentElement.style.setProperty('--accent-rgb', `${r},${g},${b}`);
-            document.documentElement.style.setProperty('--accent-dim', `rgba(${r},${g},${b},0.12)`);
-            document.documentElement.style.setProperty('--accent-glow', `rgba(${r},${g},${b},0.3)`);
-            document.getElementById('hero-glow').style.background = `radial-gradient(ellipse,rgba(${r},${g},${b},0.15) 0%,transparent 70%)`;
-            document.getElementById('ticker-label').style.background = color;
         }
 
         function setupCountdown(matches) {
@@ -2607,7 +3500,7 @@
             currentSpotlight = val;
             document.getElementById('spotlight-clear').classList.toggle('visible', !!val);
             renderMatches();
-            if (document.getElementById('sec-leaderboard').classList.contains('active')) renderLeaderboard();
+            renderLeaderboard();
             if (document.getElementById('sec-mvp').classList.contains('active')) applyMVPSpotlight();
             if (document.getElementById('sec-schedule').classList.contains('active')) renderSchedule();
         }
@@ -2640,14 +3533,14 @@
             return `<span class="status-badge status-upcoming"><span class="status-dot"></span>Upcoming</span>`;
         }
 
-        function deptAvatarHTML(name, color, logoUrl, size = 'sm') {
+        function deptAvatarHTML(name, color, logoUrl, size = 'sm', isWinner = false) {
             const sz = size === 'lg' ? '56px' : size === 'md' ? '50px' : '44px';
             const fs = size === 'lg' ? '18px' : size === 'md' ? '16px' : '15px';
-            if (logoUrl) return `<div class="dept-avatar" style="width:${sz};height:${sz};background:${color}"><img src="${esc(logoUrl)}" alt="${esc(name)}" onerror="this.parentElement.innerHTML='<span style=font-size:${fs};font-weight:700>${initials(name)}</span>'" style="width:100%;height:100%;object-fit:cover;border-radius:50%;"></div>`;
-            return `<div class="dept-avatar" style="width:${sz};height:${sz};background:${color};font-size:${fs}">${initials(name)}</div>`;
+            const ring = isWinner ? ' is-winner-ring' : '';
+            if (logoUrl) return `<div class="dept-avatar${ring}" style="width:${sz};height:${sz};background:${color}"><img src="${esc(logoUrl)}" alt="${esc(name)}" onerror="this.parentElement.innerHTML='<span style=font-size:${fs};font-weight:700>${initials(name)}</span>'" style="width:100%;height:100%;object-fit:cover;border-radius:50%;"></div>`;
+            return `<div class="dept-avatar${ring}" style="width:${sz};height:${sz};background:${color};font-size:${fs}">${initials(name)}</div>`;
         }
 
-        // FFA match card
         function ffaCardHTML(m) {
             const ffaData = m.tournament_id ? ffaDataCache[m.tournament_id] : null;
             const participants = ffaData?.participants || [];
@@ -2661,9 +3554,9 @@
                 const rank = idx + 1;
                 let rankClass = 'rank-other';
                 let medal = rank;
-                if (rank === 1) { rankClass = 'rank-gold'; medal = '🥇'; }
-                else if (rank === 2) { rankClass = 'rank-silver'; medal = '🥈'; }
-                else if (rank === 3) { rankClass = 'rank-bronze'; medal = '🥉'; }
+                if (rank === 1) { rankClass = 'rank-gold'; medal = I.trophy; }
+                else if (rank === 2) { rankClass = 'rank-silver'; medal = I.medal; }
+                else if (rank === 3) { rankClass = 'rank-bronze'; medal = I.medal; }
                 const hasScore = p.ffa_result_value !== null;
                 const score = hasScore ? p.ffa_result_value : '—';
                 const isWinner = done && rank === 1;
@@ -2681,17 +3574,17 @@
             const remaining = participants.length - 8;
             const totalParticipants = participants.length;
 
-            return `<div class="ffa-card${live ? ' is-live' : ''}${spotClass}" onclick="openMatchModal(${m.id})" data-match-id="${m.id}">
+            return `<div class="ffa-card${live ? ' is-live' : ''}${spotClass}${done ? ' is-winner-card' : ''}" onclick="openMatchModal(${m.id})" data-match-id="${m.id}">
                 <div class="match-top">
                     <div class="match-meta">
                         <span class="sport-pill">${sportIcon(m.sport_name)} ${sport}</span>
-                        <span class="ffa-badge">🏃 FREE-FOR-ALL</span>
+                        <span class="ffa-badge">${I.ffa} FREE-FOR-ALL</span>
                         ${m.tournament_name ? `<span class="tournament-pill">${esc(m.tournament_name)}</span>` : ''}
                     </div>
                     ${statusBadgeHTML(m.status)}
                 </div>
                 <div class="ffa-header">
-                    <div class="ffa-icon">🏆</div>
+                    <div class="ffa-icon">${I.trophy}</div>
                     <div class="ffa-title">${totalParticipants} Participants</div>
                 </div>
                 <div class="ffa-participants">
@@ -2699,18 +3592,17 @@
                     ${remaining > 0 ? `<div style="text-align:center; padding:8px; color:var(--muted); font-size:12px; grid-column:1/-1;">+${remaining} more participants</div>` : ''}
                 </div>
                 <div class="ffa-footer">
-                    <div class="ffa-medal">${done ? '🏆 Champion crowned!' : '⏳ Live rankings'}</div>
+                    <div class="ffa-medal">${done ? `${I.trophy} Champion crowned` : `${I.live} Live rankings`}</div>
                     <div>${done ? 'Final results' : 'Updating automatically'}</div>
                 </div>
                 <div class="match-footer">
-                    ${m.venue_name ? `<span class="match-footer-item">📍 ${esc(m.venue_name)}</span>` : ''}
-                    ${m.scheduled_time ? `<span class="match-footer-item">🕐 ${fmtTime(m.scheduled_time)}</span>` : ''}
-                    ${m.scheduled_date ? `<span class="match-footer-item">📅 ${fmtDate(m.scheduled_date)}</span>` : ''}
-                    <span class="click-hint">🔍 Tap for details</span>
+                    ${m.venue_name ? `<span class="match-footer-item">${I.pin} ${esc(m.venue_name)}</span>` : ''}
+                    ${m.scheduled_time ? `<span class="match-footer-item">${I.clock} ${fmtTime(m.scheduled_time)}</span>` : ''}
+                    ${m.scheduled_date ? `<span class="match-footer-item">${I.calendar} ${fmtDate(m.scheduled_date)}</span>` : ''}
+                    <span class="click-hint">${I.search} Details</span>
                 </div>
             </div>`;
         }
-
 
         function matchCardHTML(m, featured = false) {
             const na = esc(m.dept_a_name || m.dept_a || 'TBD');
@@ -2723,23 +3615,38 @@
             const sb = fmtScore(m.total_score_b !== undefined ? m.total_score_b : m.live_score_b, m.sport_name);
             const live = m.status === 'ongoing';
             const done = m.status === 'completed';
-            const winA = done && m.winner_side === 'a';
-            const winB = done && m.winner_side === 'b';
+            const winA = done && (m.winner_side === 'a' || String(m.winner_department_id) === String(m.participant_a_department_id));
+            const winB = done && (m.winner_side === 'b' || String(m.winner_department_id) === String(m.participant_b_department_id));
             const spotClass = isSpotlighted(m) ? ' spotlight-highlight' : '';
-            const cls = featured ? 'featured-match' : `match-card${live ? ' is-live' : ''}${spotClass}`;
+            const winnerCard = done && (winA || winB) ? ' is-winner-card' : '';
+            const isTime = isTimeBased(m.sport_name) || m.scoring_type === 'time';
+            const formatPill = isTime
+                ? `<span class="format-pill time">${I.clock} TIME</span>`
+                : `<span class="format-pill points">${I.zap} POINTS</span>`;
+            const cls = featured ? 'featured-match' : `match-card${live ? ' is-live' : ''}${spotClass}${winnerCard}`;
             const avatarSize = featured ? 'lg' : 'sm';
 
-            const scoreClassA = winA ? 'score-num winner-score-final' : live && sa > sb ? 'score-num winner-score' : 'score-num';
-            const scoreClassB = winB ? 'score-num winner-score-final' : live && sb > sa ? 'score-num winner-score' : 'score-num';
+            const scoreClassA = winA ? 'score-num winner-score-final' : (live && Number(sa) > Number(sb) ? 'score-num winner-score' : 'score-num');
+            const scoreClassB = winB ? 'score-num winner-score-final' : (live && Number(sb) > Number(sa) ? 'score-num winner-score' : 'score-num');
 
-            const avatarA = `<div class="dept-avatar-wrap">${deptAvatarHTML(na, colorA, logoA, avatarSize)}${winA && done ? '<div class="winner-crown">👑</div>' : ''}</div>`;
-            const avatarB = `<div class="dept-avatar-wrap">${deptAvatarHTML(nb, colorB, logoB, avatarSize)}${winB && done ? '<div class="winner-crown">👑</div>' : ''}</div>`;
+            const avatarA = `<div class="dept-avatar-wrap">${deptAvatarHTML(na, colorA, logoA, avatarSize, winA)}${winA ? `<div class="winner-crown">${I.crown}</div>` : ''}</div>`;
+            const avatarB = `<div class="dept-avatar-wrap">${deptAvatarHTML(nb, colorB, logoB, avatarSize, winB)}${winB ? `<div class="winner-crown">${I.crown}</div>` : ''}</div>`;
+
+            let centerExtra = '';
+            if (done && (winA || winB)) {
+                centerExtra = `<div class="winner-ribbon" style="margin:6px auto 0">${I.check} Final</div>`;
+            } else if (live) {
+                centerExtra = `<div class="vs-text" style="color:var(--live)">Live score</div>`;
+            } else {
+                centerExtra = `<div class="vs-text">vs</div>`;
+            }
 
             return `<div class="${cls}" onclick="openMatchModal(${m.id})" data-match-id="${m.id}">
-                ${featured ? '<div class="featured-label">Match of the Day</div>' : ''}
+                ${featured ? `<div class="featured-label">${I.star} Match of the Day</div>` : ''}
                 <div class="match-top">
                     <div class="match-meta">
                         <span class="sport-pill">${sportIcon(m.sport_name)} ${esc(m.sport_name || 'Sport')}</span>
+                        ${formatPill}
                         ${m.tournament_name ? `<span class="tournament-pill">${esc(m.tournament_name)}</span>` : ''}
                     </div>
                     ${statusBadgeHTML(m.status)}
@@ -2748,6 +3655,7 @@
                     <div class="team">
                         ${avatarA}
                         <div class="dept-name${winA ? ' winner-final' : ''}">${na}</div>
+                        ${winA ? `<div class="winner-ribbon">${I.check} Winner</div>` : ''}
                     </div>
                     <div class="score-center">
                         <div class="score-display">
@@ -2755,21 +3663,172 @@
                             <div class="score-sep">–</div>
                             <div class="${scoreClassB}">${sb}</div>
                         </div>
-                        ${!live && !done ? '<div class="vs-text">vs</div>' : ''}
-                        ${done && (winA || winB) ? `<div style="font-size:11px;color:var(--gold);letter-spacing:.05em;text-transform:uppercase;margin-top:2px;">Winner ✓</div>` : ''}
+                        ${centerExtra}
                     </div>
                     <div class="team">
                         ${avatarB}
                         <div class="dept-name${winB ? ' winner-final' : ''}">${nb}</div>
+                        ${winB ? `<div class="winner-ribbon">${I.check} Winner</div>` : ''}
                     </div>
                 </div>
                 <div class="match-footer">
-                    ${m.venue_name ? `<span class="match-footer-item">📍 ${esc(m.venue_name)}</span>` : ''}
-                    ${m.scheduled_time ? `<span class="match-footer-item">🕐 ${fmtTime(m.scheduled_time)}</span>` : ''}
-                    ${m.scheduled_date ? `<span class="match-footer-item">📅 ${fmtDate(m.scheduled_date)}</span>` : ''}
-                    <span class="click-hint">🔍 Tap for details</span>
+                    ${m.venue_name ? `<span class="match-footer-item">${I.pin} ${esc(m.venue_name)}</span>` : ''}
+                    ${m.scheduled_time ? `<span class="match-footer-item">${I.clock} ${fmtTime(m.scheduled_time)}</span>` : ''}
+                    ${m.scheduled_date ? `<span class="match-footer-item">${I.calendar} ${fmtDate(m.scheduled_date)}</span>` : ''}
+                    <span class="click-hint">${I.search} Details</span>
                 </div>
             </div>`;
+        }
+
+        function setsCardHTML(m) {
+            const na = esc(m.dept_a_name || m.dept_a || 'TBD');
+            const nb = esc(m.dept_b_name || m.dept_b || 'TBD');
+            const colorA = m.dept_a_color || deptColor(na);
+            const colorB = m.dept_b_color || deptColor(nb);
+            const logoA = m.dept_a_logo || m.dept_a_logo_url || null;
+            const logoB = m.dept_b_logo || m.dept_b_logo_url || null;
+            const live = m.status === 'ongoing';
+            const done = m.status === 'completed';
+            const spotClass = isSpotlighted(m) ? ' spotlight-highlight' : '';
+
+            const sd = setsDataCache[m.id] || {
+                setsWonA: Number(m.sets_won_a ?? m.total_score_a ?? m.live_score_a ?? 0) || 0,
+                setsWonB: Number(m.sets_won_b ?? m.total_score_b ?? m.live_score_b ?? 0) || 0,
+                currentSet: null
+            };
+            const winA = done && (sd.setsWonA > sd.setsWonB || m.winner_side === 'a' || String(m.winner_department_id) === String(m.participant_a_department_id));
+            const winB = done && (sd.setsWonB > sd.setsWonA || m.winner_side === 'b' || String(m.winner_department_id) === String(m.participant_b_department_id));
+            const winnerCard = done && (winA || winB) ? ' is-winner-card' : '';
+            const cls = `match-card sets-card${live ? ' is-live' : ''}${spotClass}${winnerCard}`;
+
+            const scoreClassA = winA ? 'score-num winner-score-final' : (live && sd.setsWonA > sd.setsWonB ? 'score-num winner-score' : 'score-num');
+            const scoreClassB = winB ? 'score-num winner-score-final' : (live && sd.setsWonB > sd.setsWonA ? 'score-num winner-score' : 'score-num');
+
+            const avatarA = `<div class="dept-avatar-wrap">${deptAvatarHTML(na, colorA, logoA, 'sm', winA)}${winA ? `<div class="winner-crown">${I.crown}</div>` : ''}</div>`;
+            const avatarB = `<div class="dept-avatar-wrap">${deptAvatarHTML(nb, colorB, logoB, 'sm', winB)}${winB ? `<div class="winner-crown">${I.crown}</div>` : ''}</div>`;
+
+            const target = Number(m.sets_to_win) || Math.max(sd.setsWonA, sd.setsWonB, 2);
+            const dotsA = Array.from({ length: target }, (_, i) =>
+                `<span class="set-dot${i < sd.setsWonA ? ' on' : ''}"></span>`).join('');
+            const dotsB = Array.from({ length: target }, (_, i) =>
+                `<span class="set-dot${i < sd.setsWonB ? ' on' : ''}"></span>`).join('');
+
+            let centerExtra = `<div class="vs-text">sets</div>`;
+            if (done && (winA || winB)) {
+                centerExtra = `<div class="winner-ribbon" style="margin:6px auto 0">${I.check} Final</div>`;
+            } else if (live) {
+                centerExtra = `<div class="vs-text" style="color:var(--live)">Live sets</div>`;
+            }
+            if (sd.currentSet) {
+                centerExtra += `<div class="set-progress-note">Set ${sd.currentSet.set}: ${sd.currentSet.a}–${sd.currentSet.b}</div>`;
+            }
+
+            return `<div class="${cls}" onclick="openMatchModal(${m.id})" data-match-id="${m.id}">
+                <div class="match-top">
+                    <div class="match-meta">
+                        <span class="sport-pill">${sportIcon(m.sport_name)} ${esc(m.sport_name || 'Sport')}</span>
+                        <span class="format-pill sets">${I.sets} SETS</span>
+                        ${m.tournament_name ? `<span class="tournament-pill">${esc(m.tournament_name)}</span>` : ''}
+                    </div>
+                    ${statusBadgeHTML(m.status)}
+                </div>
+                <div class="teams-row">
+                    <div class="team">
+                        ${avatarA}
+                        <div class="dept-name${winA ? ' winner-final' : ''}">${na}</div>
+                        <div class="set-dots">${dotsA}</div>
+                        ${winA ? `<div class="winner-ribbon">${I.check} Winner</div>` : ''}
+                    </div>
+                    <div class="score-center">
+                        <div class="score-display">
+                            <div class="${scoreClassA}">${sd.setsWonA}</div>
+                            <div class="score-sep">–</div>
+                            <div class="${scoreClassB}">${sd.setsWonB}</div>
+                        </div>
+                        ${centerExtra}
+                    </div>
+                    <div class="team">
+                        ${avatarB}
+                        <div class="dept-name${winB ? ' winner-final' : ''}">${nb}</div>
+                        <div class="set-dots">${dotsB}</div>
+                        ${winB ? `<div class="winner-ribbon">${I.check} Winner</div>` : ''}
+                    </div>
+                </div>
+                <div class="match-footer">
+                    ${m.venue_name ? `<span class="match-footer-item">${I.pin} ${esc(m.venue_name)}</span>` : ''}
+                    ${m.scheduled_time ? `<span class="match-footer-item">${I.clock} ${fmtTime(m.scheduled_time)}</span>` : ''}
+                    ${m.scheduled_date ? `<span class="match-footer-item">${I.calendar} ${fmtDate(m.scheduled_date)}</span>` : ''}
+                    <span class="click-hint">${I.search} Details</span>
+                </div>
+            </div>`;
+        }
+
+        function binaryCardHTML(m) {
+            const na = esc(m.dept_a_name || m.dept_a || 'TBD');
+            const nb = esc(m.dept_b_name || m.dept_b || 'TBD');
+            const colorA = m.dept_a_color || deptColor(na);
+            const colorB = m.dept_b_color || deptColor(nb);
+            const logoA = m.dept_a_logo || m.dept_a_logo_url || null;
+            const logoB = m.dept_b_logo || m.dept_b_logo_url || null;
+            const live = m.status === 'ongoing';
+            const done = m.status === 'completed';
+            const winA = done && (m.winner_side === 'a' || String(m.winner_department_id) === String(m.participant_a_department_id));
+            const winB = done && (m.winner_side === 'b' || String(m.winner_department_id) === String(m.participant_b_department_id));
+            const isDraw = done && m.winner_side === 'draw';
+            const spotClass = isSpotlighted(m) ? ' spotlight-highlight' : '';
+            const winnerCard = done && (winA || winB) ? ' is-winner-card' : '';
+            const cls = `match-card binary-card${live ? ' is-live' : ''}${spotClass}${winnerCard}`;
+
+            const avatarA = `<div class="dept-avatar-wrap">${deptAvatarHTML(na, colorA, logoA, 'sm', winA)}${winA ? `<div class="winner-crown">${I.crown}</div>` : ''}</div>`;
+            const avatarB = `<div class="dept-avatar-wrap">${deptAvatarHTML(nb, colorB, logoB, 'sm', winB)}${winB ? `<div class="winner-crown">${I.crown}</div>` : ''}</div>`;
+
+            let centerHTML;
+            if (done && isDraw) {
+                centerHTML = `<div style="font-family:var(--font-head);font-size:15px;font-weight:800;color:var(--silver)">DRAW</div>`;
+            } else if (done) {
+                centerHTML = `<div style="font-family:var(--font-head);font-size:15px;font-weight:800;color:var(--gold);display:flex;align-items:center;gap:6px">${I.check} FINAL</div>`;
+            } else if (live) {
+                centerHTML = `<div class="vs-text" style="color:var(--live)">In progress</div>`;
+            } else {
+                centerHTML = `<div class="vs-text">vs</div>`;
+            }
+
+            return `<div class="${cls} no-detail" data-match-id="${m.id}" style="cursor:default">
+                <div class="match-top">
+                    <div class="match-meta">
+                        <span class="sport-pill">${sportIcon(m.sport_name)} ${esc(m.sport_name || 'Sport')}</span>
+                        <span class="format-pill binary">${I.binary} WIN / LOSS</span>
+                        ${m.tournament_name ? `<span class="tournament-pill">${esc(m.tournament_name)}</span>` : ''}
+                    </div>
+                    ${statusBadgeHTML(m.status)}
+                </div>
+                <div class="teams-row">
+                    <div class="team">
+                        ${avatarA}
+                        <div class="dept-name${winA ? ' winner-final' : ''}">${na}</div>
+                        ${winA ? `<div class="winner-ribbon">${I.check} Winner</div>` : ''}
+                    </div>
+                    <div class="score-center">${centerHTML}</div>
+                    <div class="team">
+                        ${avatarB}
+                        <div class="dept-name${winB ? ' winner-final' : ''}">${nb}</div>
+                        ${winB ? `<div class="winner-ribbon">${I.check} Winner</div>` : ''}
+                    </div>
+                </div>
+                <div class="match-footer">
+                    ${m.venue_name ? `<span class="match-footer-item">${I.pin} ${esc(m.venue_name)}</span>` : ''}
+                    ${m.scheduled_time ? `<span class="match-footer-item">${I.clock} ${fmtTime(m.scheduled_time)}</span>` : ''}
+                    ${m.scheduled_date ? `<span class="match-footer-item">${I.calendar} ${fmtDate(m.scheduled_date)}</span>` : ''}
+                    <span class="click-hint" style="opacity:.45">Result only</span>
+                </div>
+            </div>`;
+        }
+
+        function renderCard(m, featured = false) {
+            if (isFFA(m)) return ffaCardHTML(m);
+            if (isSets(m)) return setsCardHTML(m);
+            if (isBinary(m)) return binaryCardHTML(m);
+            return matchCardHTML(m, featured);
         }
 
         async function renderMatches() {
@@ -2777,10 +3836,11 @@
             const featWrap = document.getElementById('featured-match-wrap');
             let data = [...allMatches];
 
-
             for (const match of data) {
-                if (isFFA(match) && match.tournament_id && !ffaDataCache[match.tournament_id]) {
-                    await loadFFAData(match.tournament_id);
+                if (isFFA(match) && match.tournament_id) {
+                    await loadFFAData(match.tournament_id, match.status === 'ongoing');
+                } else if (isSets(match)) {
+                    await loadSetsData(match.id, true);
                 }
             }
 
@@ -2789,16 +3849,18 @@
 
             const liveMatches = allMatches.filter(m => m.status === 'ongoing');
             const todayMatches = allMatches.filter(m => isToday(m.scheduled_date));
-            const featured = liveMatches[0] || todayMatches[0] || null;
+            const featuredCandidate = liveMatches[0] || todayMatches[0] || null;
+            const featured = featuredCandidate && !isFFA(featuredCandidate) && !isSets(featuredCandidate) && !isBinary(featuredCandidate)
+                ? featuredCandidate : null;
 
-            if (featured && currentStatusFilter === 'all' && currentSportFilter === 'all' && !isFFA(featured)) {
+            if (featured && currentStatusFilter === 'all' && currentSportFilter === 'all') {
                 featWrap.innerHTML = matchCardHTML(featured, true);
                 data = data.filter(m => m.id !== featured.id);
             } else { featWrap.innerHTML = '' }
 
-            if (!data.length) { el.innerHTML = `<div class="empty-state"><span class="empty-icon">⚡</span><div class="empty-title">No matches found</div></div>`; return }
+            if (!data.length) { el.innerHTML = `<div class="empty-state"><span class="empty-icon">${I.zap}</span><div class="empty-title">No matches found</div></div>`; return }
             if (currentSpotlight) data.sort((a, b) => (isSpotlighted(b) ? 1 : 0) - (isSpotlighted(a) ? 1 : 0));
-            el.innerHTML = data.map(m => isFFA(m) ? ffaCardHTML(m) : matchCardHTML(m)).join('');
+            el.innerHTML = data.map(m => renderCard(m)).join('');
         }
 
         function filterByStatus(f, el) { currentStatusFilter = f; document.querySelectorAll('.filter-chip').forEach(c => c.classList.remove('active')); el.classList.add('active'); renderMatches() }
@@ -2810,6 +3872,16 @@
                 if (!r.ok) throw new Error();
                 const j = await r.json();
                 allMatches = j.data || [];
+
+                if (socket && isConnected) {
+                    allMatches.filter(m => m.status === 'ongoing').forEach(m => {
+                        if (!activeMatchRooms.has(m.id)) {
+                            socket.emit('joinMatch', m.id);
+                            activeMatchRooms.add(m.id);
+                        }
+                    });
+                }
+
                 const deptMap = {};
                 allMatches.forEach(m => {
                     if (m.participant_a_department_id && m.dept_a_name) deptMap[m.participant_a_department_id] = { id: m.participant_a_department_id, name: m.dept_a_name };
@@ -2829,10 +3901,14 @@
                 const badge = document.getElementById('live-badge');
                 if (live > 0) { badge.textContent = live; badge.style.display = '' } else badge.style.display = 'none';
                 const now = new Date();
-                document.getElementById('refresh-ts').textContent = `Last updated ${now.toLocaleTimeString('en-PH', { hour: '2-digit', minute: '2-digit' })} · Auto-refreshes every 30s`;
-                await renderMatches(); renderHighlights(); renderSchedule(); updateTicker();
+                document.getElementById('refresh-ts').textContent = `Live · last synced ${now.toLocaleTimeString('en-PH', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}`;
+                await renderMatches();
+                renderHighlights();
+                renderSchedule();
+                updateTicker();
+                if (openModalMatchId) refreshOpenModalIfNeeded();
             } catch {
-                document.getElementById('matches-container').innerHTML = `<div class="empty-state"><span class="empty-icon">⚡</span><div class="empty-title">Could not load matches</div><div class="empty-sub">Check server connection</div></div>`;
+                document.getElementById('matches-container').innerHTML = `<div class="empty-state"><span class="empty-icon">${I.zap}</span><div class="empty-title">Could not load matches</div><div class="empty-sub">Check server connection</div></div>`;
             }
         }
 
@@ -2840,6 +3916,12 @@
             const icon = btn.querySelector('.refresh-icon');
             icon.classList.add('spin'); setTimeout(() => icon.classList.remove('spin'), 500);
             loadMatches();
+        }
+
+        function refreshLeaderboard(btn) {
+            const icon = btn.querySelector('.refresh-icon');
+            icon.classList.add('spin'); setTimeout(() => icon.classList.remove('spin'), 500);
+            loadLeaderboard();
         }
 
         async function loadLeaderboard() {
@@ -2851,15 +3933,16 @@
                 allLbData = j.data || [];
                 renderLeaderboard();
                 if (allLbData.length && allLbData[0].color) applyDynamicTheme(allLbData[0].color);
+                checkAndFireConfetti();
             } catch {
-                el.innerHTML = `<div class="empty-state"><span class="empty-icon">🏆</span><div class="empty-title">Standings unavailable</div></div>`;
+                if (!allLbData.length) el.innerHTML = `<div class="empty-state"><span class="empty-icon">${I.trophy}</span><div class="empty-title">Standings unavailable</div></div>`;
             }
         }
 
         function renderLeaderboard() {
             const el = document.getElementById('lb-container');
             const data = allLbData;
-            if (!data.length) { el.innerHTML = `<div class="empty-state"><span class="empty-icon">🏆</span><div class="empty-title">No standings yet</div></div>`; return }
+            if (!data.length) { el.innerHTML = `<div class="empty-state"><span class="empty-icon">${I.trophy}</span><div class="empty-title">No standings yet</div></div>`; return }
             const rankLabel = n => { if (n === 1) return `<div class="rank-badge rank-1">1st</div>`; if (n === 2) return `<div class="rank-badge rank-2">2nd</div>`; if (n === 3) return `<div class="rank-badge rank-3">3rd</div>`; return `<div class="rank-badge rank-other">${n}</div>` };
             const topClass = n => n === 1 ? 'top1' : n === 2 ? 'top2' : n === 3 ? 'top3' : '';
             el.innerHTML = `<div class="lb-table">
@@ -2877,7 +3960,7 @@
                             <div class="medal-item"><div class="medal-icon mi-silver"></div><div class="medal-count">${d.silver_medals || 0}</div></div>
                             <div class="medal-item"><div class="medal-icon mi-bronze"></div><div class="medal-count">${d.bronze_medals || 0}</div></div>
                         </div>
-                        <div class="lb-pts">${d.total_points || 0}<span class="pts-lbl">pts</span></div>
+                        <div class="lb-pts"><span class="pts-num">${d.total_points || 0}</span><span class="pts-lbl">pts</span></div>
                     </div>`;
             }).join('')}
             </div>`;
@@ -2886,7 +3969,7 @@
         async function checkAndFireConfetti() {
             if (confettiFired) return;
             try {
-                const r = await fetch(`${BASE}/api/leaderboard/champion`);
+                const r = await fetch(`${BASE}/api/leaderboard/overall-champion`);
                 if (!r.ok) return;
                 const j = await r.json();
                 if (j.data && j.data.is_final && j.data.champion) fireConfetti(j.data.champion);
@@ -2904,7 +3987,7 @@
             const imgHtml = champion.logo_url ? `<img src="${esc(champion.logo_url)}" class="wb-dept-img" alt="${esc(champion.name)}">` : `<div class="wb-dept-initials" style="background:${champion.color || deptColor(champion.name)}">${initials(champion.name)}</div>`;
             const banner = document.createElement('div');
             banner.className = 'winner-banner';
-            banner.innerHTML = `<div class="wb-trophy">🏆</div>${imgHtml}<div class="wb-body"><div class="wb-label">Overall Champion</div><div class="wb-name">${esc(champion.name)}</div><div class="wb-sub">${champion.total_points || 0} pts · ${champion.gold_medals || 0} Gold · ${champion.silver_medals || 0} Silver · ${champion.bronze_medals || 0} Bronze</div></div>`;
+            banner.innerHTML = `<div class="wb-trophy">${I.trophy}</div>${imgHtml}<div class="wb-body"><div class="wb-label">Overall Champion</div><div class="wb-name">${esc(champion.name)}</div><div class="wb-sub">${champion.total_points || 0} pts · ${champion.gold_medals || 0} Gold · ${champion.silver_medals || 0} Silver · ${champion.bronze_medals || 0} Bronze</div></div>`;
             container.insertBefore(banner, container.firstChild);
         }
 
@@ -2930,7 +4013,7 @@
                     </div>`;
                 }).join('');
             } catch {
-                el.innerHTML = `<div class="empty-state" style="grid-column:1/-1"><span class="empty-icon">⭐</span><div class="empty-title">MVPs will be announced</div><div class="empty-sub">Check back as tournaments conclude</div></div>`;
+                el.innerHTML = `<div class="empty-state" style="grid-column:1/-1"><span class="empty-icon">${I.star}</span><div class="empty-title">MVPs will be announced</div><div class="empty-sub">Check back as tournaments conclude</div></div>`;
             }
         }
 
@@ -2947,7 +4030,7 @@
 
         function renderSchedule() {
             const el = document.getElementById('schedule-container');
-            if (!allMatches.length) { el.innerHTML = `<div class="empty-state"><span class="empty-icon">📅</span><div class="empty-title">No schedule available</div></div>`; return }
+            if (!allMatches.length) { el.innerHTML = `<div class="empty-state"><span class="empty-icon">${I.calendar}</span><div class="empty-title">No schedule available</div></div>`; return }
             const sorted = [...allMatches].sort((a, b) => ((a.scheduled_date || '9999') + (a.scheduled_time || '99:99')).localeCompare((b.scheduled_date || '9999') + (b.scheduled_time || '99:99')));
             const grouped = {};
             sorted.forEach(m => { const d = m.scheduled_date || 'TBD'; if (!grouped[d]) grouped[d] = []; grouped[d].push(m) });
@@ -2966,7 +4049,7 @@
                             <div class="sched-time-col">${fmtTime(m.scheduled_time)}</div>
                             <div class="sched-info">
                                 <div class="sched-match-name">${matchName}</div>
-                                <div class="sched-meta-row"><span>${sportIcon(m.sport_name)} ${sport}</span>${m.venue_name ? `<span>📍 ${esc(m.venue_name)}</span>` : ''}</div>
+                                <div class="sched-meta-row"><span>${sportIcon(m.sport_name)} ${sport}</span>${m.venue_name ? `<span>${I.pin} ${esc(m.venue_name)}</span>` : ''}</div>
                             </div>
                             ${statusBadgeHTML(m.status)}
                         </div>`;
@@ -2989,14 +4072,22 @@
         function renderHighlights() {
             const el = document.getElementById('highlights-container');
             const done = allMatches.filter(m => m.status === 'completed');
-            if (!done.length) { el.innerHTML = `<div class="empty-state"><span class="empty-icon">🎯</span><div class="empty-title">No completed matches yet</div></div>`; return }
+            if (!done.length) { el.innerHTML = `<div class="empty-state"><span class="empty-icon">${I.star}</span><div class="empty-title">No completed matches yet</div></div>`; return }
             el.innerHTML = done.slice().reverse().slice(0, 20).map(m => {
                 const na = esc(m.dept_a_name || m.dept_a || '?');
                 const nb = esc(m.dept_b_name || m.dept_b || '?');
                 const sa = fmtScore(m.total_score_a, m.sport_name);
                 const sb = fmtScore(m.total_score_b, m.sport_name);
                 const winner = m.winner_side === 'a' ? na : m.winner_side === 'b' ? nb : null;
-                const display = m.final_score_display || `${sa} – ${sb}`;
+                let display;
+                if (isBinary(m)) {
+                    display = winner ? `${winner} won` : (m.final_score_display || '—');
+                } else if (isSets(m)) {
+                    const sd = setsDataCache[m.id];
+                    display = sd ? `${sd.setsWonA}–${sd.setsWonB} sets` : (m.final_score_display || `${sa} – ${sb}`);
+                } else {
+                    display = m.final_score_display || `${sa} – ${sb}`;
+                }
                 return `<div class="highlight-card">
                     <div class="hl-icon">${sportIcon(m.sport_name)}</div>
                     <div class="hl-body">
@@ -3015,20 +4106,27 @@
             if (!items.length) { track.innerHTML = '<span class="ticker-item">Sport Fest 2025 · Live Coverage · Stay tuned for match updates</span><span class="ticker-item">Sport Fest 2025 · Live Coverage · Stay tuned</span>'; return }
             const html = items.map(m => {
                 const na = m.dept_a_name || m.dept_a || '?'; const nb = m.dept_b_name || m.dept_b || '?';
-                const sa = fmtScore(m.total_score_a !== undefined ? m.total_score_a : (m.live_score_a || 0), m.sport_name);
-                const sb = fmtScore(m.total_score_b !== undefined ? m.total_score_b : (m.live_score_b || 0), m.sport_name);
                 const tag = m.status === 'ongoing' ? '<span class="ticker-accent">LIVE</span>' : 'FINAL';
-                return `<span class="ticker-item">${tag} · <b>${na}</b> ${sa}–${sb} <b>${nb}</b> · ${sportIcon(m.sport_name)} ${m.sport_name || ''}</span>`;
+                let scorePart;
+                if (isBinary(m)) {
+                    const winner = m.winner_side === 'a' ? na : (m.winner_side === 'b' ? nb : null);
+                    scorePart = winner ? `${winner} won` : 'in progress';
+                } else if (isSets(m)) {
+                    const sd = setsDataCache[m.id];
+                    scorePart = sd ? `${sd.setsWonA}–${sd.setsWonB} sets` : '—';
+                } else {
+                    const sa = fmtScore(m.total_score_a !== undefined ? m.total_score_a : (m.live_score_a || 0), m.sport_name);
+                    const sb = fmtScore(m.total_score_b !== undefined ? m.total_score_b : (m.live_score_b || 0), m.sport_name);
+                    scorePart = `${sa}–${sb}`;
+                }
+                return `<span class="ticker-item">${tag} · <b>${na}</b> ${scorePart} <b>${nb}</b> · ${sportIcon(m.sport_name)} ${m.sport_name || ''}</span>`;
             }).join('');
             track.innerHTML = html + html;
         }
 
-        async function openMatchModal(matchId) {
-            const overlay = document.getElementById('modal-overlay');
+        async function loadAndRenderModal(matchId, silent = false) {
             const body = document.getElementById('modal-body');
-            overlay.classList.add('open');
-            document.body.style.overflow = 'hidden';
-            body.innerHTML = `<div style="padding:2rem;text-align:center;color:var(--muted)"><div class="live-dot" style="margin:0 auto 12px"></div>Loading details...</div>`;
+            if (!silent) body.innerHTML = `<div style="padding:2rem;text-align:center;color:var(--muted)"><div class="live-dot" style="margin:0 auto 12px"></div>Loading details...</div>`;
             try {
                 const r = await fetch(`${BASE}/api/matches/${matchId}`);
                 if (!r.ok) throw new Error();
@@ -3043,64 +4141,152 @@
                 const logoA = m.dept_a_logo || m.dept_a_logo_url || null;
                 const logoB = m.dept_b_logo || m.dept_b_logo_url || null;
                 const done = m.status === 'completed';
+                const live = m.status === 'ongoing';
                 const winA = done && (result?.winner_side === 'a');
                 const winB = done && (result?.winner_side === 'b');
-                const totalA = fmtScore(result?.total_score_a ?? scores.reduce((s, r) => s + (r.score_a || 0), 0), m.sport_name);
-                const totalB = fmtScore(result?.total_score_b ?? scores.reduce((s, r) => s + (r.score_b || 0), 0), m.sport_name);
-                const display = result?.final_score_display || `${totalA} – ${totalB}`;
+
+                const scoringType = m.scoring_type || 'points';
+                let display, totalA, totalB;
+
+                if (scoringType === 'binary') {
+                    totalA = ''; totalB = '';
+                    display = done
+                        ? `${winA ? na : nb} won`
+                        : (live ? 'In progress' : 'Not started');
+                } else if (scoringType === 'sets') {
+                    const ordered = [...scores].sort((a, b) => a.period - b.period);
+                    let setsWonA = 0, setsWonB = 0;
+                    ordered.forEach(s => { if (s.score_a > s.score_b) setsWonA++; else if (s.score_b > s.score_a) setsWonB++; });
+                    totalA = setsWonA; totalB = setsWonB;
+                    display = `${setsWonA} – ${setsWonB} sets`;
+                } else {
+                    totalA = fmtScore(result?.total_score_a ?? scores.reduce((s, r) => s + (r.score_a || 0), 0), m.sport_name);
+                    totalB = fmtScore(result?.total_score_b ?? scores.reduce((s, r) => s + (r.score_b || 0), 0), m.sport_name);
+                    display = result?.final_score_display || `${totalA} – ${totalB}`;
+                }
+
                 const avatarA = logoA ? `<div class="modal-dept-avatar" style="background:${colorA}"><img src="${esc(logoA)}" style="width:100%;height:100%;object-fit:cover;border-radius:50%;"></div>` : `<div class="modal-dept-avatar" style="background:${colorA}">${initials(na)}</div>`;
                 const avatarB = logoB ? `<div class="modal-dept-avatar" style="background:${colorB}"><img src="${esc(logoB)}" style="width:100%;height:100%;object-fit:cover;border-radius:50%;"></div>` : `<div class="modal-dept-avatar" style="background:${colorB}">${initials(nb)}</div>`;
-                const periodRows = scores.length ? scores.map(s => {
-                    const wA = done && winA && (s.score_a > s.score_b);
-                    const wB = done && winB && (s.score_b > s.score_a);
-                    return `<tr><td>${esc(s.period_label || 'Period ' + s.period)}</td><td class="${wA ? 'winner-score-cell' : ''}">${fmtScore(s.score_a, m.sport_name)}</td><td class="${wB ? 'winner-score-cell' : ''}">${fmtScore(s.score_b, m.sport_name)}</td></tr>`;
-                }).join('') : `<tr><td colspan="3" style="text-align:center;color:var(--muted);padding:1rem">No period data yet</td></tr>`;
+
+                let breakdownHTML = '';
+                if (scoringType === 'binary') {
+                    breakdownHTML = '';
+                } else {
+                    const periodLabel = scoringType === 'sets' ? 'Set' : 'Period';
+                    const periodRows = scores.length ? scores.map(s => {
+                        const wA = s.score_a > s.score_b;
+                        const wB = s.score_b > s.score_a;
+                        return `<tr>
+                            <td style="color:var(--muted2)">${esc(s.period_label || periodLabel + ' ' + s.period)}</td>
+                            <td class="${wA ? 'winner-score-cell' : ''}" style="color:${wA ? 'var(--gold)' : 'var(--text)'}">${fmtScore(s.score_a, m.sport_name)}</td>
+                            <td class="${wB ? 'winner-score-cell' : ''}" style="color:${wB ? 'var(--gold)' : 'var(--text)'}">${fmtScore(s.score_b, m.sport_name)}</td>
+                        </tr>`;
+                    }).join('') : `<tr><td colspan="3" style="text-align:center;color:var(--muted2);padding:1rem">No ${periodLabel.toLowerCase()} scores yet</td></tr>`;
+                    breakdownHTML = `<div class="modal-breakdown">
+                        <div class="modal-breakdown-title">${periodLabel} Breakdown</div>
+                        <table class="period-table">
+                            <thead><tr><th>${periodLabel}</th><th>${na}</th><th>${nb}</th></tr></thead>
+                            <tbody>${periodRows}</tbody>
+                            ${scores.length ? `<tfoot><tr class="total-row"><td>Total</td><td class="${winA ? 'winner-score-cell' : ''}">${totalA}</td><td class="${winB ? 'winner-score-cell' : ''}">${totalB}</td></tr></tfoot>` : ''}
+                        </table>
+                    </div>`;
+                }
+
                 body.innerHTML = `
                     <div class="modal-header" style="position:relative;">
                         <div class="modal-sport">${sportIcon(m.sport_name)} ${esc(m.sport_name || 'Sport')} ${statusBadgeHTML(m.status)}</div>
                         <div class="modal-title">${na} vs ${nb}</div>
                     </div>
+                    ${live ? `<div class="modal-live-pulse"><span class="live-dot"></span>Live — updating automatically</div>` : ''}
                     <div class="modal-teams">
                         <div class="modal-team">
-                            <div style="position:relative">${avatarA}${winA ? '<div class="winner-crown">👑</div>' : ''}</div>
+                            <div style="position:relative">${avatarA}${winA ? `<div class="winner-crown">${I.crown}</div>` : ''}</div>
                             <div class="modal-dept-name${winA ? ' winner' : ''}">${na}</div>
                         </div>
                         <div class="modal-final-score">
-                            <div class="modal-score-big">${display}</div>
-                            <div class="modal-score-label">${done ? 'Final Score' : 'Current Score'}</div>
+                            <div class="modal-score-big" style="${scoringType === 'binary' ? 'font-size:24px' : ''}">${display}</div>
+                            <div class="modal-score-label">${done ? 'Final Result' : 'Current Status'}</div>
                         </div>
                         <div class="modal-team">
-                            <div style="position:relative">${avatarB}${winB ? '<div class="winner-crown">👑</div>' : ''}</div>
+                            <div style="position:relative">${avatarB}${winB ? `<div class="winner-crown">${I.crown}</div>` : ''}</div>
                             <div class="modal-dept-name${winB ? ' winner' : ''}">${nb}</div>
                         </div>
                     </div>
-                    <div class="modal-breakdown">
-                        <div class="modal-breakdown-title">Period Breakdown</div>
-                        <table class="period-table">
-                            <thead><tr><th>Period</th><th>${na}</th><th>${nb}</th></tr></thead>
-                            <tbody>${periodRows}</tbody>
-                            ${scores.length ? `<tfoot><tr class="total-row"><td>Total</td><td class="${winA ? 'winner-score-cell' : ''}">${totalA}</td><td class="${winB ? 'winner-score-cell' : ''}">${totalB}</td></tr></tfoot>` : ''}
-                        </table>
-                    </div>
+                    ${breakdownHTML}
                     <div class="modal-meta">
-                        ${m.venue_name ? `<span class="modal-meta-item">📍 ${esc(m.venue_name)}</span>` : ''}
-                        ${m.scheduled_time ? `<span class="modal-meta-item">🕐 ${fmtTime(m.scheduled_time)}</span>` : ''}
-                        ${m.scheduled_date ? `<span class="modal-meta-item">📅 ${fmtDate(m.scheduled_date)}</span>` : ''}
+                        ${m.venue_name ? `<span class="modal-meta-item">${I.pin} ${esc(m.venue_name)}</span>` : ''}
+                        ${m.scheduled_time ? `<span class="modal-meta-item">${I.clock} ${fmtTime(m.scheduled_time)}</span>` : ''}
+                        ${m.scheduled_date ? `<span class="modal-meta-item">${I.calendar} ${fmtDate(m.scheduled_date)}</span>` : ''}
                         ${m.referee_name ? `<span class="modal-meta-item">👤 ${esc(m.referee_name)}</span>` : ''}
                         ${result?.win_type && result.win_type !== 'normal' ? `<span class="modal-meta-item">⚡ ${esc(result.win_type)}</span>` : ''}
                     </div>`;
+
+                if (done && modalRefreshTimer) { clearInterval(modalRefreshTimer); modalRefreshTimer = null; }
             } catch {
-                const m = allMatches.find(x => x.id === matchId || String(x.id) === String(matchId));
-                if (m) {
-                    const na = esc(m.dept_a_name || m.dept_a || 'TBD'); const nb = esc(m.dept_b_name || m.dept_b || 'TBD');
-                    const sa = fmtScore(m.total_score_a !== undefined ? m.total_score_a : m.live_score_a, m.sport_name);
-                    const sb = fmtScore(m.total_score_b !== undefined ? m.total_score_b : m.live_score_b, m.sport_name);
-                    body.innerHTML = `<div style="padding:1.5rem;"><div class="modal-sport">${sportIcon(m.sport_name)} ${esc(m.sport_name || 'Sport')} ${statusBadgeHTML(m.status)}</div><div class="modal-title" style="margin:8px 0 1.5rem">${na} vs ${nb}</div><div class="modal-final-score"><div class="modal-score-big">${sa} – ${sb}</div><div class="modal-score-label">Score</div></div><div style="margin-top:1rem;font-size:12px;color:var(--muted)">Detailed breakdown unavailable</div></div>`;
-                } else { body.innerHTML = `<div style="padding:2rem;text-align:center;color:var(--muted)">Could not load match details</div>` }
+                if (!silent) {
+                    const m = allMatches.find(x => x.id === matchId || String(x.id) === String(matchId));
+                    if (m) {
+                        if (isBinary(m)) { closeModal(); return; }
+                        const na = esc(m.dept_a_name || m.dept_a || 'TBD'); const nb = esc(m.dept_b_name || m.dept_b || 'TBD');
+                        const sets = isSets(m);
+                        const sa = sets
+                            ? (m.sets_won_a ?? m.total_score_a ?? m.live_score_a ?? 0)
+                            : fmtScore(m.total_score_a !== undefined ? m.total_score_a : m.live_score_a, m.sport_name);
+                        const sb = sets
+                            ? (m.sets_won_b ?? m.total_score_b ?? m.live_score_b ?? 0)
+                            : fmtScore(m.total_score_b !== undefined ? m.total_score_b : m.live_score_b, m.sport_name);
+                        body.innerHTML = `<div style="padding:1.5rem;">
+                            <div class="modal-sport">${sportIcon(m.sport_name)} ${esc(m.sport_name || 'Sport')} ${statusBadgeHTML(m.status)}
+                                ${sets ? `<span class="format-pill sets" style="margin-left:8px">${I.sets} SETS</span>` : `<span class="format-pill points" style="margin-left:8px">${I.zap} POINTS</span>`}
+                            </div>
+                            <div class="modal-title" style="margin:8px 0 1.5rem">${na} vs ${nb}</div>
+                            <div class="modal-final-score"><div class="modal-score-big">${sa} – ${sb}</div>
+                            <div class="modal-score-label">${sets ? 'Sets won' : 'Score'}</div></div>
+                            <div style="margin-top:1rem;font-size:13px;color:var(--muted2);line-height:1.5">
+                                ${sets
+                                ? 'Per-set point breakdown needs a public match detail endpoint. Overall sets are shown above.'
+                                : 'Detailed period breakdown unavailable on this view.'}
+                            </div>
+                        </div>`;
+                    } else { body.innerHTML = `<div style="padding:2rem;text-align:center;color:var(--muted2)">Could not load match details</div>` }
+                }
             }
         }
 
-        function closeModal() { document.getElementById('modal-overlay').classList.remove('open'); document.body.style.overflow = '' }
+        function refreshOpenModalIfNeeded() {
+            if (openModalMatchId) loadAndRenderModal(openModalMatchId, true);
+        }
+
+        async function openMatchModal(matchId) {
+            const fromList = allMatches.find(x => x.id === matchId || String(x.id) === String(matchId));
+            if (fromList && isBinary(fromList)) return;
+
+            const overlay = document.getElementById('modal-overlay');
+            overlay.classList.add('open');
+            document.body.style.overflow = 'hidden';
+            openModalMatchId = matchId;
+
+            joinMatchRoom(matchId);
+
+            await loadAndRenderModal(matchId, false);
+
+            clearInterval(modalRefreshTimer);
+            if (fromList && fromList.status === 'ongoing') {
+                modalRefreshTimer = setInterval(() => loadAndRenderModal(matchId, true), MODAL_POLL_MS);
+            }
+        }
+
+        function closeModal() {
+            if (openModalMatchId) {
+                leaveMatchRoom(openModalMatchId);
+            }
+            document.getElementById('modal-overlay').classList.remove('open');
+            document.body.style.overflow = '';
+            openModalMatchId = null;
+            clearInterval(modalRefreshTimer);
+            modalRefreshTimer = null;
+        }
+
         function closeModalOnBg(e) { if (e.target === document.getElementById('modal-overlay')) closeModal() }
         document.addEventListener('keydown', e => { if (e.key === 'Escape') closeModal() });
 
@@ -3109,14 +4295,137 @@
             document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
             el.classList.add('active');
             document.getElementById('sec-' + name).classList.add('active');
-            if (name === 'leaderboard') { loadLeaderboard().then(() => checkAndFireConfetti()) }
+            if (name === 'leaderboard') loadLeaderboard();
             if (name === 'mvp') loadMVPs();
             if (name === 'schedule') renderSchedule();
             if (name === 'highlights') renderHighlights();
         }
 
-        loadMatches();
-        refreshTimer = setInterval(loadMatches, 30000);
+        // ── OVERRIDE loadMatches to use WebSocket for live updates ──
+        const originalLoadMatches = loadMatches;
+        loadMatches = async function () {
+            try {
+                const r = await fetch(`${BASE}/api/matches`);
+                if (!r.ok) throw new Error();
+                const j = await r.json();
+                allMatches = j.data || [];
+
+                // Join rooms for live matches
+                if (socket && isConnected) {
+                    allMatches.filter(m => m.status === 'ongoing').forEach(m => {
+                        if (!activeMatchRooms.has(m.id)) {
+                            socket.emit('joinMatch', m.id);
+                            activeMatchRooms.add(m.id);
+                        }
+                    });
+                }
+
+                const deptMap = {};
+                allMatches.forEach(m => {
+                    if (m.participant_a_department_id && m.dept_a_name) deptMap[m.participant_a_department_id] = { id: m.participant_a_department_id, name: m.dept_a_name };
+                    if (m.participant_b_department_id && m.dept_b_name) deptMap[m.participant_b_department_id] = { id: m.participant_b_department_id, name: m.dept_b_name };
+                });
+                populateSpotlightSelect(Object.values(deptMap));
+                buildSportFilters(allMatches);
+                setupCountdown(allMatches);
+                const live = allMatches.filter(m => m.status === 'ongoing').length;
+                const today = allMatches.filter(m => isToday(m.scheduled_date)).length;
+                const done = allMatches.filter(m => m.status === 'completed').length;
+                const sports = [...new Set(allMatches.map(m => m.sport_name).filter(Boolean))].length;
+                document.getElementById('h-live').textContent = live;
+                document.getElementById('h-today').textContent = today;
+                document.getElementById('h-done').textContent = done;
+                document.getElementById('h-sports').textContent = sports || '—';
+                const badge = document.getElementById('live-badge');
+                if (live > 0) { badge.textContent = live; badge.style.display = '' } else badge.style.display = 'none';
+                const now = new Date();
+                document.getElementById('refresh-ts').textContent = `Live · last synced ${now.toLocaleTimeString('en-PH', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}`;
+                await renderMatches();
+                renderHighlights();
+                renderSchedule();
+                updateTicker();
+                if (openModalMatchId) refreshOpenModalIfNeeded();
+            } catch {
+                document.getElementById('matches-container').innerHTML = `<div class="empty-state"><span class="empty-icon">${I.zap}</span><div class="empty-title">Could not load matches</div><div class="empty-sub">Check server connection</div></div>`;
+            }
+        };
+
+        // ── OVERRIDE openMatchModal to join WebSocket room ──
+        const originalOpenMatchModal = openMatchModal;
+        openMatchModal = async function (matchId) {
+            const fromList = allMatches.find(x => x.id === matchId || String(x.id) === String(matchId));
+            if (fromList && isBinary(fromList)) return;
+
+            const overlay = document.getElementById('modal-overlay');
+            overlay.classList.add('open');
+            document.body.style.overflow = 'hidden';
+            openModalMatchId = matchId;
+
+            // Join WebSocket room for this match
+            joinMatchRoom(matchId);
+
+            await loadAndRenderModal(matchId, false);
+
+            clearInterval(modalRefreshTimer);
+            if (fromList && fromList.status === 'ongoing') {
+                modalRefreshTimer = setInterval(() => loadAndRenderModal(matchId, true), MODAL_POLL_MS);
+            }
+        };
+
+        // ── OVERRIDE closeModal to leave WebSocket room ──
+        const originalCloseModal = closeModal;
+        closeModal = function () {
+            if (openModalMatchId) {
+                leaveMatchRoom(openModalMatchId);
+            }
+            document.getElementById('modal-overlay').classList.remove('open');
+            document.body.style.overflow = '';
+            openModalMatchId = null;
+            clearInterval(modalRefreshTimer);
+            modalRefreshTimer = null;
+        };
+
+        // ── OVERRIDE loadLeaderboard to use WebSocket ──
+        const originalLoadLeaderboard = loadLeaderboard;
+        loadLeaderboard = async function () {
+            const el = document.getElementById('lb-container');
+            try {
+                // Use REST as fallback, but WebSocket will push updates
+                const r = await fetch(`${BASE}/api/leaderboard`);
+                if (!r.ok) throw new Error();
+                const j = await r.json();
+                allLbData = j.data || [];
+                renderLeaderboard();
+                if (allLbData.length && allLbData[0].color) applyDynamicTheme(allLbData[0].color);
+                checkAndFireConfetti();
+            } catch {
+                if (!allLbData.length) el.innerHTML = `<div class="empty-state"><span class="empty-icon">${I.trophy}</span><div class="empty-title">Standings unavailable</div></div>`;
+            }
+        };
+
+        // ── INIT ──
+        // Initialize Socket.IO first
+        initSocket();
+
+        // Then load initial data
+        setTimeout(() => {
+            loadMatches();
+            loadLeaderboard();
+        }, 500);
+
+        // Set up timers (fallback polling)
+        matchesRefreshTimer = setInterval(loadMatches, MATCHES_POLL_MS);
+        lbRefreshTimer = setInterval(loadLeaderboard, LEADERBOARD_POLL_MS);
+
+        // Clock update
+        function updateClock() {
+            const now = new Date();
+            document.getElementById('topbar-clock').textContent = now.toLocaleTimeString('en-PH', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+        }
+        setInterval(updateClock, 1000);
+        updateClock();
+
+        console.log('✅ PAC SCHED-SCORE initialized with WebSocket real-time updates');
     </script>
 </body>
 

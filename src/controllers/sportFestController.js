@@ -1,5 +1,6 @@
 const { pool } = require('../config/database');
 const { logActivity } = require('../utils/logger');
+const { emitToAll, emitToLeaderboard } = require('../utils/socketEmit')
 
 
 const getAll = async (req, res, next) => {
@@ -13,10 +14,26 @@ const getAll = async (req, res, next) => {
             LEFT JOIN departments d ON sf.champion_department_id = d.id
             LEFT JOIN sport_fest_tournaments sft ON sf.id = sft.sport_fest_id
             GROUP BY sf.id
-            ORDER BY sf.year DESC
+            ORDER BY sf.year DESC, sf.id DESC
         `);
 
         res.json({ success: true, data: rows });
+    } catch (err) {
+        next(err);
+    }
+};
+
+const getActive = async (req, res, next) => {
+    try {
+        const [rows] = await pool.execute(`
+            SELECT sf.*, d.name as champion_name
+            FROM sport_fest_events sf
+            LEFT JOIN departments d ON sf.champion_department_id = d.id
+            WHERE sf.is_current = 1
+            LIMIT 1
+        `);
+
+        res.json({ success: true, data: rows[0] || null });
     } catch (err) {
         next(err);
     }
@@ -159,11 +176,12 @@ const declareChampion = async (req, res, next) => {
             SELECT d.id, d.name,
                    COALESCE(ds.total_points,0) as total_points
             FROM departments d
-            LEFT JOIN department_scores ds ON d.id = ds.department_id
+            LEFT JOIN department_scores ds
+                ON d.id = ds.department_id AND ds.sport_fest_id = ?
             WHERE d.is_active = 1
             ORDER BY total_points DESC, ds.gold_medals DESC
             LIMIT 1
-        `);
+        `, [festId]);
 
         if (!rows.length) {
             return res.status(400).json({ success: false, message: 'No departments found' });
@@ -186,6 +204,21 @@ const declareChampion = async (req, res, next) => {
             `Champion declared: ${champion.name}`
         );
 
+        emitToAll('champion:declared', {
+            sport_fest_id: parseInt(festId),
+            champion: {
+                id: champion.id,
+                name: champion.name,
+                total_points: champion.total_points,
+            },
+            message: `🏆 ${champion.name} declared as Sport Fest Champion!`
+        });
+
+        emitToLeaderboard('leaderboard:changed', {
+            reason: 'champion_declared',
+            sport_fest_id: parseInt(festId)
+        });
+
         res.json({
             success: true,
             message: `🏆 ${champion.name} declared as Sport Fest Champion!`,
@@ -196,7 +229,6 @@ const declareChampion = async (req, res, next) => {
         next(err);
     }
 };
-
 
 const getSummary = async (req, res, next) => {
     try {
@@ -218,10 +250,11 @@ const getSummary = async (req, res, next) => {
                    COALESCE(ds.silver_medals,0) as silver,
                    COALESCE(ds.bronze_medals,0) as bronze
             FROM departments d
-            LEFT JOIN department_scores ds ON d.id = ds.department_id
+            LEFT JOIN department_scores ds
+                ON d.id = ds.department_id AND ds.sport_fest_id = ?
             WHERE d.is_active = 1
             ORDER BY total_points DESC, gold DESC
-        `);
+        `, [req.params.id]);
 
         const [tournamentSummary] = await pool.execute(`
             SELECT 
@@ -258,13 +291,80 @@ const getSummary = async (req, res, next) => {
     }
 };
 
+const startNewSeason = async (req, res, next) => {
+    try {
+        const { name, year, theme, start_date, end_date, description } = req.body;
+
+        if (!name || !year) {
+            return res.status(400).json({ success: false, message: 'Name and year are required' });
+        }
+
+        const conn = await pool.getConnection();
+        try {
+            await conn.beginTransaction();
+
+            const [current] = await conn.execute(
+                `SELECT id, name FROM sport_fest_events WHERE is_current = 1 LIMIT 1`
+            );
+
+            if (current.length) {
+                await conn.execute(
+                    `UPDATE sport_fest_events 
+                     SET is_current = 0, 
+                         status = IF(status = 'completed', status, 'completed') 
+                     WHERE id = ?`,
+                    [current[0].id]
+                );
+            }
+
+            const [result] = await conn.execute(
+                `INSERT INTO sport_fest_events 
+                 (name, year, theme, start_date, end_date, description, status, is_current)
+                 VALUES (?, ?, ?, ?, ?, ?, 'upcoming', 1)`,
+                [name, year, theme || null, start_date || null, end_date || null, description || null]
+            );
+
+            await conn.commit();
+
+            await logActivity(
+                req.user.id,
+                'SEASON_STARTED',
+                'sport_fest',
+                result.insertId,
+                `New season started: ${name} (${year})` +
+                (current.length ? `, archived "${current[0].name}"` : '')
+            );
+
+            res.status(201).json({
+                success: true,
+                message: current.length
+                    ? `New season "${name}" started. "${current[0].name}" is now archived.`
+                    : `New season "${name}" started.`,
+                data: { id: result.insertId }
+            });
+
+        } catch (err) {
+            await conn.rollback();
+            throw err;
+        } finally {
+            conn.release();
+        }
+
+    } catch (err) {
+        next(err);
+    }
+};
+
+
 module.exports = {
     getAll,
+    getActive,
     getOne,
     create,
     update,
     addTournament,
     removeTournament,
     declareChampion,
-    getSummary
+    getSummary,
+    startNewSeason
 };

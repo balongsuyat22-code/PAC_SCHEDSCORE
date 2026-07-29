@@ -1,0 +1,597 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PAC SCHED-SCORE — Bracketing</title>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;600;700;800;900&family=Barlow:wght@300;400;500;600&display=swap"
+        rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css"
+        crossorigin="anonymous" referrerpolicy="no-referrer">
+    <link rel="stylesheet" href="../css/sgo_president.css">
+    <style>
+        .sport-ico {
+            width: 16px;
+            text-align: center;
+            color: var(--gold);
+        }
+
+        .elig-row {
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            margin-bottom: 8px;
+            overflow: hidden;
+            background: var(--bg3);
+        }
+
+        .elig-row.disabled {
+            opacity: .55;
+        }
+
+        .elig-row-head {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 10px 12px;
+            cursor: pointer;
+        }
+
+        .elig-row-head input[type="checkbox"] {
+            width: 16px;
+            height: 16px;
+            flex-shrink: 0;
+        }
+
+        .elig-dot {
+            width: 26px;
+            height: 26px;
+            border-radius: 7px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 10px;
+            font-weight: 900;
+            color: #fff;
+            flex-shrink: 0;
+        }
+
+        .elig-name {
+            flex: 1;
+            font-size: 13px;
+            font-weight: 600;
+            min-width: 0;
+        }
+
+        .elig-sub {
+            font-size: 11px;
+            color: var(--muted);
+            margin-top: 2px;
+        }
+
+        .elig-count {
+            font-size: 12px;
+            font-weight: 800;
+            font-family: 'Barlow Condensed', sans-serif;
+            padding: 3px 10px;
+            border-radius: 20px;
+            flex-shrink: 0;
+        }
+
+        .elig-count.ok {
+            color: var(--green);
+            background: rgba(34, 197, 94, .12);
+        }
+
+        .elig-count.short {
+            color: var(--red);
+            background: rgba(232, 50, 59, .1);
+        }
+
+        .elig-type {
+            font-size: 10px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: .04em;
+            padding: 2px 8px;
+            border-radius: 100px;
+            flex-shrink: 0;
+        }
+
+        .elig-type.team {
+            background: rgba(59, 130, 246, .12);
+            color: #60a5fa;
+        }
+
+        .elig-type.solo {
+            background: rgba(255, 176, 32, .12);
+            color: var(--gold);
+        }
+
+        .elig-caret {
+            color: var(--muted);
+            transition: transform .15s;
+            flex-shrink: 0;
+        }
+
+        .elig-caret.open {
+            transform: rotate(90deg);
+        }
+
+        .elig-players {
+            display: none;
+            padding: 4px 12px 12px 48px;
+            border-top: 1px solid var(--border);
+        }
+
+        .elig-players.open {
+            display: block;
+        }
+
+        .elig-player-row {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 6px 0;
+            font-size: 12px;
+            border-bottom: 1px dashed var(--border);
+        }
+
+        .elig-player-row:last-child {
+            border-bottom: none;
+        }
+
+        .elig-player-status {
+            margin-left: auto;
+            font-size: 10px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: .5px;
+        }
+
+        .elig-empty-players {
+            font-size: 12px;
+            color: var(--muted);
+            padding: 6px 0;
+            font-style: italic;
+        }
+
+        .elig-meta-bar {
+            font-size: 12px;
+            color: var(--muted);
+            margin-bottom: 12px;
+            padding: 10px 12px;
+            background: var(--bg3);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+        }
+    </style>
+</head>
+
+<body>
+    <main class="main">
+        <div class="topbar">
+            <div style="display:flex;align-items:center">
+                <button class="burger-menu" onclick="toggleSidebar()"><i class="fa-solid fa-bars"></i></button>
+                <div class="topbar-title"><i class="fa-solid fa-trophy"></i> Bracketing Management</div>
+            </div>
+            <div class="topbar-actions">
+                <select id="tourn-select" class="form-select" style="width:280px" onchange="onTournamentChange()">
+                    <option value="">Select a tournament…</option>
+                </select>
+                <button class="btn btn-secondary btn-sm" onclick="refreshAll()">
+                    <i class="fa-solid fa-arrows-rotate"></i> Refresh
+                </button>
+            </div>
+        </div>
+
+        <div class="content">
+            <div id="no-selection" class="empty-state">
+                <div class="empty-icon"><i class="fa-solid fa-trophy"></i></div>
+                <div class="empty-text">Select a tournament above to manage its bracket, or
+                    <a href="/SGO_PRESIDENT/game-setup.html" style="color:var(--gold)">create a new one</a>.
+                </div>
+            </div>
+
+            <div id="tourn-workspace" style="display:none">
+                <div class="grid-3" style="margin-bottom:20px">
+                    <div class="stat-card stat-blue">
+                        <div class="stat-icon"><i class="fa-solid fa-users"></i></div>
+                        <div class="stat-value" id="w-participants">—</div>
+                        <div class="stat-label">Participants</div>
+                    </div>
+                    <div class="stat-card stat-gold">
+                        <div class="stat-icon"><i class="fa-solid fa-diagram-project"></i></div>
+                        <div class="stat-value" id="w-matches">—</div>
+                        <div class="stat-label">Matches</div>
+                    </div>
+                    <div class="stat-card stat-green">
+                        <div class="stat-icon"><i class="fa-solid fa-thumbtack"></i></div>
+                        <div class="stat-value" id="w-status">—</div>
+                        <div class="stat-label">Status</div>
+                    </div>
+                </div>
+
+                <div class="card" style="margin-bottom:20px">
+                    <div class="card-header">
+                        <div class="card-title"><i class="fa-solid fa-users"></i> Participants</div>
+                        <div style="display:flex;gap:8px;flex-wrap:wrap">
+                            <button class="btn btn-secondary btn-sm" onclick="openAddParticipants()">
+                                <i class="fa-solid fa-building-user"></i> Add Departments
+                            </button>
+                            <button class="btn btn-primary btn-sm" id="btn-generate" onclick="generateBracket()">
+                                <i class="fa-solid fa-bolt"></i> Generate Bracket
+                            </button>
+                        </div>
+                    </div>
+                    <div class="card-body" id="participants-list"></div>
+                </div>
+
+                <div class="card">
+                    <div class="card-header">
+                        <div class="card-title" id="bracket-title"><i class="fa-solid fa-trophy"></i> Bracket</div>
+                        <div style="display:flex;gap:8px;flex-wrap:wrap">
+                            <button class="btn btn-secondary btn-sm" id="btn-auto-schedule" style="display:none"
+                                onclick="Modal.open('modal-auto-schedule')">
+                                <i class="fa-solid fa-dice"></i> Auto-Schedule
+                            </button>
+                            <button class="btn btn-secondary btn-sm" id="btn-promote" style="display:none"
+                                onclick="promoteKnockout()">
+                                <i class="fa-solid fa-arrow-up-from-bracket"></i> Promote Knockout
+                            </button>
+                            <button class="btn btn-success btn-sm" onclick="Modal.open('modal-finalize')">
+                                <i class="fa-solid fa-flag-checkered"></i> Finalize Results
+                            </button>
+                        </div>
+                    </div>
+                    <div class="card-body" id="bracket-view">
+                        <div class="section-empty">No matches yet. Add participants and generate the bracket.</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- Add Participants Modal -->
+    <div class="modal-overlay" id="modal-add-participants">
+        <div class="modal" style="max-width:560px">
+            <div class="modal-header">
+                <div class="modal-title"><i class="fa-solid fa-building-user"></i> Add Departments</div>
+                <button class="modal-close" onclick="Modal.close('modal-add-participants')"><i
+                        class="fa-solid fa-xmark"></i></button>
+            </div>
+            <div class="modal-body">
+                <div id="elig-meta" class="elig-meta-bar">Loading sport rules…</div>
+                <div class="form-group">
+                    <label class="form-label">Select departments to enter this tournament</label>
+                    <div style="font-size:12px;color:var(--muted);margin-bottom:10px">
+                        <i class="fa-solid fa-circle-info"></i>
+                        Badge shows approved players vs minimum required. Team sports need the sport’s minimum roster
+                        (never 1). Duplicates are blocked.
+                    </div>
+                    <div id="dept-checklist" style="max-height:400px;overflow-y:auto"></div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="Modal.close('modal-add-participants')">Cancel</button>
+                <button class="btn btn-primary" onclick="submitParticipants()">
+                    <i class="fa-solid fa-plus"></i> Add Selected
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Auto-Schedule Modal -->
+    <div class="modal-overlay" id="modal-auto-schedule">
+        <div class="modal">
+            <div class="modal-header">
+                <div class="modal-title"><i class="fa-solid fa-dice"></i> Auto-Schedule Round Robin</div>
+                <button class="modal-close" onclick="Modal.close('modal-auto-schedule')"><i
+                        class="fa-solid fa-xmark"></i></button>
+            </div>
+            <div class="modal-body">
+                <p style="color:var(--text2);font-size:13px;margin-bottom:16px">
+                    Enter the dates and time slots available. Matches will be shuffled so no department plays two slots
+                    in a row.
+                </p>
+                <div class="form-group">
+                    <label class="form-label">Dates</label>
+                    <div id="as-dates" style="display:flex;flex-direction:column;gap:8px;margin-bottom:8px"></div>
+                    <button class="btn btn-secondary btn-sm" onclick="addDateInput()"><i class="fa-solid fa-plus"></i>
+                        Add Date</button>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Time Slots</label>
+                    <div id="as-times" style="display:flex;flex-direction:column;gap:8px;margin-bottom:8px"></div>
+                    <button class="btn btn-secondary btn-sm" onclick="addTimeInput()"><i class="fa-solid fa-plus"></i>
+                        Add Time Slot</button>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Venue (optional)</label>
+                    <select id="as-venue" class="form-select">
+                        <option value="">No venue / assign later</option>
+                    </select>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="Modal.close('modal-auto-schedule')">Cancel</button>
+                <button class="btn btn-primary" onclick="submitAutoSchedule()"><i class="fa-solid fa-dice"></i> Shuffle
+                    &amp; Schedule</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Finalize Modal -->
+    <div class="modal-overlay" id="modal-finalize">
+        <div class="modal">
+            <div class="modal-header">
+                <div class="modal-title"><i class="fa-solid fa-flag-checkered"></i> Finalize Tournament</div>
+                <button class="modal-close" onclick="Modal.close('modal-finalize')"><i
+                        class="fa-solid fa-xmark"></i></button>
+            </div>
+            <div class="modal-body">
+                <p style="color:var(--text2);font-size:14px;margin-bottom:16px">
+                    Locks final ranks, awards medals, and recalculates the leaderboard. Hard to undo.
+                </p>
+                <div id="finalize-preview" style="font-size:13px;color:var(--muted)">Rankings are derived from completed
+                    matches / FFA results.</div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="Modal.close('modal-finalize')">Cancel</button>
+                <button class="btn btn-success" onclick="finalizeTournament()"><i
+                        class="fa-solid fa-flag-checkered"></i> Finalize</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="../js/api.js"></script>
+    <script src="../js/sgo_president.js"></script>
+    <script src="../js/bracket-design.js"></script>
+    <script>
+        let currentTournamentId = null;
+        let currentTournament = null;
+        let eligibilityData = [];
+        let eligibilityMeta = null;
+
+        function statusColor(status) {
+            if (status === 'approved') return 'var(--green)';
+            if (status === 'rejected') return 'var(--red)';
+            return '#FBBF24';
+        }
+
+        document.addEventListener('DOMContentLoaded', async () => {
+            Auth.requireAuth('sgo_president');
+            renderSidebar('bracketing');
+            NotifBell.init();
+            await loadTournamentSelect();
+            await loadVenueOptionsForSchedule();
+            addDateInput();
+            addTimeInput();
+            const preselect = new URLSearchParams(location.search).get('tournament_id');
+            if (preselect) {
+                document.getElementById('tourn-select').value = preselect;
+                onTournamentChange();
+            }
+        });
+
+        async function loadTournamentSelect() {
+            const res = await api('/tournaments');
+            const sel = document.getElementById('tourn-select');
+            sel.innerHTML = '<option value="">Select a tournament…</option>' +
+                (res.data || []).map(t =>
+                    `<option value="${t.id}">${t.sport_name} — ${t.name} (${(t.format || '').replace(/_/g, ' ')})</option>`
+                ).join('');
+        }
+
+        async function loadVenueOptionsForSchedule() {
+            const res = await api('/venues');
+            const sel = document.getElementById('as-venue');
+            if (!sel) return;
+            sel.innerHTML = '<option value="">No venue / assign later</option>' +
+                (res.data || []).map(v => `<option value="${v.id}">${v.name}</option>`).join('');
+        }
+
+        function onTournamentChange() {
+            const id = document.getElementById('tourn-select').value;
+            if (!id) {
+                document.getElementById('no-selection').style.display = '';
+                document.getElementById('tourn-workspace').style.display = 'none';
+                return;
+            }
+            currentTournamentId = id;
+            document.getElementById('no-selection').style.display = 'none';
+            document.getElementById('tourn-workspace').style.display = '';
+            refreshAll();
+        }
+
+        async function refreshAll() {
+            if (!currentTournamentId) return;
+            const [tourneyRes, bracketRes] = await Promise.all([
+                api(`/tournaments/${currentTournamentId}`),
+                api(`/tournaments/${currentTournamentId}/bracket`),
+            ]);
+            if (!tourneyRes.success) return;
+            currentTournament = tourneyRes.data;
+
+            document.getElementById('w-participants').textContent = currentTournament.participants?.length || 0;
+            document.getElementById('w-matches').textContent = bracketRes.data?.length || 0;
+            document.getElementById('w-status').textContent = currentTournament.status;
+            document.getElementById('bracket-title').innerHTML =
+                `<i class="fa-solid fa-trophy"></i> Bracket — ${currentTournament.name}`;
+
+            document.getElementById('btn-generate').style.display =
+                ['draft', 'registration'].includes(currentTournament.status) ? '' : 'none';
+            document.getElementById('btn-promote').style.display =
+                currentTournament.format?.startsWith('group_stage_') ? '' : 'none';
+            document.getElementById('btn-auto-schedule').style.display =
+                currentTournament.format === 'round_robin' ? '' : 'none';
+
+            renderParticipants(currentTournament.participants || []);
+            const bracketEl = document.getElementById('bracket-view');
+            if (typeof renderBracketByFormat === 'function') {
+                bracketEl.innerHTML = renderBracketByFormat(
+                    bracketRes.data || [],
+                    currentTournament.participants || [],
+                    currentTournament
+                );
+            } else {
+                bracketEl.innerHTML = (bracketRes.data || []).length
+                    ? `<div class="section-empty">${bracketRes.data.length} match(es) loaded.</div>`
+                    : `<div class="section-empty">No matches yet. Add participants and generate the bracket.</div>`;
+            }
+        }
+
+        function renderParticipants(participants) {
+            const el = document.getElementById('participants-list');
+            if (!participants.length) {
+                el.innerHTML = '<div class="section-empty">No departments entered yet. Click "Add Departments" to begin.</div>';
+                return;
+            }
+            el.innerHTML = `<div style="display:flex;flex-wrap:wrap;gap:10px">${participants.map(p => `
+        <div style="display:flex;align-items:center;gap:8px;background:var(--bg3);border:1px solid var(--border);border-radius:20px;padding:6px 14px 6px 6px">
+          <div style="width:26px;height:26px;border-radius:50%;background:${p.department_color || '#555'};display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:900;color:#fff">${initials(p.department_name)}</div>
+          <span style="font-size:13px;font-weight:600">${p.department_name}${p.team_name ? ' — ' + p.team_name : ''}</span>
+          <span style="font-size:11px;color:var(--muted)"><i class="fa-solid fa-user" style="font-size:10px"></i> ${(p.players || []).filter(x => x.status === 'approved').length}</span>
+        </div>`).join('')}</div>`;
+        }
+
+        async function openAddParticipants() {
+            const el = document.getElementById('dept-checklist');
+            const meta = document.getElementById('elig-meta');
+            el.innerHTML = `<div class="section-empty"><i class="fa-solid fa-spinner fa-spin"></i> Checking rosters…</div>`;
+            meta.textContent = 'Loading sport rules…';
+            Modal.open('modal-add-participants');
+
+            const res = await api(`/tournaments/${currentTournamentId}/eligibility`);
+            if (!res.success) {
+                el.innerHTML = `<div class="section-empty">Couldn't load eligibility. Try again.</div>`;
+                return;
+            }
+            eligibilityData = res.data || [];
+            eligibilityMeta = res.meta || {};
+            const type = eligibilityMeta.is_team_sport ? 'Team sport' : 'Individual sport';
+            meta.innerHTML = `<strong>${eligibilityMeta.sport_name || 'Sport'}</strong> · ${type} ·
+        minimum <strong>${eligibilityMeta.required_players ?? '—'}</strong> approved player(s) required to enter`;
+            renderDeptChecklist();
+        }
+
+        function renderDeptChecklist() {
+            const el = document.getElementById('dept-checklist');
+            if (!eligibilityData.length) {
+                el.innerHTML = `<div class="section-empty">No departments found.</div>`;
+                return;
+            }
+
+            el.innerHTML = eligibilityData.map((d, idx) => {
+                const countClass = d.eligible ? 'ok' : 'short';
+                const players = d.players || [];
+                const typeCls = d.is_team_sport ? 'team' : 'solo';
+                const typeLbl = d.is_team_sport ? 'Team' : 'Solo';
+
+                const playersHtml = players.length
+                    ? players.map(p => `
+              <div class="elig-player-row">
+                <i class="fa-solid fa-user" style="width:14px;color:var(--muted);font-size:11px"></i>
+                <span>${p.first_name} ${p.last_name}</span>
+                ${p.jersey_number != null ? `<span style="color:var(--muted)">#${p.jersey_number}</span>` : ''}
+                <span class="elig-player-status" style="color:${statusColor(p.status)}">${p.status}</span>
+              </div>`).join('')
+                    : `<div class="elig-empty-players"><i class="fa-solid fa-triangle-exclamation"></i> No players registered for this sport yet.</div>`;
+
+                return `
+          <div class="elig-row ${d.already_added || !d.eligible ? 'disabled' : ''}" data-idx="${idx}">
+            <div class="elig-row-head" onclick="toggleEligRow(${idx})">
+              <input type="checkbox" value="${d.department_id}"
+                ${d.already_added ? 'checked disabled' : (d.eligible ? '' : 'disabled')}
+                onclick="event.stopPropagation()">
+              <div class="elig-dot" style="background:${d.department_color || '#555'}">${initials(d.department_name)}</div>
+              <div style="flex:1;min-width:0">
+                <div class="elig-name">${d.department_name}${d.team_name ? ` — ${d.team_name}` : ''}</div>
+                <div class="elig-sub">${d.reason || (d.eligible ? 'Eligible to add' : '')}</div>
+              </div>
+              <span class="elig-type ${typeCls}">${typeLbl}</span>
+              <span class="elig-count ${countClass}">${d.approved_count}/${d.required}</span>
+              <i class="fa-solid fa-chevron-right elig-caret" id="caret-${idx}"></i>
+            </div>
+            <div class="elig-players" id="players-${idx}">${playersHtml}</div>
+          </div>`;
+            }).join('');
+        }
+
+        function toggleEligRow(idx) {
+            document.getElementById(`players-${idx}`)?.classList.toggle('open');
+            document.getElementById(`caret-${idx}`)?.classList.toggle('open');
+        }
+
+        async function submitParticipants() {
+            const checked = [...document.querySelectorAll('#dept-checklist input:checked:not(:disabled)')]
+                .map(c => parseInt(c.value, 10));
+            if (!checked.length) {
+                Toast.show('Select at least one eligible department', 'error');
+                return;
+            }
+            const res = await api(`/tournaments/${currentTournamentId}/participants`, {
+                method: 'POST',
+                body: { department_ids: checked },
+            });
+            Toast.show(res.message || (res.success ? 'Participants added' : 'Error'), res.success ? 'success' : 'error');
+            if (res.success) {
+                Modal.close('modal-add-participants');
+                refreshAll();
+            }
+        }
+
+        async function generateBracket() {
+            if (!confirm('Generate the bracket now? This will (re)create matches for this tournament.')) return;
+            const res = await api(`/tournaments/${currentTournamentId}/generate`, { method: 'POST' });
+            Toast.show(res.message || (res.success ? 'Bracket generated!' : 'Error'), res.success ? 'success' : 'error');
+            if (res.success) refreshAll();
+        }
+
+        async function promoteKnockout() {
+            if (!confirm('Promote top finishers from each group into a knockout stage?')) return;
+            const res = await api(`/tournaments/${currentTournamentId}/promote-knockout`, { method: 'POST' });
+            Toast.show(res.message || (res.success ? 'Knockout stage generated!' : 'Error'), res.success ? 'success' : 'error');
+            if (res.success) refreshAll();
+        }
+
+        function addDateInput(value = '') {
+            const wrap = document.createElement('div');
+            wrap.style.cssText = 'display:flex;gap:8px';
+            wrap.innerHTML = `<input type="date" class="form-input as-date-input" value="${value}" style="flex:1">
+        <button class="btn btn-secondary btn-sm" onclick="this.parentElement.remove()"><i class="fa-solid fa-xmark"></i></button>`;
+            document.getElementById('as-dates').appendChild(wrap);
+        }
+
+        function addTimeInput(value = '') {
+            const wrap = document.createElement('div');
+            wrap.style.cssText = 'display:flex;gap:8px';
+            wrap.innerHTML = `<input type="time" class="form-input as-time-input" value="${value}" style="flex:1">
+        <button class="btn btn-secondary btn-sm" onclick="this.parentElement.remove()"><i class="fa-solid fa-xmark"></i></button>`;
+            document.getElementById('as-times').appendChild(wrap);
+        }
+
+        async function submitAutoSchedule() {
+            const dates = [...document.querySelectorAll('.as-date-input')].map(i => i.value).filter(Boolean);
+            const times = [...document.querySelectorAll('.as-time-input')].map(i => i.value).filter(Boolean);
+            const venue_id = parseInt(document.getElementById('as-venue').value, 10) || null;
+            if (!dates.length) { Toast.show('Add at least one date', 'error'); return; }
+            if (!times.length) { Toast.show('Add at least one time slot', 'error'); return; }
+            const res = await api(`/tournaments/${currentTournamentId}/schedule-round-robin`, {
+                method: 'POST',
+                body: { dates, times, venue_id },
+            });
+            Toast.show(res.message || (res.success ? 'Scheduled!' : 'Error'), res.success ? 'success' : 'error');
+            if (res.success) { Modal.close('modal-auto-schedule'); refreshAll(); }
+        }
+
+        async function finalizeTournament() {
+            const res = await api(`/tournaments/${currentTournamentId}/finalize`, { method: 'POST', body: {} });
+            Toast.show(res.message || (res.success ? 'Tournament finalized!' : 'Error'), res.success ? 'success' : 'error');
+            if (res.success) { Modal.close('modal-finalize'); refreshAll(); }
+        }
+    </script>
+</body>
+
+</html>

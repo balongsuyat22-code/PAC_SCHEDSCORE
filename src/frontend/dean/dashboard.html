@@ -1,0 +1,420 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PAC SCHED-SCORE — Dean Dashboard</title>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;600;700;800;900&family=Barlow:wght@300;400;500;600&display=swap"
+        rel="stylesheet">
+    <link rel="stylesheet" href="/css/shared.css">
+    <link rel="stylesheet" href="/css/dean.css">
+</head>
+
+<body>
+    <main class="main">
+        <div class="topbar">
+            <div class="topbar-title" style="display:flex;align-items:center;gap:8px;">
+                <span class="icon icon-md"><svg viewBox="0 0 24 24">
+                        <rect width="7" height="9" x="3" y="3" rx="1" />
+                        <rect width="7" height="5" x="14" y="3" rx="1" />
+                        <rect width="7" height="9" x="14" y="12" rx="1" />
+                        <rect width="7" height="5" x="3" y="16" rx="1" />
+                    </svg></span>
+                Dashboard
+            </div>
+            <div class="topbar-actions">
+                <button class="btn btn-secondary btn-sm" onclick="loadPage()"
+                    style="display:inline-flex;align-items:center;gap:6px;">
+                    <span class="icon icon-sm"><svg viewBox="0 0 24 24">
+                            <path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8" />
+                            <path d="M21 3v5h-5" />
+                            <path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16" />
+                            <path d="M8 16H3v5" />
+                        </svg></span>
+                    Refresh
+                </button>
+            </div>
+        </div>
+        <div class="content">
+
+            <div class="dept-hero" id="dept-hero">
+                <div class="dept-hero-logo" id="hero-logo">—</div>
+                <div class="dept-hero-info">
+                    <div class="dept-hero-name" id="hero-name">My Department</div>
+                    <div class="dept-hero-sub" id="hero-sub">Loading...</div>
+                    <div class="dept-hero-medals" id="hero-medals"></div>
+                </div>
+                <div class="dept-hero-pts">
+                    <div class="dept-hero-pts-num" id="hero-pts">—</div>
+                    <div class="dept-hero-pts-lbl">Total Points</div>
+                    <div style="font-size:12px;color:var(--muted);margin-top:6px" id="hero-rank"></div>
+                </div>
+            </div>
+
+            <div class="stat-strip" id="stat-strip">
+                <div class="stat-strip-card">
+                    <div class="stat-strip-icon bg-green"><svg viewBox="0 0 24 24">
+                            <path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2" />
+                            <circle cx="12" cy="7" r="4" />
+                        </svg></div>
+                    <div>
+                        <div class="stat-strip-val" id="s-approved">—</div>
+                        <div class="stat-strip-lbl">Approved Players</div>
+                    </div>
+                </div>
+                <div class="stat-strip-card">
+                    <div class="stat-strip-icon bg-orange"><svg viewBox="0 0 24 24">
+                            <circle cx="12" cy="12" r="10" />
+                            <polyline points="12 6 12 12 16 14" />
+                        </svg></div>
+                    <div>
+                        <div class="stat-strip-val" id="s-pending">—</div>
+                        <div class="stat-strip-lbl">Pending Approval</div>
+                    </div>
+                </div>
+                <div class="stat-strip-card">
+                    <div class="stat-strip-icon bg-blue"><svg viewBox="0 0 24 24">
+                            <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
+                            <circle cx="9" cy="7" r="4" />
+                            <path d="M22 21v-2a4 4 0 0 0-3-3.87" />
+                            <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+                        </svg></div>
+                    <div>
+                        <div class="stat-strip-val" id="s-teams">—</div>
+                        <div class="stat-strip-lbl">Teams</div>
+                    </div>
+                </div>
+                <div class="stat-strip-card">
+                    <div class="stat-strip-icon bg-purple"><svg viewBox="0 0 24 24">
+                            <path d="M14.5 17.5 3 6V3h3l11.5 11.5" />
+                            <path d="M13 19l6-6" />
+                            <path d="M16 16l4 4" />
+                            <path d="M19 21l2-2" />
+                        </svg></div>
+                    <div>
+                        <div class="stat-strip-val" id="s-matches">—</div>
+                        <div class="stat-strip-lbl">Scheduled Matches</div>
+                    </div>
+                </div>
+                <div class="stat-strip-card">
+                    <div class="stat-strip-icon bg-gold"><svg viewBox="0 0 24 24">
+                            <path
+                                d="M7.21 15 2.66 7.14a2 2 0 0 1 .13-2.2L4.4 2.8A2 2 0 0 1 6 2h12a2 2 0 0 1 1.6.8l1.6 2.14a2 2 0 0 1 .14 2.2L16.79 15" />
+                            <circle cx="12" cy="17" r="5" />
+                        </svg></div>
+                    <div>
+                        <div class="stat-strip-val" id="s-gold">—</div>
+                        <div class="stat-strip-lbl">Gold Medals</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="grid-2">
+                <div class="card">
+                    <div class="card-header">
+                        <div class="card-title">Our Upcoming Matches</div>
+                        <a href="/dean/matches" class="btn btn-secondary btn-sm">View All</a>
+                    </div>
+                    <div id="upcoming-matches" class="card-body">
+                        <div class="empty-state">
+                            <div class="empty-text">Loading...</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="card">
+                    <div class="card-header">
+                        <div class="card-title">Pending Player Approvals</div>
+                        <a href="/dean/players?tab=pending" class="btn btn-secondary btn-sm">Manage</a>
+                    </div>
+                    <div id="pending-list">
+                        <div class="empty-state">
+                            <div class="empty-text">Loading...</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="grid-2" style="margin-top:20px">
+                <div class="card">
+                    <div class="card-header">
+                        <div class="card-title">Recent Results</div>
+                    </div>
+                    <div id="recent-results">
+                        <div class="empty-state">
+                            <div class="empty-text">Loading...</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="card">
+                    <div class="card-header">
+                        <div class="card-title">Leaderboard Position</div>
+                        <a href="/dean/leaderboard" class="btn btn-secondary btn-sm">Full View</a>
+                    </div>
+                    <div id="mini-leaderboard">
+                        <div class="empty-state">
+                            <div class="empty-text">Loading...</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card" style="margin-top:20px">
+                <div class="card-header">
+                    <div class="card-title">Sport Performance</div>
+                </div>
+                <div id="sport-breakdown">
+                    <div class="empty-state">
+                        <div class="empty-text">Loading...</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <script src="/js/shared.js"></script>
+    <script src="/js/dean-sidebar.js"></script>
+    <script>
+        let myDept = null;
+
+        function isFFA(m) {
+            const f = (m.tournament_format || '').toLowerCase();
+            return f === 'free_for_all' || f === 'team_ranking';
+        }
+
+        function scoreLabel(m) {
+            if (isFFA(m)) return 'FFA';
+            if (m.scoring_type === 'sets') {
+                const sa = m.sets_won_a, sb = m.sets_won_b;
+                if (sa != null && sb != null) return sa + '–' + sb;
+                return m.final_score_display || '—';
+            }
+            if (m.scoring_type === 'binary') return m.final_score_display || (m.winner_side ? 'Decided' : '—');
+            if (m.final_score_display) return m.final_score_display;
+            if (m.total_score_a != null) return m.total_score_a + '–' + m.total_score_b;
+            return '—';
+        }
+
+        document.addEventListener('DOMContentLoaded', async () => {
+            Auth.requireAuth('dean_adviser');
+            renderSidebar('dashboard');
+            await loadPage();
+        });
+
+        async function loadPage() {
+            const user = Auth.getUser();
+            const deptId = user?.department_id;
+            if (!deptId) {
+                Toast.show('No department assigned to your account.', 'error');
+                return;
+            }
+
+            const [deptRes, playersRes, teamsRes, matchesRes, leaderboardRes, scoresRes] = await Promise.all([
+                api('/departments/' + deptId),
+                api('/players?department_id=' + deptId),
+                api('/teams?department_id=' + deptId),
+                api('/matches?department_id=' + deptId),
+                api('/leaderboard'),
+                api('/departments/' + deptId + '/scores'),
+            ]);
+
+            if (deptRes.success) {
+                myDept = deptRes.data;
+                renderHero(myDept, leaderboardRes.data || []);
+            }
+
+            renderStats(playersRes.data || [], teamsRes.data || [], matchesRes.data || []);
+            renderUpcoming(matchesRes.data || [], deptId);
+            renderPending(playersRes.data || []);
+            renderRecent(matchesRes.data || [], deptId);
+            renderLeaderboard(leaderboardRes.data || [], deptId);
+            renderSportBreakdown(scoresRes.data || []);
+        }
+
+        function renderHero(dept, leaderboard) {
+            const initials = (dept.short_name || dept.name || '?').split(' ').map(w => w[0]).slice(0, 2).join('').toUpperCase();
+            const logoEl = document.getElementById('hero-logo');
+            if (dept.logo_url) {
+                logoEl.innerHTML = '<img src="' + dept.logo_url + '" onerror="this.style.display=\'none\'">';
+                logoEl.style.background = (dept.color || '#818CF8') + '20';
+            } else {
+                logoEl.style.background = dept.color || '#818CF8';
+                logoEl.textContent = initials;
+            }
+
+            document.getElementById('hero-name').textContent = dept.name;
+            document.getElementById('hero-sub').textContent = (dept.short_name || dept.code || '') + ' · ' + (dept.description || 'Grade / Strand');
+            document.getElementById('hero-pts').textContent = dept.total_points || 0;
+
+            const rankEntry = leaderboard.find(d => d.id === dept.id);
+            document.getElementById('hero-rank').textContent = rankEntry?.rank ? '#' + rankEntry.rank + ' Overall Rank' : 'Not ranked yet';
+
+            document.getElementById('hero-medals').innerHTML =
+                '<span style="color:#F5B800;font-weight:700">Gold ' + (dept.gold_medals || 0) + '</span>' +
+                '<span style="color:#C0C0C0;font-weight:700">Silver ' + (dept.silver_medals || 0) + '</span>' +
+                '<span style="color:#CD7F32;font-weight:700">Bronze ' + (dept.bronze_medals || 0) + '</span>' +
+                '<span style="color:var(--muted)">· ' + (dept.tournaments_entered || 0) + ' events</span>';
+        }
+
+        function renderStats(players, teams, matches) {
+            document.getElementById('s-approved').textContent = players.filter(p => p.status === 'approved').length;
+            document.getElementById('s-pending').textContent = players.filter(p => p.status === 'pending').length;
+            document.getElementById('s-teams').textContent = teams.length;
+            document.getElementById('s-matches').textContent = matches.filter(m => ['scheduled', 'pending'].includes(m.status)).length;
+            document.getElementById('s-gold').textContent = myDept?.gold_medals || 0;
+        }
+
+        function renderUpcoming(matches, deptId) {
+            const el = document.getElementById('upcoming-matches');
+            const upcoming = matches
+                .filter(m => ['scheduled', 'pending'].includes(m.status) && m.scheduled_date)
+                .sort((a, b) => (a.scheduled_date + (a.scheduled_time || '')).localeCompare(b.scheduled_date + (b.scheduled_time || '')))
+                .slice(0, 5);
+
+            if (!upcoming.length) {
+                el.innerHTML = '<div class="empty-state"><div class="empty-text">No upcoming matches</div></div>';
+                return;
+            }
+
+            el.innerHTML = upcoming.map(m => {
+                let teamsHtml;
+                if (isFFA(m)) {
+                    teamsHtml = '<span style="color:var(--gold);font-weight:700">FFA Event</span>';
+                } else {
+                    const isHome = m.participant_a_department_id == deptId;
+                    const ourName = isHome ? (m.dept_a_name || '—') : (m.dept_b_name || '—');
+                    const oppName = isHome ? (m.dept_b_name || '—') : (m.dept_a_name || '—');
+                    teamsHtml = '<span class="our-team-highlight">' + ourName + '</span>' +
+                        '<span style="color:var(--muted)"> vs </span><span>' + oppName + '</span>';
+                }
+                const tag = m.scoring_type === 'sets' ? ' <span class="format-tag">Sets</span>' :
+                    m.scoring_type === 'binary' ? ' <span class="format-tag">Winner-only</span>' :
+                        isFFA(m) ? ' <span class="format-tag">FFA</span>' : '';
+                return '<div class="sched-match-row">' +
+                    '<div class="sched-match-vs">' +
+                    '<div class="sched-match-teams">' + teamsHtml + tag + '</div>' +
+                    '<div class="sched-match-meta">' + (m.sport_name || '') + ' · ' + (m.tournament_name || '') +
+                    ' · ' + (m.venue_name || 'TBD') + ' · ' + formatDate(m.scheduled_date) + '</div>' +
+                    '</div>' +
+                    '<div style="text-align:right">' +
+                    '<div style="font-family:\'Barlow Condensed\',sans-serif;font-size:18px;font-weight:800;color:var(--gold)">' +
+                    (formatTime(m.scheduled_time) || 'TBD') + '</div>' +
+                    statusBadge(m.status) +
+                    '</div></div>';
+            }).join('');
+        }
+
+        function renderPending(players) {
+            const el = document.getElementById('pending-list');
+            const pending = players.filter(p => p.status === 'pending').slice(0, 6);
+            if (!pending.length) {
+                el.innerHTML = '<div class="empty-state" style="padding:32px"><div class="empty-text">No pending approvals</div></div>';
+                return;
+            }
+            el.innerHTML = pending.map(p => {
+                const initials = ((p.first_name?.[0] || '?') + (p.last_name?.[0] || '')).toUpperCase();
+                const avatarHtml = p.image_url
+                    ? '<img src="' + p.image_url + '" style="width:100%;height:100%;object-fit:cover;border-radius:8px">'
+                    : '<span style="font-size:16px;font-weight:900">' + initials + '</span>';
+                return '<div class="roster-row">' +
+                    '<div class="roster-avatar" style="background:var(--bg3)">' + avatarHtml + '</div>' +
+                    '<div class="roster-info">' +
+                    '<div class="roster-name">' + p.first_name + ' ' + p.last_name + '</div>' +
+                    '<div class="roster-meta">' + (p.sport_name || '—') + (p.jersey_number ? ' · #' + p.jersey_number : '') + '</div>' +
+                    '</div>' +
+                    '<div style="display:flex;gap:6px">' +
+                    '<button class="btn btn-sm" style="background:var(--green);color:#000;font-weight:800" onclick="approvePlayer(' + p.id + ')">OK</button>' +
+                    '<button class="btn btn-sm" style="background:rgba(232,50,59,0.12);color:var(--red);border:1px solid rgba(232,50,59,0.3)" onclick="rejectPlayer(' + p.id + ')">X</button>' +
+                    '</div></div>';
+            }).join('');
+        }
+
+        function renderRecent(matches, deptId) {
+            const el = document.getElementById('recent-results');
+            const done = matches.filter(m => m.status === 'completed')
+                .sort((a, b) => new Date(b.completed_at || 0) - new Date(a.completed_at || 0)).slice(0, 5);
+            if (!done.length) {
+                el.innerHTML = '<div class="empty-state" style="padding:32px"><div class="empty-text">No completed matches yet</div></div>';
+                return;
+            }
+            el.innerHTML = done.map(m => {
+                let resultLabel, resultClass;
+                if (isFFA(m)) { resultLabel = 'DONE'; resultClass = 'result-draw'; }
+                else {
+                    const won = m.winner_department_id == deptId;
+                    const lost = m.winner_department_id && m.winner_department_id != deptId;
+                    resultLabel = won ? 'WIN' : lost ? 'LOSS' : 'DRAW';
+                    resultClass = won ? 'result-win' : lost ? 'result-loss' : 'result-draw';
+                }
+                const teams = isFFA(m)
+                    ? '<span style="color:var(--gold)">FFA Event</span>'
+                    : (m.dept_a_name || '?') + ' <span style="color:var(--muted)">vs</span> ' + (m.dept_b_name || '?');
+                return '<div class="sched-match-row">' +
+                    '<div class="sched-match-vs">' +
+                    '<div class="sched-match-teams">' + teams + '</div>' +
+                    '<div class="sched-match-meta">' + (m.sport_name || '') + ' · ' + (m.tournament_name || '') +
+                    ' · ' + formatDate(m.completed_at) + '</div></div>' +
+                    '<div style="text-align:right">' +
+                    '<div style="font-family:\'Barlow Condensed\',sans-serif;font-size:18px;font-weight:900;color:var(--gold)">' +
+                    scoreLabel(m) + '</div>' +
+                    '<span class="' + resultClass + '">' + resultLabel + '</span>' +
+                    '</div></div>';
+            }).join('');
+        }
+
+        function renderLeaderboard(data, deptId) {
+            const el = document.getElementById('mini-leaderboard');
+            if (!data.length) {
+                el.innerHTML = '<div class="empty-state" style="padding:32px"><div class="empty-text">No standings yet</div></div>';
+                return;
+            }
+            el.innerHTML = data.map((d, i) => {
+                const isUs = d.id == deptId;
+                return '<div class="lb-row" style="' + (isUs ? 'background:rgba(99,102,241,0.06);border-left:3px solid #818CF8' : '') + '">' +
+                    '<div class="lb-rank ' + (i < 3 ? 'rank-' + (i + 1) : '') + '">' + (i + 1) + '</div>' +
+                    '<div class="lb-color" style="background:' + d.color + '"></div>' +
+                    '<div class="lb-dept">' +
+                    '<div class="lb-dept-name" style="' + (isUs ? 'color:#818CF8;font-weight:800' : '') + '">' +
+                    d.name + (isUs ? ' (You)' : '') + '</div>' +
+                    '<div class="lb-dept-medals">G' + d.gold_medals + ' S' + d.silver_medals + ' B' + d.bronze_medals + '</div>' +
+                    '</div>' +
+                    '<div><div class="lb-pts" style="' + (isUs ? 'color:#818CF8' : '') + '">' + d.total_points +
+                    '</div><div class="lb-pts-lbl">pts</div></div></div>';
+            }).join('');
+        }
+
+        function renderSportBreakdown(scores) {
+            const el = document.getElementById('sport-breakdown');
+            if (!scores.length) {
+                el.innerHTML = '<div class="empty-state" style="padding:32px"><div class="empty-text">No sport results yet</div></div>';
+                return;
+            }
+            el.innerHTML = '<div class="table-wrap"><table><thead><tr>' +
+                '<th>Sport</th><th>Tournament</th><th>Rank</th><th>Medal</th><th>Points</th></tr></thead><tbody>' +
+                scores.map(s => {
+                    const medal = s.medal === 'gold' ? 'Gold' : s.medal === 'silver' ? 'Silver' : s.medal === 'bronze' ? 'Bronze' : '—';
+                    return '<tr><td>' + (s.sport_name || '—') + '</td>' +
+                        '<td style="color:var(--muted);font-size:13px">' + (s.tournament_name || '—') + '</td>' +
+                        '<td><span class="badge badge-muted">' + (typeof formatRank === 'function' ? formatRank(s.rank) : (s.rank || '—')) + '</span></td>' +
+                        '<td>' + medal + '</td>' +
+                        '<td><span style="font-family:\'Barlow Condensed\',sans-serif;font-size:20px;font-weight:900;color:var(--gold)">+' +
+                        (s.sport_fest_points || 0) + '</span></td></tr>';
+                }).join('') + '</tbody></table></div>';
+        }
+
+        async function approvePlayer(id) {
+            const res = await api('/players/' + id + '/status', { method: 'PATCH', body: JSON.stringify({ status: 'approved' }) });
+            Toast.show(res.message || (res.success ? 'Player approved!' : 'Error'), res.success ? 'success' : 'error');
+            if (res.success) await loadPage();
+        }
+
+        async function rejectPlayer(id) {
+            const res = await api('/players/' + id + '/status', { method: 'PATCH', body: JSON.stringify({ status: 'rejected' }) });
+            Toast.show(res.message || (res.success ? 'Player rejected.' : 'Error'), res.success ? 'success' : 'error');
+            if (res.success) await loadPage();
+        }
+    </script>
+</body>
+
+</html>

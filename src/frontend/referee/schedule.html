@@ -9,7 +9,6 @@
         href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;600;700;800;900&family=Barlow:wght@300;400;500;600&display=swap"
         rel="stylesheet">
     <link rel="stylesheet" href="../css/referee.css">
-
     <style>
         .date-banner {
             background: var(--bg2);
@@ -26,7 +25,7 @@
 
         .date-banner-day {
             font-family: 'Barlow Condensed', sans-serif;
-            font-size: 28px;
+            font-size: 26px;
             font-weight: 900;
             color: var(--text);
         }
@@ -44,7 +43,6 @@
             color: var(--gold);
             letter-spacing: 1px;
         }
-
 
         .timeline {
             position: relative;
@@ -103,8 +101,8 @@
             position: absolute;
             left: -36px;
             top: 16px;
-            width: 20px;
-            height: 20px;
+            width: 18px;
+            height: 18px;
             border-radius: 50%;
             background: var(--bg);
             border: 3px solid var(--gold);
@@ -113,7 +111,7 @@
         }
 
         .timeline-item:hover .timeline-dot {
-            box-shadow: 0 0 0 5px rgba(245, 184, 0, 0.15);
+            box-shadow: 0 0 0 5px rgba(245, 184, 0, 0.12);
         }
 
         .timeline-dot.dot-live {
@@ -187,21 +185,6 @@
             flex-wrap: wrap;
             gap: 8px;
         }
-
-        .empty-state {
-            text-align: center;
-            padding: 60px 20px;
-            color: var(--muted);
-        }
-
-        .empty-icon {
-            font-size: 40px;
-            margin-bottom: 12px;
-        }
-
-        .empty-text {
-            font-size: 14px;
-        }
     </style>
 </head>
 
@@ -212,16 +195,29 @@
         <div class="topbar"></div>
 
         <div class="content">
-
-            <div class="page-header"
-                style="display:flex; justify-content:space-between; align-items:center; margin-bottom:28px;">
+            <div class="page-header">
                 <div>
-                    <div class="page-title">📅 Today's Timeline</div>
+                    <div class="page-title">
+                        <span class="title-icon"><svg viewBox="0 0 24 24">
+                                <rect width="18" height="18" x="3" y="4" rx="2" ry="2" />
+                                <line x1="16" x2="16" y1="2" y2="6" />
+                                <line x1="8" x2="8" y1="2" y2="6" />
+                                <line x1="3" x2="21" y1="10" y2="10" />
+                            </svg></span>
+                        Today's Timeline
+                    </div>
                     <div class="page-sub">Your match sequence for today.</div>
                 </div>
-                <button class="btn btn-secondary btn-sm" onclick="loadSchedule()">🔄 Refresh</button>
+                <button class="btn btn-secondary btn-sm" onclick="loadSchedule()">
+                    <svg viewBox="0 0 24 24">
+                        <path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8" />
+                        <path d="M21 3v5h-5" />
+                        <path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16" />
+                        <path d="M8 16H3v5" />
+                    </svg>
+                    Refresh
+                </button>
             </div>
-
 
             <div class="date-banner">
                 <div>
@@ -231,10 +227,12 @@
                 <div class="date-banner-clock" id="live-clock">00:00:00</div>
             </div>
 
-
             <div id="schedule-timeline" class="timeline">
                 <div class="empty-state">
-                    <div class="empty-icon">⏳</div>
+                    <div class="empty-icon"><svg viewBox="0 0 24 24">
+                            <circle cx="12" cy="12" r="10" />
+                            <polyline points="12 6 12 12 16 14" />
+                        </svg></div>
                     <div class="empty-text">Loading schedule...</div>
                 </div>
             </div>
@@ -253,11 +251,9 @@
 
         function startClock() {
             const now = new Date();
-
             document.getElementById('today-label').textContent = now.toLocaleDateString('en-US', {
                 weekday: 'long', month: 'long', day: 'numeric', year: 'numeric'
             });
-
             function tick() {
                 document.getElementById('live-clock').textContent =
                     new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
@@ -268,41 +264,46 @@
 
         async function loadSchedule() {
             const el = document.getElementById('schedule-timeline');
-            el.innerHTML = `<div class="empty-state"><div class="empty-icon">⏳</div><div class="empty-text">Loading schedule...</div></div>`;
+            el.innerHTML = `<div class="empty-state">
+                <div class="empty-icon"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg></div>
+                <div class="empty-text">Loading schedule...</div>
+            </div>`;
 
             try {
                 const res = await api('/schedules/today');
                 if (!res.success || !res.data?.length) {
                     el.innerHTML = `<div class="empty-state">
-                        <div class="empty-icon">📭</div>
+                        <div class="empty-icon"><svg viewBox="0 0 24 24"><polyline points="22 12 16 12 14 15 10 15 8 12 2 12"/><path d="M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"/></svg></div>
                         <div class="empty-text">No matches assigned for today.</div>
                     </div>`;
                     return;
                 }
 
                 el.innerHTML = res.data.map(m => {
-                    const nameA = m.team_a_name || m.dept_a || 'TBD';
-                    const nameB = m.team_b_name || m.dept_b || 'TBD';
+                    const isFFA = (m.tournament_format || '').toLowerCase() === 'free_for_all' ||
+                        (m.tournament_format || '').toLowerCase() === 'team_ranking';
+                    const nameA = m.team_a_name || m.dept_a || m.dept_a_name || 'TBD';
+                    const nameB = m.team_b_name || m.dept_b || m.dept_b_name || 'TBD';
+                    const matchup = isFFA
+                        ? (m.tournament_name || 'FFA Event')
+                        : `${nameA}<span class="timeline-vs">vs</span>${nameB}`;
                     const isLive = m.status === 'ongoing';
-                    const dotCls = isLive ? 'dot-live' : '';
-                    const cardCls = isLive ? 'card-live' : '';
                     const action = ['scheduled', 'ongoing'].includes(m.status)
-                        ? `<a href="scoring.html?id=${m.id}" class="btn btn-primary btn-sm">Score ⚡</a>`
-                        : `<a href="scoring.html?id=${m.id}" class="btn btn-secondary btn-sm">Review 📜</a>`;
+                        ? `<a href="scoring.html?id=${m.id}" class="btn btn-primary btn-sm">Score</a>`
+                        : `<a href="scoring.html?id=${m.id}" class="btn btn-secondary btn-sm">Review</a>`;
+
                     return `
                         <div class="timeline-item">
-                            <div class="timeline-dot ${dotCls}"></div>
-                            <div class="timeline-card ${cardCls}">
-                                <div class="timeline-time">${formatTime(m.scheduled_time)}</div>
-                                <div class="timeline-matchup">
-                                    ${nameA}<span class="timeline-vs">vs</span>${nameB}
-                                </div>
+                            <div class="timeline-dot ${isLive ? 'dot-live' : ''}"></div>
+                            <div class="timeline-card ${isLive ? 'card-live' : ''}">
+                                <div class="timeline-time">${typeof formatTime === 'function' ? formatTime(m.scheduled_time) : (m.scheduled_time || 'TBD')}</div>
+                                <div class="timeline-matchup">${matchup}</div>
                                 <div class="timeline-meta">
-                                    ${sportIcon(m.sport_name)} ${m.sport_name}
-                                    &nbsp;·&nbsp; 📍 ${m.venue_name || 'TBD'}
+                                    ${m.sport_name || 'Sport'}
+                                    · ${m.venue_name || 'TBD'}
                                 </div>
                                 <div class="timeline-footer">
-                                    ${statusBadge(m.status)}
+                                    ${typeof statusBadge === 'function' ? statusBadge(m.status) : m.status}
                                     ${action}
                                 </div>
                             </div>
@@ -310,10 +311,7 @@
                 }).join('');
             } catch (err) {
                 console.error(err);
-                el.innerHTML = `<div class="empty-state">
-                    <div class="empty-icon">⚠️</div>
-                    <div class="empty-text">Failed to load schedule. Please try again.</div>
-                </div>`;
+                el.innerHTML = `<div class="empty-state" style="color:#ef4444;">Failed to load schedule.</div>`;
             }
         }
     </script>

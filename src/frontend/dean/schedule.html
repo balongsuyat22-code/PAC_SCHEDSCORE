@@ -1,0 +1,553 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PAC SCHED-SCORE — Schedule</title>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;600;700;800;900&family=Barlow:wght@300;400;500;600&display=swap"
+        rel="stylesheet">
+    <link rel="stylesheet" href="/css/shared.css">
+    <link rel="stylesheet" href="/css/dean.css">
+    <style>
+        .view-toggle {
+            display: flex;
+            gap: 4px;
+            background: var(--bg3);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 3px;
+        }
+
+        .view-btn {
+            padding: 6px 14px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 12px;
+            font-weight: 700;
+            color: var(--muted);
+            transition: all .15s;
+        }
+
+        .view-btn.active {
+            background: var(--bg2);
+            color: var(--text);
+        }
+
+        .cal-grid {
+            display: grid;
+            grid-template-columns: repeat(7, 1fr);
+            gap: 1px;
+            background: var(--border);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            overflow: hidden;
+        }
+
+        .cal-day-header {
+            background: var(--bg3);
+            padding: 8px;
+            text-align: center;
+            font-size: 11px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: var(--muted);
+        }
+
+        .cal-cell {
+            background: var(--bg2);
+            min-height: 90px;
+            padding: 8px;
+            cursor: pointer;
+            transition: background .1s;
+        }
+
+        .cal-cell:hover {
+            background: var(--bg3);
+        }
+
+        .cal-cell.today {
+            background: rgba(99, 102, 241, 0.06);
+        }
+
+        .cal-cell.other-month {
+            opacity: 0.35;
+        }
+
+        .cal-cell.has-match {
+            border-top: 2px solid var(--gold);
+        }
+
+        .cal-cell.has-our-match {
+            border-top: 2px solid #818CF8;
+        }
+
+        .cal-date-num {
+            font-family: 'Barlow Condensed', sans-serif;
+            font-size: 16px;
+            font-weight: 800;
+            margin-bottom: 4px;
+        }
+
+        .cal-cell.today .cal-date-num {
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            background: #818CF8;
+            color: #fff;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 13px;
+        }
+
+        .cal-event {
+            font-size: 10px;
+            font-weight: 600;
+            padding: 2px 5px;
+            border-radius: 3px;
+            margin-bottom: 2px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .cal-event.our {
+            background: rgba(99, 102, 241, 0.2);
+            color: #818CF8;
+        }
+
+        .cal-event.other {
+            background: rgba(255, 255, 255, 0.06);
+            color: var(--muted);
+        }
+
+        .cal-event.live {
+            background: rgba(34, 197, 94, 0.2);
+            color: var(--green);
+        }
+
+        .cal-event.done {
+            background: rgba(255, 255, 255, 0.04);
+            color: var(--muted);
+            text-decoration: line-through;
+        }
+
+        .cal-nav {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 16px;
+        }
+
+        .cal-month {
+            font-family: 'Barlow Condensed', sans-serif;
+            font-size: 22px;
+            font-weight: 900;
+            text-transform: uppercase;
+        }
+
+        .cal-nav-btn {
+            background: none;
+            border: 1px solid var(--border);
+            color: var(--text);
+            width: 32px;
+            height: 32px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 16px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all .15s;
+        }
+
+        .cal-nav-btn:hover {
+            border-color: var(--border-gold);
+        }
+
+        .sched-block {
+            margin-bottom: 24px;
+        }
+
+        .sched-block-date {
+            font-family: 'Barlow Condensed', sans-serif;
+            font-size: 15px;
+            font-weight: 800;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: var(--muted);
+            padding: 8px 14px;
+            background: var(--bg3);
+            border-radius: 8px;
+            margin-bottom: 8px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .sched-block-date.today-label {
+            color: #818CF8;
+            background: rgba(99, 102, 241, 0.08);
+            border: 1px solid rgba(99, 102, 241, 0.2);
+        }
+
+        .sched-item {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            padding: 12px 16px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+            transition: background .1s;
+        }
+
+        .sched-item:last-child {
+            border-bottom: none;
+        }
+
+        .sched-item:hover {
+            background: rgba(255, 255, 255, 0.02);
+        }
+
+        .sched-item.our-sched {
+            border-left: 3px solid #818CF8;
+        }
+
+        .sched-time {
+            font-family: 'Barlow Condensed', sans-serif;
+            font-size: 20px;
+            font-weight: 900;
+            color: var(--gold);
+            min-width: 56px;
+        }
+
+        .sched-info {
+            flex: 1;
+        }
+
+        .sched-teams {
+            font-size: 14px;
+            font-weight: 600;
+            margin-bottom: 3px;
+        }
+
+        .sched-meta {
+            font-size: 12px;
+            color: var(--muted);
+        }
+    </style>
+</head>
+
+<body>
+    <main class="main">
+        <div class="topbar">
+            <div class="topbar-title" style="display:flex;align-items:center;gap:8px;">
+                <span class="icon icon-md"><svg viewBox="0 0 24 24">
+                        <rect width="18" height="18" x="3" y="4" rx="2" ry="2" />
+                        <line x1="16" x2="16" y1="2" y2="6" />
+                        <line x1="8" x2="8" y1="2" y2="6" />
+                        <line x1="3" x2="21" y1="10" y2="10" />
+                    </svg></span>
+                Schedule
+            </div>
+            <div class="topbar-actions">
+                <button class="btn btn-secondary btn-sm" onclick="loadPage()"
+                    style="display:inline-flex;align-items:center;gap:6px;">
+                    <span class="icon icon-sm"><svg viewBox="0 0 24 24">
+                            <path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8" />
+                            <path d="M21 3v5h-5" />
+                            <path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16" />
+                            <path d="M8 16H3v5" />
+                        </svg></span>
+                    Refresh
+                </button>
+                <button class="btn btn-secondary btn-sm" onclick="setToday()">Today</button>
+            </div>
+        </div>
+        <div class="content">
+
+            <div
+                style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;flex-wrap:wrap;gap:12px">
+                <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center">
+                    <select id="f-sport" class="form-select" style="width:190px" onchange="applyFilters()">
+                        <option value="">All Sports</option>
+                    </select>
+                    <label style="display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer">
+                        <input type="checkbox" id="f-ours-only" onchange="applyFilters()" style="accent-color:#818CF8">
+                        <span>Our matches only</span>
+                    </label>
+                </div>
+                <div class="view-toggle">
+                    <div class="view-btn active" onclick="setView('list',this)">List</div>
+                    <div class="view-btn" onclick="setView('calendar',this)">Calendar</div>
+                </div>
+            </div>
+
+            <div id="list-view">
+                <div id="list-content">
+                    <div class="empty-state">
+                        <div class="empty-text">Loading schedule...</div>
+                    </div>
+                </div>
+            </div>
+
+            <div id="calendar-view" style="display:none">
+                <div class="cal-nav">
+                    <button class="cal-nav-btn" onclick="prevMonth()">‹</button>
+                    <div class="cal-month" id="cal-month-label">—</div>
+                    <button class="cal-nav-btn" onclick="nextMonth()">›</button>
+                    <button class="btn btn-secondary btn-sm" style="margin-left:auto"
+                        onclick="setTodayCalendar()">Today</button>
+                </div>
+                <div class="cal-grid" id="cal-grid"></div>
+                <div id="cal-detail" style="display:none;margin-top:16px" class="card">
+                    <div class="card-header">
+                        <div class="card-title" id="cal-detail-title">Matches on this day</div>
+                    </div>
+                    <div id="cal-detail-body"></div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <script src="/js/shared.js"></script>
+    <script src="/js/dean-sidebar.js"></script>
+    <script>
+        let allMatches = [];
+        let currentView = 'list';
+        let calYear, calMonth;
+        let selectedDate = null;
+
+        const user = Auth.getUser();
+        const deptId = user?.department_id;
+        const TODAY = new Date().toISOString().split('T')[0];
+
+        function isFFA(m) {
+            const f = (m.tournament_format || '').toLowerCase();
+            return f === 'free_for_all' || f === 'team_ranking';
+        }
+
+        function scoreLabel(m) {
+            if (isFFA(m)) return 'FFA';
+            if (m.scoring_type === 'sets') {
+                const sa = m.sets_won_a, sb = m.sets_won_b;
+                if (sa != null && sb != null) return sa + '–' + sb;
+                return m.final_score_display || '';
+            }
+            if (m.scoring_type === 'binary') return m.final_score_display || '';
+            if (m.total_score_a != null) return m.total_score_a + '–' + m.total_score_b;
+            return m.final_score_display || '';
+        }
+
+        function formatTagHtml(m) {
+            if (isFFA(m)) return ' <span class="format-tag">FFA</span>';
+            if (m.scoring_type === 'sets') return ' <span class="format-tag">Sets</span>';
+            if (m.scoring_type === 'binary') return ' <span class="format-tag">Winner-only</span>';
+            return '';
+        }
+
+        document.addEventListener('DOMContentLoaded', async () => {
+            Auth.requireAuth('dean_adviser');
+            renderSidebar('schedule');
+            const now = new Date();
+            calYear = now.getFullYear();
+            calMonth = now.getMonth();
+            const sRes = await api('/sports');
+            document.getElementById('f-sport').innerHTML += (sRes.data || []).map(s =>
+                '<option value="' + s.id + '">' + s.name + '</option>').join('');
+            await loadPage();
+        });
+
+        async function loadPage() {
+            const res = await api('/matches');
+            allMatches = res.data || [];
+            applyFilters();
+        }
+
+        function setToday() {
+            document.getElementById('f-ours-only').checked = false;
+            document.getElementById('f-sport').value = '';
+            applyFilters();
+            document.querySelector('.sched-block-date.today-label')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+
+        function setView(v, el) {
+            currentView = v;
+            document.querySelectorAll('.view-btn').forEach(b => b.classList.remove('active'));
+            el.classList.add('active');
+            document.getElementById('list-view').style.display = v === 'list' ? '' : 'none';
+            document.getElementById('calendar-view').style.display = v === 'calendar' ? '' : 'none';
+            if (v === 'calendar') renderCalendar();
+        }
+
+        function applyFilters() {
+            const sport = document.getElementById('f-sport').value;
+            const oursOnly = document.getElementById('f-ours-only').checked;
+            let filtered = allMatches.filter(m => m.status !== 'cancelled');
+            if (sport) filtered = filtered.filter(m => String(m.sport_id) === sport);
+            if (oursOnly) filtered = filtered.filter(m =>
+                m.participant_a_department_id == deptId || m.participant_b_department_id == deptId);
+            if (currentView === 'list') renderList(filtered);
+            else renderCalendar(filtered);
+        }
+
+        function renderList(matches) {
+            const el = document.getElementById('list-content');
+            const grouped = {};
+            matches.forEach(m => {
+                const d = m.scheduled_date || 'Unscheduled';
+                if (!grouped[d]) grouped[d] = [];
+                grouped[d].push(m);
+            });
+            const sortedDates = Object.keys(grouped).sort();
+            if (!sortedDates.length) {
+                el.innerHTML = '<div class="empty-state"><div class="empty-text">No matches found.</div></div>';
+                return;
+            }
+            el.innerHTML = sortedDates.map(d => {
+                const dayMatches = grouped[d].sort((a, b) => (a.scheduled_time || '').localeCompare(b.scheduled_time || ''));
+                const isToday = d === TODAY;
+                const dateLabel = d === 'Unscheduled' ? 'Unscheduled' :
+                    new Date(d + 'T00:00').toLocaleDateString('en-PH', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' });
+                const ourCount = dayMatches.filter(m =>
+                    m.participant_a_department_id == deptId || m.participant_b_department_id == deptId).length;
+                return '<div class="sched-block">' +
+                    '<div class="sched-block-date ' + (isToday ? 'today-label' : '') + '">' +
+                    '<span>' + (isToday ? 'TODAY — ' : '') + dateLabel + '</span>' +
+                    '<span style="font-size:12px;font-weight:400">' + dayMatches.length + ' match' +
+                    (dayMatches.length !== 1 ? 'es' : '') +
+                    (ourCount ? ' · <span style="color:#818CF8">' + ourCount + ' ours</span>' : '') +
+                    '</span></div>' +
+                    '<div class="card">' + dayMatches.map(m => renderSchedItem(m)).join('') + '</div></div>';
+            }).join('');
+        }
+
+        function renderSchedItem(m) {
+            const isOurs = m.participant_a_department_id == deptId || m.participant_b_department_id == deptId;
+            let teamsHtml;
+            if (isFFA(m)) {
+                teamsHtml = '<span style="color:var(--gold);font-weight:700">FFA Event</span>';
+            } else {
+                const nA = m.dept_a_name || '—';
+                const nB = m.dept_b_name || '—';
+                const isOurA = m.participant_a_department_id == deptId;
+                const isOurB = m.participant_b_department_id == deptId;
+                teamsHtml = '<span style="' + (isOurA ? 'color:#818CF8;font-weight:700' : '') + '">' + nA + '</span>' +
+                    '<span style="color:var(--muted)"> vs </span>' +
+                    '<span style="' + (isOurB ? 'color:#818CF8;font-weight:700' : '') + '">' + nB + '</span>';
+            }
+            const score = scoreLabel(m);
+            return '<div class="sched-item ' + (isOurs ? 'our-sched' : '') + '">' +
+                '<div class="sched-time">' + (formatTime(m.scheduled_time) || 'TBD') + '</div>' +
+                '<div class="sched-info">' +
+                '<div class="sched-teams">' + teamsHtml + formatTagHtml(m) + '</div>' +
+                '<div class="sched-meta">' + (m.sport_name || '') + ' · ' + (m.tournament_name || '') +
+                ' · ' + (m.venue_name || 'Venue TBD') +
+                (m.referee_name ? ' · ' + m.referee_name : '') + '</div></div>' +
+                '<div style="text-align:right">' +
+                (score ? '<div style="font-family:\'Barlow Condensed\',sans-serif;font-size:20px;font-weight:900;color:var(--gold)">' + score + '</div>' : '') +
+                statusBadge(m.status) +
+                '</div></div>';
+        }
+
+        function renderCalendar(matches) {
+            if (!matches) {
+                const sport = document.getElementById('f-sport').value;
+                const oursOnly = document.getElementById('f-ours-only').checked;
+                matches = allMatches.filter(m => m.status !== 'cancelled');
+                if (sport) matches = matches.filter(m => String(m.sport_id) === sport);
+                if (oursOnly) matches = matches.filter(m =>
+                    m.participant_a_department_id == deptId || m.participant_b_department_id == deptId);
+            }
+
+            const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+            document.getElementById('cal-month-label').textContent = MONTHS[calMonth] + ' ' + calYear;
+
+            const firstDay = new Date(calYear, calMonth, 1).getDay();
+            const daysInMonth = new Date(calYear, calMonth + 1, 0).getDate();
+            const daysInPrev = new Date(calYear, calMonth, 0).getDate();
+
+            const matchMap = {};
+            matches.forEach(m => {
+                const d = m.scheduled_date;
+                if (!d) return;
+                if (!matchMap[d]) matchMap[d] = [];
+                matchMap[d].push(m);
+            });
+
+            const DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+            let html = DAYS.map(d => '<div class="cal-day-header">' + d + '</div>').join('');
+
+            for (let i = 0; i < firstDay; i++) {
+                const day = daysInPrev - firstDay + 1 + i;
+                html += '<div class="cal-cell other-month"><div class="cal-date-num">' + day + '</div></div>';
+            }
+
+            for (let d = 1; d <= daysInMonth; d++) {
+                const dateStr = calYear + '-' + String(calMonth + 1).padStart(2, '0') + '-' + String(d).padStart(2, '0');
+                const dayMatches = matchMap[dateStr] || [];
+                const isToday = dateStr === TODAY;
+                const hasOurs = dayMatches.some(m =>
+                    m.participant_a_department_id == deptId || m.participant_b_department_id == deptId);
+                const hasMatch = dayMatches.length > 0;
+                const isSelected = dateStr === selectedDate;
+
+                html += '<div class="cal-cell ' + (isToday ? 'today ' : '') +
+                    (hasOurs ? 'has-our-match' : hasMatch ? 'has-match' : '') + '"' +
+                    ' style="' + (isSelected ? 'background:rgba(99,102,241,0.12);outline:2px solid #818CF8;outline-offset:-2px' : '') + '"' +
+                    ' onclick="selectCalDay(\'' + dateStr + '\',' +
+                    JSON.stringify(dayMatches).replace(/"/g, '&quot;') + ')">' +
+                    '<div class="cal-date-num">' + d + '</div>' +
+                    dayMatches.slice(0, 3).map(m => {
+                        const isOurs = m.participant_a_department_id == deptId || m.participant_b_department_id == deptId;
+                        const isLive = m.status === 'ongoing';
+                        const isDone = m.status === 'completed';
+                        const label = isFFA(m) ? 'FFA' :
+                            ((m.dept_a_name || '?').split(' ')[0] + ' vs ' + (m.dept_b_name || '?').split(' ')[0]);
+                        return '<div class="cal-event ' +
+                            (isLive ? 'live' : isDone ? 'done' : isOurs ? 'our' : 'other') +
+                            '" title="' + label + '">' + label + '</div>';
+                    }).join('') +
+                    (dayMatches.length > 3 ? '<div style="font-size:10px;color:var(--muted)">+' + (dayMatches.length - 3) + ' more</div>' : '') +
+                    '</div>';
+            }
+
+            const totalCells = firstDay + daysInMonth;
+            const nextFill = totalCells % 7 === 0 ? 0 : 7 - (totalCells % 7);
+            for (let i = 1; i <= nextFill; i++) {
+                html += '<div class="cal-cell other-month"><div class="cal-date-num">' + i + '</div></div>';
+            }
+
+            document.getElementById('cal-grid').innerHTML = html;
+        }
+
+        function selectCalDay(dateStr, matches) {
+            selectedDate = dateStr;
+            renderCalendar();
+            const det = document.getElementById('cal-detail');
+            const bod = document.getElementById('cal-detail-body');
+            document.getElementById('cal-detail-title').textContent = 'Matches — ' +
+                new Date(dateStr + 'T00:00').toLocaleDateString('en-PH', { weekday: 'long', month: 'long', day: 'numeric' });
+            if (!matches.length) {
+                bod.innerHTML = '<div class="empty-state" style="padding:24px"><div class="empty-text">No matches on this day.</div></div>';
+            } else {
+                bod.innerHTML = matches.map(m => renderSchedItem(m)).join('');
+            }
+            det.style.display = '';
+            det.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        }
+
+        function prevMonth() { calMonth--; if (calMonth < 0) { calMonth = 11; calYear--; } renderCalendar(); }
+        function nextMonth() { calMonth++; if (calMonth > 11) { calMonth = 0; calYear++; } renderCalendar(); }
+        function setTodayCalendar() {
+            const now = new Date();
+            calYear = now.getFullYear();
+            calMonth = now.getMonth();
+            renderCalendar();
+        }
+    </script>
+</body>
+
+</html>

@@ -1,0 +1,475 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PAC SCHED-SCORE — Reports</title>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;600;700;800;900&family=Barlow:wght@300;400;500;600&display=swap"
+        rel="stylesheet">
+    <link rel="stylesheet" href="/css/shared.css">
+    <link rel="stylesheet" href="/css/dean.css">
+    <style>
+        .report-tabs {
+            display: flex;
+            gap: 4px;
+            margin-bottom: 20px;
+            background: var(--bg2);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            padding: 4px
+        }
+
+        .report-tab {
+            flex: 1;
+            text-align: center;
+            padding: 8px 10px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 13px;
+            font-weight: 600;
+            color: var(--muted);
+            transition: all .15s;
+            white-space: nowrap
+        }
+
+        .report-tab.active {
+            background: var(--bg3);
+            color: var(--text)
+        }
+
+        .perf-metric {
+            background: var(--bg2);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 16px 20px
+        }
+
+        .perf-metric-val {
+            font-family: 'Barlow Condensed', sans-serif;
+            font-size: 30px;
+            font-weight: 900;
+            line-height: 1
+        }
+
+        .perf-metric-lbl {
+            font-size: 11px;
+            color: var(--muted);
+            text-transform: uppercase;
+            letter-spacing: .8px;
+            margin-top: 2px
+        }
+
+        .hist-row {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 10px 16px;
+            border-bottom: 1px solid rgba(255, 255, 255, .04);
+            font-size: 13px
+        }
+
+        .hist-row:last-child {
+            border-bottom: none
+        }
+
+        .hist-win {
+            color: var(--green);
+            font-weight: 800;
+            font-size: 11px;
+            text-transform: uppercase
+        }
+
+        .hist-loss {
+            color: var(--red);
+            font-weight: 800;
+            font-size: 11px;
+            text-transform: uppercase
+        }
+
+        .hist-score {
+            font-family: 'Barlow Condensed', sans-serif;
+            font-size: 18px;
+            font-weight: 800;
+            color: var(--gold)
+        }
+
+        .roster-report-row {
+            display: grid;
+            grid-template-columns: 36px 1fr 80px 100px 80px 100px;
+            gap: 8px;
+            align-items: center;
+            padding: 10px 16px;
+            border-bottom: 1px solid rgba(255, 255, 255, .04);
+            font-size: 13px
+        }
+
+        .roster-report-header {
+            display: grid;
+            grid-template-columns: 36px 1fr 80px 100px 80px 100px;
+            gap: 8px;
+            padding: 8px 16px;
+            background: var(--bg3);
+            font-size: 11px;
+            font-weight: 700;
+            letter-spacing: 1.2px;
+            text-transform: uppercase;
+            color: var(--muted);
+            border-bottom: 1px solid var(--border)
+        }
+
+        .wl-bar-wrap {
+            display: flex;
+            align-items: center;
+            gap: 10px
+        }
+
+        .wl-bar-label {
+            font-size: 12px;
+            color: var(--muted);
+            width: 50px
+        }
+
+        .wl-bar-track {
+            flex: 1;
+            height: 8px;
+            background: var(--bg4);
+            border-radius: 4px;
+            overflow: hidden
+        }
+
+        .wl-bar-fill {
+            height: 100%;
+            border-radius: 4px
+        }
+
+        .wl-bar-count {
+            font-family: 'Barlow Condensed', sans-serif;
+            font-size: 18px;
+            font-weight: 800;
+            width: 32px;
+            text-align: right
+        }
+
+        .result-sport-row {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            padding: 12px 16px;
+            border-bottom: 1px solid rgba(255, 255, 255, .04)
+        }
+
+        .result-pts {
+            font-family: 'Barlow Condensed', sans-serif;
+            font-size: 22px;
+            font-weight: 900;
+            color: var(--gold)
+        }
+
+        @media(max-width:768px) {
+
+            .roster-report-row,
+            .roster-report-header {
+                grid-template-columns: 1fr 60px 80px
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <main class="main">
+        <div class="topbar">
+            <div class="topbar-title" style="display:flex;align-items:center;gap:8px">
+                <span class="icon icon-md"><svg viewBox="0 0 24 24">
+                        <rect width="8" height="4" x="8" y="2" rx="1" ry="1" />
+                        <path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2" />
+                    </svg></span>
+                Reports
+            </div>
+            <div class="topbar-actions">
+                <button class="btn btn-secondary btn-sm" onclick="loadPage()">Refresh</button>
+                <button class="btn btn-secondary btn-sm" onclick="window.print()">Print</button>
+            </div>
+        </div>
+        <div class="content">
+            <div class="report-tabs">
+                <div class="report-tab active" onclick="switchTab('overview',this)">Overview</div>
+                <div class="report-tab" onclick="switchTab('matches',this)">Match History</div>
+                <div class="report-tab" onclick="switchTab('players',this)">Player Roster</div>
+                <div class="report-tab" onclick="switchTab('sports',this)">Sport Results</div>
+            </div>
+
+            <div id="tab-overview">
+                <div class="dept-hero" id="report-hero" style="margin-bottom:20px">
+                    <div class="dept-hero-logo" id="rpt-logo">—</div>
+                    <div class="dept-hero-info">
+                        <div class="dept-hero-name" id="rpt-name">Loading...</div>
+                        <div class="dept-hero-sub" id="rpt-sub"></div>
+                        <div class="dept-hero-medals" id="rpt-medals"></div>
+                    </div>
+                    <div class="dept-hero-pts">
+                        <div class="dept-hero-pts-num" id="rpt-pts">—</div>
+                        <div class="dept-hero-pts-lbl">Total Points</div>
+                        <div style="font-size:12px;color:var(--muted);margin-top:6px" id="rpt-rank"></div>
+                    </div>
+                </div>
+                <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:12px;margin-bottom:24px"
+                    id="perf-metrics"></div>
+                <div class="grid-2" style="margin-bottom:24px">
+                    <div class="card">
+                        <div class="card-header">
+                            <div class="card-title">Win / Loss Record</div>
+                        </div>
+                        <div class="card-body" id="wl-record"></div>
+                    </div>
+                    <div class="card">
+                        <div class="card-header">
+                            <div class="card-title">Points by Sport</div>
+                        </div>
+                        <div id="pts-by-sport" style="padding:4px 0"></div>
+                    </div>
+                </div>
+                <div class="card">
+                    <div class="card-header">
+                        <div class="card-title">Recent Match Results</div>
+                    </div>
+                    <div id="overview-recent"></div>
+                </div>
+            </div>
+
+            <div id="tab-matches" style="display:none">
+                <div style="display:flex;gap:10px;margin-bottom:14px;flex-wrap:wrap">
+                    <select id="mh-sport" class="form-select" style="width:190px" onchange="filterMatchHistory()">
+                        <option value="">All Sports</option>
+                    </select>
+                    <select id="mh-result" class="form-select" style="width:150px" onchange="filterMatchHistory()">
+                        <option value="">All Results</option>
+                        <option value="win">Wins Only</option>
+                        <option value="loss">Losses Only</option>
+                    </select>
+                    <input type="date" id="mh-from" class="form-select" style="width:155px"
+                        onchange="filterMatchHistory()">
+                    <input type="date" id="mh-to" class="form-select" style="width:155px"
+                        onchange="filterMatchHistory()">
+                </div>
+                <div class="card">
+                    <div id="match-history-body">
+                        <div class="empty-state" style="padding:40px">
+                            <div class="empty-text">Loading...</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div id="tab-players" style="display:none">
+                <div style="display:flex;gap:10px;margin-bottom:14px;flex-wrap:wrap">
+                    <select id="pr-sport" class="form-select" style="width:190px" onchange="filterPlayerRoster()">
+                        <option value="">All Sports</option>
+                    </select>
+                    <select id="pr-status" class="form-select" style="width:150px" onchange="filterPlayerRoster()">
+                        <option value="">All Statuses</option>
+                        <option value="approved">Approved</option>
+                        <option value="pending">Pending</option>
+                        <option value="rejected">Rejected</option>
+                    </select>
+                    <input id="pr-search" class="form-input" style="flex:1;min-width:180px" placeholder="Search name..."
+                        oninput="filterPlayerRoster()">
+                </div>
+                <div class="card">
+                    <div class="roster-report-header">
+                        <div>#</div>
+                        <div>Name</div>
+                        <div>Jersey</div>
+                        <div>Sport</div>
+                        <div>Gender</div>
+                        <div>Status</div>
+                    </div>
+                    <div id="player-roster-body">
+                        <div class="empty-state" style="padding:40px">
+                            <div class="empty-text">Loading...</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div id="tab-sports" style="display:none">
+                <div class="card" id="sport-results-body">
+                    <div class="empty-state" style="padding:40px">
+                        <div class="empty-text">Loading...</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+    <script src="/js/shared.js"></script>
+    <script src="/js/dean-sidebar.js"></script>
+    <script>
+        let deptData = null, matchData = [], playerData = [], scoreData = [], lbData = [];
+        const user = Auth.getUser(), deptId = user?.department_id;
+
+        document.addEventListener('DOMContentLoaded', async () => {
+            Auth.requireAuth('dean_adviser'); renderSidebar('reports');
+            const sRes = await api('/sports');
+            const sOpts = (sRes.data || []).map(s => `<option value="${s.id}">${s.name}</option>`).join('');
+            ['mh-sport', 'pr-sport'].forEach(id => { const el = document.getElementById(id); if (el) el.innerHTML += sOpts });
+            await loadPage();
+        });
+
+        async function loadPage() {
+            if (!deptId) return;
+            const [dRes, mRes, pRes, sRes, lbRes] = await Promise.all([
+                api(`/departments/${deptId}`), api(`/matches?department_id=${deptId}`),
+                api(`/players?department_id=${deptId}`), api(`/departments/${deptId}/scores`), api('/leaderboard')]);
+            deptData = dRes.data || null; matchData = mRes.data || []; playerData = pRes.data || []; scoreData = sRes.data || []; lbData = lbRes.data || [];
+            renderOverview(); renderMatchHistory(); renderPlayerRoster(); renderSportResults();
+        }
+
+        function switchTab(name, el) {
+            ['overview', 'matches', 'players', 'sports'].forEach(t => { document.getElementById('tab-' + t).style.display = t === name ? '' : 'none' });
+            document.querySelectorAll('.report-tab').forEach(b => b.classList.remove('active')); el.classList.add('active');
+        }
+
+        function renderOverview() {
+            if (!deptData) return; const d = deptData;
+            const initials = (d.short_name || d.name || '?').split(' ').map(w => w[0]).slice(0, 2).join('').toUpperCase();
+            const logoEl = document.getElementById('rpt-logo');
+            if (d.logo_url) { logoEl.innerHTML = `<img src="${d.logo_url}" style="width:100%;height:100%;object-fit:cover;border-radius:18px" onerror="this.style.display='none'">`; logoEl.style.background = (d.color || '#818CF8') + '20' }
+            else { logoEl.style.background = d.color || '#818CF8'; logoEl.textContent = initials }
+            document.getElementById('rpt-name').textContent = d.name;
+            document.getElementById('rpt-sub').textContent = `${d.short_name || d.code || ''} · ${d.description || 'Grade / Strand'}`;
+            document.getElementById('rpt-pts').textContent = d.total_points || 0;
+            document.getElementById('rpt-medals').innerHTML = `<span style="color:#FFD700;font-weight:700">Gold ${d.gold_medals || 0}</span><span style="color:#C0C0C0;font-weight:700">Silver ${d.silver_medals || 0}</span><span style="color:#CD7F32;font-weight:700">Bronze ${d.bronze_medals || 0}</span>`;
+            const rankEntry = lbData.find(x => x.id == deptId);
+            document.getElementById('rpt-rank').textContent = rankEntry?.rank ? `#${rankEntry.rank} Overall Rank` : 'Unranked';
+
+            const completed = matchData.filter(m => m.status === 'completed');
+            const wins = completed.filter(m => m.winner_department_id == deptId).length;
+            const losses = completed.length - wins;
+            const approved = playerData.filter(p => p.status === 'approved').length;
+            const teams = [...new Set(playerData.filter(p => p.team_id).map(p => p.team_id))].length;
+
+            document.getElementById('perf-metrics').innerHTML = [
+                { val: completed.length, lbl: 'Matches Played', color: 'var(--gold)' },
+                { val: wins, lbl: 'Wins', color: 'var(--green)' },
+                { val: losses, lbl: 'Losses', color: 'var(--red)' },
+                { val: approved, lbl: 'Active Players', color: '#60A5FA' },
+                { val: teams, lbl: 'Teams', color: 'var(--muted)' },
+                { val: d.tournaments_entered || 0, lbl: 'Events', color: '#818CF8' },
+            ].map(s => `<div class="perf-metric"><div class="perf-metric-val" style="color:${s.color}">${s.val}</div><div class="perf-metric-lbl">${s.lbl}</div></div>`).join('');
+
+            const total = Math.max(wins + losses, 1);
+            document.getElementById('wl-record').innerHTML = `
+<div style="display:flex;flex-direction:column;gap:12px">
+<div class="wl-bar-wrap"><div class="wl-bar-label">Wins</div><div class="wl-bar-track"><div class="wl-bar-fill" style="width:${(wins / total * 100).toFixed(0)}%;background:var(--green)"></div></div><div class="wl-bar-count" style="color:var(--green)">${wins}</div></div>
+<div class="wl-bar-wrap"><div class="wl-bar-label">Losses</div><div class="wl-bar-track"><div class="wl-bar-fill" style="width:${(losses / total * 100).toFixed(0)}%;background:var(--red)"></div></div><div class="wl-bar-count" style="color:var(--red)">${losses}</div></div>
+<div style="margin-top:8px;padding-top:12px;border-top:1px solid var(--border);display:flex;justify-content:space-between;font-size:13px">
+<span style="color:var(--muted)">Win Rate</span>
+<span style="font-family:'Barlow Condensed',sans-serif;font-size:20px;font-weight:900;color:var(--gold)">${completed.length ? Math.round(wins / completed.length * 100) : 0}%</span>
+</div></div>`;
+
+            const ptsBySport = {};
+            scoreData.forEach(s => { const k = s.sport_name; if (!ptsBySport[k]) ptsBySport[k] = 0; ptsBySport[k] += s.sport_fest_points || 0 });
+            const maxPts = Math.max(...Object.values(ptsBySport), 1);
+            document.getElementById('pts-by-sport').innerHTML = Object.entries(ptsBySport).length
+                ? Object.entries(ptsBySport).sort((a, b) => b[1] - a[1]).map(([sport, pts]) => `
+<div style="padding:10px 16px;border-bottom:1px solid rgba(255,255,255,.04)">
+<div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:5px"><span>${sport}</span>
+<span style="font-family:'Barlow Condensed',sans-serif;font-size:17px;font-weight:800;color:var(--gold)">+${pts}</span></div>
+<div style="height:4px;background:var(--bg4);border-radius:2px;overflow:hidden"><div style="height:100%;width:${(pts / maxPts * 100).toFixed(0)}%;background:var(--gold);border-radius:2px"></div></div>
+</div>`).join('')
+                : `<div style="text-align:center;padding:24px;color:var(--muted)">No sport results yet.</div>`;
+
+            const recent = [...matchData].filter(m => m.status === 'completed').sort((a, b) => new Date(b.completed_at || 0) - new Date(a.completed_at || 0)).slice(0, 5);
+            const recEl = document.getElementById('overview-recent');
+            if (!recent.length) { recEl.innerHTML = `<div class="empty-state" style="padding:32px"><div class="empty-text">No completed matches yet.</div></div>`; return }
+            recEl.innerHTML = recent.map(m => buildHistRow(m)).join('');
+        }
+
+        function renderMatchHistory() { filterMatchHistory() }
+        function filterMatchHistory() {
+            const sport = document.getElementById('mh-sport').value;
+            const result = document.getElementById('mh-result').value;
+            const from = document.getElementById('mh-from').value;
+            const to = document.getElementById('mh-to').value;
+            let filtered = matchData.filter(m => m.status === 'completed');
+            if (sport) filtered = filtered.filter(m => String(m.sport_id) === sport);
+            if (result === 'win') filtered = filtered.filter(m => m.winner_department_id == deptId);
+            if (result === 'loss') filtered = filtered.filter(m => m.winner_department_id && m.winner_department_id != deptId);
+            if (from) filtered = filtered.filter(m => (m.completed_at || '') >= from);
+            if (to) filtered = filtered.filter(m => (m.completed_at || '') <= to + ' 23:59:59');
+            filtered.sort((a, b) => new Date(b.completed_at || 0) - new Date(a.completed_at || 0));
+            const el = document.getElementById('match-history-body');
+            if (!filtered.length) { el.innerHTML = `<div class="empty-state" style="padding:40px"><div class="empty-text">No matches found.</div></div>`; return }
+            el.innerHTML = filtered.map(m => buildHistRow(m)).join('');
+        }
+
+        function buildHistRow(m) {
+            const won = m.winner_department_id == deptId;
+            const lost = m.winner_department_id && m.winner_department_id != deptId;
+            const isOurA = m.participant_a_department_id == deptId;
+            const isOurB = m.participant_b_department_id == deptId;
+            const ffa = ((m.tournament_format || '').toLowerCase() === 'free_for_all' || (m.tournament_format || '').toLowerCase() === 'team_ranking');
+            const teams = ffa ? `<span style="color:var(--gold);font-weight:700">FFA Event</span>` :
+                `<span style="${isOurA ? 'color:#818CF8' : ''}">${m.dept_a_name || '—'}</span><span style="color:var(--muted)"> vs </span><span style="${isOurB ? 'color:#818CF8' : ''}">${m.dept_b_name || '—'}</span>`;
+            return `<div class="hist-row">
+<div style="flex:1"><div style="font-size:13px;font-weight:600">${teams}</div>
+<div style="font-size:11px;color:var(--muted);margin-top:2px">${m.sport_name || ''} · ${m.tournament_name || ''} · ${formatDate(m.completed_at)}</div></div>
+<div class="hist-score">${m.final_score_display || '—'}</div>
+<div>${ffa ? '<span style="color:var(--muted);font-size:11px">DONE</span>' : won ? `<span class="hist-win">WIN</span>` : lost ? `<span class="hist-loss">LOSS</span>` : `<span style="color:var(--muted);font-size:11px">—</span>`}</div>
+</div>`;
+        }
+
+        function renderPlayerRoster() { filterPlayerRoster() }
+        function filterPlayerRoster() {
+            const sport = document.getElementById('pr-sport').value;
+            const status = document.getElementById('pr-status').value;
+            const q = document.getElementById('pr-search').value.toLowerCase();
+            let filtered = playerData;
+            if (sport) filtered = filtered.filter(p => String(p.sport_id) === sport);
+            if (status) filtered = filtered.filter(p => p.status === status);
+            if (q) filtered = filtered.filter(p => (`${p.first_name} ${p.last_name}`).toLowerCase().includes(q));
+            filtered.sort((a, b) => (a.sport_name || '').localeCompare(b.sport_name || '') || (a.last_name || '').localeCompare(b.last_name || ''));
+            const el = document.getElementById('player-roster-body');
+            if (!filtered.length) { el.innerHTML = `<div class="empty-state" style="padding:40px"><div class="empty-text">No players found.</div></div>`; return }
+            el.innerHTML = filtered.map((p, i) => {
+                const init = `${p.first_name?.[0] || '?'}${p.last_name?.[0] || ''}`.toUpperCase();
+                const sc = { approved: 'pill-approved', pending: 'pill-pending', rejected: 'pill-rejected' }[p.status] || 'pill-pending';
+                return `<div class="roster-report-row">
+<div style="font-family:'Barlow Condensed',sans-serif;font-size:14px;font-weight:700;color:var(--muted)">${i + 1}</div>
+<div style="display:flex;align-items:center;gap:8px">
+<div style="width:28px;height:28px;border-radius:7px;background:${p.gender === 'Female' ? '#EC4899' : '#3B82F6'};display:flex;align-items:center;justify-content:center;font-family:'Barlow Condensed',sans-serif;font-size:11px;font-weight:900;color:#fff;flex-shrink:0">${init}</div>
+<div><div style="font-weight:600">${p.first_name} ${p.last_name}</div>${p.position ? `<div style="font-size:11px;color:var(--muted)">${p.position}</div>` : ''}</div></div>
+<div style="color:var(--muted)">${p.jersey_number ? `#${p.jersey_number}` : '—'}</div>
+<div style="font-size:12px">${p.sport_name || '—'}</div>
+<div style="font-size:12px;color:var(--muted)">${p.gender || '—'}</div>
+<div><span class="pill ${sc}" style="font-size:10px">${p.status}</span></div>
+</div>`;
+            }).join('');
+        }
+
+        function renderSportResults() {
+            const el = document.getElementById('sport-results-body');
+            if (!scoreData.length) { el.innerHTML = `<div class="empty-state" style="padding:40px"><div class="empty-text">No sport results recorded yet.</div></div>`; return }
+            el.innerHTML = `<div style="padding:4px 0">${scoreData.map(s => {
+                const medal = s.medal === 'gold' ? 'Gold' : s.medal === 'silver' ? 'Silver' : s.medal === 'bronze' ? 'Bronze' : '—';
+                const mc = s.medal === 'gold' ? '#FFD700' : s.medal === 'silver' ? '#C0C0C0' : s.medal === 'bronze' ? '#CD7F32' : 'var(--muted)';
+                return `<div class="result-sport-row">
+<div style="font-size:12px;font-weight:800;color:${mc};width:48px">${medal}</div>
+<div style="flex:1"><div style="font-size:14px;font-weight:700">${s.sport_name || '—'}</div>
+<div style="font-size:12px;color:var(--muted);margin-top:2px">${s.tournament_name || ''} · ${formatDate(s.finalized_at)}</div></div>
+<div style="text-align:right"><div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:2px">Rank</div>
+<div style="font-family:'Barlow Condensed',sans-serif;font-size:18px;font-weight:800">${formatRank(s.rank)}</div></div>
+<div style="text-align:right;min-width:64px"><div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:2px">Points</div>
+<div class="result-pts">+${s.sport_fest_points || 0}</div></div>
+</div>`;
+            }).join('')}
+<div style="padding:14px 16px;background:var(--bg3);border-top:2px solid var(--border);display:flex;justify-content:space-between;align-items:center">
+<span style="font-family:'Barlow Condensed',sans-serif;font-size:14px;font-weight:800;text-transform:uppercase;letter-spacing:1px;color:var(--muted)">Total Points Earned</span>
+<span style="font-family:'Barlow Condensed',sans-serif;font-size:28px;font-weight:900;color:var(--gold)">+${scoreData.reduce((s, r) => s + (r.sport_fest_points || 0), 0)}</span>
+</div></div>`;
+        }
+    </script>
+</body>
+
+</html>

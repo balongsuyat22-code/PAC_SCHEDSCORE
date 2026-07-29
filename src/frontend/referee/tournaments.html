@@ -9,78 +9,32 @@
         href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;600;700;800;900&family=Barlow:wght@300;400;500;600&display=swap"
         rel="stylesheet">
     <link rel="stylesheet" href="../css/referee.css">
-
     <style>
-        /* ── STAT CARDS ── */
-        .stats-row {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-            gap: 14px;
-            margin-bottom: 26px;
-        }
-
-        .stat-card {
-            background: var(--bg2);
-            border: 1px solid var(--border);
-            border-radius: 12px;
-            padding: 18px 20px;
-            transition: border-color 0.2s, transform 0.2s;
-        }
-
-        .stat-card:hover {
-            border-color: var(--border-gold);
-            transform: translateY(-1px);
-        }
-
-        .stat-card-label {
-            font-size: 10px;
-            font-weight: 700;
-            letter-spacing: 1.5px;
-            text-transform: uppercase;
-            color: var(--muted);
-            margin-bottom: 10px;
-        }
-
-        .stat-card-value {
-            font-family: 'Barlow Condensed', sans-serif;
-            font-size: 38px;
-            font-weight: 900;
-            line-height: 1;
-        }
-
-        .stat-card-sub {
-            font-size: 12px;
-            color: var(--text2);
-            margin-top: 5px;
-        }
-
-        /* ── FILTER BAR ── */
         .filter-bar {
             display: flex;
+            align-items: center;
             gap: 8px;
             margin-bottom: 20px;
             flex-wrap: wrap;
-            align-items: center;
         }
 
         .filter-pill {
-            padding: 6px 14px;
+            padding: 7px 14px;
             border-radius: 20px;
             border: 1px solid var(--border);
             background: var(--bg3);
             color: var(--text2);
             font-size: 12px;
             font-weight: 700;
-            font-family: 'Barlow', sans-serif;
             cursor: pointer;
-            transition: all 0.18s;
+            transition: all 0.15s;
+            font-family: 'Barlow Condensed', sans-serif;
             text-transform: uppercase;
-            letter-spacing: 0.5px;
+            letter-spacing: 0.4px;
         }
 
         .filter-pill:hover {
             color: var(--text);
-            background: var(--bg4);
             border-color: rgba(255, 255, 255, 0.14);
         }
 
@@ -92,18 +46,16 @@
 
         .filter-spacer {
             flex: 1;
-            min-width: 8px;
         }
 
-        /* ── VIEW TOGGLE ── */
         .view-toggle {
             display: flex;
             gap: 4px;
         }
 
         .btn-view {
-            width: 34px;
-            height: 34px;
+            width: 36px;
+            height: 36px;
             display: flex;
             align-items: center;
             justify-content: center;
@@ -112,8 +64,7 @@
             border-radius: 8px;
             cursor: pointer;
             color: var(--text2);
-            font-size: 15px;
-            transition: all 0.18s;
+            transition: all 0.15s;
         }
 
         .btn-view:hover {
@@ -127,48 +78,12 @@
             border-color: var(--border-gold);
         }
 
-        /* ── TABLE ── */
-        .table-wrap {
-            overflow-x: auto;
-        }
-
-        table {
-            width: 100%;
-            border-collapse: collapse;
-        }
-
-        thead th {
-            padding: 12px 18px;
-            background: var(--bg3);
-            color: var(--muted);
-            font-family: 'Barlow Condensed', sans-serif;
-            font-size: 11px;
-            font-weight: 700;
-            letter-spacing: 1.5px;
-            text-transform: uppercase;
-            text-align: left;
-            border-bottom: 1px solid var(--border);
-            white-space: nowrap;
-        }
-
-        tbody tr {
-            border-bottom: 1px solid var(--border);
-            transition: background 0.15s;
-        }
-
-        tbody tr:last-child {
-            border-bottom: none;
-        }
-
-        tbody tr:hover {
-            background: var(--bg3);
-        }
-
-        tbody td {
-            padding: 14px 18px;
-            font-size: 14px;
-            color: var(--text);
-            vertical-align: middle;
+        .btn-view svg {
+            width: 16px;
+            height: 16px;
+            stroke: currentColor;
+            fill: none;
+            stroke-width: 2;
         }
 
         .td-primary {
@@ -185,63 +100,6 @@
             margin-top: 2px;
         }
 
-        /* ── BADGES ── */
-        .badge {
-            display: inline-flex;
-            align-items: center;
-            gap: 4px;
-            padding: 4px 10px;
-            border-radius: 20px;
-            font-size: 11px;
-            font-weight: 700;
-            font-family: 'Barlow', sans-serif;
-            white-space: nowrap;
-        }
-
-        .badge-active {
-            background: rgba(34, 197, 94, 0.12);
-            color: #4ade80;
-        }
-
-        .badge-ongoing {
-            background: rgba(34, 197, 94, 0.12);
-            color: #4ade80;
-        }
-
-        .badge-upcoming {
-            background: rgba(245, 184, 0, 0.12);
-            color: var(--gold);
-        }
-
-        .badge-scheduled {
-            background: rgba(245, 184, 0, 0.12);
-            color: var(--gold);
-        }
-
-        .badge-completed {
-            background: rgba(255, 255, 255, 0.07);
-            color: var(--text2);
-        }
-
-        .badge-cancelled {
-            background: rgba(232, 50, 59, 0.12);
-            color: #f87171;
-        }
-
-        .badge-muted {
-            background: rgba(255, 255, 255, 0.07);
-            color: var(--text2);
-            text-transform: uppercase;
-            font-size: 10px;
-            letter-spacing: 1px;
-        }
-
-        .badge-blue {
-            background: rgba(59, 130, 246, 0.12);
-            color: #60a5fa;
-        }
-
-        /* ── CARD GRID ── */
         .card-grid {
             display: grid;
             grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
@@ -253,13 +111,13 @@
             border: 1px solid var(--border);
             border-radius: 14px;
             overflow: hidden;
-            transition: all 0.22s;
+            transition: all 0.2s;
         }
 
         .tourney-card:hover {
             border-color: var(--border-gold);
             transform: translateY(-2px);
-            box-shadow: 0 10px 32px rgba(0, 0, 0, 0.4);
+            box-shadow: 0 10px 32px rgba(0, 0, 0, 0.35);
         }
 
         .tc-header {
@@ -280,7 +138,10 @@
             display: flex;
             align-items: center;
             justify-content: center;
-            font-size: 18px;
+            font-family: 'Barlow Condensed', sans-serif;
+            font-size: 14px;
+            font-weight: 900;
+            color: var(--gold);
             flex-shrink: 0;
         }
 
@@ -318,28 +179,7 @@
             flex-wrap: wrap;
         }
 
-        /* ── EMPTY / LOADING ── */
-        .empty-state {
-            text-align: center;
-            padding: 60px 20px;
-            color: var(--muted);
-        }
-
-        .empty-icon {
-            font-size: 36px;
-            margin-bottom: 12px;
-        }
-
-        .empty-text {
-            font-size: 14px;
-        }
-
-        /* ── RESPONSIVE ── */
         @media (max-width: 640px) {
-            .stats-row {
-                grid-template-columns: repeat(2, 1fr);
-            }
-
             .card-grid {
                 grid-template-columns: 1fr;
             }
@@ -362,18 +202,33 @@
         <div class="topbar"></div>
 
         <div class="content">
-
-            <!-- PAGE HEADER -->
-            <div class="page-header"
-                style="display:flex; justify-content:space-between; align-items:center; margin-bottom:28px;">
+            <div class="page-header">
                 <div>
-                    <div class="page-title">🏅 Tournaments</div>
+                    <div class="page-title">
+                        <span class="title-icon"><svg viewBox="0 0 24 24">
+                                <path
+                                    d="M7.21 15 2.66 7.14a2 2 0 0 1 .13-2.2L4.4 2.8A2 2 0 0 1 6 2h12a2 2 0 0 1 1.6.8l1.6 2.14a2 2 0 0 1 .14 2.2L16.79 15" />
+                                <path d="M11 12 5.12 2.2" />
+                                <path d="m13 12 5.88-9.8" />
+                                <path d="M8 7h8" />
+                                <circle cx="12" cy="17" r="5" />
+                                <path d="M12 18v-2h-.5" />
+                            </svg></span>
+                        Tournaments
+                    </div>
                     <div class="page-sub">All active and upcoming SportFest tournaments.</div>
                 </div>
-                <button class="btn btn-secondary btn-sm" onclick="loadTournaments()">🔄 Refresh</button>
+                <button class="btn btn-secondary btn-sm" onclick="loadTournaments()">
+                    <svg viewBox="0 0 24 24">
+                        <path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8" />
+                        <path d="M21 3v5h-5" />
+                        <path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16" />
+                        <path d="M8 16H3v5" />
+                    </svg>
+                    Refresh
+                </button>
             </div>
 
-            <!-- STAT CARDS -->
             <div class="stats-row">
                 <div class="stat-card">
                     <div class="stat-card-label">Total</div>
@@ -397,20 +252,33 @@
                 </div>
             </div>
 
-            <!-- FILTER BAR + VIEW TOGGLE -->
             <div class="filter-bar">
                 <button class="filter-pill active" onclick="setFilter('all',this)">All</button>
-                <button class="filter-pill" onclick="setFilter('active',this)">🟢 Active</button>
-                <button class="filter-pill" onclick="setFilter('upcoming',this)">📅 Upcoming</button>
-                <button class="filter-pill" onclick="setFilter('completed',this)">✅ Completed</button>
+                <button class="filter-pill" onclick="setFilter('active',this)">Active</button>
+                <button class="filter-pill" onclick="setFilter('upcoming',this)">Upcoming</button>
+                <button class="filter-pill" onclick="setFilter('completed',this)">Completed</button>
                 <div class="filter-spacer"></div>
                 <div class="view-toggle">
-                    <button class="btn-view active" id="btn-view-table" onclick="setView('table')"
-                        title="Table view">☰</button>
-                    <button class="btn-view" id="btn-view-grid" onclick="setView('grid')" title="Card view">⊞</button>
+                    <button class="btn-view active" id="btn-view-table" onclick="setView('table')" title="Table view">
+                        <svg viewBox="0 0 24 24">
+                            <line x1="8" x2="21" y1="6" y2="6" />
+                            <line x1="8" x2="21" y1="12" y2="12" />
+                            <line x1="8" x2="21" y1="18" y2="18" />
+                            <line x1="3" x2="3.01" y1="6" y2="6" />
+                            <line x1="3" x2="3.01" y1="12" y2="12" />
+                            <line x1="3" x2="3.01" y1="18" y2="18" />
+                        </svg>
+                    </button>
+                    <button class="btn-view" id="btn-view-grid" onclick="setView('grid')" title="Card view">
+                        <svg viewBox="0 0 24 24">
+                            <rect width="7" height="7" x="3" y="3" rx="1" />
+                            <rect width="7" height="7" x="14" y="3" rx="1" />
+                            <rect width="7" height="7" x="14" y="14" rx="1" />
+                            <rect width="7" height="7" x="3" y="14" rx="1" />
+                        </svg>
+                    </button>
                 </div>
             </div>
-
 
             <div id="view-table-el">
                 <div class="card">
@@ -427,8 +295,14 @@
                             </thead>
                             <tbody id="tourney-body">
                                 <tr>
-                                    <td colspan="5" style="text-align:center; padding:50px; color:var(--muted);">
-                                        <div style="font-size:26px; margin-bottom:10px;">⏳</div>Loading...
+                                    <td colspan="5">
+                                        <div class="empty-state">
+                                            <div class="empty-icon"><svg viewBox="0 0 24 24">
+                                                    <circle cx="12" cy="12" r="10" />
+                                                    <polyline points="12 6 12 12 16 14" />
+                                                </svg></div>
+                                            <div class="empty-text">Loading...</div>
+                                        </div>
                                     </td>
                                 </tr>
                             </tbody>
@@ -437,11 +311,9 @@
                 </div>
             </div>
 
-
             <div id="view-grid-el" style="display:none;">
                 <div class="card-grid" id="tourney-grid"></div>
             </div>
-
         </div>
     </main>
 
@@ -460,7 +332,10 @@
 
         async function loadTournaments() {
             document.getElementById('tourney-body').innerHTML =
-                `<tr><td colspan="5" style="text-align:center; padding:50px; color:var(--muted);"><div style="font-size:26px; margin-bottom:10px;">⏳</div>Loading...</td></tr>`;
+                `<tr><td colspan="5"><div class="empty-state">
+                    <div class="empty-icon"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg></div>
+                    <div class="empty-text">Loading...</div>
+                </div></td></tr>`;
             document.getElementById('tourney-grid').innerHTML = '';
             try {
                 const res = await api('/tournaments');
@@ -507,12 +382,32 @@
             currentView === 'table' ? renderTable() : renderGrid();
         }
 
+        function fmtFormat(f) {
+            if (!f) return '—';
+            return f.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+        }
+
+        function tBadge(s) {
+            const map = {
+                active: { cls: 'badge-active', label: 'Active' },
+                ongoing: { cls: 'badge-ongoing', label: 'Ongoing' },
+                upcoming: { cls: 'badge-upcoming', label: 'Upcoming' },
+                scheduled: { cls: 'badge-scheduled', label: 'Upcoming' },
+                completed: { cls: 'badge-completed', label: 'Completed' },
+                cancelled: { cls: 'badge-cancelled', label: 'Cancelled' },
+            };
+            const b = map[s] || { cls: 'badge-muted', label: s || 'Unknown' };
+            return `<span class="badge ${b.cls}">${b.label}</span>`;
+        }
+
         function renderTable() {
             const tbody = document.getElementById('tourney-body');
             const data = filteredData();
             if (!data.length) {
-                tbody.innerHTML = `<tr><td colspan="5" style="text-align:center; padding:50px; color:var(--muted);">
-                    <div style="font-size:28px; margin-bottom:10px;">🏅</div>No tournaments found.</td></tr>`;
+                tbody.innerHTML = `<tr><td colspan="5"><div class="empty-state">
+                    <div class="empty-icon"><svg viewBox="0 0 24 24"><path d="M7.21 15 2.66 7.14a2 2 0 0 1 .13-2.2L4.4 2.8A2 2 0 0 1 6 2h12a2 2 0 0 1 1.6.8l1.6 2.14a2 2 0 0 1 .14 2.2L16.79 15"/><circle cx="12" cy="17" r="5"/></svg></div>
+                    <div class="empty-text">No tournaments found.</div>
+                </div></td></tr>`;
                 return;
             }
             tbody.innerHTML = data.map(t => `
@@ -521,7 +416,7 @@
                         <div class="td-primary">${t.name}</div>
                         <div class="td-sub">ID #${t.id}</div>
                     </td>
-                    <td>${sportIcon(t.sport_name)} ${t.sport_name || '—'}</td>
+                    <td>${t.sport_name || '—'}</td>
                     <td><span class="badge badge-muted">${fmtFormat(t.format)}</span></td>
                     <td style="color:var(--text2); font-size:13px;">${t.match_count != null ? t.match_count + ' matches' : '—'}</td>
                     <td>${tBadge(t.status)}</td>
@@ -533,13 +428,17 @@
             const data = filteredData();
             if (!data.length) {
                 grid.innerHTML = `<div class="empty-state" style="grid-column:1/-1">
-                    <div class="empty-icon">🏅</div><div class="empty-text">No tournaments found.</div></div>`;
+                    <div class="empty-icon"><svg viewBox="0 0 24 24"><path d="M7.21 15 2.66 7.14a2 2 0 0 1 .13-2.2L4.4 2.8A2 2 0 0 1 6 2h12a2 2 0 0 1 1.6.8l1.6 2.14a2 2 0 0 1 .14 2.2L16.79 15"/><circle cx="12" cy="17" r="5"/></svg></div>
+                    <div class="empty-text">No tournaments found.</div>
+                </div>`;
                 return;
             }
-            grid.innerHTML = data.map(t => `
+            grid.innerHTML = data.map(t => {
+                const initials = (t.sport_name || 'SP').slice(0, 2).toUpperCase();
+                return `
                 <div class="tourney-card">
                     <div class="tc-header">
-                        <div class="tc-sport-circle">${sportIcon(t.sport_name)}</div>
+                        <div class="tc-sport-circle">${initials}</div>
                         <div style="flex:1; min-width:0;">
                             <div class="tc-sport-name">${t.sport_name || 'Sport'}</div>
                             <div class="tc-meta">${t.match_count != null ? t.match_count + ' matches' : 'ID #' + t.id}</div>
@@ -553,25 +452,8 @@
                             <span class="badge badge-blue">ID #${t.id}</span>
                         </div>
                     </div>
-                </div>`).join('');
-        }
-
-        function fmtFormat(f) {
-            if (!f) return '—';
-            return f.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
-        }
-
-        function tBadge(s) {
-            const map = {
-                active: { cls: 'badge-active', label: '● Active' },
-                ongoing: { cls: 'badge-ongoing', label: '● Ongoing' },
-                upcoming: { cls: 'badge-upcoming', label: '◌ Upcoming' },
-                scheduled: { cls: 'badge-scheduled', label: '◌ Upcoming' },
-                completed: { cls: 'badge-completed', label: '✓ Completed' },
-                cancelled: { cls: 'badge-cancelled', label: '✕ Cancelled' },
-            };
-            const b = map[s] || { cls: 'badge-muted', label: s || 'Unknown' };
-            return `<span class="badge ${b.cls}">${b.label}</span>`;
+                </div>`;
+            }).join('');
         }
     </script>
 </body>

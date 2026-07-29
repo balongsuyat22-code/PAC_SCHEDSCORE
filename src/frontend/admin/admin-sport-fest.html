@@ -1,0 +1,903 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PAC SCHED-SCORE — Sport Fest</title>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;600;700;800;900&family=Barlow:wght@300;400;500;600&display=swap"
+        rel="stylesheet">
+    <link rel="stylesheet" href="../css/shared.css">
+    <style>
+        .fest-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: 18px;
+        }
+
+        .fest-card {
+            background: var(--bg2);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            overflow: hidden;
+            transition: all .2s;
+            position: relative;
+        }
+
+        .fest-card.is-current {
+            border-color: var(--gold);
+        }
+
+        .fest-card.is-archived {
+            opacity: .85;
+        }
+
+        .fest-card:hover {
+            border-color: var(--border-gold);
+            transform: translateY(-3px);
+        }
+
+        .fest-season-badge {
+            position: absolute;
+            top: 14px;
+            right: 14px;
+            font-size: 10px;
+            font-weight: 800;
+            letter-spacing: .5px;
+            text-transform: uppercase;
+            padding: 4px 10px;
+            border-radius: 20px;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .fest-season-badge .icon {
+            width: 12px;
+            height: 12px;
+        }
+
+        .fest-season-badge.current {
+            background: rgba(0, 200, 100, .15);
+            color: #2ecc71;
+            border: 1px solid rgba(46, 204, 113, .4);
+        }
+
+        .fest-season-badge.archived {
+            background: rgba(255, 255, 255, .06);
+            color: var(--muted);
+            border: 1px solid var(--border);
+        }
+
+        .fest-card-banner {
+            padding: 22px 20px 16px;
+            background: linear-gradient(135deg, rgba(245, 184, 0, .08), transparent);
+            border-bottom: 1px solid var(--border);
+        }
+
+        .fest-year {
+            font-family: 'Barlow Condensed', sans-serif;
+            font-size: 13px;
+            font-weight: 800;
+            color: var(--gold);
+            letter-spacing: 2px;
+        }
+
+        .fest-name {
+            font-family: 'Barlow Condensed', sans-serif;
+            font-size: 26px;
+            font-weight: 900;
+            text-transform: uppercase;
+            margin: 2px 0 4px;
+            padding-right: 90px;
+        }
+
+        .fest-theme {
+            font-size: 12px;
+            color: var(--muted);
+            font-style: italic;
+        }
+
+        .fest-card-body {
+            padding: 16px 20px;
+        }
+
+        .fest-meta-row {
+            display: flex;
+            justify-content: space-between;
+            font-size: 12px;
+            color: var(--muted);
+            margin-bottom: 12px;
+            flex-wrap: wrap;
+            gap: 4px;
+        }
+
+        .fest-champion {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            background: var(--bg3);
+            border-radius: 10px;
+            padding: 10px 14px;
+            margin-bottom: 14px;
+        }
+
+        .fest-champion-logo {
+            width: 32px;
+            height: 32px;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-family: 'Barlow Condensed', sans-serif;
+            font-weight: 900;
+            font-size: 12px;
+            color: #fff;
+            flex-shrink: 0;
+        }
+
+        .fest-actions {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+
+        .fest-actions .btn {
+            flex: 1;
+            justify-content: center;
+            min-width: 80px;
+        }
+
+        .stat-pill {
+            background: var(--bg3);
+            border-radius: 8px;
+            padding: 8px;
+            text-align: center;
+            flex: 1;
+        }
+
+        .stat-pill .icon {
+            width: 16px;
+            height: 16px;
+            color: var(--gold);
+        }
+
+        .stat-pill-val {
+            font-family: 'Barlow Condensed', sans-serif;
+            font-size: 20px;
+            font-weight: 900;
+            color: var(--gold);
+        }
+
+        .stat-pill-lbl {
+            font-size: 9px;
+            color: var(--muted);
+            text-transform: uppercase;
+            letter-spacing: .5px;
+        }
+
+        .linked-tourney-row {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 9px 14px;
+            border-bottom: 1px solid rgba(255, 255, 255, .04);
+            font-size: 13px;
+            flex-wrap: wrap;
+        }
+
+        .linked-tourney-row:last-child {
+            border-bottom: none;
+        }
+
+        .linked-tourney-row .icon {
+            width: 18px;
+            height: 18px;
+            color: var(--gold);
+        }
+
+        .season-warning {
+            background: rgba(245, 184, 0, .08);
+            border: 1px solid rgba(245, 184, 0, .3);
+            border-radius: 10px;
+            padding: 12px 14px;
+            font-size: 12.5px;
+            color: var(--text);
+            line-height: 1.5;
+            margin-bottom: 16px;
+        }
+
+        .modal-title .icon {
+            width: 18px;
+            height: 18px;
+            color: var(--gold);
+        }
+
+        /* Confirmation Modal */
+        #modal-confirm .modal {
+            max-width: 420px;
+        }
+
+        #modal-confirm .modal-body {
+            text-align: center;
+            padding: 30px 24px;
+        }
+
+        #modal-confirm .confirm-icon {
+            width: 56px;
+            height: 56px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 16px;
+        }
+
+        #modal-confirm .confirm-icon .icon {
+            width: 32px;
+            height: 32px;
+        }
+
+        .confirm-icon-warning {
+            background: rgba(245, 184, 0, 0.15);
+            color: var(--gold);
+        }
+
+        .confirm-icon-danger {
+            background: rgba(232, 50, 59, 0.15);
+            color: var(--red);
+        }
+
+        #modal-confirm .confirm-title {
+            font-family: 'Barlow Condensed', sans-serif;
+            font-size: 20px;
+            font-weight: 800;
+            margin-bottom: 8px;
+        }
+
+        #modal-confirm .confirm-message {
+            color: var(--text2);
+            font-size: 14px;
+            line-height: 1.6;
+        }
+
+        @media (max-width: 768px) {
+            .fest-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .fest-name {
+                font-size: 20px;
+                padding-right: 0;
+            }
+
+            .fest-card-banner {
+                padding: 16px 14px;
+            }
+
+            .fest-season-badge {
+                position: static;
+                display: inline-flex;
+                margin-bottom: 6px;
+            }
+
+            .fest-actions {
+                flex-direction: column;
+            }
+
+            .fest-actions .btn {
+                width: 100%;
+            }
+
+            .topbar {
+                flex-wrap: wrap;
+                height: auto;
+                padding: 10px 16px;
+                gap: 8px;
+            }
+
+            .topbar-title {
+                font-size: 16px;
+            }
+
+            .topbar-actions {
+                flex-wrap: wrap;
+            }
+
+            .content {
+                padding: 16px;
+            }
+
+            .modal {
+                width: 98vw;
+                max-width: 98vw;
+            }
+
+            .modal-body {
+                padding: 16px;
+            }
+
+            .form-row {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .fest-name {
+                font-size: 17px;
+            }
+
+            .fest-card-body {
+                padding: 12px 14px;
+            }
+
+            .stat-pill-val {
+                font-size: 17px;
+            }
+
+            .linked-tourney-row {
+                flex-direction: column;
+                text-align: center;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <!-- Sidebar injected by renderSidebar -->
+    <main class="main">
+        <div class="topbar">
+            <div class="topbar-title">
+                <span class="icon" style="width:20px;height:20px;color:var(--gold);">
+                    <svg viewBox="0 0 24 24">
+                        <polygon
+                            points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2">
+                        </polygon>
+                    </svg>
+                </span>
+                Sport Fest Events
+            </div>
+            <div class="topbar-actions">
+                <button class="btn btn-secondary btn-sm" onclick="loadPage()">
+                    <span class="icon" style="width:14px;height:14px;"><svg viewBox="0 0 24 24">
+                            <polyline points="23 4 23 10 17 10"></polyline>
+                            <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"></path>
+                        </svg></span>
+                    Refresh
+                </button>
+                <button class="btn btn-secondary btn-sm" onclick="openNewSeason()">
+                    <span class="icon" style="width:14px;height:14px;"><svg viewBox="0 0 24 24">
+                            <polygon
+                                points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2">
+                            </polygon>
+                        </svg></span>
+                    Start New Season
+                </button>
+                <button class="btn btn-primary btn-sm" onclick="openCreate()">
+                    <span class="icon" style="width:14px;height:14px;"><svg viewBox="0 0 24 24">
+                            <line x1="12" y1="5" x2="12" y2="19"></line>
+                            <line x1="5" y1="12" x2="19" y2="12"></line>
+                        </svg></span>
+                    New Sport Fest
+                </button>
+            </div>
+        </div>
+        <div class="content">
+            <div class="fest-grid" id="fest-grid">
+                <div class="empty-state" style="grid-column:1/-1">
+                    <div class="empty-icon">
+                        <span class="icon" style="width:44px;height:44px;color:var(--muted);"><svg viewBox="0 0 24 24">
+                                <circle cx="12" cy="12" r="10"></circle>
+                                <line x1="12" y1="8" x2="12" y2="12"></line>
+                                <line x1="12" y1="16" x2="12.01" y2="16"></line>
+                            </svg></span>
+                    </div>
+                    <div class="empty-text">Loading...</div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- ── CONFIRMATION MODAL ── -->
+    <div class="modal-overlay" id="modal-confirm" onclick="if(event.target===this)closeConfirm()">
+        <div class="modal">
+            <div class="modal-header">
+                <div class="modal-title" id="confirm-title">
+                    <span class="icon" style="width:18px;height:18px;color:var(--gold);"><svg viewBox="0 0 24 24">
+                            <circle cx="12" cy="12" r="10"></circle>
+                            <line x1="12" y1="8" x2="12" y2="12"></line>
+                            <line x1="12" y1="16" x2="12.01" y2="16"></line>
+                        </svg></span>
+                    Confirm
+                </div>
+                <button class="modal-close" onclick="closeConfirm()">✕</button>
+            </div>
+            <div class="modal-body">
+                <div class="confirm-icon confirm-icon-warning" id="confirm-icon">
+                    <span class="icon"><svg viewBox="0 0 24 24">
+                            <circle cx="12" cy="12" r="10"></circle>
+                            <line x1="12" y1="8" x2="12" y2="12"></line>
+                            <line x1="12" y1="16" x2="12.01" y2="16"></line>
+                        </svg></span>
+                </div>
+                <div class="confirm-title" id="confirm-title-text">Are you sure?</div>
+                <div class="confirm-message" id="confirm-message-text">This action cannot be undone.</div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="closeConfirm()">Cancel</button>
+                <button class="btn btn-primary" id="confirm-btn" onclick="executeConfirm()">Confirm</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Create/Edit Modal -->
+    <div class="modal-overlay" id="modal-fest" onclick="if(event.target===this)Modal.close('modal-fest')">
+        <div class="modal">
+            <div class="modal-header">
+                <div class="modal-title" id="fest-modal-title">
+                    <span class="icon" style="width:18px;height:18px;color:var(--gold);"><svg viewBox="0 0 24 24">
+                            <polygon
+                                points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2">
+                            </polygon>
+                        </svg></span>
+                    New Sport Fest
+                </div>
+                <button class="modal-close" onclick="Modal.close('modal-fest')">✕</button>
+            </div>
+            <div class="modal-body">
+                <input type="hidden" id="fest-edit-id">
+                <div class="form-row">
+                    <div class="form-group"><label class="form-label">Name *</label><input type="text" id="fst-name"
+                            class="form-input" placeholder="e.g. PAC Sport Fest 2026"></div>
+                    <div class="form-group"><label class="form-label">Year *</label><input type="number" id="fst-year"
+                            class="form-input" placeholder="2026"></div>
+                </div>
+                <div class="form-group"><label class="form-label">Theme</label><input type="text" id="fst-theme"
+                        class="form-input" placeholder="e.g. United in Sportsmanship"></div>
+                <div class="form-row">
+                    <div class="form-group"><label class="form-label">Start Date</label><input type="date"
+                            id="fst-start" class="form-input"></div>
+                    <div class="form-group"><label class="form-label">End Date</label><input type="date" id="fst-end"
+                            class="form-input"></div>
+                </div>
+                <div class="form-group" id="fst-status-group" style="display:none">
+                    <label class="form-label">Status</label>
+                    <select id="fst-status" class="form-select">
+                        <option value="upcoming">Upcoming</option>
+                        <option value="ongoing">Ongoing</option>
+                        <option value="completed">Completed</option>
+                    </select>
+                </div>
+                <div class="form-group"><label class="form-label">Description</label><textarea id="fst-desc"
+                        class="form-textarea" placeholder="Optional notes..."></textarea></div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="Modal.close('modal-fest')">Cancel</button>
+                <button class="btn btn-primary" id="fest-save-btn" onclick="saveFest()">Create</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Start New Season Modal -->
+    <div class="modal-overlay" id="modal-new-season" onclick="if(event.target===this)Modal.close('modal-new-season')">
+        <div class="modal">
+            <div class="modal-header">
+                <div class="modal-title">
+                    <span class="icon" style="width:18px;height:18px;color:var(--gold);"><svg viewBox="0 0 24 24">
+                            <polygon
+                                points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2">
+                            </polygon>
+                        </svg></span>
+                    Start New Season
+                </div>
+                <button class="modal-close" onclick="Modal.close('modal-new-season')">✕</button>
+            </div>
+            <div class="modal-body">
+                <div class="season-warning" id="ns-warning">
+                    Starting a new season will <strong>archive</strong> the current active Sport Fest
+                    (its standings, rosters, and tournament results stay saved and viewable) and open a
+                    fresh season with empty standings for new registrations.
+                </div>
+                <div class="form-row">
+                    <div class="form-group"><label class="form-label">Name *</label><input type="text" id="ns-name"
+                            class="form-input" placeholder="e.g. PAC Sport Fest 2027"></div>
+                    <div class="form-group"><label class="form-label">Year *</label><input type="number" id="ns-year"
+                            class="form-input" placeholder="2027"></div>
+                </div>
+                <div class="form-group"><label class="form-label">Theme</label><input type="text" id="ns-theme"
+                        class="form-input" placeholder="Optional"></div>
+                <div class="form-row">
+                    <div class="form-group"><label class="form-label">Start Date</label><input type="date" id="ns-start"
+                            class="form-input"></div>
+                    <div class="form-group"><label class="form-label">End Date</label><input type="date" id="ns-end"
+                            class="form-input"></div>
+                </div>
+                <div class="form-group"><label class="form-label">Description</label><textarea id="ns-desc"
+                        class="form-textarea" placeholder="Optional notes..."></textarea></div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="Modal.close('modal-new-season')">Cancel</button>
+                <button class="btn btn-primary" onclick="confirmNewSeason()">
+                    <span class="icon" style="width:14px;height:14px;"><svg viewBox="0 0 24 24">
+                            <polygon
+                                points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2">
+                            </polygon>
+                        </svg></span>
+                    Archive &amp; Start
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Detail / Summary Modal -->
+    <div class="modal-overlay" id="modal-fest-detail" onclick="if(event.target===this)Modal.close('modal-fest-detail')">
+        <div class="modal" style="max-width:640px">
+            <div class="modal-header">
+                <div class="modal-title" id="fest-detail-title">
+                    <span class="icon" style="width:18px;height:18px;color:var(--gold);"><svg viewBox="0 0 24 24">
+                            <polygon
+                                points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2">
+                            </polygon>
+                        </svg></span>
+                    Details
+                </div>
+                <button class="modal-close" onclick="Modal.close('modal-fest-detail')">✕</button>
+            </div>
+            <div class="modal-body" id="fest-detail-body" style="max-height:520px;overflow-y:auto"></div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="Modal.close('modal-fest-detail')">Close</button>
+                <button class="btn btn-secondary" id="fest-detail-edit-btn">
+                    <span class="icon" style="width:14px;height:14px;"><svg viewBox="0 0 24 24">
+                            <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
+                            <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
+                        </svg></span>
+                    Edit
+                </button>
+                <button class="btn btn-primary" style="background:var(--green);color:#000"
+                    id="fest-detail-champion-btn">
+                    <span class="icon" style="width:14px;height:14px;"><svg viewBox="0 0 24 24">
+                            <circle cx="12" cy="8" r="7"></circle>
+                            <polyline points="8.21 13.89 7 23 12 20 17 23 15.79 13.88"></polyline>
+                        </svg></span>
+                    Declare Champion
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Manage Tournaments Modal -->
+    <div class="modal-overlay" id="modal-fest-tourneys"
+        onclick="if(event.target===this)Modal.close('modal-fest-tourneys')">
+        <div class="modal">
+            <div class="modal-header">
+                <div class="modal-title">
+                    <span class="icon" style="width:18px;height:18px;color:var(--gold);"><svg viewBox="0 0 24 24">
+                            <circle cx="12" cy="8" r="7"></circle>
+                            <polyline points="8.21 13.89 7 23 12 20 17 23 15.79 13.88"></polyline>
+                        </svg></span>
+                    Linked Tournaments
+                </div>
+                <button class="modal-close" onclick="Modal.close('modal-fest-tourneys')">✕</button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label class="form-label">Add Tournament</label>
+                    <div style="display:flex;gap:8px;flex-wrap:wrap">
+                        <select id="ft-add-select" class="form-select" style="flex:1;min-width:160px">
+                            <option value="">Select tournament...</option>
+                        </select>
+                        <button class="btn btn-primary btn-sm" onclick="addLinkedTourney()">
+                            <span class="icon" style="width:14px;height:14px;"><svg viewBox="0 0 24 24">
+                                    <line x1="12" y1="5" x2="12" y2="19"></line>
+                                    <line x1="5" y1="12" x2="19" y2="12"></line>
+                                </svg></span>
+                            Link
+                        </button>
+                    </div>
+                </div>
+                <div class="card" style="margin-top:14px">
+                    <div id="ft-linked-list"></div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="Modal.close('modal-fest-tourneys')">Close</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="../js/shared.js"></script>
+    <script src="../js/admin-sidebar.js"></script>
+    <script>
+        let allFests = [],
+            allTournaments = [],
+            activeFestId = null;
+        let confirmCallback = null;
+
+        // ── CONFIRMATION MODAL ────────────────────────────────────────────────
+        function openConfirm(title, message, callback, type = 'warning') {
+            document.getElementById('confirm-title-text').textContent = title;
+            document.getElementById('confirm-message-text').textContent = message;
+            const iconEl = document.getElementById('confirm-icon');
+            iconEl.className = `confirm-icon confirm-icon-${type}`;
+            confirmCallback = callback;
+            const btn = document.getElementById('confirm-btn');
+            btn.className = type === 'danger' ? 'btn btn-danger' : 'btn btn-primary';
+            Modal.open('modal-confirm');
+        }
+
+        function closeConfirm() {
+            Modal.close('modal-confirm');
+            confirmCallback = null;
+        }
+
+        function executeConfirm() {
+            if (typeof confirmCallback === 'function') {
+                confirmCallback();
+            }
+            closeConfirm();
+        }
+
+        // ── INIT ──────────────────────────────────────────────────────────────
+        document.addEventListener('DOMContentLoaded', async () => {
+            Auth.requireAuth('admin');
+            if (typeof renderSidebar === 'function') {
+                renderSidebar('sport-fest');
+            }
+            const tRes = await api('/tournaments');
+            allTournaments = tRes.data || [];
+            await loadPage();
+        });
+
+        async function loadPage() {
+            const res = await api('/sport-fest');
+            if (!res.success) return;
+            allFests = res.data || [];
+            renderGrid();
+        }
+
+        function renderGrid() {
+            const el = document.getElementById('fest-grid');
+            if (!allFests.length) {
+                el.innerHTML =
+                    `<div class="empty-state" style="grid-column:1/-1"><div class="empty-icon"><span class="icon" style="width:44px;height:44px;color:var(--muted);"><svg viewBox="0 0 24 24"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg></span></div><div class="empty-text">No sport fest events yet. Click "New Sport Fest" to create your first season.</div></div>`;
+                return;
+            }
+            el.innerHTML = allFests.map(f => {
+                const init = (f.champion_department_name || '').split(' ').map(w => w[0]).slice(0, 2).join('').toUpperCase();
+                const isCurrent = !!f.is_current;
+                const statusIcon = f.status === 'ongoing' ?
+                    `<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line></svg>` :
+                    `<svg viewBox="0 0 24 24"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>`;
+                return `
+                <div class="fest-card ${isCurrent ? 'is-current' : 'is-archived'}">
+                    <div class="fest-card-banner">
+                        <span class="fest-season-badge ${isCurrent ? 'current' : 'archived'}">
+                            <span class="icon">${isCurrent ? `<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="2"></circle><path d="M16.24 7.76a6 6 0 0 1 0 8.49m-8.48-.01a6 6 0 0 1 0-8.49m11.31-2.82a10 10 0 0 1 0 14.14m-14.14 0a10 10 0 0 1 0-14.14"></path></svg>` : `<svg viewBox="0 0 24 24"><rect x="2" y="2" width="20" height="20" rx="2.18"></rect><line x1="8" y1="2" x2="8" y2="22"></line><line x1="16" y1="2" x2="16" y2="22"></line></svg>`}</span>
+                            ${isCurrent ? 'Current Season' : 'Archived'}
+                        </span>
+                        <div class="fest-year">${f.year}</div>
+                        <div class="fest-name">${f.name}</div>
+                        ${f.theme ? `<div class="fest-theme">"${f.theme}"</div>` : ''}
+                    </div>
+                    <div class="fest-card-body">
+                        <div class="fest-meta-row">
+                            <span>${statusBadge(f.status || 'upcoming')}</span>
+                            <span>${f.tournament_count || 0} tournaments</span>
+                        </div>
+                        ${f.champion_department_name ? `
+                        <div class="fest-champion">
+                            <div class="fest-champion-logo" style="background:${f.champion_color || '#555'}">${init}</div>
+                            <div><div style="font-size:11px;color:var(--muted);text-transform:uppercase">Champion</div><div style="font-weight:700;font-size:13px">${f.champion_department_name}</div></div>
+                        </div>` : `<div style="font-size:12px;color:var(--muted);margin-bottom:14px">No champion declared yet.</div>`}
+                        <div class="fest-actions">
+                            <button class="btn btn-secondary btn-sm" onclick="viewFest(${f.id})">
+                                <span class="icon" style="width:14px;height:14px;"><svg viewBox="0 0 24 24"><circle cx="12" cy="7" r="4"></circle><path d="M5.5 20a8 8 0 0 1 13 0"></path></svg></span>
+                                View
+                            </button>
+                            <button class="btn btn-secondary btn-sm" onclick="openTourneyManager(${f.id})">
+                                <span class="icon" style="width:14px;height:14px;"><svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="7"></circle><polyline points="8.21 13.89 7 23 12 20 17 23 15.79 13.88"></polyline></svg></span>
+                                Tournaments
+                            </button>
+                            <button class="btn btn-primary btn-sm" onclick="openEdit(${f.id})">
+                                <span class="icon" style="width:14px;height:14px;"><svg viewBox="0 0 24 24"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg></span>
+                                Edit
+                            </button>
+                        </div>
+                    </div>
+                </div>`;
+            }).join('');
+        }
+
+        function openCreate() {
+            document.getElementById('fest-modal-title').innerHTML =
+                `<span class="icon" style="width:18px;height:18px;color:var(--gold);"><svg viewBox="0 0 24 24"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg></span> New Sport Fest`;
+            document.getElementById('fest-save-btn').textContent = 'Create';
+            document.getElementById('fest-edit-id').value = '';
+            ['fst-name', 'fst-year', 'fst-theme', 'fst-start', 'fst-end', 'fst-desc'].forEach(id => document.getElementById(id).value = '');
+            document.getElementById('fst-status-group').style.display = 'none';
+            Modal.open('modal-fest');
+        }
+
+        function openEdit(id) {
+            const f = allFests.find(x => x.id === id);
+            if (!f) return;
+            document.getElementById('fest-modal-title').innerHTML =
+                `<span class="icon" style="width:18px;height:18px;color:var(--gold);"><svg viewBox="0 0 24 24"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg></span> ${f.name}`;
+            document.getElementById('fest-save-btn').textContent = 'Save Changes';
+            document.getElementById('fest-edit-id').value = id;
+            document.getElementById('fst-name').value = f.name;
+            document.getElementById('fst-year').value = f.year;
+            document.getElementById('fst-theme').value = f.theme || '';
+            document.getElementById('fst-start').value = f.start_date ? f.start_date.split('T')[0] : '';
+            document.getElementById('fst-end').value = f.end_date ? f.end_date.split('T')[0] : '';
+            document.getElementById('fst-desc').value = f.description || '';
+            document.getElementById('fst-status').value = f.status || 'upcoming';
+            document.getElementById('fst-status-group').style.display = '';
+            Modal.open('modal-fest');
+        }
+
+        async function saveFest() {
+            const id = document.getElementById('fest-edit-id').value;
+            const name = document.getElementById('fst-name').value.trim();
+            const year = parseInt(document.getElementById('fst-year').value);
+            if (!name || !year) { Toast.show('Name and year are required', 'error'); return; }
+            const body = {
+                name,
+                year,
+                theme: document.getElementById('fst-theme').value.trim() || null,
+                start_date: document.getElementById('fst-start').value || null,
+                end_date: document.getElementById('fst-end').value || null,
+                description: document.getElementById('fst-desc').value.trim() || null,
+                status: document.getElementById('fst-status').value || 'upcoming',
+            };
+            const res = id ?
+                await api(`/sport-fest/${id}`, { method: 'PUT', body: JSON.stringify(body) }) :
+                await api('/sport-fest', { method: 'POST', body: JSON.stringify(body) });
+            Toast.show(res.message || (res.success ? 'Saved!' : 'Error'), res.success ? 'success' : 'error');
+            if (res.success) { Modal.close('modal-fest'); await loadPage(); }
+        }
+
+        function openNewSeason() {
+            const current = allFests.find(f => f.is_current);
+            document.getElementById('ns-warning').innerHTML = current ?
+                `Starting a new season will <strong>archive "${current.name}"</strong> (its standings, rosters, and tournament results stay saved — you can still view them anytime) and open a fresh season with empty standings for new registrations.` :
+                `This will start your first active season. New player/team registrations and points will attach to it going forward.`;
+            ['ns-name', 'ns-year', 'ns-theme', 'ns-start', 'ns-end', 'ns-desc'].forEach(id => document.getElementById(id).value = '');
+            Modal.open('modal-new-season');
+        }
+
+        function confirmNewSeason() {
+            const name = document.getElementById('ns-name').value.trim();
+            const year = parseInt(document.getElementById('ns-year').value);
+            if (!name || !year) { Toast.show('Name and year are required', 'error'); return; }
+
+            const current = allFests.find(f => f.is_current);
+            const confirmMsg = current ?
+                `Archive "${current.name}" and start "${name}"? This cannot be undone.` :
+                `Start "${name}" as the new active season?`;
+
+            openConfirm(
+                'Start New Season?',
+                confirmMsg,
+                async function () {
+                    const body = {
+                        name,
+                        year,
+                        theme: document.getElementById('ns-theme').value.trim() || null,
+                        start_date: document.getElementById('ns-start').value || null,
+                        end_date: document.getElementById('ns-end').value || null,
+                        description: document.getElementById('ns-desc').value.trim() || null,
+                    };
+                    const res = await api('/sport-fest/start-new-season', { method: 'POST', body: JSON.stringify(body) });
+                    Toast.show(res.message || (res.success ? 'New season started!' : 'Error'), res.success ? 'success' : 'error');
+                    if (res.success) { Modal.close('modal-new-season'); await loadPage(); }
+                },
+                'danger'
+            );
+        }
+
+        async function viewFest(id) {
+            activeFestId = id;
+            const res = await api(`/sport-fest/${id}/summary`);
+            if (!res.success) { Toast.show('Failed to load summary', 'error'); return; }
+            const { event, leaderboard, tournaments } = res.data;
+            document.getElementById('fest-detail-title').innerHTML =
+                `<span class="icon" style="width:18px;height:18px;color:var(--gold);"><svg viewBox="0 0 24 24"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg></span> ${event.name}`;
+            document.getElementById('fest-detail-body').innerHTML = `
+                <div style="display:flex;gap:10px;margin-bottom:18px;flex-wrap:wrap">
+                    <div class="stat-pill"><div class="stat-pill-val">${event.year}</div><div class="stat-pill-lbl">Year</div></div>
+                    <div class="stat-pill"><div class="stat-pill-val">${tournaments.length}</div><div class="stat-pill-lbl">Tournaments</div></div>
+                    <div class="stat-pill"><div class="stat-pill-val" style="color:var(--text)">${statusBadge(event.status || 'upcoming')}</div><div class="stat-pill-lbl">Status</div></div>
+                </div>
+                ${event.theme ? `<div style="font-style:italic;color:var(--muted);margin-bottom:16px">"${event.theme}"</div>` : ''}
+                <div style="font-family:'Barlow Condensed',sans-serif;font-size:14px;font-weight:800;color:var(--muted);margin-bottom:8px">Standings</div>
+                <div class="card" style="margin-bottom:18px">
+                    ${leaderboard.slice(0, 6).map((d, i) => `
+                    <div style="display:flex;align-items:center;gap:10px;padding:9px 14px;border-bottom:1px solid rgba(255,255,255,.04)">
+                        <div style="width:22px;font-family:'Barlow Condensed',sans-serif;font-weight:900;color:${i === 0 ? '#FFD700' : i === 1 ? '#C0C0C0' : i === 2 ? '#CD7F32' : 'var(--muted)'}">${i + 1}</div>
+                        <div style="width:10px;height:10px;border-radius:50%;background:${d.color}"></div>
+                        <div style="flex:1;font-size:13px;font-weight:600">${d.name}</div>
+                        <div style="font-family:'Barlow Condensed',sans-serif;font-size:18px;font-weight:900;color:var(--gold)">${d.total_points}</div>
+                    </div>`).join('') || '<div style="padding:14px;color:var(--muted);font-size:13px">No scores yet.</div>'}
+                </div>
+                <div style="font-family:'Barlow Condensed',sans-serif;font-size:14px;font-weight:800;color:var(--muted);margin-bottom:8px">Tournaments</div>
+                <div class="card">
+                    ${tournaments.map(t => `
+                    <div class="linked-tourney-row">
+                        <span class="icon">${sportIconSVG(t.sport_name)}</span>
+                        <div style="flex:1"><div style="font-weight:600">${t.tournament_name}</div><div style="font-size:11px;color:var(--muted)">${t.sport_name} · ${t.departments_participated || 0} depts</div></div>
+                        ${t.winner_department ? `<span style="font-size:11px;color:var(--gold)">${t.winner_department}</span>` : statusBadge(t.status)}
+                    </div>`).join('') || '<div style="padding:14px;color:var(--muted);font-size:13px">No tournaments linked.</div>'}
+                </div>`;
+            document.getElementById('fest-detail-edit-btn').onclick = () => {
+                Modal.close('modal-fest-detail');
+                openEdit(id);
+            };
+            document.getElementById('fest-detail-champion-btn').onclick = () => confirmDeclareChampion(id);
+            Modal.open('modal-fest-detail');
+        }
+
+        function confirmDeclareChampion(id) {
+            openConfirm(
+                'Declare Champion?',
+                'Declare the current points leader as Sport Fest Champion? This will mark the event as completed.',
+                async function () {
+                    const res = await api(`/sport-fest/${id}/declare-champion`, { method: 'POST' });
+                    Toast.show(res.message || (res.success ? 'Champion declared!' : 'Error'), res.success ? 'success' : 'error');
+                    if (res.success) { Modal.close('modal-fest-detail'); await loadPage(); }
+                },
+                'warning'
+            );
+        }
+
+        function openTourneyManager(id) {
+            activeFestId = id;
+            const f = allFests.find(x => x.id === id);
+            document.getElementById('ft-add-select').innerHTML = '<option value="">Select tournament...</option>' +
+                allTournaments.map(t => `<option value="${t.id}">${t.name} (${t.sport_name || '—'})</option>`).join('');
+            renderLinkedTourneys();
+            Modal.open('modal-fest-tourneys');
+        }
+
+        async function renderLinkedTourneys() {
+            const res = await api(`/sport-fest/${activeFestId}`);
+            if (!res.success) return;
+            const linked = res.data.tournaments || [];
+            document.getElementById('ft-linked-list').innerHTML = linked.length ?
+                linked.map(t =>
+                    `<div class="linked-tourney-row"><span class="icon">${sportIconSVG(t.sport_name)}</span><div style="flex:1">${t.name}</div><button class="btn btn-secondary btn-sm" onclick="removeLinkedTourney(${t.id})"><span class="icon" style="width:14px;height:14px;"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"></circle><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"></line></svg></span></button></div>`
+                ).join('') :
+                `<div style="padding:14px;color:var(--muted);font-size:13px">No tournaments linked yet.</div>`;
+        }
+
+        async function addLinkedTourney() {
+            const tid = document.getElementById('ft-add-select').value;
+            if (!tid) { Toast.show('Select a tournament first', 'error'); return; }
+            const res = await api(`/sport-fest/${activeFestId}/tournaments`, { method: 'POST', body: JSON.stringify({ tournament_id: parseInt(tid) }) });
+            if (res.success) { Toast.show('Tournament linked', 'success'); await renderLinkedTourneys(); await loadPage(); } else Toast.show(res.message ||
+                'Error', 'error');
+        }
+
+        async function removeLinkedTourney(tid) {
+            const res = await api(`/sport-fest/${activeFestId}/tournaments/${tid}`, { method: 'DELETE' });
+            if (res.success) { Toast.show('Removed', 'success'); await renderLinkedTourneys(); await loadPage(); } else Toast.show(res.message ||
+                'Error', 'error');
+        }
+
+        function sportIconSVG(name) {
+            const icons = {
+                'basketball': `<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"></circle><path d="M2 12h20"></path><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path></svg>`,
+                'volleyball': `<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"></circle><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path><line x1="2" y1="12" x2="22" y2="12"></line></svg>`,
+                'football': `<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"></circle><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path><line x1="2" y1="12" x2="22" y2="12"></line><line x1="12" y1="2" x2="12" y2="22"></line></svg>`
+            };
+            const lower = (name || '').toLowerCase();
+            for (const [key, svg] of Object.entries(icons)) {
+                if (lower.includes(key)) return svg;
+            }
+            return `<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"></circle><circle cx="12" cy="12" r="6"></circle><circle cx="12" cy="12" r="2"></circle></svg>`;
+        }
+    </script>
+</body>
+
+</html>

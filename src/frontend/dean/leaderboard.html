@@ -1,0 +1,648 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PAC SCHED-SCORE — Leaderboard</title>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;600;700;800;900&family=Barlow:wght@300;400;500;600&display=swap"
+        rel="stylesheet">
+    <link rel="stylesheet" href="/css/shared.css">
+    <link rel="stylesheet" href="/css/dean.css">
+    <style>
+        .champion-hero {
+            background: linear-gradient(135deg, #1A1400, #2A2000);
+            border: 1px solid rgba(245, 184, 0, 0.35);
+            border-radius: 16px;
+            padding: 32px 36px;
+            margin-bottom: 24px;
+            text-align: center;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .champion-hero::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background: radial-gradient(ellipse 70% 70% at 50% 50%, rgba(245, 184, 0, 0.07), transparent);
+        }
+
+        .ch-label {
+            font-size: 11px;
+            font-weight: 700;
+            letter-spacing: 3px;
+            text-transform: uppercase;
+            color: var(--gold);
+            margin: 8px 0 4px;
+            position: relative;
+        }
+
+        .ch-name {
+            font-family: 'Barlow Condensed', sans-serif;
+            font-size: 44px;
+            font-weight: 900;
+            text-transform: uppercase;
+            position: relative;
+        }
+
+        .ch-pts {
+            font-family: 'Barlow Condensed', sans-serif;
+            font-size: 26px;
+            font-weight: 900;
+            color: var(--gold);
+            position: relative;
+        }
+
+        .my-dept-card {
+            background: linear-gradient(135deg, #0D0D1F, #13132A);
+            border: 1px solid rgba(99, 102, 241, 0.4);
+            border-radius: 14px;
+            padding: 20px 24px;
+            margin-bottom: 24px;
+            display: flex;
+            align-items: center;
+            gap: 20px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .my-dept-card::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background: radial-gradient(ellipse 60% 100% at 0% 50%, rgba(99, 102, 241, 0.08), transparent);
+        }
+
+        .my-dept-badge {
+            font-size: 10px;
+            font-weight: 700;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+            background: rgba(99, 102, 241, 0.2);
+            color: #818CF8;
+            border: 1px solid rgba(99, 102, 241, 0.3);
+            padding: 3px 8px;
+            border-radius: 20px;
+            margin-bottom: 6px;
+            display: inline-block;
+        }
+
+        .my-rank-big {
+            font-family: 'Barlow Condensed', sans-serif;
+            font-size: 64px;
+            font-weight: 900;
+            line-height: 1;
+            color: #818CF8;
+        }
+
+        .my-rank-lbl {
+            font-size: 11px;
+            color: var(--muted);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .lb-table-wrap {
+            background: var(--bg2);
+            border: 1px solid var(--border);
+            border-radius: 14px;
+            overflow: hidden;
+        }
+
+        .lb-thead {
+            display: grid;
+            grid-template-columns: 56px 1fr 70px 70px 70px 70px 90px;
+            padding: 10px 20px;
+            background: var(--bg3);
+            font-size: 11px;
+            font-weight: 700;
+            letter-spacing: 1.5px;
+            text-transform: uppercase;
+            color: var(--muted);
+            border-bottom: 1px solid var(--border);
+        }
+
+        .lb-row {
+            display: grid;
+            grid-template-columns: 56px 1fr 70px 70px 70px 70px 90px;
+            padding: 14px 20px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+            align-items: center;
+            transition: background .1s;
+        }
+
+        .lb-row:last-child {
+            border-bottom: none;
+        }
+
+        .lb-row:hover {
+            background: rgba(255, 255, 255, 0.02);
+        }
+
+        .lb-row.rank-1 {
+            background: rgba(255, 215, 0, 0.04);
+        }
+
+        .lb-row.rank-2 {
+            background: rgba(192, 192, 192, 0.03);
+        }
+
+        .lb-row.rank-3 {
+            background: rgba(205, 127, 50, 0.03);
+        }
+
+        .lb-row.is-us {
+            background: rgba(99, 102, 241, 0.06);
+            border-left: 3px solid #818CF8;
+        }
+
+        .lb-rank-num {
+            font-family: 'Barlow Condensed', sans-serif;
+            font-size: 22px;
+            font-weight: 900;
+            text-align: center;
+        }
+
+        .lb-dept-cell {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .lb-dept-logo {
+            width: 38px;
+            height: 38px;
+            border-radius: 9px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-family: 'Barlow Condensed', sans-serif;
+            font-size: 13px;
+            font-weight: 900;
+            color: #fff;
+            overflow: hidden;
+            flex-shrink: 0;
+        }
+
+        .lb-dept-logo img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            border-radius: 8px;
+        }
+
+        .lb-num {
+            font-family: 'Barlow Condensed', sans-serif;
+            font-size: 20px;
+            font-weight: 800;
+            text-align: center;
+        }
+
+        .lb-pts {
+            font-family: 'Barlow Condensed', sans-serif;
+            font-size: 24px;
+            font-weight: 900;
+            color: var(--gold);
+            text-align: right;
+        }
+
+        .lb-bar {
+            height: 3px;
+            background: var(--bg4);
+            border-radius: 2px;
+            margin-top: 5px;
+            width: 120px;
+            overflow: hidden;
+        }
+
+        .lb-bar-fill {
+            height: 100%;
+            border-radius: 2px;
+            transition: width .5s;
+        }
+
+        .sport-section-header {
+            padding: 10px 16px;
+            background: var(--bg3);
+            border-bottom: 1px solid var(--border);
+            font-family: 'Barlow Condensed', sans-serif;
+            font-size: 14px;
+            font-weight: 800;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: var(--muted);
+        }
+
+        .sport-lb-row {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            padding: 10px 16px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+        }
+
+        .sport-lb-row:last-child {
+            border-bottom: none;
+        }
+
+        .sport-lb-pts {
+            font-family: 'Barlow Condensed', sans-serif;
+            font-size: 18px;
+            font-weight: 800;
+            color: var(--gold);
+        }
+
+        .lb-tabs {
+            display: flex;
+            gap: 4px;
+            margin-bottom: 20px;
+            background: var(--bg2);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            padding: 4px;
+        }
+
+        .lb-tab {
+            flex: 1;
+            text-align: center;
+            padding: 8px 12px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 13px;
+            font-weight: 600;
+            color: var(--muted);
+            transition: all .15s;
+        }
+
+        .lb-tab.active {
+            background: var(--bg3);
+            color: var(--text);
+        }
+
+        .event-progress-bar {
+            height: 8px;
+            background: var(--bg4);
+            border-radius: 4px;
+            overflow: hidden;
+            margin: 8px 0;
+        }
+
+        .event-progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, var(--gold), #ffc700);
+            border-radius: 4px;
+            transition: width .6s;
+        }
+
+        .grid-3 {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 16px;
+        }
+
+        @media (max-width:900px) {
+
+            .lb-thead,
+            .lb-row {
+                grid-template-columns: 44px 1fr 60px 90px;
+            }
+
+            .lb-thead>*:nth-child(3),
+            .lb-thead>*:nth-child(4),
+            .lb-thead>*:nth-child(5),
+            .lb-row>*:nth-child(3),
+            .lb-row>*:nth-child(4),
+            .lb-row>*:nth-child(5) {
+                display: none;
+            }
+
+            .grid-3 {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <main class="main">
+        <div class="topbar">
+            <div class="topbar-title" style="display:flex;align-items:center;gap:8px;">
+                <span class="icon icon-md"><svg viewBox="0 0 24 24">
+                        <path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6" />
+                        <path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18" />
+                        <path d="M4 22h16" />
+                        <path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22" />
+                        <path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22" />
+                        <path d="M18 2H6v7a6 6 0 0 0 12 0V2Z" />
+                    </svg></span>
+                Leaderboard
+            </div>
+            <div class="topbar-actions">
+                <button class="btn btn-secondary btn-sm" onclick="loadPage()"
+                    style="display:inline-flex;align-items:center;gap:6px;">
+                    <span class="icon icon-sm"><svg viewBox="0 0 24 24">
+                            <path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8" />
+                            <path d="M21 3v5h-5" />
+                            <path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16" />
+                            <path d="M8 16H3v5" />
+                        </svg></span>
+                    Refresh
+                </button>
+            </div>
+        </div>
+        <div class="content">
+            <div id="champion-section"></div>
+            <div id="my-dept-card" class="my-dept-card" style="display:none">
+                <div style="position:relative">
+                    <div class="my-dept-badge">Our Department</div>
+                    <div class="my-rank-big" id="my-rank">—</div>
+                    <div class="my-rank-lbl">Overall Rank</div>
+                </div>
+                <div id="my-dept-logo"
+                    style="width:72px;height:72px;border-radius:16px;background:var(--bg3);display:flex;align-items:center;justify-content:center;font-family:'Barlow Condensed',sans-serif;font-size:26px;font-weight:900;color:#fff;overflow:hidden;flex-shrink:0;position:relative">
+                </div>
+                <div style="flex:1;position:relative">
+                    <div style="font-family:'Barlow Condensed',sans-serif;font-size:26px;font-weight:900"
+                        id="my-dept-name">—</div>
+                    <div style="font-size:13px;color:var(--text2);margin-top:4px" id="my-dept-sub"></div>
+                    <div style="display:flex;gap:16px;margin-top:10px;font-size:15px" id="my-dept-medals"></div>
+                </div>
+                <div
+                    style="text-align:right;border-left:1px solid rgba(99,102,241,0.2);padding-left:20px;position:relative">
+                    <div style="font-family:'Barlow Condensed',sans-serif;font-size:48px;font-weight:900;color:#818CF8;line-height:1"
+                        id="my-total-pts">—</div>
+                    <div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:1px">Total
+                        Points</div>
+                </div>
+            </div>
+
+            <div class="lb-tabs">
+                <div class="lb-tab active" onclick="switchTab('overall',this)">Overall</div>
+                <div class="lb-tab" onclick="switchTab('medals',this)">Medals</div>
+                <div class="lb-tab" onclick="switchTab('bysport',this)">By Sport</div>
+                <div class="lb-tab" onclick="switchTab('progress',this)">Event Progress</div>
+            </div>
+
+            <div id="tab-overall">
+                <div class="lb-table-wrap">
+                    <div class="lb-thead">
+                        <div style="text-align:center">#</div>
+                        <div>Department</div>
+                        <div style="text-align:center;color:#FFD700">Gold</div>
+                        <div style="text-align:center;color:#C0C0C0">Silver</div>
+                        <div style="text-align:center;color:#CD7F32">Bronze</div>
+                        <div style="text-align:center">Events</div>
+                        <div style="text-align:right">Points</div>
+                    </div>
+                    <div id="lb-overall-body">
+                        <div class="empty-state" style="padding:40px">
+                            <div class="empty-text">Loading...</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div id="tab-medals" style="display:none">
+                <div class="lb-table-wrap">
+                    <table style="width:100%;border-collapse:collapse">
+                        <thead>
+                            <tr style="background:var(--bg3);border-bottom:1px solid var(--border)">
+                                <th
+                                    style="text-align:left;padding:10px 20px;font-size:11px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:var(--muted)">
+                                    #</th>
+                                <th
+                                    style="text-align:left;padding:10px 20px;font-size:11px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:var(--muted)">
+                                    Department</th>
+                                <th style="text-align:center;padding:10px;font-size:11px;font-weight:700;color:#FFD700">
+                                    Gold</th>
+                                <th style="text-align:center;padding:10px;font-size:11px;font-weight:700;color:#C0C0C0">
+                                    Silver</th>
+                                <th style="text-align:center;padding:10px;font-size:11px;font-weight:700;color:#CD7F32">
+                                    Bronze</th>
+                                <th
+                                    style="text-align:center;padding:10px;font-size:11px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:var(--muted)">
+                                    Total</th>
+                            </tr>
+                        </thead>
+                        <tbody id="lb-medals-body"></tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div id="tab-bysport" style="display:none">
+                <div class="lb-table-wrap" id="lb-bysport-body">
+                    <div class="empty-state" style="padding:40px">
+                        <div class="empty-text">Loading...</div>
+                    </div>
+                </div>
+            </div>
+
+            <div id="tab-progress" style="display:none">
+                <div id="lb-progress-body">
+                    <div class="empty-state" style="padding:40px">
+                        <div class="empty-text">Loading...</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <script src="/js/shared.js"></script>
+    <script src="/js/dean-sidebar.js"></script>
+    <script>
+        let lbData = [];
+        let bySportData = [];
+        let champData = null;
+        const user = Auth.getUser();
+        const deptId = user?.department_id;
+
+        document.addEventListener('DOMContentLoaded', async () => {
+            Auth.requireAuth('dean_adviser');
+            renderSidebar('leaderboard');
+            await loadPage();
+        });
+
+        async function loadPage() {
+            const [lbRes, champRes, sportRes] = await Promise.all([
+                api('/leaderboard'),
+                api('/leaderboard/overall-champion'),
+                api('/leaderboard/by-sport'),
+            ]);
+            lbData = lbRes.data || [];
+            champData = champRes.data || null;
+            bySportData = sportRes.data || [];
+            renderChampion();
+            renderMyDept();
+            renderOverall();
+            renderMedals();
+            renderBySport();
+            renderProgress();
+        }
+
+        function switchTab(name, el) {
+            ['overall', 'medals', 'bysport', 'progress'].forEach(t => {
+                document.getElementById('tab-' + t).style.display = t === name ? '' : 'none';
+            });
+            document.querySelectorAll('.lb-tab').forEach(b => b.classList.remove('active'));
+            el.classList.add('active');
+        }
+
+        function renderChampion() {
+            const el = document.getElementById('champion-section');
+            if (!champData) return;
+            const leader = champData.champion || champData.current_leader;
+            if (!leader) return;
+            el.innerHTML =
+                '<div class="champion-hero">' +
+                '<div class="ch-label">' + (champData.is_final ? 'SPORT FEST OVERALL CHAMPION' : 'CURRENT LEADER') + '</div>' +
+                '<div class="ch-name">' + leader.name + '</div>' +
+                '<div class="ch-pts">' + leader.total_points + ' POINTS</div>' +
+                '<div style="font-size:14px;position:relative;margin-top:8px;color:var(--muted)">' +
+                '<span style="color:#FFD700;font-weight:700">Gold ' + (leader.gold_medals || 0) + '</span> · ' +
+                '<span style="color:#C0C0C0;font-weight:700">Silver ' + (leader.silver_medals || 0) + '</span> · ' +
+                '<span style="color:#CD7F32;font-weight:700">Bronze ' + (leader.bronze_medals || 0) + '</span></div>' +
+                '<div style="font-size:13px;color:var(--muted);margin-top:8px;position:relative">' + (champData.message || '').replace(/[📊🎉🏆📈]/g, '') + '</div></div>';
+        }
+
+        function renderMyDept() {
+            const me = lbData.find(d => d.id == deptId);
+            if (!me) return;
+            document.getElementById('my-dept-card').style.display = '';
+            document.getElementById('my-rank').textContent = me.rank ? '#' + me.rank : '—';
+            document.getElementById('my-dept-name').textContent = me.name;
+            document.getElementById('my-total-pts').textContent = me.total_points || 0;
+            document.getElementById('my-dept-sub').textContent = (me.tournaments_entered || 0) + ' events entered · ' + (me.total_participations || 0) + ' participations';
+            document.getElementById('my-dept-medals').innerHTML =
+                '<span style="color:#FFD700;font-weight:700">Gold ' + (me.gold_medals || 0) + '</span>' +
+                '<span style="color:#C0C0C0;font-weight:700">Silver ' + (me.silver_medals || 0) + '</span>' +
+                '<span style="color:#CD7F32;font-weight:700">Bronze ' + (me.bronze_medals || 0) + '</span>';
+            const logoEl = document.getElementById('my-dept-logo');
+            const initials = (me.name || '?').split(' ').map(w => w[0]).slice(0, 2).join('').toUpperCase();
+            if (me.logo_url) {
+                logoEl.innerHTML = '<img src="' + me.logo_url + '" style="width:100%;height:100%;object-fit:cover;border-radius:14px" onerror="this.style.display=\'none\'">';
+            } else {
+                logoEl.textContent = initials;
+                logoEl.style.background = me.color || '#818CF8';
+            }
+        }
+
+        function renderOverall() {
+            const el = document.getElementById('lb-overall-body');
+            const max = lbData[0]?.total_points || 1;
+            if (!lbData.length) {
+                el.innerHTML = '<div class="empty-state" style="padding:40px"><div class="empty-text">No standings yet.</div></div>';
+                return;
+            }
+            el.innerHTML = lbData.map((d, i) => {
+                const rank = i + 1;
+                const isUs = d.id == deptId;
+                const bar = Math.min((d.total_points / max) * 100, 100);
+                const rkColor = rank === 1 ? '#FFD700' : rank === 2 ? '#C0C0C0' : rank === 3 ? '#CD7F32' : 'var(--muted)';
+                const init = (d.name || '?').split(' ').map(w => w[0]).slice(0, 2).join('').toUpperCase();
+                const logoHtml = d.logo_url ? '<img src="' + d.logo_url + '" onerror="this.style.display=\'none\'">' : init;
+                return '<div class="lb-row ' + (rank <= 3 ? 'rank-' + rank + ' ' : '') + (isUs ? 'is-us' : '') + '">' +
+                    '<div class="lb-rank-num" style="color:' + rkColor + '">' + rank + '</div>' +
+                    '<div class="lb-dept-cell">' +
+                    '<div class="lb-dept-logo" style="background:' + (d.color || '#555') + '">' + logoHtml + '</div>' +
+                    '<div><div style="font-size:14px;font-weight:' + (isUs ? '800' : '600') + ';color:' + (isUs ? '#818CF8' : '') + '">' +
+                    d.name + (isUs ? ' (You)' : '') + '</div>' +
+                    '<div class="lb-bar"><div class="lb-bar-fill" style="width:' + bar + '%;background:' + (d.color || 'var(--gold)') + '"></div></div></div></div>' +
+                    '<div class="lb-num" style="color:#FFD700">' + (d.gold_medals || 0) + '</div>' +
+                    '<div class="lb-num" style="color:#C0C0C0">' + (d.silver_medals || 0) + '</div>' +
+                    '<div class="lb-num" style="color:#CD7F32">' + (d.bronze_medals || 0) + '</div>' +
+                    '<div class="lb-num" style="color:var(--muted)">' + (d.total_participations || 0) + '</div>' +
+                    '<div class="lb-pts">' + (d.total_points || 0) + '</div></div>';
+            }).join('');
+        }
+
+        function renderMedals() {
+            const sorted = [...lbData].sort((a, b) => (b.gold_medals - a.gold_medals) || (b.silver_medals - a.silver_medals) || (b.bronze_medals - a.bronze_medals));
+            const el = document.getElementById('lb-medals-body');
+            el.innerHTML = sorted.map((d, i) => {
+                const isUs = d.id == deptId;
+                const init = (d.name || '?').split(' ').map(w => w[0]).slice(0, 2).join('').toUpperCase();
+                return '<tr style="' + (isUs ? 'background:rgba(99,102,241,0.06);' : '') + 'border-bottom:1px solid rgba(255,255,255,0.04)">' +
+                    '<td style="padding:10px 20px;font-family:\'Barlow Condensed\',sans-serif;font-size:18px;font-weight:900;color:var(--muted)">' + (i + 1) + '</td>' +
+                    '<td style="padding:10px 20px"><div style="display:flex;align-items:center;gap:10px">' +
+                    '<div style="width:32px;height:32px;border-radius:8px;background:' + (d.color || '#555') + ';display:flex;align-items:center;justify-content:center;font-family:\'Barlow Condensed\',sans-serif;font-size:12px;font-weight:900;color:#fff">' + init + '</div>' +
+                    '<span style="font-weight:' + (isUs ? '800' : '600') + ';color:' + (isUs ? '#818CF8' : '') + '">' + d.name + (isUs ? ' (You)' : '') + '</span></div></td>' +
+                    '<td style="text-align:center;font-family:\'Barlow Condensed\',sans-serif;font-size:20px;font-weight:800;color:#FFD700;padding:10px">' + (d.gold_medals || 0) + '</td>' +
+                    '<td style="text-align:center;font-family:\'Barlow Condensed\',sans-serif;font-size:20px;font-weight:800;color:#C0C0C0;padding:10px">' + (d.silver_medals || 0) + '</td>' +
+                    '<td style="text-align:center;font-family:\'Barlow Condensed\',sans-serif;font-size:20px;font-weight:800;color:#CD7F32;padding:10px">' + (d.bronze_medals || 0) + '</td>' +
+                    '<td style="text-align:center;font-family:\'Barlow Condensed\',sans-serif;font-size:20px;font-weight:800;padding:10px">' + ((d.gold_medals || 0) + (d.silver_medals || 0) + (d.bronze_medals || 0)) + '</td></tr>';
+            }).join('');
+        }
+
+        function renderBySport() {
+            const el = document.getElementById('lb-bysport-body');
+            if (!bySportData.length) {
+                el.innerHTML = '<div class="empty-state" style="padding:40px"><div class="empty-text">No sport results yet.</div></div>';
+                return;
+            }
+            const grouped = {};
+            bySportData.forEach(r => {
+                const k = r.sport_name;
+                if (!grouped[k]) grouped[k] = [];
+                grouped[k].push(r);
+            });
+            el.innerHTML = Object.entries(grouped).map(([sport, rows]) => {
+                const sorted = [...rows].sort((a, b) => (b.sport_points || 0) - (a.sport_points || 0));
+                return '<div class="sport-section-header">' + sport + '</div>' +
+                    sorted.map((r, i) => {
+                        const isUs = r.department_id == deptId;
+                        const place = i === 0 ? '1st' : i === 1 ? '2nd' : i === 2 ? '3rd' : (i + 1) + 'th';
+                        const placeColor = i === 0 ? '#FFD700' : i === 1 ? '#C0C0C0' : i === 2 ? '#CD7F32' : 'var(--muted)';
+                        return '<div class="sport-lb-row" style="' + (isUs ? 'background:rgba(99,102,241,0.05);border-left:3px solid #818CF8' : '') + '">' +
+                            '<div style="font-family:\'Barlow Condensed\',sans-serif;font-size:16px;font-weight:900;width:36px;text-align:center;color:' + placeColor + '">' + place + '</div>' +
+                            '<div style="flex:1"><div style="font-size:14px;font-weight:' + (isUs ? '800' : '600') + ';color:' + (isUs ? '#818CF8' : '') + '">' +
+                            r.department_name + (isUs ? ' (You)' : '') + '</div>' +
+                            (r.best_medal ? '<div style="font-size:11px;color:var(--muted)">Best: ' + (r.best_medal.charAt(0).toUpperCase() + r.best_medal.slice(1)) + '</div>' : '') +
+                            '</div><div class="sport-lb-pts">+' + (r.sport_points || 0) + '</div></div>';
+                    }).join('');
+            }).join('');
+        }
+
+        function renderProgress() {
+            const el = document.getElementById('lb-progress-body');
+            if (!champData?.tournament_stats) {
+                el.innerHTML = '<div class="empty-state" style="padding:40px"><div class="empty-text">No data available.</div></div>';
+                return;
+            }
+            const s = champData.tournament_stats;
+            const pct = s.total_tournaments ? Math.round((s.completed_tournaments / s.total_tournaments) * 100) : 0;
+            let html = '<div class="card" style="margin-bottom:16px"><div class="card-header"><div class="card-title">Events Completion</div></div><div class="card-body">' +
+                '<div style="display:flex;justify-content:space-between;font-size:13px;color:var(--muted);margin-bottom:8px"><span>Completed</span>' +
+                '<span style="color:var(--gold);font-weight:700">' + s.completed_tournaments + ' / ' + s.total_tournaments + '</span></div>' +
+                '<div class="event-progress-bar"><div class="event-progress-fill" style="width:' + pct + '%"></div></div>' +
+                '<div style="text-align:right;font-size:11px;color:var(--muted);margin-top:4px">' + pct + '% complete</div></div></div>';
+
+            html += '<div class="grid-3" style="margin-bottom:24px">' +
+                [{ val: s.completed_tournaments, lbl: 'Completed', color: 'var(--green)' },
+                { val: s.ongoing_tournaments, lbl: 'Live Now', color: 'var(--red)' },
+                { val: s.upcoming_tournaments, lbl: 'Upcoming', color: 'var(--muted)' }
+                ].map(x => '<div style="background:var(--bg2);border:1px solid var(--border);border-radius:12px;padding:20px;text-align:center">' +
+                    '<div style="font-family:\'Barlow Condensed\',sans-serif;font-size:36px;font-weight:900;color:' + x.color + '">' + x.val + '</div>' +
+                    '<div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin-top:4px">' + x.lbl + '</div></div>'
+                ).join('') + '</div>';
+
+            if (champData.leaderboard?.length) {
+                html += '<div class="card"><div class="card-header"><div class="card-title">Current Standings Snapshot</div></div>';
+                html += champData.leaderboard.map((d, i) => {
+                    const isUs = d.id == deptId;
+                    const c = i === 0 ? '#FFD700' : i === 1 ? '#C0C0C0' : i === 2 ? '#CD7F32' : 'var(--muted)';
+                    return '<div style="display:flex;align-items:center;gap:14px;padding:12px 20px;border-bottom:1px solid rgba(255,255,255,0.04)' +
+                        (isUs ? ';background:rgba(99,102,241,0.06);border-left:3px solid #818CF8' : '') + '">' +
+                        '<div style="font-family:\'Barlow Condensed\',sans-serif;font-size:18px;font-weight:900;width:28px;text-align:center;color:' + c + '">' + (i + 1) + '</div>' +
+                        '<div style="width:8px;height:8px;border-radius:50%;background:' + d.color + ';flex-shrink:0"></div>' +
+                        '<div style="flex:1;font-size:14px;font-weight:' + (isUs ? '800' : '500') + ';color:' + (isUs ? '#818CF8' : '') + '">' + d.name + (isUs ? ' (You)' : '') + '</div>' +
+                        '<div style="font-family:\'Barlow Condensed\',sans-serif;font-size:20px;font-weight:900;color:' + (isUs ? '#818CF8' : 'var(--gold)') + '">' + (d.total_points || 0) + '</div></div>';
+                }).join('') + '</div>';
+            }
+            el.innerHTML = html;
+        }
+    </script>
+</body>
+
+</html>

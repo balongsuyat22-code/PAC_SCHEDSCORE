@@ -27,7 +27,6 @@ const run = async () => {
             path.join(__dirname, '../../sql/schema.sql'), 'utf8'
         );
 
-        // Split on semicolons, skip empty/comment-only lines
         const statements = schemaSQL
             .split(';')
             .map(s => s.trim())
@@ -37,7 +36,6 @@ const run = async () => {
             try {
                 await conn.query(stmt + ';');
             } catch (err) {
-                // Ignore harmless "already exists" errors so re-runs are safe
                 const ignorable = [
                     'ER_TABLE_EXISTS_ERROR',
                     'ER_DUP_ENTRY',
@@ -51,7 +49,7 @@ const run = async () => {
         }
         console.log('✅ Schema applied\n');
 
-        // ── 2. Create triggers (each sent individually — no DELIMITER) ──
+        // ── 2. Create triggers ────────────────────────────────────
         console.log('⚡ Creating triggers...');
         await conn.query('USE sportfest_db;').catch(() => { });
 
@@ -59,90 +57,96 @@ const run = async () => {
         await conn.query('DROP TRIGGER IF EXISTS after_tournament_result_update;').catch(() => { });
 
         await conn.query(`
-      CREATE TRIGGER after_tournament_result_insert
-      AFTER INSERT ON tournament_results
-      FOR EACH ROW
-      BEGIN
-        INSERT INTO department_scores
-          (department_id, total_points, gold_medals, silver_medals,
-           bronze_medals, total_participations, tournaments_entered)
-        VALUES
-          (NEW.department_id, NEW.sport_fest_points,
-           IF(NEW.medal='gold',1,0), IF(NEW.medal='silver',1,0),
-           IF(NEW.medal='bronze',1,0), 1, 1)
-        ON DUPLICATE KEY UPDATE
-          total_points         = total_points         + NEW.sport_fest_points,
-          gold_medals          = gold_medals          + IF(NEW.medal='gold',1,0),
-          silver_medals        = silver_medals        + IF(NEW.medal='silver',1,0),
-          bronze_medals        = bronze_medals        + IF(NEW.medal='bronze',1,0),
-          total_participations = total_participations + 1,
-          tournaments_entered  = tournaments_entered  + 1;
-      END
-    `);
+            CREATE TRIGGER after_tournament_result_insert
+            AFTER INSERT ON tournament_results
+            FOR EACH ROW
+            BEGIN
+                INSERT INTO department_scores
+                    (department_id, total_points, gold_medals, silver_medals,
+                     bronze_medals, total_participations, tournaments_entered)
+                VALUES
+                    (NEW.department_id, NEW.sport_fest_points,
+                     IF(NEW.medal='gold',1,0), IF(NEW.medal='silver',1,0),
+                     IF(NEW.medal='bronze',1,0), 1, 1)
+                ON DUPLICATE KEY UPDATE
+                    total_points         = total_points         + NEW.sport_fest_points,
+                    gold_medals          = gold_medals          + IF(NEW.medal='gold',1,0),
+                    silver_medals        = silver_medals        + IF(NEW.medal='silver',1,0),
+                    bronze_medals        = bronze_medals        + IF(NEW.medal='bronze',1,0),
+                    total_participations = total_participations + 1,
+                    tournaments_entered  = tournaments_entered  + 1;
+            END
+        `);
 
         await conn.query(`
-      CREATE TRIGGER after_tournament_result_update
-      AFTER UPDATE ON tournament_results
-      FOR EACH ROW
-      BEGIN
-        UPDATE department_scores SET
-          total_points  = total_points  - OLD.sport_fest_points + NEW.sport_fest_points,
-          gold_medals   = gold_medals   - IF(OLD.medal='gold',1,0)   + IF(NEW.medal='gold',1,0),
-          silver_medals = silver_medals - IF(OLD.medal='silver',1,0) + IF(NEW.medal='silver',1,0),
-          bronze_medals = bronze_medals - IF(OLD.medal='bronze',1,0) + IF(NEW.medal='bronze',1,0)
-        WHERE department_id = NEW.department_id;
-      END
-    `);
+            CREATE TRIGGER after_tournament_result_update
+            AFTER UPDATE ON tournament_results
+            FOR EACH ROW
+            BEGIN
+                UPDATE department_scores SET
+                    total_points  = total_points  - OLD.sport_fest_points + NEW.sport_fest_points,
+                    gold_medals   = gold_medals   - IF(OLD.medal='gold',1,0)   + IF(NEW.medal='gold',1,0),
+                    silver_medals = silver_medals - IF(OLD.medal='silver',1,0) + IF(NEW.medal='silver',1,0),
+                    bronze_medals = bronze_medals - IF(OLD.medal='bronze',1,0) + IF(NEW.medal='bronze',1,0)
+                WHERE department_id = NEW.department_id;
+            END
+        `);
         console.log('✅ Triggers created\n');
 
-        // ── 3. Seed default users with CORRECT hashes ────────────
+        // ── 3. Seed default departments ──────────────────────────
+        console.log('🏫 Creating departments...');
+
+        await conn.query(`
+            INSERT IGNORE INTO departments (id, name, code, description) VALUES 
+            (1, 'College of Arts and Sciences', 'CAS', 'Arts and Sciences Department'),
+            (2, 'College of Business Administration', 'CBA', 'Business Administration Department'),
+            (3, 'College of Education', 'CED', 'Education Department'),
+            (4, 'College of Engineering', 'CEN', 'Engineering Department'),
+            (5, 'College of Nursing', 'CON', 'Nursing Department'),
+            (6, 'College of Information Technology', 'CIT', 'Information Technology Department')
+        `);
+        console.log('✅ Departments created\n');
+
+        // ── 4. Seed default users ────────────────────────────────
         console.log('👤 Creating default users...');
 
         const defaultUsers = [
-            { username: 'admin', email: 'admin@sportfest.com', password: 'Admin@1234', role: 'admin', first: 'System', last: 'Admin' },
-            { username: 'referee', email: 'referee@sportfest.com', password: 'Referee@1234', role: 'referee', first: 'Default', last: 'Referee' },
-            { username: 'player', email: 'player@sportfest.com', password: 'Player@1234', role: 'player', first: 'Sample', last: 'Player' },
+            { username: 'admin', email: 'admin@sportfest.com', password: 'password', role: 'admin', first: 'System', last: 'Admin', dept: 1 },
+            { username: 'dean_adviser', email: 'dean@sportfest.com', password: 'password', role: 'dean_adviser', first: 'Dean', last: 'Adviser', dept: 2 },
+            { username: 'sgo_president', email: 'president@sportfest.com', password: 'password', role: 'sgo_president', first: 'SGO', last: 'President', dept: null },
+            { username: 'sgo_officer', email: 'officer@sportfest.com', password: 'password', role: 'sgo_officer', first: 'SGO', last: 'Officer', dept: null },
         ];
 
         for (const u of defaultUsers) {
             const hash = await bcrypt.hash(u.password, 10);
 
             await conn.query(`
-        INSERT INTO users (uuid, username, email, password_hash, role, first_name, last_name)
-        VALUES (UUID(), ?, ?, ?, ?, ?, ?)
-        ON DUPLICATE KEY UPDATE password_hash = VALUES(password_hash)
-      `, [u.username, u.email, hash, u.role, u.first, u.last]);
+                INSERT INTO users (uuid, username, email, password_hash, role, first_name, last_name, department_id, is_active)
+                VALUES (UUID(), ?, ?, ?, ?, ?, ?, ?, 1)
+                ON DUPLICATE KEY UPDATE 
+                    password_hash = VALUES(password_hash),
+                    first_name = VALUES(first_name),
+                    last_name = VALUES(last_name),
+                    department_id = VALUES(department_id),
+                    is_active = 1
+            `, [u.username, u.email, hash, u.role, u.first, u.last, u.dept]);
 
-            // Create profile rows
-            if (u.role === 'referee') {
-                await conn.query(`
-          INSERT IGNORE INTO referees (user_id)
-          SELECT id FROM users WHERE username = ?
-        `, [u.username]);
-            }
-            if (u.role === 'player') {
-                await conn.query(`
-          INSERT IGNORE INTO players (user_id, department_id)
-          SELECT u.id, d.id FROM users u
-          JOIN departments d ON d.code = 'IT'
-          WHERE u.username = ?
-        `, [u.username]);
-            }
-
-            console.log(`  ✅  ${u.role.padEnd(8)} created → ${u.email}  (password: ${u.password})`);
+            console.log(`  ✅  ${u.role.padEnd(12)} created → ${u.email}  (password: ${u.password})`);
         }
 
-        // ── 4. Summary ────────────────────────────────────────────
+        // ── 5. Summary ────────────────────────────────────────────
         console.log('\n🎉 Setup complete!\n');
-        console.log('══════════════════════════════════════════════════');
-        console.log('  Login credentials:');
-        console.log('  Role      Email                     Password');
-        console.log('──────────────────────────────────────────────────');
-        console.log('  admin     admin@sportfest.com        Admin@1234');
-        console.log('  referee   referee@sportfest.com      Referee@1234');
-        console.log('  player    player@sportfest.com       Player@1234');
-        console.log('══════════════════════════════════════════════════');
-        console.log('\n  Start the server: npm run dev\n');
+        console.log('═══════════════════════════════════════════════════════════');
+        console.log('  🔑 LOGIN CREDENTIALS (password is "password" for all):');
+        console.log('───────────────────────────────────────────────────────────');
+        console.log('  Role           Email                     Password');
+        console.log('───────────────────────────────────────────────────────────');
+        console.log('  admin          admin@sportfest.com        password');
+        console.log('  dean_adviser   dean@sportfest.com         password');
+        console.log('  sgo_president  president@sportfest.com    password');
+        console.log('  sgo_officer    officer@sportfest.com      password');
+        console.log('═══════════════════════════════════════════════════════════');
+        console.log('\n  🚀 Start the server: npm run dev\n');
 
     } catch (err) {
         console.error('\n❌ Setup failed:', err.message);

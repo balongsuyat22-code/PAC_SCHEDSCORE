@@ -1,0 +1,559 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PAC SCHED-SCORE — Team Rosters</title>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;600;700;800;900&family=Barlow:wght@300;400;500;600&display=swap"
+        rel="stylesheet">
+    <link rel="stylesheet" href="/css/shared.css">
+    <link rel="stylesheet" href="/css/dean.css">
+    <style>
+        .team-card {
+            background: var(--bg2);
+            border: 1px solid var(--border);
+            border-radius: 14px;
+            overflow: hidden;
+            transition: all .2s
+        }
+
+        .team-card:hover {
+            border-color: var(--border-gold);
+            transform: translateY(-2px)
+        }
+
+        .team-card-header {
+            padding: 16px 20px;
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            border-bottom: 1px solid var(--border)
+        }
+
+        .team-icon {
+            width: 52px;
+            height: 52px;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-family: 'Barlow Condensed', sans-serif;
+            font-size: 18px;
+            font-weight: 900;
+            color: #fff;
+            flex-shrink: 0
+        }
+
+        .team-card-stats {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            border-bottom: 1px solid var(--border)
+        }
+
+        .team-card-stat {
+            padding: 10px 8px;
+            text-align: center;
+            border-right: 1px solid var(--border)
+        }
+
+        .team-card-stat:last-child {
+            border-right: none
+        }
+
+        .team-card-stat-val {
+            font-family: 'Barlow Condensed', sans-serif;
+            font-size: 22px;
+            font-weight: 900
+        }
+
+        .team-card-stat-lbl {
+            font-size: 10px;
+            color: var(--muted);
+            text-transform: uppercase;
+            letter-spacing: 1px
+        }
+
+        .team-card-footer {
+            padding: 10px 14px;
+            display: flex;
+            gap: 8px
+        }
+
+        .capacity-bar {
+            height: 4px;
+            background: var(--bg4);
+            border-radius: 2px;
+            overflow: hidden;
+            margin-top: 6px
+        }
+
+        .capacity-fill {
+            height: 100%;
+            border-radius: 2px;
+            transition: width .5s
+        }
+
+        .gender-badge-men {
+            background: rgba(59, 130, 246, .15);
+            color: #60A5FA
+        }
+
+        .gender-badge-women {
+            background: rgba(236, 72, 153, .15);
+            color: #F472B6
+        }
+
+        .gender-badge-mixed {
+            background: rgba(139, 92, 246, .15);
+            color: #A78BFA
+        }
+
+        .roster-drawer {
+            position: fixed;
+            top: 0;
+            right: -480px;
+            width: 480px;
+            max-width: 100vw;
+            height: 100vh;
+            background: var(--bg2);
+            border-left: 1px solid var(--border);
+            z-index: 300;
+            transition: right .3s;
+            display: flex;
+            flex-direction: column
+        }
+
+        .roster-drawer.open {
+            right: 0
+        }
+
+        .drawer-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, .6);
+            backdrop-filter: blur(2px);
+            z-index: 299;
+            display: none
+        }
+
+        .drawer-overlay.open {
+            display: block
+        }
+
+        .drawer-header {
+            padding: 20px 24px;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            flex-shrink: 0
+        }
+
+        .drawer-body {
+            flex: 1;
+            overflow-y: auto;
+            padding: 0
+        }
+
+        .drawer-footer {
+            padding: 14px 20px;
+            border-top: 1px solid var(--border);
+            flex-shrink: 0
+        }
+
+        .pool-card {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 10px 14px;
+            background: var(--bg3);
+            border-radius: 8px;
+            margin-bottom: 6px;
+            cursor: pointer;
+            border: 1px solid transparent;
+            transition: all .15s
+        }
+
+        .pool-card:hover {
+            border-color: var(--border-gold);
+            background: var(--bg4)
+        }
+    </style>
+</head>
+
+<body>
+    <div class="drawer-overlay" id="drawer-overlay" onclick="closeDrawer()"></div>
+    <div class="roster-drawer" id="roster-drawer">
+        <div class="drawer-header">
+            <div>
+                <div style="font-family:'Barlow Condensed',sans-serif;font-size:22px;font-weight:900" id="drawer-title">
+                    Team Roster</div>
+                <div style="font-size:13px;color:var(--muted)" id="drawer-sub"></div>
+            </div>
+            <button class="modal-close" onclick="closeDrawer()">X</button>
+        </div>
+        <div class="drawer-body">
+            <div style="padding:16px 20px;border-bottom:1px solid var(--border)">
+                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+                    <div
+                        style="font-family:'Barlow Condensed',sans-serif;font-size:14px;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:1px">
+                        Roster</div>
+                    <div id="drawer-capacity" style="font-size:13px;color:var(--muted)"></div>
+                </div>
+                <div id="drawer-roster-list"></div>
+            </div>
+            <div style="padding:16px 20px">
+                <div
+                    style="font-family:'Barlow Condensed',sans-serif;font-size:14px;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:12px">
+                    Add from Unassigned Players</div>
+                <div id="drawer-pool"></div>
+            </div>
+        </div>
+        <div class="drawer-footer">
+            <button class="btn btn-primary" style="width:100%" onclick="submitRoster()">Submit Roster</button>
+        </div>
+    </div>
+
+    <main class="main">
+        <div class="topbar">
+            <div class="topbar-title" style="display:flex;align-items:center;gap:8px">
+                <span class="icon icon-md"><svg viewBox="0 0 24 24">
+                        <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
+                        <circle cx="9" cy="7" r="4" />
+                        <path d="M22 21v-2a4 4 0 0 0-3-3.87" />
+                        <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+                    </svg></span>
+                Team Rosters
+            </div>
+            <div class="topbar-actions">
+                <button class="btn btn-secondary btn-sm" onclick="loadPage()">Refresh</button>
+                <button class="btn btn-primary btn-sm" onclick="openCreateTeam()">+ New Team</button>
+            </div>
+        </div>
+        <div class="content">
+            <div class="stat-strip" id="team-stats"></div>
+            <div style="display:flex;gap:10px;margin-bottom:16px;flex-wrap:wrap">
+                <select id="f-sport" class="form-select" style="width:200px" onchange="applyFilters()">
+                    <option value="">All Sports</option>
+                </select>
+                <select id="f-gender" class="form-select" style="width:150px" onchange="applyFilters()">
+                    <option value="">All Genders</option>
+                    <option value="Men">Men</option>
+                    <option value="Women">Women</option>
+                    <option value="Mixed">Mixed</option>
+                </select>
+                <input id="f-search" class="form-input" style="flex:1;min-width:180px" placeholder="Search teams..."
+                    oninput="applyFilters()">
+            </div>
+            <div id="team-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:16px">
+                <div class="empty-state" style="grid-column:1/-1">
+                    <div class="empty-text">Loading...</div>
+                </div>
+            </div>
+            <div style="margin-top:28px">
+                <div class="card">
+                    <div class="card-header">
+                        <div class="card-title">Individual / Unassigned Players</div>
+                        <span style="font-size:13px;color:var(--muted)" id="singles-count">—</span>
+                    </div>
+                    <div id="singles-table">
+                        <div class="empty-state" style="padding:32px">
+                            <div class="empty-text">Loading...</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <div class="modal-overlay" id="modal-team" onclick="if(event.target===this)Modal.close('modal-team')">
+        <div class="modal">
+            <div class="modal-header">
+                <div class="modal-title" id="team-modal-title">New Team</div>
+                <button class="modal-close" onclick="Modal.close('modal-team')">X</button>
+            </div>
+            <div class="modal-body">
+                <input type="hidden" id="team-edit-id">
+                <div class="form-group"><label class="form-label">Team Name *</label>
+                    <input type="text" id="tm-name" class="form-input" placeholder="e.g. STEM Eagles">
+                </div>
+                <div class="form-row">
+                    <div class="form-group"><label class="form-label">Sport *</label>
+                        <select id="tm-sport" class="form-select">
+                            <option value="">Select...</option>
+                        </select>
+                    </div>
+                    <div class="form-group"><label class="form-label">Gender *</label>
+                        <select id="tm-gender" class="form-select">
+                            <option value="">Select...</option>
+                            <option value="Men">Men</option>
+                            <option value="Women">Women</option>
+                            <option value="Mixed">Mixed</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="form-group"><label class="form-label">Coach Name</label>
+                    <input type="text" id="tm-coach" class="form-input" placeholder="e.g. Mr. Santos">
+                </div>
+                <div id="team-conflict-warn"
+                    style="display:none;background:rgba(232,50,59,.08);border:1px solid rgba(232,50,59,.3);border-radius:8px;padding:10px 14px;font-size:13px;color:var(--red);margin-top:4px">
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="Modal.close('modal-team')">Cancel</button>
+                <button class="btn btn-primary" onclick="saveTeam()">Save Team</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="/js/shared.js"></script>
+    <script src="/js/dean-sidebar.js"></script>
+    <script>
+        let allTeams = [], allSports = [], allPlayers = [], activeTeam = null;
+        const user = Auth.getUser(), deptId = user?.department_id;
+
+        document.addEventListener('DOMContentLoaded', async () => {
+            Auth.requireAuth('dean_adviser'); renderSidebar('teams');
+            const sRes = await api('/sports'); allSports = sRes.data || [];
+            const sportOpts = allSports.map(s => `<option value="${s.id}">${s.name}</option>`).join('');
+            ['f-sport', 'tm-sport'].forEach(id => { const el = document.getElementById(id); if (el) el.innerHTML += sportOpts });
+            await loadPage();
+        });
+
+        async function loadPage() {
+            if (!deptId) return;
+            const [tRes, pRes] = await Promise.all([api(`/teams?department_id=${deptId}`), api(`/players?department_id=${deptId}`)]);
+            allTeams = tRes.data || []; allPlayers = pRes.data || [];
+            renderStats(); applyFilters(); renderSingles();
+        }
+
+        function renderStats() {
+            const totalTeams = allTeams.length;
+            const totalApproved = allPlayers.filter(p => p.status === 'approved').length;
+            const totalPending = allPlayers.filter(p => p.status === 'pending').length;
+            const unassigned = allPlayers.filter(p => !p.team_id && p.status === 'approved').length;
+            document.getElementById('team-stats').innerHTML = [
+                { val: totalTeams, lbl: 'Teams', color: 'var(--gold)' },
+                { val: totalApproved, lbl: 'Approved Players', color: 'var(--green)' },
+                { val: totalPending, lbl: 'Pending', color: '#FBBF24' },
+                { val: unassigned, lbl: 'Unassigned', color: 'var(--muted)' },
+            ].map(s => `<div class="stat-strip-card"><div><div class="stat-strip-val" style="color:${s.color}">${s.val}</div><div class="stat-strip-lbl">${s.lbl}</div></div></div>`).join('');
+        }
+
+        function applyFilters() {
+            const sport = document.getElementById('f-sport').value;
+            const gender = document.getElementById('f-gender').value;
+            const q = document.getElementById('f-search').value.toLowerCase();
+            let filtered = allTeams;
+            if (sport) filtered = filtered.filter(t => String(t.sport_id) === sport);
+            if (gender) filtered = filtered.filter(t => t.gender === gender);
+            if (q) filtered = filtered.filter(t => t.name.toLowerCase().includes(q));
+            renderTeamGrid(filtered);
+        }
+
+        function renderTeamGrid(teams) {
+            const el = document.getElementById('team-grid');
+            if (!teams.length) { el.innerHTML = `<div class="empty-state" style="grid-column:1/-1"><div class="empty-text">No teams yet. Create one above.</div></div>`; return }
+            el.innerHTML = teams.map(t => {
+                const sport = allSports.find(s => s.id === t.sport_id);
+                const maxPlayers = t.sport_max_players || sport?.max_players || '∞';
+                const approved = t.approved_count || 0;
+                const pct = maxPlayers !== '∞' ? Math.min((approved / maxPlayers) * 100, 100) : 0;
+                const barColor = approved >= maxPlayers ? 'var(--red)' : approved >= maxPlayers * 0.8 ? '#FBBF24' : 'var(--green)';
+                const genderClass = t.gender === 'Men' ? 'gender-badge-men' : t.gender === 'Women' ? 'gender-badge-women' : 'gender-badge-mixed';
+                const init = (t.sport_name || t.name || '?').split(' ').map(w => w[0]).slice(0, 2).join('').toUpperCase();
+                return `<div class="team-card">
+<div style="height:4px;background:${t.department_color || '#818CF8'}"></div>
+<div class="team-card-header">
+<div class="team-icon" style="background:${t.department_color || '#818CF8'}">${init}</div>
+<div style="flex:1;min-width:0">
+<div style="font-size:16px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${t.name}</div>
+<div style="font-size:12px;color:var(--muted);margin-top:2px">${t.sport_name || '—'} · ${t.coach_name ? `Coach: ${t.coach_name}` : 'No coach'}</div>
+<div style="margin-top:6px;display:flex;gap:6px">
+<span class="pill ${genderClass}" style="font-size:10px">${t.gender}</span>
+${t.roster_submitted ? '<span class="pill pill-approved" style="font-size:10px">Submitted</span>' : ''}
+</div></div>
+<button class="btn btn-secondary btn-sm" onclick="openEdit(${t.id})">Edit</button>
+</div>
+<div class="team-card-stats">
+<div class="team-card-stat"><div class="team-card-stat-val" style="color:var(--green)">${approved}</div><div class="team-card-stat-lbl">Approved</div></div>
+<div class="team-card-stat"><div class="team-card-stat-val" style="color:#FBBF24">${(t.total_count || 0) - approved}</div><div class="team-card-stat-lbl">Pending</div></div>
+<div class="team-card-stat"><div class="team-card-stat-val">${maxPlayers}</div><div class="team-card-stat-lbl">Max Roster</div></div>
+</div>
+${maxPlayers !== '∞' ? `<div style="padding:8px 14px">
+<div style="display:flex;justify-content:space-between;font-size:11px;color:var(--muted);margin-bottom:4px"><span>Roster capacity</span><span style="color:${barColor}">${approved}/${maxPlayers}</span></div>
+<div class="capacity-bar"><div class="capacity-fill" style="width:${pct}%;background:${barColor}"></div></div></div>` : ''}
+<div class="team-card-footer">
+<button class="btn btn-primary btn-sm" style="flex:1" onclick="openRoster(${t.id})">Manage Roster</button>
+<button class="btn btn-secondary btn-sm" onclick="submitRosterDirect(${t.id})">Submit</button>
+</div></div>`;
+            }).join('');
+        }
+
+        function renderSingles() {
+            const singles = allPlayers.filter(p => !p.team_id);
+            document.getElementById('singles-count').textContent = `${singles.length} player${singles.length !== 1 ? 's' : ''}`;
+            const el = document.getElementById('singles-table');
+            if (!singles.length) { el.innerHTML = `<div class="empty-state" style="padding:32px"><div class="empty-text">All approved players are assigned to teams.</div></div>`; return }
+            el.innerHTML = `<div class="table-wrap"><table>
+<thead><tr><th>Player</th><th>Gender</th><th>Sport</th><th>Jersey #</th><th>Status</th><th>Actions</th></tr></thead>
+<tbody>${singles.map(p => {
+                const init = `${p.first_name?.[0] || '?'}${p.last_name?.[0] || ''}`.toUpperCase();
+                const statusClass = { approved: 'pill-approved', pending: 'pill-pending', rejected: 'pill-rejected' }[p.status];
+                return `<tr>
+<td><div style="display:flex;align-items:center;gap:10px">
+<div style="width:34px;height:34px;border-radius:8px;background:var(--bg3);display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;color:var(--gold)">${init}</div>
+<div><div style="font-weight:600">${p.first_name} ${p.last_name}</div>${p.position ? `<div style="font-size:11px;color:var(--muted)">${p.position}</div>` : ''}</div></div></td>
+<td style="color:var(--muted);font-size:13px">${p.gender || '—'}</td>
+<td>${p.sport_name || '—'}</td>
+<td style="color:var(--muted)">${p.jersey_number ? `#${p.jersey_number}` : '—'}</td>
+<td><span class="pill ${statusClass}">${p.status}</span></td>
+<td>${p.status === 'pending' ? `
+<button class="btn btn-sm" style="background:var(--green);color:#000;font-weight:800" onclick="quickApprove(${p.id})">Approve</button>
+<button class="btn btn-sm btn-secondary" onclick="quickReject(${p.id})">Reject</button>
+`: `<span style="font-size:12px;color:var(--muted)">Assign via Manage Roster</span>`}</td>
+</tr>`;
+            }).join('')}</tbody></table></div>`;
+        }
+
+        function openCreateTeam() {
+            document.getElementById('team-modal-title').textContent = 'New Team';
+            document.getElementById('team-edit-id').value = '';
+            ['tm-name', 'tm-coach'].forEach(id => document.getElementById(id).value = '');
+            document.getElementById('tm-sport').value = ''; document.getElementById('tm-gender').value = '';
+            document.getElementById('team-conflict-warn').style.display = 'none';
+            Modal.open('modal-team');
+        }
+
+        function openEdit(id) {
+            const t = allTeams.find(x => x.id === id); if (!t) return;
+            document.getElementById('team-modal-title').textContent = `Edit — ${t.name}`;
+            document.getElementById('team-edit-id').value = id;
+            document.getElementById('tm-name').value = t.name || '';
+            document.getElementById('tm-sport').value = t.sport_id || '';
+            document.getElementById('tm-gender').value = t.gender || '';
+            document.getElementById('tm-coach').value = t.coach_name || '';
+            document.getElementById('team-conflict-warn').style.display = 'none';
+            Modal.open('modal-team');
+        }
+
+        async function saveTeam() {
+            const id = document.getElementById('team-edit-id').value;
+            const name = document.getElementById('tm-name').value.trim();
+            const sport_id = parseInt(document.getElementById('tm-sport').value) || null;
+            const gender = document.getElementById('tm-gender').value;
+            const coach = document.getElementById('tm-coach').value.trim() || null;
+            if (!name || !sport_id || !gender) { Toast.show('Name, sport, and gender are required.', 'error'); return }
+            const body = { name, sport_id, gender, coach_name: coach, department_id: deptId };
+            const res = id ? await api(`/teams/${id}`, { method: 'PUT', body: JSON.stringify(body) }) : await api('/teams', { method: 'POST', body: JSON.stringify(body) });
+            if (!res.success) { document.getElementById('team-conflict-warn').style.display = ''; document.getElementById('team-conflict-warn').textContent = res.message || 'Error saving team.'; return }
+            Toast.show(res.message || (id ? 'Team updated!' : 'Team created!'), 'success');
+            Modal.close('modal-team'); await loadPage();
+        }
+
+        async function openRoster(teamId) {
+            const res = await api(`/teams/${teamId}`); if (!res.success) return;
+            activeTeam = res.data;
+            const sport = allSports.find(s => s.id === activeTeam.sport_id);
+            const maxP = sport?.max_players || '∞';
+            const approved = (activeTeam.players || []).filter(p => p.status === 'approved').length;
+            document.getElementById('drawer-title').textContent = activeTeam.name;
+            document.getElementById('drawer-sub').textContent = `${activeTeam.sport_name || ''} · ${activeTeam.gender}`;
+            document.getElementById('drawer-capacity').innerHTML = `<span style="color:${approved >= maxP ? 'var(--red)' : 'var(--green)'};font-weight:700">${approved}</span> / ${maxP} approved`;
+            renderDrawerRoster(activeTeam.players || []);
+            renderDrawerPool(activeTeam.sport_id, activeTeam.id);
+            document.getElementById('drawer-overlay').classList.add('open');
+            document.getElementById('roster-drawer').classList.add('open');
+        }
+
+        function renderDrawerRoster(players) {
+            const el = document.getElementById('drawer-roster-list');
+            if (!players.length) { el.innerHTML = `<div style="text-align:center;padding:20px;color:var(--muted);font-size:13px">No players in this team yet.</div>`; return }
+            el.innerHTML = players.map(p => {
+                const init = `${p.first_name?.[0] || '?'}${p.last_name?.[0] || ''}`.toUpperCase();
+                const statusClass = { approved: 'pill-approved', pending: 'pill-pending', rejected: 'pill-rejected' }[p.status];
+                return `<div class="roster-row">
+<div class="roster-avatar" style="background:var(--bg3);font-size:14px;font-weight:900;color:var(--gold)">${init}</div>
+<div class="roster-info"><div class="roster-name">${p.first_name} ${p.last_name}</div>
+<div class="roster-meta">${p.jersey_number ? `#${p.jersey_number}` : ''} ${p.position || ''}</div></div>
+<div style="display:flex;align-items:center;gap:6px">
+<span class="pill ${statusClass}" style="font-size:10px">${p.status}</span>
+${p.status === 'pending' ? `
+<button class="btn btn-sm" style="background:var(--green);color:#000;font-size:11px;padding:4px 8px" onclick="approveInRoster(${p.id})">OK</button>
+<button class="btn btn-sm btn-secondary" style="font-size:11px;padding:4px 8px" onclick="rejectInRoster(${p.id})">X</button>
+`: `<button class="btn btn-sm btn-secondary" style="font-size:11px;padding:4px 8px;color:var(--red)" onclick="removeFromTeam(${p.id})">Remove</button>`}
+</div></div>`;
+            }).join('');
+        }
+
+        async function renderDrawerPool(sportId, teamId) {
+            const el = document.getElementById('drawer-pool');
+            const pool = allPlayers.filter(p => p.sport_id === sportId && !p.team_id && p.status === 'approved');
+            if (!pool.length) { el.innerHTML = `<div style="text-align:center;padding:16px;color:var(--muted);font-size:13px">No unassigned approved players for this sport.</div>`; return }
+            el.innerHTML = pool.map(p => {
+                const init = `${p.first_name?.[0] || '?'}${p.last_name?.[0] || ''}`.toUpperCase();
+                return `<div class="pool-card" onclick="addToTeam(${p.id},${teamId},this)">
+<div style="width:34px;height:34px;border-radius:8px;background:var(--bg2);display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;color:var(--gold)">${init}</div>
+<div style="flex:1"><div style="font-size:14px;font-weight:600">${p.first_name} ${p.last_name}</div>
+<div style="font-size:12px;color:var(--muted)">${p.jersey_number ? `#${p.jersey_number}` : 'No jersey'} ${p.position ? `· ${p.position}` : ''}</div></div>
+<span style="font-size:18px;font-weight:700">+</span></div>`;
+            }).join('');
+        }
+
+        function closeDrawer() {
+            document.getElementById('drawer-overlay').classList.remove('open');
+            document.getElementById('roster-drawer').classList.remove('open');
+            activeTeam = null;
+        }
+
+        async function addToTeam(playerId, teamId, el) {
+            el.style.opacity = '.5'; el.style.pointerEvents = 'none';
+            const res = await api(`/teams/${teamId}/members`, { method: 'POST', body: JSON.stringify({ player_id: playerId }) });
+            Toast.show(res.message || (res.success ? 'Player added!' : 'Error'), res.success ? 'success' : 'error');
+            if (res.success) { await loadPage(); await openRoster(teamId) } else { el.style.opacity = '1'; el.style.pointerEvents = '' }
+        }
+        async function removeFromTeam(playerId) {
+            if (!activeTeam) return;
+            const res = await api(`/teams/${activeTeam.id}/members/${playerId}`, { method: 'DELETE' });
+            Toast.show(res.message || (res.success ? 'Removed.' : 'Error'), res.success ? 'success' : 'error');
+            if (res.success) { await loadPage(); await openRoster(activeTeam.id) }
+        }
+        async function approveInRoster(playerId) {
+            if (!activeTeam) return;
+            const res = await api(`/teams/${activeTeam.id}/members/${playerId}/status`, { method: 'PATCH', body: JSON.stringify({ status: 'approved' }) });
+            Toast.show(res.message || (res.success ? 'Approved!' : 'Error'), res.success ? 'success' : 'error');
+            if (res.success) { await loadPage(); await openRoster(activeTeam.id) }
+        }
+        async function rejectInRoster(playerId) {
+            if (!activeTeam) return;
+            const res = await api(`/teams/${activeTeam.id}/members/${playerId}/status`, { method: 'PATCH', body: JSON.stringify({ status: 'rejected' }) });
+            Toast.show(res.message || (res.success ? 'Rejected.' : 'Error'), res.success ? 'success' : 'error');
+            if (res.success) { await loadPage(); await openRoster(activeTeam.id) }
+        }
+        async function submitRoster() {
+            if (!activeTeam) return;
+            const res = await api(`/teams/${activeTeam.id}/submit-roster`, { method: 'POST' });
+            Toast.show(res.message || (res.success ? 'Roster submitted!' : 'Error'), res.success ? 'success' : 'error');
+            if (res.success) { closeDrawer(); await loadPage() }
+        }
+        async function submitRosterDirect(teamId) {
+            const res = await api(`/teams/${teamId}/submit-roster`, { method: 'POST' });
+            Toast.show(res.message || (res.success ? 'Roster submitted!' : 'Error'), res.success ? 'success' : 'error');
+            if (res.success) await loadPage();
+        }
+        async function quickApprove(id) {
+            const res = await api(`/players/${id}/status`, { method: 'PATCH', body: JSON.stringify({ status: 'approved' }) });
+            Toast.show(res.message || (res.success ? 'Approved!' : 'Error'), res.success ? 'success' : 'error');
+            if (res.success) await loadPage();
+        }
+        async function quickReject(id) {
+            const res = await api(`/players/${id}/status`, { method: 'PATCH', body: JSON.stringify({ status: 'rejected' }) });
+            Toast.show(res.message || (res.success ? 'Rejected.' : 'Error'), res.success ? 'success' : 'error');
+            if (res.success) await loadPage();
+        }
+    </script>
+</body>
+
+</html>

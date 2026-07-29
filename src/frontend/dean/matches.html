@@ -1,0 +1,560 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PAC SCHED-SCORE — Our Matches</title>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;600;700;800;900&family=Barlow:wght@300;400;500;600&display=swap"
+        rel="stylesheet">
+    <link rel="stylesheet" href="/css/shared.css">
+    <link rel="stylesheet" href="/css/dean.css">
+    <style>
+        .match-row {
+            display: grid;
+            grid-template-columns: 40px 1fr 200px 120px 110px 130px 120px;
+            align-items: center;
+            padding: 14px 20px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+            gap: 12px;
+            transition: background 0.1s;
+        }
+
+        .match-row:hover {
+            background: rgba(255, 255, 255, 0.02);
+        }
+
+        .match-row:last-child {
+            border-bottom: none;
+        }
+
+        .match-row.our-row {
+            border-left: 3px solid #818CF8;
+        }
+
+        .match-row-header {
+            display: grid;
+            grid-template-columns: 40px 1fr 200px 120px 110px 130px 120px;
+            gap: 12px;
+            padding: 10px 20px;
+            background: var(--bg3);
+            font-size: 11px;
+            font-weight: 700;
+            letter-spacing: 1.5px;
+            text-transform: uppercase;
+            color: var(--muted);
+            border-bottom: 1px solid var(--border);
+        }
+
+        .vs-inline {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+
+        .dept-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            flex-shrink: 0;
+        }
+
+        .result-win {
+            color: var(--green);
+            font-weight: 800;
+            font-size: 12px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            background: rgba(34, 197, 94, 0.12);
+            padding: 3px 8px;
+            border-radius: 6px;
+        }
+
+        .result-loss {
+            color: var(--red);
+            font-weight: 800;
+            font-size: 12px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            background: rgba(232, 50, 59, 0.12);
+            padding: 3px 8px;
+            border-radius: 6px;
+        }
+
+        .result-draw {
+            color: var(--muted);
+            font-weight: 800;
+            font-size: 12px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            background: rgba(255, 255, 255, 0.06);
+            padding: 3px 8px;
+            border-radius: 6px;
+        }
+
+        .format-tag {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            font-size: 10px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            color: var(--gold);
+            background: rgba(245, 184, 0, 0.1);
+            border: 1px solid rgba(245, 184, 0, 0.2);
+            padding: 2px 6px;
+            border-radius: 4px;
+            margin-left: 6px;
+        }
+
+        .period-score-row {
+            display: grid;
+            grid-template-columns: 1fr 60px 16px 60px;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 0;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+        }
+
+        .period-score-row:last-child {
+            border-bottom: none;
+        }
+
+        .period-score-num {
+            font-family: 'Barlow Condensed', sans-serif;
+            font-size: 22px;
+            font-weight: 900;
+            text-align: center;
+            color: var(--gold);
+        }
+
+        .icon {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            vertical-align: middle;
+        }
+
+        .icon svg {
+            width: 1em;
+            height: 1em;
+            fill: none;
+            stroke: currentColor;
+            stroke-width: 2;
+            stroke-linecap: round;
+            stroke-linejoin: round;
+        }
+
+        .icon-sm {
+            font-size: 14px;
+        }
+
+        .icon-md {
+            font-size: 18px;
+        }
+
+        @media (max-width: 900px) {
+
+            .match-row,
+            .match-row-header {
+                grid-template-columns: 1fr 1fr;
+            }
+
+            .match-row>*:nth-child(3),
+            .match-row>*:nth-child(4),
+            .match-row>*:nth-child(5),
+            .match-row-header>*:nth-child(3),
+            .match-row-header>*:nth-child(4),
+            .match-row-header>*:nth-child(5) {
+                display: none;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <main class="main">
+        <div class="topbar">
+            <div class="topbar-title" style="display:flex;align-items:center;gap:8px;">
+                <span class="icon icon-md"><svg viewBox="0 0 24 24">
+                        <path d="M14.5 17.5 3 6V3h3l11.5 11.5" />
+                        <path d="M13 19l6-6" />
+                        <path d="M16 16l4 4" />
+                        <path d="M19 21l2-2" />
+                    </svg></span>
+                Our Matches
+            </div>
+            <div class="topbar-actions">
+                <button class="btn btn-secondary btn-sm" onclick="loadPage()"
+                    style="display:inline-flex;align-items:center;gap:6px;">
+                    <span class="icon icon-sm"><svg viewBox="0 0 24 24">
+                            <path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8" />
+                            <path d="M21 3v5h-5" />
+                            <path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16" />
+                            <path d="M8 16H3v5" />
+                        </svg></span>
+                    Refresh
+                </button>
+            </div>
+        </div>
+        <div class="content">
+
+            <div class="stat-strip" id="match-stats"></div>
+
+            <div style="display:flex;gap:10px;margin-bottom:16px;flex-wrap:wrap">
+                <select id="f-status" class="form-select" style="width:170px" onchange="applyFilters()">
+                    <option value="">All Statuses</option>
+                    <option value="pending">Pending</option>
+                    <option value="scheduled">Scheduled</option>
+                    <option value="ongoing">Live</option>
+                    <option value="completed">Completed</option>
+                </select>
+                <select id="f-sport" class="form-select" style="width:190px" onchange="applyFilters()">
+                    <option value="">All Sports</option>
+                </select>
+                <input type="date" id="f-date" class="form-select" style="width:160px" onchange="applyFilters()">
+                <input id="f-search" class="form-input" style="flex:1;min-width:180px"
+                    placeholder="Search opponent, venue..." oninput="applyFilters()">
+                <button class="btn btn-secondary btn-sm" onclick="clearFilters()">Clear</button>
+            </div>
+
+            <div class="card">
+                <div class="match-row-header">
+                    <div>#</div>
+                    <div>Match</div>
+                    <div>Tournament</div>
+                    <div>Date / Time</div>
+                    <div>Venue</div>
+                    <div>Score</div>
+                    <div>Result</div>
+                </div>
+                <div id="matches-body">
+                    <div class="empty-state" style="padding:48px">
+                        <div class="empty-text">Loading matches...</div>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+    </main>
+
+    <div class="modal-overlay" id="modal-detail" onclick="if(event.target===this)Modal.close('modal-detail')">
+        <div class="modal" style="max-width:560px">
+            <div class="modal-header">
+                <div class="modal-title" id="detail-title">Match Details</div>
+                <button class="modal-close" onclick="Modal.close('modal-detail')">✕</button>
+            </div>
+            <div class="modal-body" id="detail-body"></div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="Modal.close('modal-detail')">Close</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="/js/shared.js"></script>
+    <script src="/js/dean-sidebar.js"></script>
+    <script>
+        let allMatches = [];
+        const user = Auth.getUser();
+        const deptId = user?.department_id;
+
+        function isFFA(m) {
+            const f = (m.tournament_format || '').toLowerCase();
+            return f === 'free_for_all' || f === 'team_ranking';
+        }
+
+        function scoreDisplay(m) {
+            if (isFFA(m)) return 'FFA';
+            if (m.scoring_type === 'binary') {
+                if (m.status !== 'completed') return '—';
+                return m.winner_side === 'a' ? 'Win A' : m.winner_side === 'b' ? 'Win B' : m.final_score_display || '—';
+            }
+            if (m.scoring_type === 'sets') {
+                const sa = m.sets_won_a ?? null;
+                const sb = m.sets_won_b ?? null;
+                if (sa !== null && sb !== null) return `${sa}–${sb}`;
+                if (m.final_score_display) return m.final_score_display;
+                return '—';
+            }
+            // points / time
+            if (m.final_score_display) return m.final_score_display;
+            if (m.total_score_a !== null && m.total_score_a !== undefined)
+                return `${m.total_score_a}–${m.total_score_b}`;
+            return '—';
+        }
+
+        function formatTag(m) {
+            if (isFFA(m)) return '<span class="format-tag">FFA</span>';
+            if (m.scoring_type === 'sets') return '<span class="format-tag">Sets</span>';
+            if (m.scoring_type === 'binary') return '<span class="format-tag">Winner-only</span>';
+            return '';
+        }
+
+        function matchupLabel(m) {
+            if (isFFA(m)) {
+                return `<span style="font-weight:700;color:var(--gold)">FFA Event</span>
+                    <span style="font-size:12px;color:var(--muted);margin-left:6px">${m.tournament_name || 'All participants'}</span>`;
+            }
+            const nA = m.dept_a_name || '—';
+            const nB = m.dept_b_name || '—';
+            const cA = m.dept_a_color || '#555';
+            const cB = m.dept_b_color || '#555';
+            const isOurA = m.participant_a_department_id == deptId;
+            const isOurB = m.participant_b_department_id == deptId;
+            return `
+                <div class="vs-inline">
+                    <span class="dept-dot" style="background:${cA}"></span>
+                    <span style="font-weight:600;${isOurA ? 'color:#818CF8' : ''}">${nA}</span>
+                    <span style="color:var(--muted);font-size:11px">vs</span>
+                    <span class="dept-dot" style="background:${cB}"></span>
+                    <span style="font-weight:600;${isOurB ? 'color:#818CF8' : ''}">${nB}</span>
+                </div>`;
+        }
+
+        function resultBadge(m) {
+            if (m.status !== 'completed') return statusBadge(m.status);
+            if (isFFA(m)) return `<span class="result-draw">DONE</span>`;
+            const won = m.winner_department_id == deptId;
+            const lost = m.winner_department_id && m.winner_department_id != deptId;
+            if (won) return `<span class="result-win">WIN</span>`;
+            if (lost) return `<span class="result-loss">LOSS</span>`;
+            return `<span class="result-draw">DRAW</span>`;
+        }
+
+        document.addEventListener('DOMContentLoaded', async () => {
+            Auth.requireAuth('dean_adviser');
+            renderSidebar('matches');
+            const sRes = await api('/sports');
+            document.getElementById('f-sport').innerHTML += (sRes.data || []).map(s =>
+                `<option value="${s.id}">${s.name}</option>`).join('');
+            await loadPage();
+        });
+
+        async function loadPage() {
+            if (!deptId) return;
+            const res = await api(`/matches?department_id=${deptId}`);
+            allMatches = res.data || [];
+            renderStats();
+            applyFilters();
+        }
+
+        function renderStats() {
+            const total = allMatches.length;
+            const wins = allMatches.filter(m => m.status === 'completed' && m.winner_department_id == deptId).length;
+            const losses = allMatches.filter(m => m.status === 'completed' && m.winner_department_id && m.winner_department_id != deptId).length;
+            const upcoming = allMatches.filter(m => ['scheduled', 'pending'].includes(m.status)).length;
+            const live = allMatches.filter(m => m.status === 'ongoing').length;
+
+            const items = [
+                { val: total, lbl: 'Total Matches', color: 'var(--gold)' },
+                { val: wins, lbl: 'Wins', color: 'var(--green)' },
+                { val: losses, lbl: 'Losses', color: 'var(--red)' },
+                { val: upcoming, lbl: 'Upcoming', color: '#60A5FA' },
+                { val: live, lbl: 'Live Now', color: 'var(--green)' },
+            ];
+            document.getElementById('match-stats').innerHTML = items.map(s => `
+                <div class="stat-strip-card">
+                    <div>
+                        <div class="stat-strip-val" style="color:${s.color}">${s.val}</div>
+                        <div class="stat-strip-lbl">${s.lbl}</div>
+                    </div>
+                </div>`).join('');
+        }
+
+        function applyFilters() {
+            const status = document.getElementById('f-status').value;
+            const sport = document.getElementById('f-sport').value;
+            const date = document.getElementById('f-date').value;
+            const q = document.getElementById('f-search').value.toLowerCase();
+
+            let filtered = allMatches;
+            if (status) filtered = filtered.filter(m => m.status === status);
+            if (sport) filtered = filtered.filter(m => String(m.sport_id) === sport);
+            if (date) filtered = filtered.filter(m => (m.scheduled_date || '').startsWith(date));
+            if (q) filtered = filtered.filter(m =>
+                [m.dept_a_name, m.dept_b_name, m.venue_name, m.tournament_name, m.sport_name]
+                    .join(' ').toLowerCase().includes(q));
+
+            renderTable(filtered);
+        }
+
+        function clearFilters() {
+            ['f-status', 'f-sport', 'f-date', 'f-search'].forEach(id => {
+                const el = document.getElementById(id); if (el) el.value = '';
+            });
+            applyFilters();
+        }
+
+        function renderTable(matches) {
+            const el = document.getElementById('matches-body');
+            if (!matches.length) {
+                el.innerHTML = `<div class="empty-state" style="padding:48px"><div class="empty-text">No matches found.</div></div>`;
+                return;
+            }
+
+            el.innerHTML = matches.map((m, i) => {
+                const isOurs = m.participant_a_department_id == deptId || m.participant_b_department_id == deptId;
+                const dateDisplay = m.scheduled_date && m.scheduled_date !== 'null'
+                    ? `<div style="font-size:12px">${formatDate(m.scheduled_date)}</div>
+                       <div style="font-family:'Barlow Condensed',sans-serif;font-size:16px;font-weight:800;color:var(--gold)">${formatTime(m.scheduled_time) || '—'}</div>`
+                    : `<span style="font-size:11px;color:var(--muted)">Unscheduled</span>`;
+
+                return `
+                <div class="match-row ${isOurs ? 'our-row' : ''}">
+                    <div style="font-family:'Barlow Condensed',sans-serif;font-size:16px;font-weight:700;color:var(--muted)">${i + 1}</div>
+                    <div>
+                        ${matchupLabel(m)}
+                        <div style="font-size:11px;color:var(--muted);margin-top:3px;display:flex;align-items:center;flex-wrap:wrap;gap:4px;">
+                            ${typeof sportIcon === 'function' ? sportIcon(m.sport_name) : ''} ${m.sport_name || '—'}
+                            ${formatTag(m)}
+                            ${m.bracket_position ? '· ' + m.bracket_position : ''}
+                        </div>
+                    </div>
+                    <div style="font-size:12px;color:var(--muted)">${m.tournament_name || '—'}</div>
+                    <div style="font-size:12px">${dateDisplay}</div>
+                    <div style="font-size:12px;color:var(--muted)">${m.venue_name || '—'}</div>
+                    <div style="font-family:'Barlow Condensed',sans-serif;font-size:20px;font-weight:900;color:var(--gold)">${scoreDisplay(m)}</div>
+                    <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">
+                        ${resultBadge(m)}
+                        <button class="btn btn-secondary btn-sm" onclick="viewDetail(${m.id})">View</button>
+                    </div>
+                </div>`;
+            }).join('');
+        }
+
+        async function viewDetail(id) {
+            const res = await api(`/matches/${id}`);
+            if (!res.success) return;
+            const m = res.data;
+            const ffa = isFFA(m);
+            const nA = m.dept_a_name || '—';
+            const nB = m.dept_b_name || '—';
+            const cA = m.dept_a_color || '#555';
+            const cB = m.dept_b_color || '#555';
+            const iA = nA.split(' ').map(w => w[0]).slice(0, 2).join('').toUpperCase();
+            const iB = nB.split(' ').map(w => w[0]).slice(0, 2).join('').toUpperCase();
+            const result = m.result || {};
+            const scores = m.scores || [];
+
+            document.getElementById('detail-title').textContent = `${m.sport_name || 'Match'} — ${m.tournament_name || ''}`;
+
+            let centerHtml = '';
+            if (ffa) {
+                centerHtml = `<div style="font-family:'Barlow Condensed',sans-serif;font-size:22px;font-weight:900;color:var(--gold)">FFA EVENT</div>
+                    <div style="font-size:11px;color:var(--muted);margin-top:6px">${statusBadge(m.status)}</div>`;
+            } else if (m.scoring_type === 'binary') {
+                const winnerLabel = result.winner_side === 'a' ? nA : result.winner_side === 'b' ? nB : '—';
+                centerHtml = m.status === 'completed'
+                    ? `<div style="font-family:'Barlow Condensed',sans-serif;font-size:18px;font-weight:900;color:var(--green)">Winner</div>
+                       <div style="font-size:16px;font-weight:700;margin-top:4px">${winnerLabel}</div>
+                       <div style="font-size:11px;color:var(--muted);margin-top:6px">${statusBadge(m.status)}</div>`
+                    : `<div style="font-family:'Barlow Condensed',sans-serif;font-size:24px;font-weight:900;color:var(--muted)">VS</div>
+                       <div style="font-size:11px;color:var(--muted);margin-top:6px">${statusBadge(m.status)}</div>`;
+            } else if (m.scoring_type === 'sets') {
+                const sa = m.sets_won_a ?? scores.filter(s => s.score_a > s.score_b).length;
+                const sb = m.sets_won_b ?? scores.filter(s => s.score_b > s.score_a).length;
+                centerHtml = `<div style="font-family:'Barlow Condensed',sans-serif;font-size:40px;font-weight:900;color:var(--gold);line-height:1">${sa}–${sb}</div>
+                    <div style="font-size:11px;color:var(--muted);margin-top:4px">sets</div>
+                    <div style="font-size:11px;color:var(--muted);margin-top:6px">${statusBadge(m.status)}</div>`;
+            } else {
+                const ta = result.total_score_a ?? m.total_score_a;
+                const tb = result.total_score_b ?? m.total_score_b;
+                centerHtml = (ta !== null && ta !== undefined)
+                    ? `<div style="font-family:'Barlow Condensed',sans-serif;font-size:44px;font-weight:900;color:var(--gold);line-height:1">${ta}–${tb}</div>
+                       <div style="font-size:11px;color:var(--muted);margin-top:6px">${statusBadge(m.status)}</div>`
+                    : `<div style="font-family:'Barlow Condensed',sans-serif;font-size:24px;font-weight:900;color:var(--muted)">VS</div>
+                       <div style="font-size:11px;color:var(--muted);margin-top:6px">${statusBadge(m.status)}</div>`;
+            }
+
+            // Win / Loss banner for completed non-FFA
+            let wlBanner = '';
+            if (m.status === 'completed' && !ffa) {
+                const won = m.winner_department_id == deptId;
+                const lost = m.winner_department_id && m.winner_department_id != deptId;
+                if (won) {
+                    wlBanner = `<div style="margin-bottom:16px;padding:14px;border-radius:12px;background:rgba(34,197,94,0.12);border:1px solid rgba(34,197,94,0.3);text-align:center;font-family:'Barlow Condensed',sans-serif;font-size:20px;font-weight:900;color:var(--green);letter-spacing:1px;">WIN</div>`;
+                } else if (lost) {
+                    wlBanner = `<div style="margin-bottom:16px;padding:14px;border-radius:12px;background:rgba(232,50,59,0.1);border:1px solid rgba(232,50,59,0.3);text-align:center;font-family:'Barlow Condensed',sans-serif;font-size:20px;font-weight:900;color:var(--red);letter-spacing:1px;">LOSS</div>`;
+                }
+            }
+
+            const setsRecap = (m.scoring_type === 'sets' && scores.length)
+                ? `<div style="font-family:'Barlow Condensed',sans-serif;font-size:13px;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin:16px 0 10px">Set Scores</div>
+                   <div style="background:var(--bg3);border-radius:8px;padding:12px 16px">
+                     ${scores.map(s => `
+                       <div class="period-score-row">
+                         <span style="font-size:13px;color:var(--muted)">${s.period_label || 'Set ' + s.period}</span>
+                         <span class="period-score-num">${s.score_a}</span>
+                         <span style="text-align:center;color:var(--muted)">–</span>
+                         <span class="period-score-num">${s.score_b}</span>
+                       </div>`).join('')}
+                   </div>`
+                : (scores.length && m.scoring_type !== 'binary' ? `
+                   <div style="font-family:'Barlow Condensed',sans-serif;font-size:13px;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin:16px 0 10px">Period Scores</div>
+                   <div style="background:var(--bg3);border-radius:8px;padding:12px 16px">
+                     ${scores.map(s => `
+                       <div class="period-score-row">
+                         <span style="font-size:13px;color:var(--muted)">${s.period_label || 'Period ' + s.period}</span>
+                         <span class="period-score-num">${s.score_a}</span>
+                         <span style="text-align:center;color:var(--muted)">–</span>
+                         <span class="period-score-num">${s.score_b}</span>
+                       </div>`).join('')}
+                   </div>` : '');
+
+            document.getElementById('detail-body').innerHTML = `
+                ${wlBanner}
+                <div style="background:var(--bg3);border-radius:12px;padding:20px;margin-bottom:20px">
+                    ${ffa ? `
+                    <div style="text-align:center">
+                        <div style="font-family:'Barlow Condensed',sans-serif;font-size:22px;font-weight:900;color:var(--gold)">FFA / Ranking Event</div>
+                        <div style="font-size:13px;color:var(--muted);margin-top:6px">${m.tournament_name || ''}</div>
+                        <div style="margin-top:10px">${statusBadge(m.status)}</div>
+                    </div>` : `
+                    <div style="display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:16px">
+                        <div style="text-align:center">
+                            <div style="width:52px;height:52px;border-radius:12px;background:${cA};display:flex;align-items:center;justify-content:center;font-family:'Barlow Condensed',sans-serif;font-size:18px;font-weight:900;color:#fff;margin:0 auto 8px">${iA}</div>
+                            <div style="font-family:'Barlow Condensed',sans-serif;font-size:16px;font-weight:800;text-transform:uppercase${m.participant_a_department_id == deptId ? ';color:#818CF8' : ''}">${nA}</div>
+                        </div>
+                        <div style="text-align:center">${centerHtml}</div>
+                        <div style="text-align:center">
+                            <div style="width:52px;height:52px;border-radius:12px;background:${cB};display:flex;align-items:center;justify-content:center;font-family:'Barlow Condensed',sans-serif;font-size:18px;font-weight:900;color:#fff;margin:0 auto 8px">${iB}</div>
+                            <div style="font-family:'Barlow Condensed',sans-serif;font-size:16px;font-weight:800;text-transform:uppercase${m.participant_b_department_id == deptId ? ';color:#818CF8' : ''}">${nB}</div>
+                        </div>
+                    </div>`}
+                </div>
+
+                <div style="display:flex;flex-direction:column;gap:8px;margin-bottom:16px">
+                    ${[
+                    ['Date', m.scheduled_date ? `${formatDate(m.scheduled_date)} ${formatTime(m.scheduled_time) || ''}` : 'Not scheduled'],
+                    ['Venue', m.venue_name || 'TBD'],
+                    ['Referee', m.referee_name || 'Not assigned'],
+                    ['Round', m.bracket_position || '—'],
+                    ['Format', m.scoring_type === 'sets' ? 'Sets' : m.scoring_type === 'binary' ? 'Winner-only' : isFFA(m) ? 'Free-for-all' : 'Points'],
+                    ['Tournament', m.tournament_name || '—'],
+                ].map(([l, v]) => `
+                    <div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid rgba(255,255,255,0.04)">
+                        <span style="color:var(--muted);font-size:13px">${l}</span>
+                        <span style="font-size:13px;font-weight:600">${v}</span>
+                    </div>`).join('')}
+                </div>
+
+                ${setsRecap}
+
+                ${result.mvp_player_name ? `
+                <div style="margin-top:16px;background:rgba(245,184,0,0.06);border:1px solid var(--border-gold);border-radius:10px;padding:14px;display:flex;align-items:center;gap:12px">
+                    <div>
+                        <div style="font-size:11px;font-weight:700;color:var(--gold);text-transform:uppercase;letter-spacing:1px">Match MVP</div>
+                        <div style="font-size:16px;font-weight:700">${result.mvp_player_name}</div>
+                    </div>
+                </div>` : ''}
+            `;
+
+            Modal.open('modal-detail');
+        }
+    </script>
+</body>
+
+</html>

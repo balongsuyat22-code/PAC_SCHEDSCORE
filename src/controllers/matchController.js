@@ -1,544 +1,1227 @@
+/**
+ * MATCH CONTROLLER - Complete Updated Version with Real-Time Scoring
+ * Handles scheduling, live scoring, and match completion.
+ * Uses users with role 'sgo_officer' directly as referees.
+ *
+ * Who does what:
+ *   sgo_president → schedule matches; assign venues & officers; start/end matches
+ *   sgo_officer   → input/update live scores; complete matches; record MVP
+ *   admin         → full access
+ *   dean_adviser  → read: view their department's matches, live scores
+ *   visitor       → read: live scores, scoreboard, completed matches
+ *
+ * LIVE UPDATES (Socket.IO):
+ * All mutations emit to match_<id> and tournament_<id> rooms.
+ * Leaderboard changes emit globally.
+ */
+
 const { pool } = require('../config/database');
 const { progressBracket } = require('../services/matchService');
 const { logActivity } = require('../utils/logger');
+const { getActiveSportFestId } = require('../utils/season');
+const {
+    emitToMatch,
+    emitToTournament,
+    emitToLeaderboard,
+    emitToAll,
+    getMatchWatchers
+} = require('../utils/socketEmit');
 
-const safeFK = (val) => {
-    const n = parseInt(val);
-    return Number.isInteger(n) && n > 0 ? n : null;
-};
-
-const safeDate = (val) => {
-    if (!val) return null;
-    return String(val).split('T')[0];
-};
-
-const reRankFFAResults = async (conn, tournamentId) => {
-    const [[t]] = await conn.execute(
-        'SELECT ffa_scoring FROM tournaments WHERE id = ?',
-        [tournamentId]
-    );
-
-    const isTimeBased = t && t.ffa_scoring === 'time';
-    const orderDir = isTimeBased ? 'ASC' : 'DESC';
-
-    const [results] = await conn.execute(
-        `SELECT id, result_value FROM ffa_results 
-         WHERE tournament_id = ?
-         ORDER BY result_value ${orderDir}`,
-        [tournamentId]
-    );
-
-    if (results.length === 0) return;
-
-    let currentRank = 1;
-    for (let i = 0; i < results.length; i++) {
-        if (i > 0 && results[i].result_value !== results[i - 1].result_value) {
-            currentRank = i + 1;
-        }
-        await conn.execute(
-            'UPDATE ffa_results SET rank_position = ? WHERE id = ?',
-            [currentRank, results[i].id]
-        );
-    }
-};
+// Utility helpers
+const safeFK = (val) => { const n = parseInt(val); return Number.isInteger(n) && n > 0 ? n : null; };
+const safeDate = (val) => { if (!val) return null; return String(val).split('T')[0]; };
 
 const getAll = async (req, res, next) => {
     try {
-        const { tournament_id, status, date, referee_id, department_id } = req.query;
+        const { tournament_id, status, date, referee_id, department_id, venue_id } = req.query;
+        const callerRole = req.user?.role;
+        const showAll = req.query.all === 'true';
+        const sportFestId = showAll ? null : await getActiveSportFestId();
+
         let query = `
-            SELECT m.*,
-                   DATE_FORMAT(m.scheduled_date, '%Y-%m-%d') AS scheduled_date,
-                   DATE_FORMAT(m.scheduled_time, '%H:%i') AS scheduled_time,
-                   s.name  AS sport_name,
-                   t.name  AS tournament_name,
-                   t.format AS tournament_format,
-                   t.ffa_scoring AS ffa_scoring_type,
-                   da.name AS dept_a_name, da.color AS dept_a_color, da.logo_url AS dept_a_logo,
-                   db.name AS dept_b_name, db.color AS dept_b_color, db.logo_url AS dept_b_logo,
-                   MAX(ta.name) AS team_a_name,
-                   MAX(tb.name) AS team_b_name,
-                   v.name  AS venue_name,
-                   CONCAT(ru.first_name,' ',ru.last_name) AS referee_name,
-                   mr.total_score_a, mr.total_score_b, mr.final_score_display,
-                   mr.mvp_player_id, mr.mvp_player_name
+            SELECT
+                m.*,
+                DATE_FORMAT(m.scheduled_date, '%Y-%m-%d') AS scheduled_date,
+                DATE_FORMAT(m.scheduled_time, '%H:%i')    AS scheduled_time,
+                s.name   AS sport_name,
+                s.scoring_type,
+                s.sets_to_win,
+                t.name   AS tournament_name,
+                t.format AS tournament_format,
+                t.ffa_scoring AS ffa_scoring_type,
+                da.name  AS dept_a_name, da.color AS dept_a_color, da.logo_url AS dept_a_logo,
+                db.name  AS dept_b_name, db.color AS dept_b_color, db.logo_url AS dept_b_logo,
+                v.name   AS venue_name,
+                CONCAT(referee_user.first_name,' ',referee_user.last_name) AS referee_name,
+                referee_user.id AS referee_user_id,
+                mr.total_score_a,
+                mr.total_score_b,
+                mr.final_score_display,
+                mr.mvp_player_name,
+                mr.winner_side,
+                (SELECT COUNT(*) FROM match_scores ms
+                  WHERE ms.match_id = m.id AND ms.score_a > ms.score_b) AS sets_won_a,
+                (SELECT COUNT(*) FROM match_scores ms
+                  WHERE ms.match_id = m.id AND ms.score_b > ms.score_a) AS sets_won_b,
+                (SELECT COALESCE(SUM(score_a),0) FROM match_scores WHERE match_id = m.id) AS live_total_a,
+                (SELECT COALESCE(SUM(score_b),0) FROM match_scores WHERE match_id = m.id) AS live_total_b
             FROM matches m
-            JOIN tournaments t ON m.tournament_id = t.id
-            JOIN sports s ON t.sport_id = s.id
+            JOIN  tournaments t  ON m.tournament_id = t.id
+            JOIN  sports s       ON t.sport_id      = s.id
             LEFT JOIN departments da ON m.participant_a_department_id = da.id
             LEFT JOIN departments db ON m.participant_b_department_id = db.id
-            LEFT JOIN teams ta ON m.participant_a_department_id = ta.department_id AND ta.sport_id = s.id
-            LEFT JOIN teams tb ON m.participant_b_department_id = tb.department_id AND tb.sport_id = s.id
-            LEFT JOIN venues v ON m.venue_id = v.id
-            LEFT JOIN referees r ON m.referee_id = r.id
-            LEFT JOIN users ru ON r.user_id = ru.id
+            LEFT JOIN venues v      ON m.venue_id                     = v.id
+            LEFT JOIN users referee_user ON m.referee_id = referee_user.id
             LEFT JOIN match_results mr ON m.id = mr.match_id
-            WHERE 1=1
+            WHERE 1 = 1
         `;
         const params = [];
+
+        // Season-scope by default so a match from an archived season doesn't
+        // keep showing up on referee/president/visitor match lists.
+        if (sportFestId) {
+            query += ` AND EXISTS (
+                SELECT 1 FROM sport_fest_tournaments sft
+                WHERE sft.tournament_id = t.id AND sft.sport_fest_id = ?
+            )`;
+            params.push(sportFestId);
+        }
+
+        if (callerRole === 'dean_adviser') {
+            query += ' AND (m.participant_a_department_id = ? OR m.participant_b_department_id = ?)';
+            params.push(req.user.department_id, req.user.department_id);
+        }
+
+        if (callerRole === 'sgo_officer') {
+            query += ' AND m.referee_id = ?';
+            params.push(req.user.id);
+        }
+
         if (tournament_id) { query += ' AND m.tournament_id = ?'; params.push(tournament_id); }
         if (status) { query += ' AND m.status = ?'; params.push(status); }
         if (date) { query += ' AND m.scheduled_date = ?'; params.push(date); }
-        if (referee_id) { query += ' AND r.user_id = ?'; params.push(referee_id); }
+        if (venue_id) { query += ' AND m.venue_id = ?'; params.push(venue_id); }
+        if (referee_id) { query += ' AND m.referee_id = ?'; params.push(referee_id); }
         if (department_id) {
             query += ' AND (m.participant_a_department_id = ? OR m.participant_b_department_id = ?)';
             params.push(department_id, department_id);
         }
-        query += ' GROUP BY m.id ORDER BY m.scheduled_date ASC, m.scheduled_time ASC';
+
+        query += ' ORDER BY m.scheduled_date ASC, m.scheduled_time ASC';
 
         const [rows] = await pool.execute(query, params);
-        res.json({ success: true, data: rows });
-    } catch (err) { next(err); }
+        const enrichedRows = rows.map(row => ({
+            ...row,
+            watchers: row.status === 'ongoing' ? getMatchWatchers(row.id) : 0
+        }));
+
+        return res.json({ success: true, data: enrichedRows });
+    } catch (err) {
+        next(err);
+    }
 };
 
+
+const getPlayersByDepartment = async (req, res, next) => {
+    try {
+        const departmentId = parseInt(req.params.departmentId);
+
+        const [rows] = await pool.execute(
+            `SELECT 
+                p.id,
+                p.first_name,
+                p.last_name,
+                p.jersey_number,
+                p.position,
+                p.image_url,
+                p.status,
+                t.name AS team_name
+             FROM players p
+             LEFT JOIN teams t ON p.team_id = t.id
+             WHERE p.department_id = ? 
+               AND p.status = 'approved'
+             ORDER BY p.last_name ASC, p.first_name ASC`,
+            [departmentId]
+        );
+
+        return res.json({ success: true, data: rows });
+    } catch (err) {
+        next(err);
+    }
+};
+
+// ---------------------------------------------------------------------------
+// GET ONE MATCH (full detail with scores and result)
+// GET /api/matches/:id
+// Protected: all roles
+// ---------------------------------------------------------------------------
 const getOne = async (req, res, next) => {
     try {
         const [rows] = await pool.execute(
-            `SELECT m.*, 
+            `SELECT m.*,
                     DATE_FORMAT(m.scheduled_date, '%Y-%m-%d') AS scheduled_date,
-                    DATE_FORMAT(m.scheduled_time, '%H:%i') AS scheduled_time,
-                    s.name AS sport_name, s.scoring_type,
-                    t.name AS tournament_name, t.format AS tournament_format, t.ffa_scoring AS ffa_scoring_type,
+                    DATE_FORMAT(m.scheduled_time, '%H:%i')    AS scheduled_time,
+                    s.name  AS sport_name, s.scoring_type, s.sets_to_win,
+                    t.name  AS tournament_name, t.format AS tournament_format, t.ffa_scoring,
                     da.name AS dept_a_name, da.color AS dept_a_color, da.logo_url AS dept_a_logo,
                     db.name AS dept_b_name, db.color AS dept_b_color, db.logo_url AS dept_b_logo,
-                    v.name AS venue_name, v.location AS venue_location,
-                    CONCAT(ru.first_name,' ',ru.last_name) AS referee_name,
-                    r.id AS referee_row_id
+                    v.name  AS venue_name, v.location AS venue_location,
+                    CONCAT(referee_user.first_name,' ',referee_user.last_name) AS referee_name,
+                    referee_user.id AS referee_user_id
              FROM matches m
-             JOIN tournaments t ON m.tournament_id = t.id
-             JOIN sports s ON t.sport_id = s.id
+             JOIN  tournaments t ON m.tournament_id = t.id
+             JOIN  sports      s ON t.sport_id      = s.id
              LEFT JOIN departments da ON m.participant_a_department_id = da.id
              LEFT JOIN departments db ON m.participant_b_department_id = db.id
-             LEFT JOIN venues v ON m.venue_id = v.id
-             LEFT JOIN referees r ON m.referee_id = r.id
-             LEFT JOIN users ru ON r.user_id = ru.id
+             LEFT JOIN venues      v  ON m.venue_id                    = v.id
+             LEFT JOIN users referee_user ON m.referee_id = referee_user.id
              WHERE m.id = ?`,
             [req.params.id]
         );
-        if (!rows.length) return res.status(404).json({ success: false, message: 'Match not found' });
 
-        const [scores] = await pool.execute('SELECT * FROM match_scores WHERE match_id = ? ORDER BY period ASC', [req.params.id]);
-        const [result] = await pool.execute('SELECT * FROM match_results WHERE match_id = ?', [req.params.id]);
+        if (!rows.length) return res.status(404).json({ success: false, message: 'Match not found.' });
 
-        res.json({ success: true, data: { ...rows[0], scores, result: result[0] || null } });
-    } catch (err) { next(err); }
-};
-
-const getScoreboard = async (req, res, next) => {
-    try {
-        const [match] = await pool.execute(
-            `SELECT m.*, 
-                    DATE_FORMAT(m.scheduled_date, '%Y-%m-%d') AS scheduled_date,
-                    DATE_FORMAT(m.scheduled_time, '%H:%i') AS scheduled_time,
-                    s.name AS sport_name, s.scoring_type,
-                    t.name AS tournament_name, t.format AS tournament_format, t.ffa_scoring AS ffa_scoring_type,
-                    da.name AS dept_a_name, da.color AS dept_a_color, da.logo_url AS dept_a_logo, 
-                    db.name AS dept_b_name, db.color AS dept_b_color, db.logo_url AS dept_b_logo, 
-                    MAX(ta.name) AS team_a_name,
-                    MAX(tb.name) AS team_b_name,
-                    v.name AS venue_name
-             FROM matches m
-             JOIN tournaments t ON m.tournament_id = t.id
-             JOIN sports s ON t.sport_id = s.id
-             LEFT JOIN departments da ON m.participant_a_department_id = da.id
-             LEFT JOIN departments db ON m.participant_b_department_id = db.id
-             LEFT JOIN teams ta ON m.participant_a_department_id = ta.department_id AND ta.sport_id = s.id
-             LEFT JOIN teams tb ON m.participant_b_department_id = tb.department_id AND tb.sport_id = s.id
-             LEFT JOIN venues v ON m.venue_id = v.id
-             WHERE m.id = ?
-             GROUP BY m.id`,
+        const [scores] = await pool.execute(
+            'SELECT * FROM match_scores WHERE match_id = ? ORDER BY period ASC',
+            [req.params.id]
+        );
+        const [result] = await pool.execute(
+            'SELECT * FROM match_results WHERE match_id = ?',
             [req.params.id]
         );
 
-        if (!match.length) return res.status(404).json({ success: false, message: 'Match not found' });
-        const [scores] = await pool.execute('SELECT * FROM match_scores WHERE match_id = ? ORDER BY period ASC', [req.params.id]);
+        const data = {
+            ...rows[0],
+            scores,
+            result: result[0] || null,
+            watchers: rows[0].status === 'ongoing' ? getMatchWatchers(parseInt(req.params.id)) : 0
+        };
+
+        return res.json({ success: true, data });
+    } catch (err) {
+        next(err);
+    }
+};
+
+// ---------------------------------------------------------------------------
+// GET LIVE SCOREBOARD for a specific match
+// GET /api/matches/:id/scoreboard
+// Protected: all roles (public)
+// ---------------------------------------------------------------------------
+const getScoreboard = async (req, res, next) => {
+    try {
+        const [match] = await pool.execute(
+            `SELECT m.*,
+                    DATE_FORMAT(m.scheduled_date, '%Y-%m-%d') AS scheduled_date,
+                    DATE_FORMAT(m.scheduled_time, '%H:%i')    AS scheduled_time,
+                    s.name AS sport_name, s.scoring_type,
+                    t.name AS tournament_name,
+                    t.ffa_scoring,
+                    da.name AS dept_a_name, da.color AS dept_a_color, da.logo_url AS dept_a_logo,
+                    db.name AS dept_b_name, db.color AS dept_b_color, db.logo_url AS dept_b_logo,
+                    v.name  AS venue_name
+             FROM matches m
+             JOIN  tournaments t ON m.tournament_id = t.id
+             JOIN  sports      s ON t.sport_id      = s.id
+             LEFT JOIN departments da ON m.participant_a_department_id = da.id
+             LEFT JOIN departments db ON m.participant_b_department_id = db.id
+             LEFT JOIN venues      v  ON m.venue_id                    = v.id
+             WHERE m.id = ?`,
+            [req.params.id]
+        );
+
+        if (!match.length) return res.status(404).json({ success: false, message: 'Match not found.' });
+
+        const [scores] = await pool.execute(
+            'SELECT * FROM match_scores WHERE match_id = ? ORDER BY period ASC',
+            [req.params.id]
+        );
         const totalA = scores.reduce((s, r) => s + (r.score_a || 0), 0);
         const totalB = scores.reduce((s, r) => s + (r.score_b || 0), 0);
 
-        res.json({ success: true, data: { match: match[0], scores, total_a: totalA, total_b: totalB, last_updated: new Date() } });
-    } catch (err) { next(err); }
+        const [result] = await pool.execute(
+            'SELECT * FROM match_results WHERE match_id = ?',
+            [req.params.id]
+        );
+
+        return res.json({
+            success: true,
+            data: {
+                match: match[0],
+                scores,
+                total_a: totalA,
+                total_b: totalB,
+                result: result[0] || null,
+                watchers: match[0].status === 'ongoing' ? getMatchWatchers(parseInt(req.params.id)) : 0,
+                last_updated: new Date()
+            },
+        });
+    } catch (err) {
+        next(err);
+    }
 };
 
+// ---------------------------------------------------------------------------
+// GET LIVE MATCHES (all ongoing)
+// GET /api/matches/live
+// Protected: all roles (public)
+// ---------------------------------------------------------------------------
 const getLive = async (req, res, next) => {
     try {
         const [rows] = await pool.execute(
-            `SELECT m.id, m.tournament_id, m.bracket_side, m.bracket_position,
+            `SELECT m.id, m.tournament_id, m.bracket_side, m.bracket_position, m.status,
                     DATE_FORMAT(m.scheduled_date, '%Y-%m-%d') AS scheduled_date,
-                    DATE_FORMAT(m.scheduled_time, '%H:%i') AS scheduled_time,
-                    t.name AS tournament_name, t.format AS tournament_format, t.ffa_scoring AS ffa_scoring_type,
-                    s.name AS sport_name, da.name AS dept_a, da.color AS dept_a_color,
-                    db.name AS dept_b, db.color AS dept_b_color, da.logo_url AS dept_a_logo,
-                    db.logo_url AS dept_b_logo, v.name AS venue_name, m.started_at,
-                    COALESCE(SUM(ms.score_a), 0) AS live_score_a, COALESCE(SUM(ms.score_b), 0) AS live_score_b
+                    DATE_FORMAT(m.scheduled_time, '%H:%i')    AS scheduled_time,
+                    t.name  AS tournament_name, t.format AS tournament_format, t.ffa_scoring,
+                    s.name  AS sport_name,
+                    da.id AS dept_a_id, da.name AS dept_a, da.color AS dept_a_color, da.logo_url AS dept_a_logo,
+                    db.id AS dept_b_id, db.name AS dept_b, db.color AS dept_b_color, db.logo_url AS dept_b_logo,
+                    v.name  AS venue_name, m.started_at,
+                    COALESCE(SUM(ms.score_a), 0) AS live_score_a,
+                    COALESCE(SUM(ms.score_b), 0) AS live_score_b,
+                    (SELECT COUNT(*) FROM match_scores WHERE match_id = m.id) AS periods_played
              FROM matches m
-             JOIN tournaments t ON m.tournament_id = t.id
-             JOIN sports s ON t.sport_id = s.id
+             JOIN  tournaments t ON m.tournament_id = t.id
+             JOIN  sports      s ON t.sport_id      = s.id
              LEFT JOIN departments da ON m.participant_a_department_id = da.id
              LEFT JOIN departments db ON m.participant_b_department_id = db.id
-             LEFT JOIN venues v ON m.venue_id = v.id
+             LEFT JOIN venues      v  ON m.venue_id                    = v.id
              LEFT JOIN match_scores ms ON m.id = ms.match_id
-             WHERE m.status = 'ongoing'
+             WHERE m.status IN ('ongoing', 'scheduled')
              GROUP BY m.id
-             ORDER BY m.started_at DESC`
+             ORDER BY m.status DESC, m.started_at DESC, m.scheduled_date ASC`
         );
-        res.json({ success: true, data: rows });
-    } catch (err) { next(err); }
+
+        // Add watcher counts
+        const enrichedRows = rows.map(row => ({
+            ...row,
+            watchers: row.status === 'ongoing' ? getMatchWatchers(row.id) : 0
+        }));
+
+        return res.json({ success: true, data: enrichedRows });
+    } catch (err) {
+        next(err);
+    }
 };
 
-const getReferees = async (req, res, next) => {
+// ---------------------------------------------------------------------------
+// GET ASSIGNED MATCHES for current SGO Officer
+// GET /api/matches/my-assignments
+// Protected: sgo_officer
+// ---------------------------------------------------------------------------
+const getMyAssignments = async (req, res, next) => {
     try {
-        const [rows] = await pool.execute(`SELECT r.id AS id, u.first_name, u.last_name FROM users u LEFT JOIN referees r ON u.id = r.user_id WHERE u.role = 'referee'`);
-        res.json({ success: true, data: rows.filter(ref => ref.id !== null) });
-    } catch (err) { next(err); }
+        const [rows] = await pool.execute(
+            `SELECT m.*,
+                    DATE_FORMAT(m.scheduled_date, '%Y-%m-%d') AS scheduled_date,
+                    DATE_FORMAT(m.scheduled_time, '%H:%i')    AS scheduled_time,
+                    s.name  AS sport_name,
+                    t.name  AS tournament_name,
+                    da.name AS dept_a, db.name AS dept_b,
+                    v.name  AS venue_name,
+                    (SELECT COALESCE(SUM(score_a),0) FROM match_scores WHERE match_id = m.id) AS live_total_a,
+                    (SELECT COALESCE(SUM(score_b),0) FROM match_scores WHERE match_id = m.id) AS live_total_b
+             FROM matches m
+             JOIN  tournaments t ON m.tournament_id = t.id
+             JOIN  sports      s ON t.sport_id      = s.id
+             LEFT JOIN departments da ON m.participant_a_department_id = da.id
+             LEFT JOIN departments db ON m.participant_b_department_id = db.id
+             LEFT JOIN venues      v  ON m.venue_id                    = v.id
+             WHERE m.referee_id = ? AND m.status NOT IN ('cancelled','completed')
+             ORDER BY m.scheduled_date ASC, m.scheduled_time ASC`,
+            [req.user.id]
+        );
+        return res.json({ success: true, data: rows });
+    } catch (err) {
+        next(err);
+    }
 };
 
+// ---------------------------------------------------------------------------
+// LIST AVAILABLE OFFICERS (for assignment)
+// GET /api/matches/officers
+// Protected: sgo_president | admin
+// ---------------------------------------------------------------------------
+const getAvailableOfficers = async (req, res, next) => {
+    try {
+        const [rows] = await pool.execute(
+            `SELECT 
+                u.id,
+                u.first_name,
+                u.last_name,
+                u.email,
+                COUNT(m.id) AS active_assignments
+             FROM users u
+             LEFT JOIN matches m ON m.referee_id = u.id AND m.status IN ('scheduled','ongoing')
+             WHERE u.role = 'sgo_officer' AND u.is_active = 1
+             GROUP BY u.id
+             ORDER BY active_assignments ASC, u.first_name`
+        );
+        return res.json({ success: true, data: rows });
+    } catch (err) {
+        next(err);
+    }
+};
+
+// ---------------------------------------------------------------------------
+// SCHEDULE MATCH (assign date, time, venue, officer)
+// PUT /api/matches/:id/schedule
+// Body: { scheduled_date, scheduled_time, venue_id, referee_id }
+// Protected: sgo_president | admin
+// ---------------------------------------------------------------------------
 const schedule = async (req, res, next) => {
     try {
-        const { scheduled_date, scheduled_time, venue_id, referee_id } = req.body;
-        const matchId = req.params.id;
-        const finalDate = safeDate(scheduled_date);
-        const finalTime = scheduled_time || null;
-        const finalVenue = safeFK(venue_id);
-        const finalReferee = safeFK(referee_id);
+        const matchId = parseInt(req.params.id);
+        const finalDate = safeDate(req.body.scheduled_date);
+        const finalTime = req.body.scheduled_time || null;
+        const finalVenue = safeFK(req.body.venue_id);
+        const finalReferee = safeFK(req.body.referee_id);
 
+        // Verify the referee is actually an sgo_officer
+        if (finalReferee) {
+            const [officerCheck] = await pool.execute(
+                'SELECT id FROM users WHERE id = ? AND role = "sgo_officer" AND is_active = 1',
+                [finalReferee]
+            );
+            if (!officerCheck.length) {
+                return res.status(400).json({ success: false, message: 'Selected user is not an active SGO Officer.' });
+            }
+        }
+
+        // Referee conflict check
         if (finalReferee && finalDate && finalTime) {
-            const [refConflicts] = await pool.execute(
-                `SELECT id FROM matches WHERE referee_id = ? AND scheduled_date = ? AND scheduled_time = ? AND id != ?`,
+            const [conflicts] = await pool.execute(
+                `SELECT id FROM matches
+                 WHERE referee_id = ? AND scheduled_date = ? AND scheduled_time = ? AND id != ?`,
                 [finalReferee, finalDate, finalTime, matchId]
             );
-            if (refConflicts.length > 0) return res.status(409).json({ success: false, message: 'Referee conflict' });
+            if (conflicts.length) {
+                return res.status(409).json({ success: false, message: 'Selected officer is already assigned to another match at this time.' });
+            }
+        }
+
+        // Venue conflict check
+        if (finalVenue && finalDate && finalTime) {
+            const [vConflicts] = await pool.execute(
+                `SELECT id FROM matches
+                 WHERE venue_id = ? AND scheduled_date = ? AND scheduled_time = ? AND id != ?`,
+                [finalVenue, finalDate, finalTime, matchId]
+            );
+            if (vConflicts.length) {
+                return res.status(409).json({ success: false, message: 'Selected venue is already booked at this time.' });
+            }
         }
 
         await pool.execute(
-            `UPDATE matches SET scheduled_date=?, scheduled_time=?, venue_id=?, referee_id=?, status = CASE WHEN status = 'pending' THEN 'scheduled' ELSE status END WHERE id=?`,
+            `UPDATE matches
+             SET scheduled_date = ?,
+                 scheduled_time = ?,
+                 venue_id       = ?,
+                 referee_id     = ?,
+                 status = CASE WHEN status = 'pending' THEN 'scheduled' ELSE status END,
+                 updated_at = NOW()
+             WHERE id = ?`,
             [finalDate, finalTime, finalVenue, finalReferee, matchId]
         );
-        res.json({ success: true, message: 'Match scheduled' });
-    } catch (err) { next(err); }
+
+        await logActivity(req.user.id, 'MATCH_SCHEDULED', 'match', matchId, `Match ${matchId} scheduled`);
+
+        // Let anyone viewing the tournament bracket/schedule pick this up live.
+        const [[m]] = await pool.execute('SELECT tournament_id FROM matches WHERE id = ?', [matchId]);
+
+        // REAL-TIME: Emit to tournament room
+        emitToTournament(m.tournament_id, 'match:scheduled', {
+            match_id: matchId,
+            scheduled_date: finalDate,
+            scheduled_time: finalTime,
+            venue_id: finalVenue,
+            referee_id: finalReferee,
+        });
+
+        return res.json({ success: true, message: 'Match scheduled successfully.' });
+    } catch (err) {
+        next(err);
+    }
 };
 
+// ---------------------------------------------------------------------------
+// START MATCH
+// PATCH /api/matches/:id/start
+// Protected: sgo_officer (assigned) | sgo_president | admin
+// ---------------------------------------------------------------------------
 const startMatch = async (req, res, next) => {
     try {
-        await pool.execute("UPDATE matches SET status = 'ongoing', started_at = COALESCE(started_at, NOW()) WHERE id = ?", [req.params.id]);
-        res.json({ success: true, message: 'Match started' });
-    } catch (err) { next(err); }
+        const matchId = parseInt(req.params.id);
+
+        // Officers can only start their assigned match
+        if (req.user.role === 'sgo_officer') {
+            const [assigned] = await pool.execute(
+                'SELECT id FROM matches WHERE id = ? AND referee_id = ?',
+                [matchId, req.user.id]
+            );
+            if (!assigned.length) {
+                return res.status(403).json({ success: false, message: 'You are not assigned to this match.' });
+            }
+        }
+
+        await pool.execute(
+            "UPDATE matches SET status = 'ongoing', started_at = COALESCE(started_at, NOW()), updated_at = NOW() WHERE id = ?",
+            [matchId]
+        );
+
+        await logActivity(req.user.id, 'MATCH_STARTED', 'match', matchId, `Match ${matchId} started`);
+
+        const [[m]] = await pool.execute('SELECT tournament_id FROM matches WHERE id = ?', [matchId]);
+
+        // Get match details for real-time broadcast
+        const [matchDetails] = await pool.execute(
+            `SELECT m.*, da.name AS dept_a_name, db.name AS dept_b_name, s.name AS sport_name
+             FROM matches m
+             LEFT JOIN departments da ON m.participant_a_department_id = da.id
+             LEFT JOIN departments db ON m.participant_b_department_id = db.id
+             LEFT JOIN sports s ON m.sport_id = s.id
+             WHERE m.id = ?`,
+            [matchId]
+        );
+
+        const startData = {
+            match_id: matchId,
+            match: matchDetails[0],
+            started_at: new Date(),
+            watchers: 0
+        };
+
+        // REAL-TIME: Emit to match room, tournament room, and all clients
+        emitToMatch(matchId, 'match:started', startData);
+        emitToTournament(m.tournament_id, 'match:started', startData);
+        emitToAll('live:matchStarted', startData);
+
+        return res.json({
+            success: true,
+            message: 'Match started.',
+            data: startData
+        });
+    } catch (err) {
+        next(err);
+    }
 };
 
+// ---------------------------------------------------------------------------
+// UPDATE SCORE (live period-by-period scoring)
+// PUT /api/matches/:id/score
+// Body: { period, period_label, score_a, score_b }
+// Protected: sgo_officer (assigned) | admin
+// ---------------------------------------------------------------------------
 const updateScore = async (req, res, next) => {
     try {
+        const matchId = parseInt(req.params.id);
         const { period, period_label, score_a, score_b } = req.body;
-        const matchId = req.params.id;
-        const userId = req.user?.id || null;
+        const userId = req.user.id;
+
+        // SGO Officer can only update scores for their assigned match
+        if (req.user.role === 'sgo_officer') {
+            const [assigned] = await pool.execute(
+                'SELECT id FROM matches WHERE id = ? AND referee_id = ?',
+                [matchId, userId]
+            );
+            if (!assigned.length) {
+                return res.status(403).json({ success: false, message: 'You are not assigned to this match.' });
+            }
+        }
+
         const safeA = parseFloat(score_a) || 0;
         const safeB = parseFloat(score_b) || 0;
         const safePeriod = parseInt(period) || 1;
 
         await pool.execute(
             `INSERT INTO match_scores (match_id, period, period_label, score_a, score_b, updated_by)
-             VALUES (?, ?, ?, ?, ?, ?) ON DUPLICATE KEY UPDATE score_a=VALUES(score_a), score_b=VALUES(score_b), updated_by=VALUES(updated_by), updated_at=NOW()`,
+             VALUES (?, ?, ?, ?, ?, ?)
+             ON DUPLICATE KEY UPDATE score_a = VALUES(score_a), score_b = VALUES(score_b),
+             updated_by = VALUES(updated_by), updated_at = NOW()`,
             [matchId, safePeriod, period_label || `Period ${safePeriod}`, safeA, safeB, userId]
         );
-        const [[totals]] = await pool.execute('SELECT COALESCE(SUM(score_a),0) AS total_a, COALESCE(SUM(score_b),0) AS total_b FROM match_scores WHERE match_id = ?', [matchId]);
-        res.json({ success: true, data: { total_a: totals.total_a, total_b: totals.total_b } });
-    } catch (err) { next(err); }
+
+        const [[totals]] = await pool.execute(
+            'SELECT COALESCE(SUM(score_a),0) AS total_a, COALESCE(SUM(score_b),0) AS total_b FROM match_scores WHERE match_id = ?',
+            [matchId]
+        );
+
+        // Get all scores for complete state
+        const [allScores] = await pool.execute(
+            `SELECT ms.*,
+                    CONCAT(u.first_name, ' ', u.last_name) AS updated_by_name
+             FROM match_scores ms
+             LEFT JOIN users u ON ms.updated_by = u.id
+             WHERE ms.match_id = ? 
+             ORDER BY ms.period ASC`,
+            [matchId]
+        );
+
+        // Get match details
+        const [[match]] = await pool.execute(
+            `SELECT m.*, t.name AS tournament_name,
+                    da.name AS dept_a_name, db.name AS dept_b_name,
+                    s.name AS sport_name
+             FROM matches m
+             JOIN tournaments t ON m.tournament_id = t.id
+             JOIN sports s ON m.sport_id = s.id
+             LEFT JOIN departments da ON m.participant_a_department_id = da.id
+             LEFT JOIN departments db ON m.participant_b_department_id = db.id
+             WHERE m.id = ?`,
+            [matchId]
+        );
+
+        // ── ENHANCED REAL-TIME PUSH ──
+        const scoreUpdate = {
+            match_id: matchId,
+            period: safePeriod,
+            period_label: period_label || `Period ${safePeriod}`,
+            score_a: safeA,
+            score_b: safeB,
+            total_a: totals.total_a,
+            total_b: totals.total_b,
+            all_scores: allScores,
+            updated_at: new Date(),
+            updated_by: req.user.first_name + ' ' + req.user.last_name,
+            updated_by_id: userId,
+            watchers: getMatchWatchers(matchId),
+            match: {
+                id: match.id,
+                tournament_name: match.tournament_name,
+                dept_a_name: match.dept_a_name,
+                dept_b_name: match.dept_b_name,
+                sport_name: match.sport_name,
+                status: match.status
+            }
+        };
+
+        // Send to match room (all watchers)
+        emitToMatch(matchId, 'score:update', scoreUpdate);
+
+        // Also send live tick for the "live matches" feed
+        emitToAll('live:tick', {
+            match_id: matchId,
+            total_a: totals.total_a,
+            total_b: totals.total_b,
+            updated_at: new Date()
+        });
+
+        // Send to tournament room for bracket updates
+        emitToTournament(match.tournament_id, 'score:update', scoreUpdate);
+
+        await logActivity(
+            userId, 'SCORE_UPDATED', 'match', matchId,
+            `Score updated: ${safeA}-${safeB} in period ${safePeriod}`
+        );
+
+        return res.json({
+            success: true,
+            data: {
+                total_a: totals.total_a,
+                total_b: totals.total_b,
+                watchers: getMatchWatchers(matchId)
+            }
+        });
+    } catch (err) {
+        next(err);
+    }
 };
 
+// ---------------------------------------------------------------------------
+// COMPLETE MATCH (finalize result, record MVP, progress bracket)
+// POST /api/matches/:id/complete
+// Body: { winner_side?, win_type?, duration_minutes?, highlights?, final_score_display?,
+//          mvp_player_id?, mvp_player_name? }
+// Protected: sgo_officer (assigned) | sgo_president | admin
+// ---------------------------------------------------------------------------
 const completeMatch = async (req, res, next) => {
+    const conn = await pool.getConnection();
     try {
-        const matchId = req.params.id;
-        let { winner_side, win_type, duration_minutes, highlights, final_score_display, mvp_player_id, mvp_player_name } = req.body;
-        const userId = req.user?.id || 1;
+        const matchId = parseInt(req.params.id);
+        let {
+            winner_side, win_type, duration_minutes, highlights,
+            final_score_display, mvp_player_id, mvp_player_name,
+        } = req.body;
+        const userId = req.user.id;
 
-        const [rows] = await pool.execute(`SELECT m.*, s.scoring_type FROM matches m JOIN sports s ON m.sport_id = s.id WHERE m.id = ?`, [matchId]);
-        if (!rows.length) return res.status(404).json({ success: false, message: 'Match not found' });
+        // SGO Officer can only complete their assigned match
+        if (req.user.role === 'sgo_officer') {
+            const [assigned] = await pool.execute(
+                'SELECT id FROM matches WHERE id = ? AND referee_id = ?',
+                [matchId, userId]
+            );
+            if (!assigned.length) {
+                return res.status(403).json({ success: false, message: 'You are not assigned to this match.' });
+            }
+        }
+
+        const [rows] = await pool.execute(
+            `SELECT m.*, s.scoring_type FROM matches m JOIN sports s ON m.sport_id = s.id WHERE m.id = ?`,
+            [matchId]
+        );
+        if (!rows.length) return res.status(404).json({ success: false, message: 'Match not found.' });
         const match = rows[0];
 
-        const [[totals]] = await pool.execute('SELECT COALESCE(SUM(score_a),0) AS total_a, COALESCE(SUM(score_b),0) AS total_b FROM match_scores WHERE match_id = ?', [matchId]);
+        // ── Binary sports (e.g. Chess): no scores — only pick winner ──
+        if (match.scoring_type === 'binary') {
+            if (!winner_side || !['a', 'b', 'draw'].includes(winner_side)) {
+                return res.status(400).json({
+                    success: false,
+                    message: 'Binary sport: provide winner_side as "a", "b", or "draw".',
+                });
+            }
 
-        if (!winner_side) {
-            winner_side = (match.scoring_type === 'time') ? (totals.total_a < totals.total_b ? 'a' : 'b') : (totals.total_a > totals.total_b ? 'a' : 'b');
-        }
+            const winner_dept_id = winner_side === 'draw'
+                ? null
+                : (winner_side === 'a'
+                    ? match.participant_a_department_id
+                    : match.participant_b_department_id);
 
-        const winner_dept_id = winner_side === 'a' ? match.participant_a_department_id : match.participant_b_department_id;
-        const scoreDisplay = final_score_display || `${totals.total_a} - ${totals.total_b}`;
-
-        // Handle undefined values - convert to null
-        const safeHighlights = highlights && highlights.trim() !== '' ? highlights : null;
-        const safeDuration = duration_minutes ? parseInt(duration_minutes) : null;
-        const safeWinType = win_type || 'normal';
-        const safeMvpPlayerId = mvp_player_id ? parseInt(mvp_player_id) : null;
-        const safeMvpPlayerName = mvp_player_name && mvp_player_name.trim() !== '' ? mvp_player_name : null;
-
-        const conn = await pool.getConnection();
-        try {
             await conn.beginTransaction();
-            await conn.execute(`UPDATE matches SET status='completed', completed_at=NOW(), winner_department_id=? WHERE id=?`, [winner_dept_id, matchId]);
+
             await conn.execute(
-                `INSERT INTO match_results (match_id, total_score_a, total_score_b, final_score_display, winner_side, win_type, duration_minutes, highlights, recorded_by, mvp_player_id, mvp_player_name)
-                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) 
-                 ON DUPLICATE KEY UPDATE 
-                     total_score_a=VALUES(total_score_a), 
-                     total_score_b=VALUES(total_score_b), 
-                     final_score_display=VALUES(final_score_display), 
-                     winner_side=VALUES(winner_side), 
-                     win_type=VALUES(win_type), 
-                     duration_minutes=VALUES(duration_minutes), 
-                     highlights=VALUES(highlights), 
-                     recorded_by=VALUES(recorded_by),
-                     mvp_player_id=VALUES(mvp_player_id),
-                     mvp_player_name=VALUES(mvp_player_name)`,
-                [matchId, totals.total_a, totals.total_b, scoreDisplay, winner_side, safeWinType, safeDuration, safeHighlights, userId, safeMvpPlayerId, safeMvpPlayerName]
+                `UPDATE matches
+                 SET status = 'completed', completed_at = NOW(),
+                     winner_department_id = ?, updated_at = NOW()
+                 WHERE id = ?`,
+                [winner_dept_id, matchId]
             );
-            await updateRoundRobinStandings(conn, match, winner_side, totals.total_a, totals.total_b);
+
+            const binaryScoreDisplay = winner_side === 'draw' ? 'Draw' : (winner_side === 'a' ? 'Win — A' : 'Win — B');
+
+            await conn.execute(
+                `INSERT INTO match_results
+                 (match_id, total_score_a, total_score_b, final_score_display, winner_side,
+                  win_type, duration_minutes, highlights, recorded_by, mvp_player_id, mvp_player_name)
+                 VALUES (?, 0, 0, ?, ?, ?, ?, ?, ?, ?, ?)
+                 ON DUPLICATE KEY UPDATE
+                 total_score_a = 0, total_score_b = 0,
+                 final_score_display = VALUES(final_score_display),
+                 winner_side = VALUES(winner_side),
+                 win_type = VALUES(win_type),
+                 duration_minutes = VALUES(duration_minutes),
+                 highlights = VALUES(highlights),
+                 recorded_by = VALUES(recorded_by),
+                 mvp_player_id = VALUES(mvp_player_id),
+                 mvp_player_name = VALUES(mvp_player_name)`,
+                [
+                    matchId,
+                    binaryScoreDisplay,
+                    winner_side,
+                    win_type || 'normal',
+                    duration_minutes ? parseInt(duration_minutes) : null,
+                    highlights?.trim() || null,
+                    userId,
+                    mvp_player_id ? parseInt(mvp_player_id) : null,
+                    mvp_player_name?.trim() || null,
+                ]
+            );
+
+            await _updateRoundRobinStandings(
+                conn, match,
+                winner_side === 'draw' ? null : winner_side,
+                0, 0
+            );
+
             await conn.commit();
-        } catch (e) {
-            await conn.rollback();
-            throw e;
-        } finally {
-            conn.release();
+
+            try {
+                if (winner_dept_id) {
+                    await progressBracket(matchId, null, null, winner_dept_id, pool);
+                }
+            } catch (e) {
+                console.warn('progressBracket warning:', e.message);
+            }
+
+            await logActivity(
+                userId, 'MATCH_COMPLETED', 'match', matchId,
+                `Binary match ${matchId} — winner_side: ${winner_side}`
+            );
+
+            // ── REAL-TIME PUSH ──
+            const resultData = {
+                match_id: matchId,
+                winner_side,
+                winner_department_id: winner_dept_id,
+                final_score_display: binaryScoreDisplay,
+                completed_at: new Date(),
+                watchers: getMatchWatchers(matchId)
+            };
+
+            emitToMatch(matchId, 'match:completed', resultData);
+            emitToTournament(match.tournament_id, 'bracket:updated', {
+                match_id: matchId,
+                winner_department_id: winner_dept_id
+            });
+            emitToLeaderboard('leaderboard:changed', {
+                reason: 'match_completed',
+                match_id: matchId,
+                tournament_id: match.tournament_id
+            });
+
+            return res.json({ success: true, message: 'Match completed (winner only).' });
         }
 
-        try { await progressBracket(matchId, null, null, winner_dept_id, pool); } catch (e) { console.warn(e.message); }
-        await logActivity(userId, 'MATCH_COMPLETED', 'match', matchId, `Match ${matchId} completed — winner: ${winner_side}${safeMvpPlayerName ? `, MVP: ${safeMvpPlayerName}` : ''}`);
-        res.json({ success: true, message: 'Match completed' });
-    } catch (err) {
-        console.error('Error in completeMatch:', err);
-        next(err);
-    }
-};
-
-// Add new endpoint to get players by department for MVP selection
-const getPlayersByDepartment = async (req, res, next) => {
-    try {
-        const { department_id } = req.params;
-
-        if (!department_id) {
-            return res.status(400).json({ success: false, message: 'Department ID is required' });
-        }
-
-        const [players] = await pool.execute(
-            `SELECT p.id, p.user_id, p.first_name, p.last_name, p.jersey_number, p.position, p.image_url,
-                    u.email, u.username
-             FROM players p
-             JOIN users u ON p.user_id = u.id
-             WHERE p.department_id = ? AND p.status = 'approved'
-             ORDER BY p.first_name, p.last_name`,
-            [department_id]
+        // ── Points / time / sets path ──
+        const [[totals]] = await pool.execute(
+            'SELECT COALESCE(SUM(score_a),0) AS total_a, COALESCE(SUM(score_b),0) AS total_b FROM match_scores WHERE match_id = ?',
+            [matchId]
         );
 
-        res.json({ success: true, data: players });
+        // Auto-determine winner if not supplied
+        if (!winner_side) {
+            winner_side = (match.scoring_type === 'time')
+                ? (totals.total_a < totals.total_b ? 'a' : 'b')
+                : (totals.total_a > totals.total_b ? 'a' : 'b');
+        }
+
+        const winner_dept_id = winner_side === 'a'
+            ? match.participant_a_department_id
+            : match.participant_b_department_id;
+
+        const scoreDisplay = final_score_display || `${totals.total_a} - ${totals.total_b}`;
+        const safeDuration = duration_minutes ? parseInt(duration_minutes) : null;
+        const safeHighlights = highlights?.trim() || null;
+        const safeWinType = win_type || 'normal';
+        const safeMvpId = mvp_player_id ? parseInt(mvp_player_id) : null;
+        const safeMvpName = mvp_player_name?.trim() || null;
+
+        await conn.beginTransaction();
+
+        await conn.execute(
+            "UPDATE matches SET status = 'completed', completed_at = NOW(), winner_department_id = ?, updated_at = NOW() WHERE id = ?",
+            [winner_dept_id, matchId]
+        );
+
+        await conn.execute(
+            `INSERT INTO match_results
+             (match_id, total_score_a, total_score_b, final_score_display, winner_side,
+              win_type, duration_minutes, highlights, recorded_by, mvp_player_id, mvp_player_name)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+             ON DUPLICATE KEY UPDATE
+             total_score_a    = VALUES(total_score_a),
+             total_score_b    = VALUES(total_score_b),
+             final_score_display = VALUES(final_score_display),
+             winner_side      = VALUES(winner_side),
+             win_type         = VALUES(win_type),
+             duration_minutes = VALUES(duration_minutes),
+             highlights       = VALUES(highlights),
+             recorded_by      = VALUES(recorded_by),
+             mvp_player_id    = VALUES(mvp_player_id),
+             mvp_player_name  = VALUES(mvp_player_name)`,
+            [matchId, totals.total_a, totals.total_b, scoreDisplay, winner_side,
+                safeWinType, safeDuration, safeHighlights, userId, safeMvpId, safeMvpName]
+        );
+
+        await _updateRoundRobinStandings(conn, match, winner_side, totals.total_a, totals.total_b);
+
+        await conn.commit();
+
+        try {
+            await progressBracket(matchId, null, null, winner_dept_id, pool);
+        } catch (e) {
+            console.warn('progressBracket warning:', e.message);
+        }
+
+        await logActivity(
+            userId, 'MATCH_COMPLETED', 'match', matchId,
+            `Match ${matchId} completed — winner: ${winner_side}${safeMvpName ? `, MVP: ${safeMvpName}` : ''}`
+        );
+
+        // Get all scores for history
+        const [allScores] = await pool.execute(
+            `SELECT * FROM match_scores WHERE match_id = ? ORDER BY period`,
+            [matchId]
+        );
+
+        // ── ENHANCED REAL-TIME PUSH ──
+        const resultData = {
+            match_id: matchId,
+            winner_side,
+            winner_department_id: winner_dept_id,
+            total_a: totals.total_a,
+            total_b: totals.total_b,
+            final_score_display: scoreDisplay,
+            mvp_player_name: safeMvpName,
+            mvp_player_id: safeMvpId,
+            win_type: safeWinType,
+            duration_minutes: safeDuration,
+            highlights: safeHighlights,
+            all_scores: allScores,
+            completed_at: new Date(),
+            watchers: getMatchWatchers(matchId)
+        };
+
+        // Send to match room
+        emitToMatch(matchId, 'match:completed', resultData);
+
+        // Send to tournament room
+        emitToTournament(match.tournament_id, 'bracket:updated', {
+            match_id: matchId,
+            winner_department_id: winner_dept_id
+        });
+
+        // Send to global leaderboard
+        emitToLeaderboard('leaderboard:changed', {
+            reason: 'match_completed',
+            match_id: matchId,
+            tournament_id: match.tournament_id
+        });
+
+        return res.json({ success: true, message: 'Match completed.' });
     } catch (err) {
-        console.error('Error getting players by department:', err);
+        await conn.rollback();
         next(err);
+    } finally {
+        conn.release();
     }
 };
 
-const updateRoundRobinStandings = async (conn, match, winner_side, totalA, totalB) => {
+// Round-robin standings helper (private)
+const _updateRoundRobinStandings = async (conn, match, winnerSide, totalA, totalB) => {
     const [[tourney]] = await conn.execute('SELECT format FROM tournaments WHERE id = ?', [match.tournament_id]);
     if (!tourney || tourney.format !== 'round_robin') return;
-    const aDeptId = match.participant_a_department_id;
-    const bDeptId = match.participant_b_department_id;
 
-    if (winner_side === 'a') {
-        await conn.execute(`UPDATE round_robin_standings SET wins=wins+1, matches_played=matches_played+1, standing_points=standing_points+3, points_for=points_for+?, points_against=points_against+? WHERE tournament_id=? AND department_id=?`, [totalA, totalB, match.tournament_id, aDeptId]);
-        await conn.execute(`UPDATE round_robin_standings SET losses=losses+1, matches_played=matches_played+1, points_for=points_for+?, points_against=points_against+? WHERE tournament_id=? AND department_id=?`, [totalB, totalA, match.tournament_id, bDeptId]);
-    } else if (winner_side === 'b') {
-        await conn.execute(`UPDATE round_robin_standings SET losses=losses+1, matches_played=matches_played+1, points_for=points_for+?, points_against=points_against+? WHERE tournament_id=? AND department_id=?`, [totalA, totalB, match.tournament_id, aDeptId]);
-        await conn.execute(`UPDATE round_robin_standings SET wins=wins+1, matches_played=matches_played+1, standing_points=standing_points+3, points_for=points_for+?, points_against=points_against+? WHERE tournament_id=? AND department_id=?`, [totalB, totalA, match.tournament_id, bDeptId]);
+    const a = match.participant_a_department_id;
+    const b = match.participant_b_department_id;
+
+    if (winnerSide === 'a') {
+        await conn.execute(
+            `UPDATE round_robin_standings SET wins=wins+1, matches_played=matches_played+1, standing_points=standing_points+3,
+             points_for=points_for+?, points_against=points_against+? WHERE tournament_id=? AND department_id=?`,
+            [totalA, totalB, match.tournament_id, a]
+        );
+        await conn.execute(
+            `UPDATE round_robin_standings SET losses=losses+1, matches_played=matches_played+1,
+             points_for=points_for+?, points_against=points_against+? WHERE tournament_id=? AND department_id=?`,
+            [totalB, totalA, match.tournament_id, b]
+        );
+    } else if (winnerSide === 'b') {
+        await conn.execute(
+            `UPDATE round_robin_standings SET losses=losses+1, matches_played=matches_played+1,
+             points_for=points_for+?, points_against=points_against+? WHERE tournament_id=? AND department_id=?`,
+            [totalA, totalB, match.tournament_id, a]
+        );
+        await conn.execute(
+            `UPDATE round_robin_standings SET wins=wins+1, matches_played=matches_played+1, standing_points=standing_points+3,
+             points_for=points_for+?, points_against=points_against+? WHERE tournament_id=? AND department_id=?`,
+            [totalB, totalA, match.tournament_id, b]
+        );
     } else {
-        for (const [dId, pf, pa] of [[aDeptId, totalA, totalB], [bDeptId, totalB, totalA]]) {
-            await conn.execute(`UPDATE round_robin_standings SET draws=draws+1, matches_played=matches_played+1, standing_points=standing_points+1, points_for=points_for+?, points_against=points_against+? WHERE tournament_id=? AND department_id=?`, [pf, pa, match.tournament_id, dId]);
+        for (const [dId, pf, pa] of [[a, totalA, totalB], [b, totalB, totalA]]) {
+            await conn.execute(
+                `UPDATE round_robin_standings SET draws=draws+1, matches_played=matches_played+1, standing_points=standing_points+1,
+                 points_for=points_for+?, points_against=points_against+? WHERE tournament_id=? AND department_id=?`,
+                [pf, pa, match.tournament_id, dId]
+            );
         }
     }
 };
 
-const getFFAResultsForTournament = async (req, res, next) => {
+// ---------------------------------------------------------------------------
+// FFA: GET RESULTS FOR ENTRY
+// GET /api/matches/ffa/:tournamentId
+// Protected: sgo_officer | sgo_president | admin
+// ---------------------------------------------------------------------------
+const getFFAResults = async (req, res, next) => {
     try {
         const { tournamentId } = req.params;
+
         const [participants] = await pool.execute(
-            `SELECT tp.department_id, d.name AS department_name, d.color AS department_color, t.name AS team_name, fr.result_value AS ffa_result_value, fr.rank_position  
+            `SELECT tp.department_id, d.name AS department_name, d.color AS department_color,
+                    fr.result_value AS ffa_result_value, fr.rank_position
              FROM tournament_participants tp
              JOIN departments d ON tp.department_id = d.id
-             LEFT JOIN teams t ON t.department_id = d.id AND t.sport_id = (SELECT sport_id FROM tournaments WHERE id = ?)
-             LEFT JOIN ffa_results fr ON fr.tournament_id = ? AND fr.department_id = tp.department_id
+             LEFT JOIN ffa_results fr
+                   ON fr.tournament_id = ? AND fr.department_id = tp.department_id
              WHERE tp.tournament_id = ? AND tp.status = 'active'
              ORDER BY d.name`,
-            [tournamentId, tournamentId, tournamentId]
+            [tournamentId, tournamentId]
         );
-        const [tournamentInfo] = await pool.execute('SELECT ffa_scoring FROM tournaments WHERE id = ?', [tournamentId]);
-        res.json({ success: true, data: { participants, ffa_scoring: tournamentInfo[0]?.ffa_scoring || 'points' } });
-    } catch (err) { next(err); }
+
+        const [[tourInfo]] = await pool.execute(
+            'SELECT ffa_scoring FROM tournaments WHERE id = ?',
+            [tournamentId]
+        );
+
+        return res.json({
+            success: true,
+            data: { participants, ffa_scoring: tourInfo?.ffa_scoring || 'points' },
+        });
+    } catch (err) {
+        next(err);
+    }
 };
 
+// ---------------------------------------------------------------------------
+// FFA: SAVE RESULTS
+// POST /api/matches/ffa/:tournamentId/results
+// Body: { results: [ { department_id, result_value } ] }
+// Protected: sgo_officer | sgo_president | admin
+// ---------------------------------------------------------------------------
 const saveFFAResults = async (req, res, next) => {
+    const conn = await pool.getConnection();
     try {
         const { tournamentId } = req.params;
         const { results } = req.body;
-        const userId = req.user?.id || null;
+        const userId = req.user.id;
 
-        if (!Array.isArray(results)) return res.status(400).json({ success: false, message: 'Results must be an array.' });
+        if (!Array.isArray(results)) {
+            return res.status(400).json({ success: false, message: 'results must be an array.' });
+        }
 
-        const conn = await pool.getConnection();
-        try {
-            await conn.beginTransaction();
-            for (const r of results) {
-                const safeVal = r.result_value !== null ? parseFloat(r.result_value) : null;
-                await conn.execute(
-                    `INSERT INTO ffa_results (tournament_id, department_id, result_value, recorded_by)
-                     VALUES (?, ?, ?, ?) ON DUPLICATE KEY UPDATE result_value = VALUES(result_value), recorded_by = VALUES(recorded_by), recorded_at = NOW()`,
-                    [tournamentId, r.department_id, safeVal, userId]
-                );
-            }
+        await conn.beginTransaction();
 
+        for (const r of results) {
+            const val = r.result_value !== null ? parseFloat(r.result_value) : null;
             await conn.execute(
-                `UPDATE matches SET status = 'ongoing', started_at = COALESCE(started_at, NOW()) 
-                 WHERE tournament_id = ? AND (bracket_side = 'ffa' OR bracket_position = 'FFA Event')`,
-                [tournamentId]
+                `INSERT INTO ffa_results (tournament_id, department_id, result_value, recorded_by)
+                 VALUES (?, ?, ?, ?)
+                 ON DUPLICATE KEY UPDATE result_value = VALUES(result_value),
+                 recorded_by = VALUES(recorded_by), recorded_at = NOW()`,
+                [tournamentId, r.department_id, val, userId]
             );
-            await reRankFFAResults(conn, tournamentId);
-            await conn.commit();
-        } catch (e) { await conn.rollback(); throw e; } finally { conn.release(); }
-        res.json({ success: true, message: 'FFA results saved successfully.' });
-    } catch (err) { next(err); }
-};
+        }
 
-const completeFFAMatch = async (req, res, next) => {
-    try {
-        const { matchId } = req.params;
-        const userId = req.user?.id || 1;
-        const [existing] = await pool.execute(`SELECT COUNT(*) as count FROM ffa_results WHERE tournament_id = (SELECT tournament_id FROM matches WHERE id = ?)`, [matchId]);
-        if (existing[0].count === 0) return res.status(400).json({ success: false, message: 'No results recorded yet.' });
-
-        await pool.execute(`UPDATE matches SET status='completed', completed_at=NOW() WHERE id=?`, [matchId]);
-        await logActivity(userId, 'FFA_EVENT_COMPLETED', 'match', matchId, `FFA Event ${matchId} completed.`);
-        res.json({ success: true, message: 'FFA event completed.' });
-    } catch (err) { next(err); }
-};
-// Get MVPs from match_results - Fixed version
-const getMVPs = async (req, res, next) => {
-    try {
-        const [mvps] = await pool.execute(
-            `SELECT 
-                mr.mvp_player_id as id,
-                mr.mvp_player_name as player_name,
-                NULL as player_img,
-                mr.mvp_player_name as first_name,
-                '' as last_name,
-                COALESCE(s.name, 'Unknown') as sport,
-                COALESCE(d.name, 'Unknown Department') as dept_name,
-                COALESCE(d.color, '#F5B800') as dept_color,
-                NULL as team_name,
-                'mvp' as type,
-                (mr.total_score_a + mr.total_score_b) as score,
-                NULL as assists,
-                mr.created_at as awarded_at,
-                mr.highlights as notes,
-                m.winner_department_id
-             FROM match_results mr
-             INNER JOIN matches m ON mr.match_id = m.id
-             LEFT JOIN tournaments t ON m.tournament_id = t.id
-             LEFT JOIN sports s ON t.sport_id = s.id
-             LEFT JOIN departments d ON m.winner_department_id = d.id
-             WHERE mr.mvp_player_id IS NOT NULL 
-                OR (mr.mvp_player_name IS NOT NULL AND mr.mvp_player_name != '')
-             ORDER BY mr.created_at DESC
-             LIMIT 50`
+        // Activate the FFA match entry
+        await conn.execute(
+            `UPDATE matches SET status = 'ongoing', started_at = COALESCE(started_at, NOW())
+             WHERE tournament_id = ? AND (bracket_side = 'ffa' OR bracket_position = 'FFA Event')`,
+            [tournamentId]
         );
 
-        console.log(`Found ${mvps.length} MVP records`); // Debug log
+        await _reRankFFA(conn, tournamentId);
+        await conn.commit();
 
-        res.json({ success: true, data: mvps });
+        emitToTournament(tournamentId, 'ffa:resultsUpdated', { tournament_id: tournamentId });
+
+        return res.json({ success: true, message: 'FFA results saved.' });
     } catch (err) {
-        console.error('Error fetching MVPs:', err);
-        // Return empty array instead of error
-        res.json({ success: true, data: [] });
+        await conn.rollback();
+        next(err);
+    } finally {
+        conn.release();
     }
 };
 
-// Simple MVP endpoint - Alternative version
-const getMVPsSimple = async (req, res, next) => {
+// FFA re-rank helper (private)
+const _reRankFFA = async (conn, tournamentId) => {
+    const [[t]] = await conn.execute('SELECT ffa_scoring FROM tournaments WHERE id = ?', [tournamentId]);
+    const orderDir = (t && t.ffa_scoring === 'time') ? 'ASC' : 'DESC';
+
+    const [results] = await conn.execute(
+        `SELECT id, result_value FROM ffa_results WHERE tournament_id = ? ORDER BY result_value ${orderDir}`,
+        [tournamentId]
+    );
+
+    let rank = 1;
+    for (let i = 0; i < results.length; i++) {
+        if (i > 0 && results[i].result_value !== results[i - 1].result_value) rank = i + 1;
+        await conn.execute('UPDATE ffa_results SET rank_position = ? WHERE id = ?', [rank, results[i].id]);
+    }
+};
+
+// ---------------------------------------------------------------------------
+// FFA: COMPLETE EVENT
+// POST /api/matches/ffa/:matchId/complete
+// Protected: sgo_officer | sgo_president | admin
+// ---------------------------------------------------------------------------
+const completeFFAMatch = async (req, res, next) => {
     try {
-        const [mvps] = await pool.execute(
-            `SELECT 
-                match_id,
-                mvp_player_id as id,
-                mvp_player_name as player_name,
-                total_score_a,
-                total_score_b,
-                final_score_display,
-                winner_side,
-                created_at as awarded_at,
-                highlights as notes
-             FROM match_results 
-             WHERE mvp_player_name IS NOT NULL AND mvp_player_name != ''
-             ORDER BY created_at DESC
-             LIMIT 50`
+        const { matchId } = req.params;
+        const userId = req.user.id;
+
+        const [[check]] = await pool.execute(
+            'SELECT COUNT(*) AS count FROM ffa_results WHERE tournament_id = (SELECT tournament_id FROM matches WHERE id = ?)',
+            [matchId]
         );
-
-        // Enrich with match data
-        const enrichedMvps = [];
-        for (const mvp of mvps) {
-            const [matchData] = await pool.execute(
-                `SELECT m.*, s.name as sport_name, t.name as tournament_name
-                 FROM matches m
-                 LEFT JOIN tournaments t ON m.tournament_id = t.id
-                 LEFT JOIN sports s ON t.sport_id = s.id
-                 WHERE m.id = ?`,
-                [mvp.match_id]
-            );
-
-            if (matchData.length > 0) {
-                const winnerDeptId = matchData[0].winner_department_id;
-                let deptName = null;
-                let deptColor = null;
-
-                if (winnerDeptId) {
-                    const [dept] = await pool.execute(
-                        `SELECT name, color FROM departments WHERE id = ?`,
-                        [winnerDeptId]
-                    );
-                    if (dept.length > 0) {
-                        deptName = dept[0].name;
-                        deptColor = dept[0].color;
-                    }
-                }
-
-                enrichedMvps.push({
-                    id: mvp.id,
-                    player_name: mvp.player_name,
-                    player_img: null,
-                    sport: matchData[0].sport_name || 'Unknown',
-                    dept_name: deptName || 'Unknown',
-                    dept_color: deptColor || '#F5B800',
-                    team_name: null,
-                    type: 'mvp',
-                    score: mvp.total_score_a + mvp.total_score_b,
-                    awarded_at: mvp.awarded_at,
-                    notes: mvp.notes
-                });
-            }
+        if (check.count === 0) {
+            return res.status(400).json({ success: false, message: 'No FFA results recorded yet.' });
         }
 
-        res.json({ success: true, data: enrichedMvps });
+        const [[m]] = await pool.execute('SELECT tournament_id FROM matches WHERE id = ?', [matchId]);
+
+        await pool.execute(
+            "UPDATE matches SET status = 'completed', completed_at = NOW() WHERE id = ?",
+            [matchId]
+        );
+
+        await logActivity(userId, 'FFA_COMPLETED', 'match', matchId, `FFA event ${matchId} completed`);
+
+        emitToMatch(matchId, 'match:completed', { match_id: matchId, format: 'ffa' });
+        if (m) emitToTournament(m.tournament_id, 'bracket:updated', { match_id: matchId });
+        emitToLeaderboard('leaderboard:changed', { reason: 'ffa_completed', match_id: matchId });
+
+        return res.json({ success: true, message: 'FFA event completed.' });
     } catch (err) {
-        console.error('Error fetching MVPs (simple):', err);
-        res.json({ success: true, data: [] });
+        next(err);
+    }
+};
+
+// ---------------------------------------------------------------------------
+// GET MVPs
+// GET /api/matches/mvps
+// Protected: all roles
+// ---------------------------------------------------------------------------
+const getMVPs = async (req, res, next) => {
+    try {
+        const [mvps] = await pool.execute(
+            `SELECT
+                mr.mvp_player_id    AS id,
+                mr.mvp_player_name  AS player_name,
+                s.name              AS sport,
+                d.name              AS dept_name,
+                d.color             AS dept_color,
+                'mvp'               AS type,
+                (mr.total_score_a + mr.total_score_b) AS match_total,
+                mr.created_at       AS awarded_at,
+                mr.highlights       AS notes
+             FROM match_results mr
+             INNER JOIN matches m ON mr.match_id = m.id
+             LEFT JOIN tournaments t ON m.tournament_id = t.id
+             LEFT JOIN sports      s ON t.sport_id      = s.id
+             LEFT JOIN departments d ON m.winner_department_id = d.id
+             WHERE mr.mvp_player_name IS NOT NULL AND mr.mvp_player_name != ''
+             ORDER BY mr.created_at DESC
+             LIMIT 50`
+        );
+        return res.json({ success: true, data: mvps });
+    } catch (err) {
+        // Return empty rather than 500 to not break leaderboard pages
+        return res.json({ success: true, data: [] });
+    }
+};
+
+// ---------------------------------------------------------------------------
+// GET SCORE HISTORY / AUDIT TRAIL for a match
+// GET /api/matches/:id/score-history
+// Protected: admin | sgo_president | sgo_officer
+// ---------------------------------------------------------------------------
+const getScoreHistory = async (req, res, next) => {
+    try {
+        const [rows] = await pool.execute(
+            `SELECT ms.*,
+                    CONCAT(u.first_name,' ',u.last_name) AS updated_by_name
+             FROM match_scores ms
+             LEFT JOIN users u ON ms.updated_by = u.id
+             WHERE ms.match_id = ?
+             ORDER BY ms.period ASC, ms.updated_at DESC`,
+            [req.params.id]
+        );
+        return res.json({ success: true, data: rows });
+    } catch (err) {
+        next(err);
+    }
+};
+
+// ---------------------------------------------------------------------------
+// GET MATCH PLAYERS (for MVP selection)
+// GET /api/matches/:id/players
+// Protected: sgo_officer | sgo_president | admin
+// ---------------------------------------------------------------------------
+const getMatchPlayers = async (req, res, next) => {
+    try {
+        const matchId = parseInt(req.params.id);
+
+        const [matches] = await pool.execute(
+            `SELECT
+                m.id,
+                m.participant_a_department_id,
+                m.participant_b_department_id,
+                da.name AS dept_a_name,
+                db.name AS dept_b_name
+             FROM matches m
+             LEFT JOIN departments da ON m.participant_a_department_id = da.id
+             LEFT JOIN departments db ON m.participant_b_department_id = db.id
+             WHERE m.id = ?`,
+            [matchId]
+        );
+
+        if (!matches.length) {
+            return res.status(404).json({ success: false, message: 'Match not found.' });
+        }
+
+        const match = matches[0];
+
+        const loadSide = async (departmentId) => {
+            if (!departmentId) return [];
+
+            const [rows] = await pool.execute(
+                `SELECT
+                    p.id,
+                    p.first_name,
+                    p.last_name,
+                    p.jersey_number,
+                    p.position,
+                    p.image_url,
+                    p.status,
+                    p.team_id,
+                    t.name AS team_name
+                 FROM players p
+                 LEFT JOIN teams t ON p.team_id = t.id
+                 WHERE p.department_id = ?
+                   AND p.status = 'approved'
+                 ORDER BY
+                   (p.team_id IS NULL) ASC,
+                   t.name ASC,
+                   p.last_name ASC,
+                   p.first_name ASC`,
+                [departmentId]
+            );
+            return rows;
+        };
+
+        const [side_a, side_b] = await Promise.all([
+            loadSide(match.participant_a_department_id),
+            loadSide(match.participant_b_department_id),
+        ]);
+
+        return res.json({
+            success: true,
+            data: {
+                side_a,
+                side_b,
+                label_a: match.dept_a_name || 'Side A',
+                label_b: match.dept_b_name || 'Side B',
+            },
+        });
+    } catch (err) {
+        next(err);
+    }
+};
+
+// ---------------------------------------------------------------------------
+// GET WATCHER COUNT FOR MATCH
+// GET /api/matches/:id/watchers
+// Protected: all roles
+// ---------------------------------------------------------------------------
+const getWatchers = async (req, res, next) => {
+    try {
+        const matchId = parseInt(req.params.id);
+        const count = getMatchWatchers(matchId);
+        return res.json({ success: true, data: { match_id: matchId, watchers: count } });
+    } catch (err) {
+        next(err);
     }
 };
 
 module.exports = {
     getAll,
     getOne,
+    getPlayersByDepartment,
     getScoreboard,
     getLive,
-    getReferees,
+    getMyAssignments,
+    getAvailableOfficers,
     schedule,
     startMatch,
     updateScore,
     completeMatch,
-    getFFAResultsForTournament,
+    getFFAResults,
     saveFFAResults,
     completeFFAMatch,
-    getPlayersByDepartment,
     getMVPs,
-    getMVPsSimple
+    getScoreHistory,
+    getMatchPlayers,
+    getWatchers,
 };

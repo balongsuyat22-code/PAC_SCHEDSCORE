@@ -1,0 +1,230 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PAC SCHED-SCORE — Venue Management</title>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;600;700;800;900&family=Barlow:wght@300;400;500;600&display=swap"
+        rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <link rel="stylesheet" href="../css/sgo_president.css">
+</head>
+
+<body>
+    <main class="main">
+        <div class="topbar">
+            <div style="display:flex;align-items:center;gap:10px">
+                <button class="burger-menu" onclick="toggleSidebar()" aria-label="Open menu">
+                    <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2"
+                        stroke-linecap="round" stroke-linejoin="round">
+                        <line x1="4" x2="20" y1="12" y2="12" />
+                        <line x1="4" x2="20" y1="6" y2="6" />
+                        <line x1="4" x2="20" y1="18" y2="18" />
+                    </svg>
+                </button>
+                <div class="topbar-title">
+                    <i class="fa-solid fa-location-dot" style="margin-right:8px;color:var(--gold)"></i>
+                    Venue Management
+                </div>
+            </div>
+            <div class="topbar-actions">
+                <button class="btn btn-primary btn-sm" onclick="openCreate()">
+                    <i class="fa-solid fa-plus"></i> Add Venue
+                </button>
+            </div>
+        </div>
+
+        <div class="content">
+            <div class="page-header" style="margin-bottom:20px">
+                <div>
+                    <div class="page-title" style="font-size:22px">Venues</div>
+                    <div class="page-sub">Manage locations and view booked matches</div>
+                </div>
+            </div>
+
+            <div class="grid-4" id="venues-grid">
+                <div class="empty-state" style="grid-column:1/-1">
+                    <div class="empty-text">Loading…</div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <div class="modal-overlay" id="modal-venue">
+        <div class="modal">
+            <div class="modal-header">
+                <div class="modal-title" id="v-modal-title">
+                    <i class="fa-solid fa-plus" style="margin-right:8px;color:var(--gold)"></i> Add Venue
+                </div>
+                <button class="modal-close" onclick="Modal.close('modal-venue')" aria-label="Close">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+            <div class="modal-body">
+                <input type="hidden" id="v-id">
+                <div class="form-group">
+                    <label class="form-label">Venue Name</label>
+                    <input id="v-name" class="form-input" placeholder="e.g. Main Gymnasium">
+                </div>
+                <div class="form-group">
+                    <label class="form-label"><i class="fa-solid fa-map-pin" style="margin-right:4px"></i>
+                        Location</label>
+                    <input id="v-loc" class="form-input" placeholder="e.g. Building A, East Wing">
+                </div>
+                <div class="form-group">
+                    <label class="form-label"><i class="fa-solid fa-users" style="margin-right:4px"></i>
+                        Capacity</label>
+                    <input id="v-cap" type="number" class="form-input" placeholder="0">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Description</label>
+                    <textarea id="v-desc" class="form-textarea" placeholder="Optional notes…"></textarea>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="Modal.close('modal-venue')">Cancel</button>
+                <button class="btn btn-primary" onclick="saveVenue()">
+                    <i class="fa-solid fa-floppy-disk"></i> Save Venue
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal-overlay" id="modal-vsched">
+        <div class="modal">
+            <div class="modal-header">
+                <div class="modal-title" id="vs-title">
+                    <i class="fa-solid fa-calendar-days" style="margin-right:8px;color:var(--gold)"></i> Venue Schedule
+                </div>
+                <button class="modal-close" onclick="Modal.close('modal-vsched')" aria-label="Close">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+            <div class="modal-body" id="vs-body">Loading…</div>
+        </div>
+    </div>
+
+    <script src="../js/api.js"></script>
+    <script src="../js/sgo_president.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', async () => {
+            Auth.requireAuth('sgo_president');
+            renderSidebar('venues');
+            NotifBell.init();
+            await loadVenues();
+        });
+
+        async function loadVenues() {
+            const res = await api('/venues');
+            const grid = document.getElementById('venues-grid');
+            if (!res.success || !res.data.length) {
+                grid.innerHTML = `
+                    <div class="empty-state" style="grid-column:1/-1">
+                        <div class="empty-icon"><i class="fa-solid fa-location-dot" style="font-size:2rem;opacity:.4"></i></div>
+                        <div class="empty-text">No venues yet — add one to get started</div>
+                    </div>`;
+                return;
+            }
+            grid.innerHTML = res.data.map(v => `
+        <div class="card">
+            <div class="card-body">
+                <div style="width:48px;height:48px;border-radius:12px;background:var(--gold-bg,rgba(245,184,0,.1));color:var(--gold);display:flex;align-items:center;justify-content:center;font-size:1.25rem;margin-bottom:12px">
+                    <i class="fa-solid fa-building"></i>
+                </div>
+                <div style="font-size:16px;font-weight:700;margin-bottom:4px">${v.name}</div>
+                <div style="font-size:13px;color:var(--muted);margin-bottom:12px">
+                    <i class="fa-solid fa-map-pin" style="margin-right:4px;opacity:.6"></i>
+                    ${v.location || '—'}
+                </div>
+                <div style="display:flex;gap:10px;margin-bottom:14px">
+                    <div style="flex:1;background:var(--bg3);border-radius:7px;padding:8px;text-align:center">
+                        <div style="font-family:'Barlow Condensed',sans-serif;font-size:20px;font-weight:800">${v.capacity || 0}</div>
+                        <div style="font-size:10px;color:var(--muted)">CAPACITY</div>
+                    </div>
+                    <div style="flex:1;background:var(--bg3);border-radius:7px;padding:8px;text-align:center">
+                        <div style="font-family:'Barlow Condensed',sans-serif;font-size:20px;font-weight:800;color:${v.scheduled_matches ? 'var(--red)' : 'var(--green)'}">${v.scheduled_matches || 0}</div>
+                        <div style="font-size:10px;color:var(--muted)">BOOKED</div>
+                    </div>
+                </div>
+                <div style="display:flex;gap:8px">
+                    <button class="btn btn-secondary btn-sm" style="flex:1" onclick='viewSchedule(${v.id}, ${JSON.stringify(v.name)})'>
+                        <i class="fa-solid fa-calendar-days"></i> Schedule
+                    </button>
+                    <button class="btn btn-secondary btn-sm" style="flex:1" onclick='openEdit(${JSON.stringify(v)})'>
+                        <i class="fa-solid fa-pen"></i> Edit
+                    </button>
+                </div>
+            </div>
+        </div>`).join('');
+        }
+
+        function openCreate() {
+            document.getElementById('v-modal-title').innerHTML =
+                '<i class="fa-solid fa-plus" style="margin-right:8px;color:var(--gold)"></i> Add Venue';
+            document.getElementById('v-id').value = '';
+            document.getElementById('v-name').value = '';
+            document.getElementById('v-loc').value = '';
+            document.getElementById('v-cap').value = '';
+            document.getElementById('v-desc').value = '';
+            Modal.open('modal-venue');
+        }
+
+        function openEdit(v) {
+            document.getElementById('v-modal-title').innerHTML =
+                '<i class="fa-solid fa-pen" style="margin-right:8px;color:var(--gold)"></i> Edit Venue';
+            document.getElementById('v-id').value = v.id;
+            document.getElementById('v-name').value = v.name || '';
+            document.getElementById('v-loc').value = v.location || '';
+            document.getElementById('v-cap').value = v.capacity || '';
+            document.getElementById('v-desc').value = v.description || '';
+            Modal.open('modal-venue');
+        }
+
+        async function saveVenue() {
+            const id = document.getElementById('v-id').value;
+            const body = {
+                name: document.getElementById('v-name').value.trim(),
+                location: document.getElementById('v-loc').value.trim(),
+                capacity: parseInt(document.getElementById('v-cap').value) || 0,
+                description: document.getElementById('v-desc').value.trim(),
+            };
+            if (!body.name) { Toast.show('Venue name is required', 'error'); return; }
+
+            const res = id
+                ? await api(`/venues/${id}`, { method: 'PUT', body: { ...body, is_active: 1 } })
+                : await api('/venues', { method: 'POST', body });
+
+            Toast.show(res.message || (res.success ? 'Venue saved!' : 'Error'), res.success ? 'success' : 'error');
+            if (res.success) { Modal.close('modal-venue'); loadVenues(); }
+        }
+
+        async function viewSchedule(id, name) {
+            document.getElementById('vs-title').innerHTML =
+                `<i class="fa-solid fa-calendar-days" style="margin-right:8px;color:var(--gold)"></i> ${name} — Schedule`;
+            Modal.open('modal-vsched');
+            const res = await api(`/venues/${id}/schedule`);
+            const body = document.getElementById('vs-body');
+            if (!res.success || !res.data.length) {
+                body.innerHTML = `
+                    <div class="empty-state">
+                        <div class="empty-icon"><i class="fa-solid fa-calendar-xmark" style="font-size:1.5rem;opacity:.4"></i></div>
+                        <div class="empty-text">No matches booked at this venue</div>
+                    </div>`;
+                return;
+            }
+            body.innerHTML = res.data.map(m => `
+        <div class="match-card">
+            <div class="match-sport-icon">${sportIcon(m.sport_name)}</div>
+            <div class="match-info">
+                <div class="match-teams">${m.team_a || '?'} vs ${m.team_b || '?'}</div>
+                <div class="match-meta">${m.tournament_name} · ${formatDate(m.scheduled_date)} ${formatTime(m.scheduled_time)}</div>
+            </div>
+            ${statusBadge(m.status)}
+        </div>`).join('');
+        }
+    </script>
+</body>
+
+</html>

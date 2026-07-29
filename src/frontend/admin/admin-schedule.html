@@ -23,6 +23,8 @@
             display: flex;
             justify-content: space-between;
             align-items: center;
+            flex-wrap: wrap;
+            gap: 8px;
         }
 
         .sched-match {
@@ -32,6 +34,7 @@
             padding: 14px 16px;
             border-bottom: 1px solid rgba(255, 255, 255, 0.04);
             transition: background 0.1s;
+            flex-wrap: wrap;
         }
 
         .sched-match:hover {
@@ -48,6 +51,7 @@
 
         .sched-vs {
             flex: 1;
+            min-width: 120px;
         }
 
         .sched-teams {
@@ -60,48 +64,227 @@
             font-size: 12px;
             color: var(--muted);
         }
+
+        .sched-icon {
+            width: 28px;
+            height: 28px;
+            color: var(--gold);
+            flex-shrink: 0;
+        }
+
+        .sched-score {
+            font-family: 'Barlow Condensed', sans-serif;
+            font-size: 18px;
+            font-weight: 700;
+            color: var(--gold);
+            min-width: 50px;
+            text-align: right;
+        }
+
+        .filter-bar {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+            align-items: center;
+        }
+
+        .filter-bar select,
+        .filter-bar input {
+            background: var(--bg3);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 9px 14px;
+            color: var(--text);
+            font-family: 'Barlow', sans-serif;
+            font-size: 13px;
+            outline: none;
+        }
+
+        .filter-bar select:focus,
+        .filter-bar input:focus {
+            border-color: var(--border-gold);
+        }
+
+        .filter-bar input[type="date"] {
+            min-width: 160px;
+        }
+
+        .filter-bar select {
+            min-width: 160px;
+        }
+
+        .modal-title .icon {
+            width: 18px;
+            height: 18px;
+            color: var(--gold);
+        }
+
+        @media (max-width: 768px) {
+            .filter-bar {
+                flex-direction: column;
+            }
+
+            .filter-bar select,
+            .filter-bar input {
+                width: 100% !important;
+                min-width: unset !important;
+            }
+
+            .sched-match {
+                flex-direction: column;
+                align-items: stretch;
+                text-align: center;
+            }
+
+            .sched-time {
+                text-align: center;
+            }
+
+            .sched-score {
+                text-align: center;
+            }
+
+            .day-header {
+                font-size: 15px;
+                padding: 10px 12px;
+            }
+
+            .topbar {
+                flex-wrap: wrap;
+                height: auto;
+                padding: 10px 16px;
+                gap: 8px;
+            }
+
+            .topbar-title {
+                font-size: 16px;
+            }
+
+            .topbar-actions {
+                flex-wrap: wrap;
+            }
+
+            .content {
+                padding: 16px;
+            }
+
+            .modal {
+                width: 98vw;
+                max-width: 98vw;
+            }
+
+            .modal-body {
+                padding: 16px;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .sched-match {
+                padding: 10px 12px;
+                gap: 8px;
+            }
+
+            .sched-teams {
+                font-size: 13px;
+            }
+
+            .sched-meta {
+                font-size: 11px;
+            }
+
+            .sched-time {
+                font-size: 17px;
+                min-width: 50px;
+            }
+
+            .day-header {
+                font-size: 13px;
+            }
+        }
     </style>
 </head>
 
 <body>
+    <!-- Sidebar injected by renderSidebar -->
     <main class="main">
         <div class="topbar">
-            <div class="topbar-title">📅 Schedule</div>
+            <div class="topbar-title">
+                <span class="icon" style="width:20px;height:20px;color:var(--gold);">
+                    <svg viewBox="0 0 24 24">
+                        <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+                        <line x1="16" y1="2" x2="16" y2="6"></line>
+                        <line x1="8" y1="2" x2="8" y2="6"></line>
+                        <line x1="3" y1="10" x2="21" y2="10"></line>
+                    </svg>
+                </span>
+                Schedule
+            </div>
             <div class="topbar-actions">
-                <button class="btn btn-secondary btn-sm" onclick="loadPage()">🔄 Refresh</button>
+                <button class="btn btn-secondary btn-sm" onclick="loadPage()">
+                    <span class="icon" style="width:14px;height:14px;"><svg viewBox="0 0 24 24">
+                            <polyline points="23 4 23 10 17 10"></polyline>
+                            <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"></path>
+                        </svg></span>
+                    Refresh
+                </button>
             </div>
         </div>
         <div class="content">
-            <div style="display:flex;gap:10px;margin-bottom:20px;flex-wrap:wrap;align-items:center">
-                <input type="date" id="filter-date" class="form-select" style="width:180px" onchange="loadPage()">
-                <select id="filter-venue" class="form-select" style="width:200px" onchange="loadPage()">
+            <div class="filter-bar">
+                <input type="date" id="filter-date" onchange="loadPage()">
+                <select id="filter-venue" onchange="loadPage()">
                     <option value="">All Venues</option>
                 </select>
-                <select id="filter-tournament" class="form-select" style="width:220px" onchange="loadPage()">
+                <select id="filter-tournament" onchange="loadPage()">
                     <option value="">All Tournaments</option>
                 </select>
-                <button class="btn btn-secondary btn-sm" onclick="setToday()">Today</button>
+                <button class="btn btn-secondary btn-sm" onclick="setToday()">
+                    <span class="icon" style="width:14px;height:14px;"><svg viewBox="0 0 24 24">
+                            <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+                            <line x1="16" y1="2" x2="16" y2="6"></line>
+                            <line x1="8" y1="2" x2="8" y2="6"></line>
+                            <line x1="3" y1="10" x2="21" y2="10"></line>
+                        </svg></span>
+                    Today
+                </button>
             </div>
             <div id="schedule-content">
                 <div class="empty-state">
-                    <div class="empty-icon">⏳</div>
+                    <div class="empty-icon">
+                        <span class="icon" style="width:44px;height:44px;color:var(--muted);"><svg viewBox="0 0 24 24">
+                                <circle cx="12" cy="12" r="10"></circle>
+                                <line x1="12" y1="8" x2="12" y2="12"></line>
+                                <line x1="12" y1="16" x2="12.01" y2="16"></line>
+                            </svg></span>
+                    </div>
                     <div class="empty-text">Loading...</div>
                 </div>
             </div>
         </div>
     </main>
+
     <script src="../js/shared.js"></script>
     <script src="../js/admin-sidebar.js"></script>
     <script>
         document.addEventListener('DOMContentLoaded', async () => {
-            renderSidebar('schedule');
+            if (typeof renderSidebar === 'function') {
+                renderSidebar('schedule');
+            }
             setToday();
             const [vRes, tRes] = await Promise.all([api('/venues'), api('/tournaments')]);
-            document.getElementById('filter-venue').innerHTML += (vRes.data || []).map(v => `<option value="${v.id}">${v.name}</option>`).join('');
-            document.getElementById('filter-tournament').innerHTML += (tRes.data || []).map(t => `<option value="${t.id}">${t.name}</option>`).join('');
+            const vOpts = (vRes.data || []).map(v => `<option value="${v.id}">${v.name}</option>`).join('');
+            const tOpts = (tRes.data || []).map(t => `<option value="${t.id}">${t.name}</option>`).join('');
+            document.getElementById('filter-venue').innerHTML += vOpts;
+            document.getElementById('filter-tournament').innerHTML += tOpts;
             loadPage();
         });
-        function setToday() { document.getElementById('filter-date').value = new Date().toISOString().split('T')[0]; loadPage(); }
+
+        function setToday() {
+            document.getElementById('filter-date').value = new Date().toISOString().split('T')[0];
+            loadPage();
+        }
+
         async function loadPage() {
             const date = document.getElementById('filter-date').value;
             const venueId = document.getElementById('filter-venue').value;
@@ -113,30 +296,44 @@
             const res = await api(url);
             const el = document.getElementById('schedule-content');
             if (!res.success || !res.data?.length) {
-                el.innerHTML = `<div class="empty-state"><div class="empty-icon">📅</div><div class="empty-text">No matches scheduled${date ? ' for ' + new Date(date + 'T00:00').toLocaleDateString('en-PH', { weekday: 'long', month: 'long', day: 'numeric' }) : ''}</div></div>`;
+                const dateStr = date ? new Date(date + 'T00:00').toLocaleDateString('en-PH', { weekday: 'long', month: 'long', day: 'numeric' }) : '';
+                el.innerHTML = `<div class="empty-state"><div class="empty-icon"><span class="icon" style="width:44px;height:44px;color:var(--muted);"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg></span></div><div class="empty-text">No matches scheduled${dateStr ? ' for ' + dateStr : ''}</div></div>`;
                 return;
             }
-            // Group by date
             const byDate = {};
             res.data.forEach(m => { const d = m.scheduled_date || 'Unscheduled'; if (!byDate[d]) byDate[d] = []; byDate[d].push(m); });
             el.innerHTML = Object.entries(byDate).map(([d, matches]) => `
-    <div class="day-header">
-      <span>${d !== 'Unscheduled' ? new Date(d + 'T00:00').toLocaleDateString('en-PH', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' }) : d}</span>
-      <span style="font-size:13px;color:var(--muted);font-weight:400">${matches.length} match${matches.length !== 1 ? 'es' : ''}</span>
-    </div>
-    <div class="card">
-      ${matches.sort((a, b) => (a.scheduled_time || '').localeCompare(b.scheduled_time || '')).map(m => `
-        <div class="sched-match">
-          <div class="sched-time">${formatTime(m.scheduled_time) || 'TBD'}</div>
-          <div style="font-size:22px">${sportIcon(m.sport_name)}</div>
-          <div class="sched-vs">
-            <div class="sched-teams">${m.dept_a_name || '?'} <span style="color:var(--muted)">vs</span> ${m.dept_b_name || '?'}</div>
-            <div class="sched-meta">${m.tournament_name} · ${m.venue_name || 'Venue TBD'} · ${m.referee_name || 'Referee TBD'}</div>
-          </div>
-          <div style="font-family:'Barlow Condensed',sans-serif;font-size:18px;font-weight:700;color:var(--gold)">${m.total_score_a != null ? `${m.total_score_a}–${m.total_score_b}` : ''}</div>
-          ${statusBadge(m.status)}
-        </div>`).join('')}
-    </div>`).join('');
+            <div class="day-header">
+                <span>${d !== 'Unscheduled' ? new Date(d + 'T00:00').toLocaleDateString('en-PH', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' }) : d}</span>
+                <span style="font-size:13px;color:var(--muted);font-weight:400">${matches.length} match${matches.length !== 1 ? 'es' : ''}</span>
+            </div>
+            <div class="card">
+                ${matches.sort((a, b) => (a.scheduled_time || '').localeCompare(b.scheduled_time || '')).map(m => `
+                    <div class="sched-match">
+                        <div class="sched-time">${formatTime(m.scheduled_time) || 'TBD'}</div>
+                        <span class="sched-icon">${sportIconSVG(m.sport_name)}</span>
+                        <div class="sched-vs">
+                            <div class="sched-teams">${m.dept_a_name || '?'} <span style="color:var(--muted)">vs</span> ${m.dept_b_name || '?'}</div>
+                            <div class="sched-meta">${m.tournament_name} · ${m.venue_name || 'Venue TBD'} · ${m.referee_name || 'Referee TBD'}</div>
+                        </div>
+                        <div class="sched-score">${m.total_score_a != null ? `${m.total_score_a}–${m.total_score_b}` : ''}</div>
+                        ${statusBadge(m.status)}
+                    </div>`).join('')}
+            </div>`).join('');
+        }
+
+        function sportIconSVG(name) {
+            const icons = {
+                'basketball': `<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"></circle><path d="M2 12h20"></path><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path></svg>`,
+                'volleyball': `<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"></circle><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path><line x1="2" y1="12" x2="22" y2="12"></line></svg>`,
+                'football': `<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"></circle><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path><line x1="2" y1="12" x2="22" y2="12"></line><line x1="12" y1="2" x2="12" y2="22"></line></svg>`,
+                'badminton': `<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"></circle><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path><line x1="2" y1="12" x2="22" y2="12"></line><line x1="12" y1="2" x2="12" y2="22"></line><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"></line></svg>`
+            };
+            const lower = (name || '').toLowerCase();
+            for (const [key, svg] of Object.entries(icons)) {
+                if (lower.includes(key)) return svg;
+            }
+            return `<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"></circle><circle cx="12" cy="12" r="6"></circle><circle cx="12" cy="12" r="2"></circle></svg>`;
         }
     </script>
 </body>
