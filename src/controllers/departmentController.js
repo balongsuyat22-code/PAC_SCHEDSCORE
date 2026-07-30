@@ -1,49 +1,49 @@
 /**
  * DEPARTMENT CONTROLLER
- * Departments = colleges / grade-strands that compete in the sport fest.
- *
- * Who does what:
- *   admin         → full CRUD
- *   dean_adviser  → read own department details, view own players/scores
- *   sgo_president → read all departments (for bracket seeding & schedule)
- *   sgo_officer   → read all departments (for scoreboard context)
- *   visitor       → read all active departments (public leaderboard)
- *
- * SEASON NOTE: department_scores, teams, and players are all now season-
- * scoped (sport_fest_id). getAll/getOne below join against the ACTIVE
- * season so this always reads as "current standings," not an all-time
- * total that never resets. Past seasons are still fully visible via
- * GET /sport-fest/:id/summary.
  */
-
 const { pool } = require('../config/database');
 const { logActivity } = require('../utils/logger');
 const { getActiveSportFestId } = require('../utils/season');
 
 const getAll = async (req, res, next) => {
     try {
-        const sportFestId = await getActiveSportFestId();
+        const sportFestId = (await getActiveSportFestId()) ?? null;
 
-        const [rows] = await pool.execute(
-            `SELECT
-            d.id, d.name, d.code, d.description, d.color, d.logo_url,
-            d.short_name, d.is_active, d.created_at, d.updated_at,
-            COALESCE(MAX(ds.total_points), 0) AS total_points,
-            COALESCE(MAX(ds.gold_medals), 0) AS gold_medals,
-            COALESCE(MAX(ds.silver_medals), 0) AS silver_medals,
-            COALESCE(MAX(ds.bronze_medals), 0) AS bronze_medals,
-            COALESCE(MAX(ds.total_participations), 0) AS total_participations,
-            COALESCE(MAX(ds.tournaments_entered), 0) AS tournaments_entered,
-            COUNT(DISTINCT t.id) AS total_teams,
-            COUNT(DISTINCT p.id) AS total_members
-            FROM departments d
-            LEFT JOIN department_scores ds ON d.id = ds.department_id AND ds.sport_fest_id <=> ?
-            LEFT JOIN teams t ON d.id = t.department_id AND t.sport_fest_id <=> ?
-            LEFT JOIN players p ON t.id = p.team_id AND p.status = 'approved'
-            WHERE d.id = ?
-            GROUP BY d.id, d.name, d.code, d.description, d.color,
-            d.logo_url, d.short_name, d.is_active, d.created_at, d.updated_at`,
-            [sportFestId, sportFestId, req.params.id]
+        const [rows] = await pool.query(
+            `
+  SELECT
+    d.id,
+    d.name,
+    d.code,
+    d.description,
+    d.color,
+    d.logo_url,
+    d.short_name,
+    d.is_active,
+    d.created_at,
+    d.updated_at,
+    COALESCE(MAX(ds.total_points), 0) AS total_points,
+    COALESCE(MAX(ds.gold_medals), 0) AS gold_medals,
+    COALESCE(MAX(ds.silver_medals), 0) AS silver_medals,
+    COALESCE(MAX(ds.bronze_medals), 0) AS bronze_medals,
+    COALESCE(MAX(ds.total_participations), 0) AS total_participations,
+    COALESCE(MAX(ds.tournaments_entered), 0) AS tournaments_entered,
+    COUNT(DISTINCT t.id) AS total_teams,
+    COUNT(DISTINCT p.id) AS total_members
+  FROM departments d
+  LEFT JOIN department_scores ds
+    ON d.id = ds.department_id AND ds.sport_fest_id <=> ?
+  LEFT JOIN teams t
+    ON d.id = t.department_id AND t.sport_fest_id <=> ?
+  LEFT JOIN players p
+    ON t.id = p.team_id AND p.status = 'approved'
+  WHERE d.is_active = 1
+  GROUP BY
+    d.id, d.name, d.code, d.description, d.color,
+    d.logo_url, d.short_name, d.is_active, d.created_at, d.updated_at
+  ORDER BY total_points DESC, d.name ASC
+  `,
+            [sportFestId, sportFestId]
         );
         return res.json({ success: true, data: rows });
     } catch (err) {
@@ -51,28 +51,38 @@ const getAll = async (req, res, next) => {
     }
 };
 
-
 const getOne = async (req, res, next) => {
     try {
-        const sportFestId = await getActiveSportFestId();
+        const sportFestId = (await getActiveSportFestId()) ?? null;
 
         const [rows] = await pool.execute(
             `SELECT
-                d.*,
-                COALESCE(ds.total_points,       0) AS total_points,
-                COALESCE(ds.gold_medals,         0) AS gold_medals,
-                COALESCE(ds.silver_medals,       0) AS silver_medals,
-                COALESCE(ds.bronze_medals,       0) AS bronze_medals,
-                COALESCE(ds.total_participations,0) AS total_participations,
-                COALESCE(ds.tournaments_entered, 0) AS tournaments_entered,
-                COUNT(DISTINCT t.id)               AS total_teams,
-                COUNT(DISTINCT p.id)               AS total_members
+                d.id,
+                d.name,
+                d.code,
+                d.description,
+                d.color,
+                d.logo_url,
+                d.short_name,
+                d.is_active,
+                d.created_at,
+                d.updated_at,
+                COALESCE(MAX(ds.total_points), 0) AS total_points,
+                COALESCE(MAX(ds.gold_medals), 0) AS gold_medals,
+                COALESCE(MAX(ds.silver_medals), 0) AS silver_medals,
+                COALESCE(MAX(ds.bronze_medals), 0) AS bronze_medals,
+                COALESCE(MAX(ds.total_participations), 0) AS total_participations,
+                COALESCE(MAX(ds.tournaments_entered), 0) AS tournaments_entered,
+                COUNT(DISTINCT t.id) AS total_teams,
+                COUNT(DISTINCT p.id) AS total_members
              FROM departments d
              LEFT JOIN department_scores ds ON d.id = ds.department_id AND ds.sport_fest_id <=> ?
              LEFT JOIN teams  t ON d.id = t.department_id AND t.sport_fest_id <=> ?
              LEFT JOIN players p ON t.id = p.team_id AND p.status = 'approved'
              WHERE d.id = ?
-             GROUP BY d.id`,
+             GROUP BY
+                d.id, d.name, d.code, d.description, d.color,
+                d.logo_url, d.short_name, d.is_active, d.created_at, d.updated_at`,
             [sportFestId, sportFestId, req.params.id]
         );
 
@@ -109,8 +119,7 @@ const getScores = async (req, res, next) => {
 
 const getPlayers = async (req, res, next) => {
     try {
-        const deptId = parseInt(req.params.id);
-
+        const deptId = parseInt(req.params.id, 10);
 
         if (req.user.role === 'dean_adviser' && req.user.department_id !== deptId) {
             return res.status(403).json({ success: false, message: 'Access denied.' });
@@ -130,13 +139,16 @@ const getPlayers = async (req, res, next) => {
         const params = [deptId];
 
         if (season_id === 'all') {
-
+            // no filter
         } else if (season_id) {
             query += ' AND p.sport_fest_id = ?';
             params.push(season_id);
         } else {
-            const activeId = await getActiveSportFestId();
-            if (activeId) { query += ' AND p.sport_fest_id = ?'; params.push(activeId); }
+            const activeId = (await getActiveSportFestId()) ?? null;
+            if (activeId != null) {
+                query += ' AND p.sport_fest_id = ?';
+                params.push(activeId);
+            }
         }
 
         if (status) {
@@ -152,7 +164,6 @@ const getPlayers = async (req, res, next) => {
         next(err);
     }
 };
-
 
 const create = async (req, res, next) => {
     try {
@@ -185,8 +196,8 @@ const create = async (req, res, next) => {
             ]
         );
 
-        const sportFestId = await getActiveSportFestId();
-        if (sportFestId) {
+        const sportFestId = (await getActiveSportFestId()) ?? null;
+        if (sportFestId != null) {
             await pool.execute(
                 'INSERT INTO department_scores (department_id, sport_fest_id, total_points) VALUES (?, ?, 0)',
                 [result.insertId, sportFestId]
@@ -210,7 +221,6 @@ const create = async (req, res, next) => {
         next(err);
     }
 };
-
 
 const update = async (req, res, next) => {
     try {
@@ -258,10 +268,8 @@ const update = async (req, res, next) => {
     }
 };
 
-
 const remove = async (req, res, next) => {
     try {
-
         const [active] = await pool.execute(
             `SELECT COUNT(*) AS count FROM tournament_participants tp
              JOIN tournaments t ON tp.tournament_id = t.id

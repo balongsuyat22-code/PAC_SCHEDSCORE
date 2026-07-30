@@ -1,28 +1,15 @@
 /**
  * REPORT / DASHBOARD CONTROLLER
- *
- * Operational reports focused on actionable issues:
- * - Unfinalized tournaments (all matches done, tournament still open)
- * - Overdue / unstarted scheduled matches
- * - Stuck ongoing matches
- * - Matches missing referee or venue
- * - Pending (unscheduled) matches
- * - Activity log & legacy helpers retained
- *
- * SEASON NOTE: department_scores is scoped via utils/season.js where needed.
  */
-
 const { pool } = require('../config/database');
 const { getActiveSportFestId } = require('../utils/season');
 
-// ---------------------------------------------------------------------------
-// DASHBOARD
-// ---------------------------------------------------------------------------
 const getDashboard = async (req, res, next) => {
     try {
-        const sportFestId = await getActiveSportFestId();
+        const sportFestId = (await getActiveSportFestId()) ?? null;
 
-        const [[totals]] = await pool.execute(`
+        const [[totals]] = await pool.execute(
+            `
             SELECT
                 (SELECT COUNT(*) FROM departments WHERE is_active=1) as total_departments,
                 (SELECT COUNT(*) FROM sports WHERE is_active=1) as total_sports,
@@ -36,7 +23,9 @@ const getDashboard = async (req, res, next) => {
                 (SELECT COUNT(*) FROM players WHERE status = 'approved') as total_players,
                 (SELECT COUNT(*) FROM users WHERE role = 'sgo_officer' AND is_active = 1) as total_referees,
                 (SELECT COUNT(*) FROM teams WHERE sport_fest_id <=> ?) as total_teams
-        `, [sportFestId]);
+        `,
+            [sportFestId]
+        );
 
         const [upcomingMatches] = await pool.execute(`
             SELECT m.id, m.scheduled_date, m.scheduled_time, s.name as sport_name,
@@ -72,7 +61,8 @@ const getDashboard = async (req, res, next) => {
             LIMIT 10
         `);
 
-        const [leaderboard] = await pool.execute(`
+        const [leaderboard] = await pool.execute(
+            `
             SELECT d.name, d.code, d.color,
                    COALESCE(ds.total_points,0) as total_points,
                    COALESCE(ds.gold_medals,0) as gold,
@@ -82,7 +72,9 @@ const getDashboard = async (req, res, next) => {
             LEFT JOIN department_scores ds ON d.id = ds.department_id AND ds.sport_fest_id <=> ?
             WHERE d.is_active = 1
             ORDER BY total_points DESC, gold DESC
-        `, [sportFestId]);
+        `,
+            [sportFestId]
+        );
 
         res.json({ success: true, data: { totals, upcomingMatches, recentResults, leaderboard } });
     } catch (err) {
@@ -90,10 +82,6 @@ const getDashboard = async (req, res, next) => {
     }
 };
 
-// ---------------------------------------------------------------------------
-// OPERATIONAL REPORT SUMMARY
-// GET /api/reports/summary
-// ---------------------------------------------------------------------------
 const getReportSummary = async (req, res, next) => {
     try {
         const [[summary]] = await pool.execute(`
@@ -155,10 +143,6 @@ const getReportSummary = async (req, res, next) => {
     }
 };
 
-// ---------------------------------------------------------------------------
-// UNFINALIZED TOURNAMENTS
-// GET /api/reports/unfinalized-tournaments
-// ---------------------------------------------------------------------------
 const getUnfinalizedTournaments = async (req, res, next) => {
     try {
         const [rows] = await pool.execute(`
@@ -194,10 +178,6 @@ const getUnfinalizedTournaments = async (req, res, next) => {
     }
 };
 
-// ---------------------------------------------------------------------------
-// OVERDUE SCHEDULED MATCHES
-// GET /api/reports/overdue-matches
-// ---------------------------------------------------------------------------
 const getOverdueMatches = async (req, res, next) => {
     try {
         const [rows] = await pool.execute(`
@@ -248,10 +228,6 @@ const getOverdueMatches = async (req, res, next) => {
     }
 };
 
-// ---------------------------------------------------------------------------
-// STUCK ONGOING MATCHES
-// GET /api/reports/stuck-ongoing
-// ---------------------------------------------------------------------------
 const getStuckOngoing = async (req, res, next) => {
     try {
         const [rows] = await pool.execute(`
@@ -290,10 +266,6 @@ const getStuckOngoing = async (req, res, next) => {
     }
 };
 
-// ---------------------------------------------------------------------------
-// MATCHES MISSING ASSIGNMENTS
-// GET /api/reports/missing-assignments
-// ---------------------------------------------------------------------------
 const getMissingAssignments = async (req, res, next) => {
     try {
         const { type } = req.query;
@@ -342,10 +314,6 @@ const getMissingAssignments = async (req, res, next) => {
     }
 };
 
-// ---------------------------------------------------------------------------
-// PENDING MATCHES
-// GET /api/reports/pending-matches
-// ---------------------------------------------------------------------------
 const getPendingMatches = async (req, res, next) => {
     try {
         const [rows] = await pool.execute(`
@@ -379,9 +347,6 @@ const getPendingMatches = async (req, res, next) => {
     }
 };
 
-// ---------------------------------------------------------------------------
-// LEGACY: MATCH HISTORY
-// ---------------------------------------------------------------------------
 const getMatchHistory = async (req, res, next) => {
     try {
         const { sport_id, department_id, tournament_id, from_date, to_date } = req.query;
@@ -407,14 +372,26 @@ const getMatchHistory = async (req, res, next) => {
             WHERE m.status = 'completed'
         `;
         const params = [];
-        if (sport_id) { query += ' AND m.sport_id = ?'; params.push(sport_id); }
-        if (tournament_id) { query += ' AND m.tournament_id = ?'; params.push(tournament_id); }
+        if (sport_id) {
+            query += ' AND m.sport_id = ?';
+            params.push(sport_id);
+        }
+        if (tournament_id) {
+            query += ' AND m.tournament_id = ?';
+            params.push(tournament_id);
+        }
         if (department_id) {
             query += ' AND (m.participant_a_department_id = ? OR m.participant_b_department_id = ?)';
             params.push(department_id, department_id);
         }
-        if (from_date) { query += ' AND m.completed_at >= ?'; params.push(from_date); }
-        if (to_date) { query += ' AND m.completed_at <= ?'; params.push(to_date + ' 23:59:59'); }
+        if (from_date) {
+            query += ' AND m.completed_at >= ?';
+            params.push(from_date);
+        }
+        if (to_date) {
+            query += ' AND m.completed_at <= ?';
+            params.push(to_date + ' 23:59:59');
+        }
         query += ' ORDER BY m.completed_at DESC';
 
         const [rows] = await pool.execute(query, params);
@@ -429,20 +406,22 @@ const getDepartmentReport = async (req, res, next) => {
         const deptId = req.params.id;
         const { season_id } = req.query;
 
-        const sportFestId = season_id === 'all'
-            ? null
-            : (season_id || await getActiveSportFestId());
+        const sportFestId =
+            season_id === 'all' ? null : season_id || (await getActiveSportFestId()) || null;
 
-        const [dept] = await pool.execute(`
+        const [dept] = await pool.execute(
+            `
             SELECT d.*, ds.total_points, ds.gold_medals, ds.silver_medals,
                    ds.bronze_medals, ds.total_participations, ds.tournaments_entered
             FROM departments d
             LEFT JOIN department_scores ds ON d.id = ds.department_id AND ds.sport_fest_id <=> ?
-            WHERE d.id = ?`, [sportFestId, deptId]
+            WHERE d.id = ?`,
+            [sportFestId, deptId]
         );
         if (!dept.length) return res.status(404).json({ success: false, message: 'Department not found' });
 
-        const [wl] = await pool.execute(`
+        const [wl] = await pool.execute(
+            `
             SELECT
                 COUNT(*) as total_matches,
                 SUM(CASE WHEN winner_department_id = ? THEN 1 ELSE 0 END) as wins,
@@ -450,25 +429,29 @@ const getDepartmentReport = async (req, res, next) => {
             FROM matches
             WHERE (participant_a_department_id = ? OR participant_b_department_id = ?)
               AND status = 'completed'
-        `, [deptId, deptId, deptId, deptId]);
+        `,
+            [deptId, deptId, deptId, deptId]
+        );
 
-        const [sportBreakdown] = await pool.execute(`
+        const [sportBreakdown] = await pool.execute(
+            `
             SELECT s.name as sport_name, tr.rank, tr.medal, tr.sport_fest_points, t.name as tournament
             FROM tournament_results tr
             JOIN tournaments t ON tr.tournament_id = t.id
             JOIN sports s ON t.sport_id = s.id
             WHERE tr.department_id = ?
             ORDER BY tr.finalized_at DESC
-        `, [deptId]);
+        `,
+            [deptId]
+        );
 
         let playerQuery = `
-            SELECT u.first_name, u.last_name, p.jersey_number, p.position
             SELECT p.first_name, p.last_name, p.jersey_number, p.position
             FROM players p
             WHERE p.department_id = ? AND p.status = 'approved'
         `;
         const playerParams = [deptId];
-        if (sportFestId) {
+        if (sportFestId != null) {
             playerQuery += ' AND p.sport_fest_id = ?';
             playerParams.push(sportFestId);
         }
@@ -476,7 +459,7 @@ const getDepartmentReport = async (req, res, next) => {
 
         res.json({
             success: true,
-            data: { department: dept[0], win_loss: wl[0], sport_breakdown: sportBreakdown, players }
+            data: { department: dept[0], win_loss: wl[0], sport_breakdown: sportBreakdown, players },
         });
     } catch (err) {
         next(err);
@@ -487,24 +470,29 @@ const getTournamentReport = async (req, res, next) => {
     try {
         const tid = req.params.id;
 
-        const [tourney] = await pool.execute(`
+        const [tourney] = await pool.execute(
+            `
             SELECT t.*, s.name as sport_name, s.category
             FROM tournaments t
             JOIN sports s ON t.sport_id = s.id
-            WHERE t.id = ?`, [tid]
+            WHERE t.id = ?`,
+            [tid]
         );
         if (!tourney.length) return res.status(404).json({ success: false, message: 'Tournament not found' });
 
-        const [stats] = await pool.execute(`
+        const [stats] = await pool.execute(
+            `
             SELECT COUNT(*) as total_matches,
                    SUM(CASE WHEN status='completed' THEN 1 ELSE 0 END) as completed,
                    SUM(CASE WHEN status='ongoing' THEN 1 ELSE 0 END) as ongoing,
                    SUM(CASE WHEN status='scheduled' THEN 1 ELSE 0 END) as scheduled
             FROM matches
-            WHERE tournament_id = ?`, [tid]
+            WHERE tournament_id = ?`,
+            [tid]
         );
 
-        const [results] = await pool.execute(`
+        const [results] = await pool.execute(
+            `
             SELECT tr.rank, tr.medal, tr.sport_fest_points,
                    d.name as department_name, d.color,
                    te.name as team_name
@@ -513,7 +501,9 @@ const getTournamentReport = async (req, res, next) => {
             LEFT JOIN teams te ON tr.team_id = te.id
             WHERE tr.tournament_id = ?
             ORDER BY tr.rank ASC
-        `, [tid]);
+        `,
+            [tid]
+        );
 
         res.json({ success: true, data: { tournament: tourney[0], stats: stats[0], results } });
     } catch (err) {
@@ -523,14 +513,20 @@ const getTournamentReport = async (req, res, next) => {
 
 const getActivityLog = async (req, res, next) => {
     try {
-        const { limit = 50, offset = 0 } = req.query;
-        const [rows] = await pool.execute(`
+        const limitNum = Math.max(1, parseInt(req.query.limit, 10) || 50);
+        const offsetNum = Math.max(0, parseInt(req.query.offset, 10) || 0);
+
+        // pool.query avoids some mysql2 prepared-statement issues with LIMIT/OFFSET
+        const [rows] = await pool.query(
+            `
             SELECT al.*, CONCAT(u.first_name,' ',u.last_name) as user_name, u.role
             FROM activity_logs al
             LEFT JOIN users u ON al.user_id = u.id
             ORDER BY al.created_at DESC
             LIMIT ? OFFSET ?
-        `, [parseInt(limit), parseInt(offset)]);
+        `,
+            [limitNum, offsetNum]
+        );
 
         res.json({ success: true, data: rows });
     } catch (err) {
@@ -549,5 +545,5 @@ module.exports = {
     getMatchHistory,
     getDepartmentReport,
     getTournamentReport,
-    getActivityLog
+    getActivityLog,
 };
