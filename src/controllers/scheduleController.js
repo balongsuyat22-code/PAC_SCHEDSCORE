@@ -57,30 +57,29 @@ const getToday = async (req, res, next) => {
         }
 
         const [rows] = await pool.execute(`
-            SELECT 
-                m.id as match_id,
-                m.scheduled_time,
-                m.status,
-                m.bracket_position,
-                s.name as sport_name,
-                t.name as tournament_name,
-                da.name as dept_a, da.color as dept_a_color, da.logo_url as dept_a_logo,
-                db.name as dept_b, db.color as dept_b_color, db.logo_url as dept_b_logo,
-                v.name as venue_name,
-                CONCAT(ru.first_name,' ',ru.last_name) as referee_name
-            FROM matches m
-            JOIN sports s ON m.sport_id = s.id
-            JOIN tournaments t ON m.tournament_id = t.id
-            LEFT JOIN departments da ON m.participant_a_department_id = da.id
-            LEFT JOIN departments db ON m.participant_b_department_id = db.id
-            LEFT JOIN venues v ON m.venue_id = v.id
-            LEFT JOIN referees r ON m.referee_id = r.id
-            LEFT JOIN users ru ON r.user_id = ru.id
-            WHERE m.scheduled_date = CURDATE() 
-              AND m.status NOT IN ('cancelled')
-              ${seasonClause}
-            ORDER BY m.scheduled_time ASC
-        `, params);
+    SELECT 
+        m.id as match_id,
+        m.scheduled_time,
+        m.status,
+        m.bracket_position,
+        s.name as sport_name,
+        t.name as tournament_name,
+        da.name as dept_a, da.color as dept_a_color, da.logo_url as dept_a_logo,
+        db.name as dept_b, db.color as dept_b_color, db.logo_url as dept_b_logo,
+        v.name as venue_name,
+        CONCAT(ru.first_name,' ',ru.last_name) as referee_name
+    FROM matches m
+    JOIN sports s ON m.sport_id = s.id
+    JOIN tournaments t ON m.tournament_id = t.id
+    LEFT JOIN departments da ON m.participant_a_department_id = da.id
+    LEFT JOIN departments db ON m.participant_b_department_id = db.id
+    LEFT JOIN venues v ON m.venue_id = v.id
+    LEFT JOIN users ru ON m.referee_id = ru.id
+    WHERE m.scheduled_date = CURDATE() 
+      AND m.status NOT IN ('cancelled')
+      ${seasonClause}
+    ORDER BY m.scheduled_time ASC
+`, params);
 
         res.json({ success: true, data: rows, date: new Date().toISOString().split('T')[0] });
     } catch (err) {

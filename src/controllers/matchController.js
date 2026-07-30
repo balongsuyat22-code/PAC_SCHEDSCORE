@@ -277,19 +277,19 @@ const getLive = async (req, res, next) => {
                     da.id AS dept_a_id, da.name AS dept_a, da.color AS dept_a_color, da.logo_url AS dept_a_logo,
                     db.id AS dept_b_id, db.name AS dept_b, db.color AS dept_b_color, db.logo_url AS dept_b_logo,
                     v.name  AS venue_name, m.started_at,
-                    COALESCE(SUM(ms.score_a), 0) AS live_score_a,
-                    COALESCE(SUM(ms.score_b), 0) AS live_score_b,
+                    COALESCE((SELECT SUM(score_a) FROM match_scores WHERE match_id = m.id), 0) AS live_score_a,
+                    COALESCE((SELECT SUM(score_b) FROM match_scores WHERE match_id = m.id), 0) AS live_score_b,
                     (SELECT COUNT(*) FROM match_scores WHERE match_id = m.id) AS periods_played
-             FROM matches m
-             JOIN  tournaments t ON m.tournament_id = t.id
-             JOIN  sports      s ON t.sport_id      = s.id
-             LEFT JOIN departments da ON m.participant_a_department_id = da.id
-             LEFT JOIN departments db ON m.participant_b_department_id = db.id
-             LEFT JOIN venues      v  ON m.venue_id                    = v.id
-             LEFT JOIN match_scores ms ON m.id = ms.match_id
-             WHERE m.status IN ('ongoing', 'scheduled')
-             GROUP BY m.id
-             ORDER BY m.status DESC, m.started_at DESC, m.scheduled_date ASC`
+                    FROM matches m
+                    JOIN  tournaments t ON m.tournament_id = t.id
+                    JOIN  sports      s ON t.sport_id      = s.id
+                    LEFT JOIN departments da ON m.participant_a_department_id = da.id
+                    LEFT JOIN departments db ON m.participant_b_department_id = db.id
+                    LEFT JOIN venues      v  ON m.venue_id                    = v.id
+                    LEFT JOIN match_scores ms ON m.id = ms.match_id
+                    WHERE m.status IN ('ongoing', 'scheduled')
+                    GROUP BY m.id
+                    ORDER BY m.status DESC, m.started_at DESC, m.scheduled_date ASC`
         );
 
         // Add watcher counts

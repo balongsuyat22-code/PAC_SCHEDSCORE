@@ -34,15 +34,15 @@ const getSchedule = async (req, res, next) => {
         const { date } = req.query;
         let query = `
       SELECT m.id, m.scheduled_date, m.scheduled_time, m.status,
-             s.name as sport_name,
-             t.name as tournament_name,
-             ta.name as team_a, tb.name as team_b
-      FROM matches m
-      JOIN sports s ON m.sport_id = s.id
-      JOIN tournaments t ON m.tournament_id = t.id
-      LEFT JOIN teams ta ON m.participant_a_team_id = ta.id
-      LEFT JOIN teams tb ON m.participant_b_team_id = tb.id
-      WHERE m.venue_id = ? AND m.status NOT IN ('cancelled')
+       s.name as sport_name,
+       t.name as tournament_name,
+       da.name as team_a, db.name as team_b
+        FROM matches m
+        JOIN sports s ON m.sport_id = s.id
+        JOIN tournaments t ON m.tournament_id = t.id
+        LEFT JOIN departments da ON m.participant_a_department_id = da.id
+        LEFT JOIN departments db ON m.participant_b_department_id = db.id
+        WHERE m.venue_id = ? AND m.status NOT IN ('cancelled')
     `;
         const params = [req.params.id];
         if (date) { query += ' AND m.scheduled_date = ?'; params.push(date); }

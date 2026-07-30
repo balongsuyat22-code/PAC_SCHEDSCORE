@@ -26,23 +26,24 @@ const getAll = async (req, res, next) => {
 
         const [rows] = await pool.execute(
             `SELECT
-                d.*,
-                COALESCE(ds.total_points,       0) AS total_points,
-                COALESCE(ds.gold_medals,         0) AS gold_medals,
-                COALESCE(ds.silver_medals,       0) AS silver_medals,
-                COALESCE(ds.bronze_medals,       0) AS bronze_medals,
-                COALESCE(ds.total_participations,0) AS total_participations,
-                COALESCE(ds.tournaments_entered, 0) AS tournaments_entered,
-                COUNT(DISTINCT t.id)               AS total_teams,
-                COUNT(DISTINCT p.id)               AS total_members
-             FROM departments d
-             LEFT JOIN department_scores ds ON d.id = ds.department_id AND ds.sport_fest_id <=> ?
-             LEFT JOIN teams  t ON d.id = t.department_id AND t.sport_fest_id <=> ?
-             LEFT JOIN players p ON t.id = p.team_id AND p.status = 'approved'
-             WHERE d.is_active = 1
-             GROUP BY d.id
-             ORDER BY COALESCE(ds.total_points, 0) DESC, d.name ASC`,
-            [sportFestId, sportFestId]
+            d.id, d.name, d.code, d.description, d.color, d.logo_url,
+            d.short_name, d.is_active, d.created_at, d.updated_at,
+            COALESCE(MAX(ds.total_points), 0) AS total_points,
+            COALESCE(MAX(ds.gold_medals), 0) AS gold_medals,
+            COALESCE(MAX(ds.silver_medals), 0) AS silver_medals,
+            COALESCE(MAX(ds.bronze_medals), 0) AS bronze_medals,
+            COALESCE(MAX(ds.total_participations), 0) AS total_participations,
+            COALESCE(MAX(ds.tournaments_entered), 0) AS tournaments_entered,
+            COUNT(DISTINCT t.id) AS total_teams,
+            COUNT(DISTINCT p.id) AS total_members
+            FROM departments d
+            LEFT JOIN department_scores ds ON d.id = ds.department_id AND ds.sport_fest_id <=> ?
+            LEFT JOIN teams t ON d.id = t.department_id AND t.sport_fest_id <=> ?
+            LEFT JOIN players p ON t.id = p.team_id AND p.status = 'approved'
+            WHERE d.id = ?
+            GROUP BY d.id, d.name, d.code, d.description, d.color,
+            d.logo_url, d.short_name, d.is_active, d.created_at, d.updated_at`,
+            [sportFestId, sportFestId, req.params.id]
         );
         return res.json({ success: true, data: rows });
     } catch (err) {

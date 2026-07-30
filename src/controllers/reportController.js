@@ -33,8 +33,8 @@ const getDashboard = async (req, res, next) => {
                 (SELECT COUNT(*) FROM matches WHERE status='ongoing') as live_matches,
                 (SELECT COUNT(*) FROM matches WHERE status='completed') as completed_matches,
                 (SELECT COUNT(*) FROM matches WHERE scheduled_date=CURDATE()) as todays_matches,
-                (SELECT COUNT(*) FROM users WHERE role='player' AND is_active=1) as total_players,
-                (SELECT COUNT(*) FROM users WHERE role='referee' AND is_active=1) as total_referees,
+                (SELECT COUNT(*) FROM players WHERE status = 'approved') as total_players,
+                (SELECT COUNT(*) FROM users WHERE role = 'sgo_officer' AND is_active = 1) as total_referees,
                 (SELECT COUNT(*) FROM teams WHERE sport_fest_id <=> ?) as total_teams
         `, [sportFestId]);
 
@@ -463,9 +463,9 @@ const getDepartmentReport = async (req, res, next) => {
 
         let playerQuery = `
             SELECT u.first_name, u.last_name, p.jersey_number, p.position
+            SELECT p.first_name, p.last_name, p.jersey_number, p.position
             FROM players p
-            JOIN users u ON p.user_id = u.id
-            WHERE p.department_id = ? AND u.is_active = 1
+            WHERE p.department_id = ? AND p.status = 'approved'
         `;
         const playerParams = [deptId];
         if (sportFestId) {

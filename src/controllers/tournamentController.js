@@ -431,38 +431,23 @@ const addParticipants = async (req, res, next) => {
 const getBracket = async (req, res, next) => {
     try {
         const [rows] = await pool.execute(
-            `SELECT m.id,
-              m.tournament_id,
-              m.sport_id,
-              m.round_number,
-              m.match_number,
-              m.bracket_position,
-              m.bracket_side,
-              m.participant_a_department_id,
-              m.participant_b_department_id,
-              m.total_score_a,
-              m.total_score_b,
-              m.winner_department_id,
-              m.status,
-              m.scheduled_date,
-              m.scheduled_time,
-              m.venue_id,
-              m.referee_id,
-              m.started_at,
-              m.completed_at,
-              m.created_at,
-              m.updated_at,
-              da.name AS dept_a_name,
-              da.color AS dept_a_color,
-              db.name AS dept_b_name,
-              db.color AS dept_b_color,
-              v.name AS venue_name
-       FROM matches m
-       LEFT JOIN departments da ON da.id = m.participant_a_department_id
-       LEFT JOIN departments db ON db.id = m.participant_b_department_id
-       LEFT JOIN venues v ON v.id = m.venue_id
-       WHERE m.tournament_id = ?
-       ORDER BY m.round_number ASC, m.match_number ASC, m.id ASC`,
+            `SELECT m.id, m.tournament_id, m.sport_id, m.round_number, m.match_number,
+        m.bracket_position, m.bracket_side,
+        m.participant_a_department_id, m.participant_b_department_id,
+        m.winner_department_id, m.status, m.scheduled_date, m.scheduled_time,
+        m.venue_id, m.referee_id, m.started_at, m.completed_at,
+        m.created_at, m.updated_at,
+        da.name AS dept_a_name, da.color AS dept_a_color,
+        db.name AS dept_b_name, db.color AS dept_b_color,
+        v.name AS venue_name,
+        mr.total_score_a, mr.total_score_b, mr.final_score_display
+        FROM matches m
+        LEFT JOIN departments da ON da.id = m.participant_a_department_id
+        LEFT JOIN departments db ON db.id = m.participant_b_department_id
+        LEFT JOIN venues v ON v.id = m.venue_id
+        LEFT JOIN match_results mr ON mr.match_id = m.id
+        WHERE m.tournament_id = ?
+        ORDER BY m.round_number ASC, m.match_number ASC, m.id ASC`,
             [req.params.id]
         );
         res.json({ success: true, data: rows });
