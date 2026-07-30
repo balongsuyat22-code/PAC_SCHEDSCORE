@@ -1,12 +1,5 @@
--- ═══════════════════════════════════════════════════════════════
--- SPORT FEST MANAGEMENT SYSTEM — DATABASE SCHEMA
--- Reconstructed from controller queries (original schema.sql was empty)
--- ═══════════════════════════════════════════════════════════════
 SET NAMES utf8mb4;
 SET FOREIGN_KEY_CHECKS = 0;
--- ───────────────────────────────────────────────────────────────
--- DEPARTMENTS
--- ───────────────────────────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS departments (
     id INT AUTO_INCREMENT PRIMARY KEY,
     name VARCHAR(150) NOT NULL,
@@ -19,9 +12,6 @@ CREATE TABLE IF NOT EXISTS departments (
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 ) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4;
--- ───────────────────────────────────────────────────────────────
--- SPORT FEST EVENTS (seasons)
--- ───────────────────────────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS sport_fest_events (
     id INT AUTO_INCREMENT PRIMARY KEY,
     name VARCHAR(150) NOT NULL,
@@ -38,9 +28,6 @@ CREATE TABLE IF NOT EXISTS sport_fest_events (
     CONSTRAINT fk_sfe_champion FOREIGN KEY (champion_department_id) REFERENCES departments(id) ON DELETE
     SET NULL
 ) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4;
--- ───────────────────────────────────────────────────────────────
--- USERS  (admin | dean_adviser | sgo_president | sgo_officer)
--- ───────────────────────────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS users (
     id INT AUTO_INCREMENT PRIMARY KEY,
     uuid VARCHAR(36) NOT NULL UNIQUE,
@@ -66,9 +53,6 @@ CREATE TABLE IF NOT EXISTS users (
     SET NULL,
         INDEX idx_users_role (role)
 ) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4;
--- ───────────────────────────────────────────────────────────────
--- REFRESH TOKENS
--- ───────────────────────────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS refresh_tokens (
     id INT AUTO_INCREMENT PRIMARY KEY,
     user_id INT NOT NULL,
@@ -79,9 +63,6 @@ CREATE TABLE IF NOT EXISTS refresh_tokens (
     INDEX idx_rt_user (user_id),
     INDEX idx_rt_token (token(191))
 ) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4;
--- ───────────────────────────────────────────────────────────────
--- ACTIVITY LOGS
--- ───────────────────────────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS activity_logs (
     id INT AUTO_INCREMENT PRIMARY KEY,
     user_id INT NULL,
@@ -94,9 +75,6 @@ CREATE TABLE IF NOT EXISTS activity_logs (
     SET NULL,
         INDEX idx_al_created (created_at)
 ) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4;
--- ───────────────────────────────────────────────────────────────
--- SPORTS
--- ───────────────────────────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS sports (
     id INT AUTO_INCREMENT PRIMARY KEY,
     name VARCHAR(100) NOT NULL,
@@ -116,9 +94,6 @@ CREATE TABLE IF NOT EXISTS sports (
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 ) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4;
--- ───────────────────────────────────────────────────────────────
--- TOURNAMENTS
--- ───────────────────────────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS tournaments (
     id INT AUTO_INCREMENT PRIMARY KEY,
     name VARCHAR(150) NOT NULL,
@@ -146,9 +121,6 @@ CREATE TABLE IF NOT EXISTS tournaments (
     SET NULL,
         INDEX idx_tour_status (status)
 ) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4;
--- ───────────────────────────────────────────────────────────────
--- SPORT FEST <-> TOURNAMENTS (many-to-many link)
--- ───────────────────────────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS sport_fest_tournaments (
     sport_fest_id INT NOT NULL,
     tournament_id INT NOT NULL,
@@ -156,9 +128,6 @@ CREATE TABLE IF NOT EXISTS sport_fest_tournaments (
     CONSTRAINT fk_sft_fest FOREIGN KEY (sport_fest_id) REFERENCES sport_fest_events(id) ON DELETE CASCADE,
     CONSTRAINT fk_sft_tour FOREIGN KEY (tournament_id) REFERENCES tournaments(id) ON DELETE CASCADE
 ) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4;
--- ───────────────────────────────────────────────────────────────
--- TEAMS
--- ───────────────────────────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS teams (
     id INT AUTO_INCREMENT PRIMARY KEY,
     name VARCHAR(150) NOT NULL,
@@ -176,9 +145,6 @@ CREATE TABLE IF NOT EXISTS teams (
     CONSTRAINT fk_teams_fest FOREIGN KEY (sport_fest_id) REFERENCES sport_fest_events(id) ON DELETE
     SET NULL
 ) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4;
--- ───────────────────────────────────────────────────────────────
--- PLAYERS  (data records, NOT user accounts)
--- ───────────────────────────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS players (
     id INT AUTO_INCREMENT PRIMARY KEY,
     first_name VARCHAR(100) NOT NULL,
@@ -206,9 +172,6 @@ CREATE TABLE IF NOT EXISTS players (
     SET NULL,
         INDEX idx_players_status (status)
 ) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4;
--- ───────────────────────────────────────────────────────────────
--- VENUES
--- ───────────────────────────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS venues (
     id INT AUTO_INCREMENT PRIMARY KEY,
     name VARCHAR(150) NOT NULL,
@@ -219,9 +182,6 @@ CREATE TABLE IF NOT EXISTS venues (
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 ) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4;
--- ───────────────────────────────────────────────────────────────
--- TOURNAMENT PARTICIPANTS
--- ───────────────────────────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS tournament_participants (
     id INT AUTO_INCREMENT PRIMARY KEY,
     tournament_id INT NOT NULL,
@@ -234,9 +194,6 @@ CREATE TABLE IF NOT EXISTS tournament_participants (
     CONSTRAINT fk_tp_dept FOREIGN KEY (department_id) REFERENCES departments(id) ON DELETE CASCADE,
     UNIQUE KEY uq_tp (tournament_id, department_id)
 ) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4;
--- ───────────────────────────────────────────────────────────────
--- MATCHES
--- ───────────────────────────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS matches (
     id INT AUTO_INCREMENT PRIMARY KEY,
     tournament_id INT NOT NULL,
@@ -272,9 +229,6 @@ CREATE TABLE IF NOT EXISTS matches (
         INDEX idx_matches_status (status),
         INDEX idx_matches_date (scheduled_date)
 ) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4;
--- ───────────────────────────────────────────────────────────────
--- MATCH SCORES  (period-by-period live scoring)
--- ───────────────────────────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS match_scores (
     id INT AUTO_INCREMENT PRIMARY KEY,
     match_id INT NOT NULL,
@@ -289,9 +243,6 @@ CREATE TABLE IF NOT EXISTS match_scores (
     SET NULL,
         UNIQUE KEY uq_match_period (match_id, period)
 ) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4;
--- ───────────────────────────────────────────────────────────────
--- MATCH RESULTS  (finalized outcome, one row per match)
--- ───────────────────────────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS match_results (
     id INT AUTO_INCREMENT PRIMARY KEY,
     match_id INT NOT NULL UNIQUE,
@@ -312,9 +263,6 @@ CREATE TABLE IF NOT EXISTS match_results (
         CONSTRAINT fk_mr_mvp FOREIGN KEY (mvp_player_id) REFERENCES players(id) ON DELETE
     SET NULL
 ) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4;
--- ───────────────────────────────────────────────────────────────
--- ROUND ROBIN STANDINGS
--- ───────────────────────────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS round_robin_standings (
     id INT AUTO_INCREMENT PRIMARY KEY,
     tournament_id INT NOT NULL,
@@ -330,9 +278,6 @@ CREATE TABLE IF NOT EXISTS round_robin_standings (
     CONSTRAINT fk_rrs_dept FOREIGN KEY (department_id) REFERENCES departments(id) ON DELETE CASCADE,
     UNIQUE KEY uq_rrs (tournament_id, department_id)
 ) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4;
--- ───────────────────────────────────────────────────────────────
--- FFA RESULTS  (free-for-all events)
--- ───────────────────────────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS ffa_results (
     id INT AUTO_INCREMENT PRIMARY KEY,
     tournament_id INT NOT NULL,
@@ -347,9 +292,6 @@ CREATE TABLE IF NOT EXISTS ffa_results (
     SET NULL,
         UNIQUE KEY uq_ffa (tournament_id, department_id)
 ) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4;
--- ───────────────────────────────────────────────────────────────
--- TOURNAMENT RESULTS  (final medal/points per department per tournament)
--- ───────────────────────────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS tournament_results (
     id INT AUTO_INCREMENT PRIMARY KEY,
     tournament_id INT NOT NULL,
@@ -365,9 +307,6 @@ CREATE TABLE IF NOT EXISTS tournament_results (
     SET NULL,
         UNIQUE KEY uq_tr (tournament_id, department_id)
 ) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4;
--- ───────────────────────────────────────────────────────────────
--- DEPARTMENT SCORES  (aggregated leaderboard totals per department per season)
--- ───────────────────────────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS department_scores (
     id INT AUTO_INCREMENT PRIMARY KEY,
     department_id INT NOT NULL,
@@ -382,9 +321,6 @@ CREATE TABLE IF NOT EXISTS department_scores (
     CONSTRAINT fk_ds_fest FOREIGN KEY (sport_fest_id) REFERENCES sport_fest_events(id) ON DELETE CASCADE,
     UNIQUE KEY uq_ds (department_id, sport_fest_id)
 ) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4;
--- ───────────────────────────────────────────────────────────────
--- SCHEDULES  (standalone schedule entries, separate from matches)
--- ───────────────────────────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS schedules (
     id INT AUTO_INCREMENT PRIMARY KEY,
     title VARCHAR(150) NOT NULL,
