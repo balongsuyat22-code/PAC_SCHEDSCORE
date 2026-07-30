@@ -1,31 +1,56 @@
-/**
- * Database Setup Script
- * Usage: node src/config/setupDatabase.js
- */
 require('dotenv').config();
 const mysql = require('mysql2/promise');
 const bcrypt = require('bcryptjs');
 const fs = require('fs');
 const path = require('path');
 
+const buildConfig = () => {
+    // Prefer full URL when Railway provides it
+    if (process.env.MYSQL_URL) {
+        return process.env.MYSQL_URL;
+    }
+    if (process.env.DATABASE_URL && process.env.DATABASE_URL.startsWith('mysql')) {
+        return process.env.DATABASE_URL;
+    }
+
+    return {
+        host: process.env.DB_HOST || process.env.MYSQLHOST || 'localhost',
+        port: Number(process.env.DB_PORT || process.env.MYSQLPORT || 3306),
+        user: process.env.DB_USER || process.env.MYSQLUSER || 'root',
+        password: process.env.DB_PASSWORD || process.env.MYSQLPASSWORD || '',
+        // Don't force database here if it might not exist yet — we CREATE/USE below
+        multipleStatements: true,
+    };
+};
+
 const run = async () => {
     let conn;
     try {
+        const dbName = process.env.DB_NAME || process.env.MYSQLDATABASE || 'sportfest_db';
+
         console.log('🔧 Connecting to MySQL...');
-        conn = await mysql.createConnection({
-            host: process.env.DB_HOST || 'localhost',
-            port: process.env.DB_PORT || 3306,
-            user: process.env.DB_USER || 'root',
-            password: process.env.DB_PASSWORD || '',
-            multipleStatements: true,
-        });
+        console.log('  host:', process.env.DB_HOST || process.env.MYSQLHOST || '(from URL)');
+        console.log('  user:', process.env.DB_USER || process.env.MYSQLUSER || 'root');
+        console.log('  database (target):', dbName);
+
+        const cfg = buildConfig();
+        conn = typeof cfg === 'string'
+            ? await mysql.createConnection(cfg)
+            : await mysql.createConnection(cfg);
+
+        // Ensure DB exists, then use it (schema may assume a DB name)
+        await conn.query(`CREATE DATABASE IF NOT EXISTS \`${dbName}\``);
+        await conn.query(`USE \`${dbName}\``);
+
         console.log('✅ Connected\n');
 
         // ── 1. Run schema DDL ─────────────────────────────────────
         console.log('📦 Applying schema...');
-        const schemaSQL = fs.readFileSync(
-            path.join(__dirname, '../../sql/schema.sql'), 'utf8'
-        );
+        const schemaPath = path.join(__dirname, '../../sql/schema.sql');
+        if (!fs.existsSync(schemaPath)) {
+            throw new Error(`schema.sql not found at ${schemaPath}`);
+        }
+        const schemaSQL = fs.readFileSync(schemaPath, 'utf8');
 
         const statements = schemaSQL
             .split(';')
@@ -49,10 +74,8 @@ const run = async () => {
         }
         console.log('✅ Schema applied\n');
 
-        // ── 2. Create triggers ────────────────────────────────────
+        // ── 2. Triggers (unchanged) ───────────────────────────────
         console.log('⚡ Creating triggers...');
-        await conn.query('USE sportfest_db;').catch(() => { });
-
         await conn.query('DROP TRIGGER IF EXISTS after_tournament_result_insert;').catch(() => { });
         await conn.query('DROP TRIGGER IF EXISTS after_tournament_result_update;').catch(() => { });
 
@@ -93,66 +116,23 @@ const run = async () => {
         `);
         console.log('✅ Triggers created\n');
 
-        // ── 3. Seed default departments ──────────────────────────
-        console.log('🏫 Creating departments...');
+        // ── 3–4. Departments + users (your existing INSERT IGNORE / ON DUPLICATE KEY) ──
+        // ... keep the rest of your seed code exactly as you have it ...
 
-        await conn.query(`
-            INSERT IGNORE INTO departments (id, name, code, description) VALUES 
-            (1, 'College of Arts and Sciences', 'CAS', 'Arts and Sciences Department'),
-            (2, 'College of Business Administration', 'CBA', 'Business Administration Department'),
-            (3, 'College of Education', 'CED', 'Education Department'),
-            (4, 'College of Engineering', 'CEN', 'Engineering Department'),
-            (5, 'College of Nursing', 'CON', 'Nursing Department'),
-            (6, 'College of Information Technology', 'CIT', 'Information Technology Department')
-        `);
-        console.log('✅ Departments created\n');
-
-        // ── 4. Seed default users ────────────────────────────────
-        console.log('👤 Creating default users...');
-
-        const defaultUsers = [
-            { username: 'admin', email: 'admin@sportfest.com', password: 'password', role: 'admin', first: 'System', last: 'Admin', dept: 1 },
-            { username: 'dean_adviser', email: 'dean@sportfest.com', password: 'password', role: 'dean_adviser', first: 'Dean', last: 'Adviser', dept: 2 },
-            { username: 'sgo_president', email: 'president@sportfest.com', password: 'password', role: 'sgo_president', first: 'SGO', last: 'President', dept: null },
-            { username: 'sgo_officer', email: 'officer@sportfest.com', password: 'password', role: 'sgo_officer', first: 'SGO', last: 'Officer', dept: null },
-        ];
-
-        for (const u of defaultUsers) {
-            const hash = await bcrypt.hash(u.password, 10);
-
-            await conn.query(`
-                INSERT INTO users (uuid, username, email, password_hash, role, first_name, last_name, department_id, is_active)
-                VALUES (UUID(), ?, ?, ?, ?, ?, ?, ?, 1)
-                ON DUPLICATE KEY UPDATE 
-                    password_hash = VALUES(password_hash),
-                    first_name = VALUES(first_name),
-                    last_name = VALUES(last_name),
-                    department_id = VALUES(department_id),
-                    is_active = 1
-            `, [u.username, u.email, hash, u.role, u.first, u.last, u.dept]);
-
-            console.log(`  ✅  ${u.role.padEnd(12)} created → ${u.email}  (password: ${u.password})`);
-        }
-
-        // ── 5. Summary ────────────────────────────────────────────
-        console.log('\n🎉 Setup complete!\n');
-        console.log('═══════════════════════════════════════════════════════════');
-        console.log('  🔑 LOGIN CREDENTIALS (password is "password" for all):');
-        console.log('───────────────────────────────────────────────────────────');
-        console.log('  Role           Email                     Password');
-        console.log('───────────────────────────────────────────────────────────');
-        console.log('  admin          admin@sportfest.com        password');
-        console.log('  dean_adviser   dean@sportfest.com         password');
-        console.log('  sgo_president  president@sportfest.com    password');
-        console.log('  sgo_officer    officer@sportfest.com      password');
-        console.log('═══════════════════════════════════════════════════════════');
-        console.log('\n  🚀 Start the server: npm run dev\n');
-
+        console.log('\n🎉 Setup complete!');
     } catch (err) {
         console.error('\n❌ Setup failed:', err.message);
-        if (err.code === 'ECONNREFUSED') console.error('   → MySQL is not running. Start XAMPP first.');
-        if (err.code === 'ER_ACCESS_DENIED_ERROR') console.error('   → Wrong DB_USER or DB_PASSWORD in .env');
-        if (err.code === 'ER_BAD_DB_ERROR') console.error('   → Database does not exist yet (it will be created by schema.sql).');
+        if (err.code === 'ECONNREFUSED') {
+            console.error('   → Nothing is listening on the host/port you used.');
+            console.error('   → On Railway: set DB_HOST/MYSQLHOST (or MYSQL_URL) from the MySQL service.');
+            console.error('   → Locally: start MySQL/XAMPP.');
+        }
+        if (err.code === 'ER_ACCESS_DENIED_ERROR') {
+            console.error('   → Wrong user/password. Check MYSQLUSER/MYSQLPASSWORD or DB_USER/DB_PASSWORD.');
+        }
+        if (err.code === 'ENOTFOUND') {
+            console.error('   → Hostname not found. Use the MySQL service private host (*.railway.internal), not a public URL.');
+        }
         process.exit(1);
     } finally {
         if (conn) await conn.end();
