@@ -593,11 +593,17 @@ const updatePlayerStatus = async (req, res, next) => {
             if (player.team_id) {
                 const [claim] = await pool.execute(
                     `UPDATE players p
-                     JOIN teams t ON p.team_id = t.id
-                     JOIN sports s ON t.sport_id = s.id
-                     SET p.status = 'approved', p.rejection_reason = NULL, p.updated_at = NOW()
-                     WHERE p.id = ?
-                       AND (SELECT COUNT(*) FROM players WHERE team_id = p.team_id AND status = 'approved') < s.max_players`,
+             JOIN teams t ON p.team_id = t.id
+             JOIN sports s ON t.sport_id = s.id
+             LEFT JOIN (
+                 SELECT team_id, COUNT(*) AS approved_count
+                 FROM players
+                 WHERE status = 'approved'
+                 GROUP BY team_id
+             ) AS counts ON counts.team_id = t.id
+             SET p.status = 'approved', p.rejection_reason = NULL, p.updated_at = NOW()
+             WHERE p.id = ?
+               AND (counts.approved_count IS NULL OR counts.approved_count < s.max_players)`,
                     [playerId]
                 );
                 if (claim.affectedRows === 0) {
@@ -612,11 +618,6 @@ const updatePlayerStatus = async (req, res, next) => {
                     [playerId]
                 );
             }
-        } else {
-            await pool.execute(
-                'UPDATE players SET status = ?, rejection_reason = ?, updated_at = NOW() WHERE id = ?',
-                [status, reason || null, playerId]
-            );
         }
 
         const action = status === 'approved' ? 'PLAYER_APPROVED' : status === 'rejected' ? 'PLAYER_REJECTED' : 'PLAYER_PENDING';
