@@ -80,14 +80,8 @@ const getAll = async (req, res, next) => {
         `;
         const params = [];
 
-        // Season-scope by default: only tournaments linked to the active
-        // sport fest. Pass ?all=true to see every tournament ever created
-        // (useful for admin archive views).
         if (sportFestId) {
-            query += ` WHERE EXISTS (
-                SELECT 1 FROM sport_fest_tournaments sft
-                WHERE sft.tournament_id = t.id AND sft.sport_fest_id = ?
-            )`;
+            query += ` WHERE EXISTS (SELECT 1 FROM sport_fest_tournaments sft WHERE sft.tournament_id = t.id AND sft.sport_fest_id = ?)`;
             params.push(sportFestId);
         }
 
