@@ -120,6 +120,20 @@ const update = async (req, res, next) => {
 
 const remove = async (req, res, next) => {
     try {
+        // Same guard departmentController.remove() already had — nothing
+        // previously stopped a venue being deactivated while matches are
+        // still scheduled or in progress there, silently orphaning them.
+        const [active] = await pool.execute(
+            `SELECT COUNT(*) AS count FROM matches WHERE venue_id = ? AND status IN ('scheduled', 'ongoing')`,
+            [req.params.id]
+        );
+        if (active[0].count > 0) {
+            return res.status(400).json({
+                success: false,
+                message: 'Cannot deactivate a venue with scheduled or ongoing matches. Reassign or complete them first.',
+            });
+        }
+
         await pool.execute('UPDATE venues SET is_active = 0 WHERE id = ?', [req.params.id]);
         res.json({ success: true, message: 'Venue deactivated' });
     } catch (err) {

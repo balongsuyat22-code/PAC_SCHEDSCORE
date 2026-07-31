@@ -91,6 +91,24 @@ const registerPlayer = async (req, res, next) => {
             });
         }
 
+        // This is NOT a block — a student legitimately playing both
+        // basketball and badminton is normal for a sports fest. But the
+        // dean has no visibility into that when typing a new entry, and a
+        // typo'd duplicate (same person, sport re-entered by mistake) looks
+        // identical to a real second sport from the backend's point of
+        // view. So: surface it as a warning the dean can see and dismiss,
+        // rather than silently allowing or wrongly blocking either case.
+        const [possibleMatches] = await conn.execute(
+            `SELECT p.id, p.status, p.team_id, s.name AS sport_name, t.name AS team_name
+             FROM players p
+             LEFT JOIN sports s ON p.sport_id = s.id
+             LEFT JOIN teams  t ON p.team_id  = t.id
+             WHERE LOWER(p.first_name) = LOWER(?) AND LOWER(p.last_name) = LOWER(?)
+               AND p.department_id = ? AND p.sport_fest_id = ?
+               AND p.sport_id != ?`,
+            [first_name.trim(), last_name.trim(), department_id, sportFestId, sport_id]
+        );
+
         const [result] = await conn.execute(
             `INSERT INTO players
              (first_name, last_name, gender, image_url, department_id,
@@ -123,8 +141,18 @@ const registerPlayer = async (req, res, next) => {
 
         return res.status(201).json({
             success: true,
-            message: 'Player registered successfully. Waiting for approval.',
-            data: { id: result.insertId },
+            message: possibleMatches.length
+                ? `Player registered successfully. Waiting for approval. Heads up: someone with this name is already registered in ${possibleMatches.length} other sport(s)/team(s) this season — confirm this is the same student joining another sport, not a duplicate entry.`
+                : 'Player registered successfully. Waiting for approval.',
+            data: {
+                id: result.insertId,
+                possible_duplicates: possibleMatches.map(m => ({
+                    player_id: m.id,
+                    sport: m.sport_name,
+                    team: m.team_name,
+                    status: m.status,
+                })),
+            },
         });
 
     } catch (err) {
@@ -701,7 +729,7 @@ const importPlayers = async (req, res, next) => {
 
         await conn.beginTransaction();
 
-        const results = { inserted: 0, skipped: 0, errors: [] };
+        const results = { inserted: 0, skipped: 0, errors: [], possible_duplicates: [] };
 
         for (const p of players) {
             if (!p.first_name || !p.last_name || !p.gender || !p.sport_id) {
@@ -721,6 +749,22 @@ const importPlayers = async (req, res, next) => {
                 results.skipped++;
                 results.errors.push(`Duplicate skipped: ${p.first_name} ${p.last_name}`);
                 continue;
+            }
+
+            // Same non-blocking cross-sport check as registerPlayer — a
+            // CSV import is exactly where a name gets pasted into two
+            // different sport sheets by accident with nobody noticing.
+            const [crossSport] = await conn.execute(
+                `SELECT s.name AS sport_name FROM players p
+                 LEFT JOIN sports s ON p.sport_id = s.id
+                 WHERE LOWER(p.first_name)=LOWER(?) AND LOWER(p.last_name)=LOWER(?)
+                   AND p.department_id=? AND p.sport_fest_id=? AND p.sport_id != ?`,
+                [p.first_name.trim(), p.last_name.trim(), department_id, sportFestId, p.sport_id]
+            );
+            if (crossSport.length) {
+                results.possible_duplicates.push(
+                    `${p.first_name} ${p.last_name} — already registered for: ${crossSport.map(c => c.sport_name).join(', ')}`
+                );
             }
 
             await conn.execute(
@@ -750,7 +794,8 @@ const importPlayers = async (req, res, next) => {
 
         return res.status(201).json({
             success: true,
-            message: `Import complete: ${results.inserted} players added, ${results.skipped} skipped.`,
+            message: `Import complete: ${results.inserted} players added, ${results.skipped} skipped.` +
+                (results.possible_duplicates.length ? ` ${results.possible_duplicates.length} possible cross-sport duplicate(s) flagged — check the response.` : ''),
             data: results,
         });
 
@@ -826,6 +871,56 @@ const removeFromTeam = async (req, res, next) => {
     }
 };
 
+// ---------------------------------------------------------------------------
+// CHECK POSSIBLE DUPLICATE  (live-check while filling the registration form)
+// GET /api/players/check-duplicate?first_name=&last_name=&department_id=&sport_id=
+// Protected: dean_adviser (own dept) | admin
+//
+// Lets the registration form warn the dean BEFORE they submit, instead of
+// only finding out after: "Juan Dela Cruz is already on the Basketball
+// roster (Team Falcons) — continuing will register him for a second sport."
+// Same-sport exact matches are still hard-blocked by registerPlayer itself;
+// this is the softer, earlier warning for the cross-sport/cross-team case.
+// ---------------------------------------------------------------------------
+const checkDuplicate = async (req, res, next) => {
+    try {
+        const { first_name, last_name, department_id, sport_id } = req.query;
+        if (!first_name || !last_name || !department_id) {
+            return res.status(400).json({ success: false, message: 'first_name, last_name, and department_id are required.' });
+        }
+        if (req.user.role === 'dean_adviser' && req.user.department_id !== parseInt(department_id)) {
+            return res.status(403).json({ success: false, message: 'Access denied.' });
+        }
+
+        const sportFestId = await getActiveSportFestId();
+
+        const [matches] = await pool.execute(
+            `SELECT p.id, p.status, p.team_id, p.sport_id, s.name AS sport_name, t.name AS team_name
+             FROM players p
+             LEFT JOIN sports s ON p.sport_id = s.id
+             LEFT JOIN teams  t ON p.team_id  = t.id
+             WHERE LOWER(p.first_name) = LOWER(?) AND LOWER(p.last_name) = LOWER(?)
+               AND p.department_id = ? AND p.sport_fest_id <=> ?`,
+            [String(first_name).trim(), String(last_name).trim(), department_id, sportFestId]
+        );
+
+        const sameSport = sport_id ? matches.filter(m => String(m.sport_id) === String(sport_id)) : [];
+        const otherSports = sport_id ? matches.filter(m => String(m.sport_id) !== String(sport_id)) : matches;
+
+        return res.json({
+            success: true,
+            data: {
+                exact_duplicate: sameSport.length > 0, // would be hard-blocked if they submit
+                possible_duplicates: otherSports.map(m => ({
+                    player_id: m.id, sport: m.sport_name, team: m.team_name, status: m.status,
+                })),
+            },
+        });
+    } catch (err) {
+        next(err);
+    }
+};
+
 module.exports = {
     registerPlayer,
     getAllPlayers,
@@ -839,6 +934,7 @@ module.exports = {
     updatePlayer,
     updatePlayerStatus,
     checkEligibility,
+    checkDuplicate,
     importPlayers,
     deletePlayer,
     removeFromTeam,

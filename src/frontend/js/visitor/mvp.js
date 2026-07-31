@@ -6,20 +6,28 @@ let mvpData = [];
 
 async function fetchMVPs() {
     const endpoints = [
-        `${BASE}/api/leaderboard/overall-mvp`,
-        `${BASE}/api/leaderboard/top-scorers?limit=30`,
-        `${BASE}/api/matches/mvps`
+        '/api/leaderboard/overall-mvp',
+        '/api/leaderboard/top-scorers?limit=30',
+        '/api/matches/mvps'
     ];
-    for (const url of endpoints) {
-        try {
-            const r = await fetch(url);
-            if (!r.ok) continue;
-            const j = await r.json();
-            const rows = j.data || [];
-            if (rows.length) return normalizeMVP(rows);
-        } catch { /* try next */ }
+    let sawNetworkError = false;
+
+    for (const path of endpoints) {
+        // Uses the shared fetchJSON from config.js — same BASE fix applies
+        // here, so this stops silently failing in production too.
+        const res = await fetchJSON(path);
+        if (!res.ok) {
+            if (res.status === 0) sawNetworkError = true; // couldn't reach server at all
+            continue;
+        }
+        const rows = res.data || [];
+        if (rows.length) return { rows: normalizeMVP(rows), error: null };
     }
-    return [];
+
+    // All endpoints came back empty/missing — that's a genuine "no MVPs
+    // yet" state. Only surface an error if the server itself was
+    // unreachable, so the empty state doesn't lie about why it's empty.
+    return { rows: [], error: sawNetworkError ? 'unreachable' : null };
 }
 
 function normalizeMVP(rows) {
@@ -35,9 +43,19 @@ function normalizeMVP(rows) {
     }));
 }
 
-function renderMVPs(list) {
+function renderMVPs(list, error) {
     const el = document.getElementById('mvp-container');
     if (!el) return;
+
+    if (error === 'unreachable') {
+        el.innerHTML = `<div class="empty-state" style="grid-column:1/-1">
+      <span class="empty-icon">${I.zap}</span>
+      <div class="empty-title">Could not load MVPs</div>
+      <div class="empty-sub">Check server connection</div>
+    </div>`;
+        return;
+    }
+
     if (!list.length) {
         el.innerHTML = `<div class="empty-state" style="grid-column:1/-1">
       <span class="empty-icon">${I.star}</span>
@@ -82,8 +100,9 @@ function clearSearch() {
 async function loadMVPs() {
     const el = document.getElementById('mvp-container');
     if (el) el.innerHTML = `<div class="empty-state" style="grid-column:1/-1"><div class="live-dot" style="margin:0 auto 12px"></div><div class="empty-sub">Loading MVPs…</div></div>`;
-    mvpData = await fetchMVPs();
-    renderMVPs(mvpData);
+    const { rows, error } = await fetchMVPs();
+    mvpData = rows;
+    renderMVPs(mvpData, error);
 }
 
 document.addEventListener('DOMContentLoaded', () => {

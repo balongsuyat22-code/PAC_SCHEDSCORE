@@ -156,6 +156,21 @@ const update = async (req, res, next) => {
 
 const remove = async (req, res, next) => {
     try {
+        // Same guard pattern as departmentController/venueController — a
+        // sport with tournaments still open shouldn't be able to vanish
+        // out from under registration/bracket/scoring flows.
+        const [active] = await pool.execute(
+            `SELECT COUNT(*) AS count FROM tournaments
+             WHERE sport_id = ? AND status IN ('draft', 'registration', 'ongoing')`,
+            [req.params.id]
+        );
+        if (active[0].count > 0) {
+            return res.status(400).json({
+                success: false,
+                message: 'Cannot deactivate a sport with active tournaments (draft, registration, or ongoing). Finalize or cancel them first.',
+            });
+        }
+
         await pool.execute(`UPDATE sports SET is_active = 0 WHERE id = ?`, [req.params.id]);
         res.json({ success: true, message: 'Sport deactivated' });
     } catch (err) {

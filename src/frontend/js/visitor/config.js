@@ -1,5 +1,26 @@
 /** Shared config & utilities for PAC SCHED-SCORE public pages */
-const BASE = window.PAC_API_BASE || (location.origin.includes('3000') ? '' : 'http://localhost:3000');
+
+// FIXED — this was the actual cause of every ERR_CONNECTION_REFUSED /
+// failed WebSocket you're seeing in production. The old logic was:
+//   location.origin.includes('3000') ? '' : 'http://localhost:3000'
+// which means: "same-origin ONLY if the URL happens to contain the digits
+// 3000 — otherwise always point at localhost:3000." On Railway
+// (pacsportsched-production.up.railway.app) that condition is false, so
+// every page tried to fetch and open a socket against a server that only
+// exists on your dev machine. It happened to work in local dev purely by
+// coincidence (dev server runs on port 3000, so the URL contains "3000").
+//
+// Correct rule: use the same origin the page was served from, in every
+// environment, UNLESS you're on localhost/127.0.0.1 on a port that ISN'T
+// already your API port — that's the one case that actually needs the
+// separate-origin dev server address. window.PAC_API_BASE always wins if
+// you explicitly set it (e.g. for a staging environment).
+const BASE = window.PAC_API_BASE || (() => {
+    const isLocalHost = location.hostname === 'localhost' || location.hostname === '127.0.0.1';
+    if (!isLocalHost) return ''; // production/staging: always same-origin
+    return location.port === '3000' ? '' : 'http://localhost:3000';
+})();
+
 const MATCHES_POLL_MS = 20000;
 const LEADERBOARD_POLL_MS = 30000;
 const MODAL_POLL_MS = 8000;
@@ -136,6 +157,7 @@ function applyDynamicTheme(hex) {
 let socket = null;
 let isConnected = false;
 const activeMatchRooms = new Set();
+let consecutiveFetchFailures = 0;
 
 function initSocket(handlers = {}) {
     if (typeof io === 'undefined') {
@@ -143,9 +165,16 @@ function initSocket(handlers = {}) {
         return null;
     }
     try {
-        socket = io(BASE || undefined, { transports: ['websocket', 'polling'], reconnection: true });
+        socket = io(BASE || undefined, {
+            transports: ['websocket', 'polling'],
+            reconnection: true,
+            reconnectionAttempts: Infinity,
+            reconnectionDelay: 1000,
+            reconnectionDelayMax: 10000,
+        });
         socket.on('connect', () => {
             isConnected = true;
+            consecutiveFetchFailures = 0;
             updateWsStatus(true);
             activeMatchRooms.forEach(id => socket.emit('joinMatch', id));
             if (handlers.onConnect) handlers.onConnect();
@@ -153,6 +182,13 @@ function initSocket(handlers = {}) {
         socket.on('disconnect', () => {
             isConnected = false;
             updateWsStatus(false);
+        });
+        // Surfaces *why* it's not connecting instead of failing silently —
+        // helpful the next time BASE is misconfigured.
+        socket.on('connect_error', (err) => {
+            isConnected = false;
+            updateWsStatus(false);
+            console.warn('Socket connect_error:', err?.message || err, '— API base:', BASE || '(same origin)');
         });
         socket.on('score:update', data => { if (handlers.onScoreUpdate) handlers.onScoreUpdate(data); });
         socket.on('match:started', data => { if (handlers.onMatchStarted) handlers.onMatchStarted(data); });
@@ -188,6 +224,25 @@ function leaveMatchRoom(id) {
     if (socket && isConnected && id != null) {
         socket.emit('leaveMatch', id);
         activeMatchRooms.delete(id);
+    }
+}
+
+// Shared fetch wrapper so every page's "Could not load X" message can show
+// the real reason (network unreachable vs. a 4xx/5xx from the API) instead
+// of each page hand-rolling its own try/catch with a generic message.
+async function fetchJSON(path) {
+    try {
+        const r = await fetch(`${BASE}${path}`);
+        const j = await r.json().catch(() => ({}));
+        if (!r.ok) {
+            consecutiveFetchFailures++;
+            return { ok: false, status: r.status, message: j.message || `HTTP ${r.status}`, data: null };
+        }
+        consecutiveFetchFailures = 0;
+        return { ok: true, status: r.status, message: null, data: j.data ?? j };
+    } catch {
+        consecutiveFetchFailures++;
+        return { ok: false, status: 0, message: 'Network error — server unreachable', data: null };
     }
 }
 
