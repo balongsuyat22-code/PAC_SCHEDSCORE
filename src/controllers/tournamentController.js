@@ -460,7 +460,7 @@ const create = async (req, res, next) => {
         const {
             name,
             sport_id,
-            sport_fest_id = 1,
+            sport_fest_id,                 // optional – will fall back to active fest
             format = 'single_elimination',
             gender = 'open',
             status = 'draft',
@@ -477,6 +477,18 @@ const create = async (req, res, next) => {
 
         if (!name || !sport_id) {
             return res.status(400).json({ success: false, message: 'name and sport_id are required' });
+        }
+
+        // Resolve which sport fest this tournament belongs to
+        let festId = sport_fest_id ? parseInt(sport_fest_id, 10) : null;
+        if (!festId) {
+            festId = await getActiveSportFestId();
+        }
+        if (!festId) {
+            return res.status(400).json({
+                success: false,
+                message: 'No active sport fest found. Create / activate a sport fest first, or pass sport_fest_id.',
+            });
         }
 
         // Pull sport defaults for team/individual
@@ -502,14 +514,14 @@ const create = async (req, res, next) => {
 
         const [result] = await pool.execute(
             `INSERT INTO tournaments
-        (name, sport_id, sport_fest_id, format, gender, status, max_participants,
-         start_date, end_date, description, created_by, ffa_scoring,
-         group_count, advance_per_group, min_players, category)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+                (name, sport_id, sport_fest_id, format, gender, status, max_participants,
+                 start_date, end_date, description, created_by, ffa_scoring,
+                 group_count, advance_per_group, min_players, category)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
             [
                 name,
                 sport_id,
-                sport_fest_id || 1,
+                festId,
                 format,
                 gender || 'open',
                 status || 'draft',
@@ -526,10 +538,20 @@ const create = async (req, res, next) => {
             ]
         );
 
+        const tournamentId = result.insertId;
+
+        // ── Critical: link tournament to the sport fest (junction table) ──
+        // getAll filters through this table, so without the row the tournament is invisible
+        await pool.execute(
+            `INSERT IGNORE INTO sport_fest_tournaments (tournament_id, sport_fest_id)
+             VALUES (?, ?)`,
+            [tournamentId, festId]
+        );
+
         res.status(201).json({
             success: true,
             message: 'Tournament created',
-            data: { id: result.insertId },
+            data: { id: tournamentId },
         });
     } catch (err) {
         console.error('create error:', err);
