@@ -130,6 +130,16 @@ const register = async (req, res, next) => {
             });
         }
 
+        // registerPlayer's counterpart (changePassword/resetPassword) both
+        // enforce a minimum length; this endpoint didn't, so an account
+        // could previously be created with a 1-character password.
+        if (password.length < 6) {
+            return res.status(400).json({
+                success: false,
+                message: 'Password must be at least 6 characters.',
+            });
+        }
+
 
         const ALLOWED_ROLES = ['admin', 'dean_adviser', 'sgo_president', 'sgo_officer'];
         if (!ALLOWED_ROLES.includes(role)) {
@@ -348,6 +358,14 @@ const changePassword = async (req, res, next) => {
 
 const resetPassword = async (req, res, next) => {
     try {
+        // This resets ANOTHER user's password — defense in depth beyond
+        // whatever the route middleware does. Without this, any endpoint
+        // that forgets to restrict this route to admin would let anyone
+        // authenticated take over any account.
+        if (!req.user || req.user.role !== 'admin') {
+            return res.status(403).json({ success: false, message: 'Only an admin can reset another user\'s password.' });
+        }
+
         const { new_password } = req.body;
         const targetId = parseInt(req.params.userId);
 
@@ -384,18 +402,33 @@ const resetPassword = async (req, res, next) => {
 };
 
 // ── DEV-ONLY DEBUG HELPER ──────────────────────────────────────
-// Reveals exactly what's stored for a given user's hash: its length,
-// its raw hex bytes (so stray whitespace/CR/LF is visible), and whether
-// bcrypt.compare succeeds with the trimmed vs. untrimmed stored value.
+// Reveals whether a stored hash has stray whitespace (length mismatch
+// only — NOT the actual hash bytes; see hardening notes below).
 // Mounted only when NODE_ENV !== 'production' (see routes/auth.js).
+//
+// HARDENED — the original version had two real security problems even
+// for a "dev-only" route:
+//   1. It accepted the password via GET query string (?password=...),
+//      which lands in server access logs, browser history, and any
+//      proxy/CDN logs in between — regardless of environment.
+//   2. It echoed the full hex dump of the bcrypt hash bytes back in the
+//      response body. A bcrypt hash isn't the password, but there's no
+//      reason to hand it to the client at all, dev tool or not — treat
+//      "the hash leaked" the same as "a secret leaked."
+// Fixed: requires POST (body, not query string) and returns only
+// length/whitespace diagnostics, never the hash itself.
 const debugPassword = async (req, res) => {
     try {
-        const { email, password } = req.query;
+        if (process.env.NODE_ENV === 'production') {
+            return res.status(404).json({ success: false, message: 'Not found.' });
+        }
+
+        const { email, password } = req.body || {};
 
         if (!email || !password) {
             return res.status(400).json({
                 success: false,
-                message: 'Email and password required as query params, e.g. ?email=admin@sportfest.com&password=password'
+                message: 'Email and password required in the POST body (not query params).'
             });
         }
 
@@ -423,10 +456,7 @@ const debugPassword = async (req, res) => {
                 user: { id: user.id, username: user.username, email: user.email },
                 hash_length_raw: raw.length,
                 hash_length_trimmed: trimmed.length,
-                // Hex dump reveals exactly what's stored, byte for byte —
-                // if raw.length !== trimmed.length, compare the two hex
-                // strings and the extra byte(s) will jump out (0d=\r, 0a=\n, 20=space).
-                hash_hex_raw: Buffer.from(raw, 'utf8').toString('hex'),
+                has_stray_whitespace: raw.length !== trimmed.length,
                 password_match_raw_hash: matchRaw,
                 password_match_trimmed_hash: matchTrimmed,
             }

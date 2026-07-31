@@ -31,6 +31,19 @@ const { getActiveSportFestId } = require('../utils/season');
 const registerPlayer = async (req, res, next) => {
     const conn = await pool.getConnection();
     try {
+        // Hard gate at the controller level: players are registered ON
+        // BEHALF OF a department by that department's dean, or by admin —
+        // never by the player themselves. This doesn't rely on route
+        // middleware alone; if this function is ever reached without an
+        // authenticated dean/admin, it refuses rather than silently
+        // trusting req.user.
+        if (!req.user || !['dean_adviser', 'admin'].includes(req.user.role)) {
+            return res.status(403).json({
+                success: false,
+                message: 'Only a department dean/adviser or an admin can register players.',
+            });
+        }
+
         const {
             first_name, last_name, gender,
             department_id, sport_id, team_id,
@@ -541,30 +554,42 @@ const updatePlayerStatus = async (req, res, next) => {
             return res.status(403).json({ success: false, message: 'Access denied.' });
         }
 
-        // On approval, enforce max player limit per sport
+        // On approval, enforce max player limit per sport atomically: the
+        // capacity check and the status flip happen in the SAME UPDATE, so
+        // two deans/admins approving different players on the same team at
+        // the same moment can't both slip past a "count < max" check that
+        // was only true at the instant it was read (the old version did
+        // SELECT COUNT then a separate UPDATE — a real race under
+        // concurrent approvals).
         if (status === 'approved') {
             if (player.team_id) {
-                const [limitRes] = await pool.execute(
-                    `SELECT s.max_players,
-                            (SELECT COUNT(*) FROM players WHERE team_id = ? AND status = 'approved') AS current_approved
-                     FROM teams t
+                const [claim] = await pool.execute(
+                    `UPDATE players p
+                     JOIN teams t ON p.team_id = t.id
                      JOIN sports s ON t.sport_id = s.id
-                     WHERE t.id = ?`,
-                    [player.team_id, player.team_id]
+                     SET p.status = 'approved', p.rejection_reason = NULL, p.updated_at = NOW()
+                     WHERE p.id = ?
+                       AND (SELECT COUNT(*) FROM players WHERE team_id = p.team_id AND status = 'approved') < s.max_players`,
+                    [playerId]
                 );
-                if (limitRes.length && limitRes[0].current_approved >= limitRes[0].max_players) {
+                if (claim.affectedRows === 0) {
                     return res.status(400).json({
                         success: false,
-                        message: `Cannot approve. Team is already at the maximum roster limit of ${limitRes[0].max_players}.`,
+                        message: 'Cannot approve. Team is already at the maximum roster limit.',
                     });
                 }
+            } else {
+                await pool.execute(
+                    "UPDATE players SET status = 'approved', rejection_reason = NULL, updated_at = NOW() WHERE id = ?",
+                    [playerId]
+                );
             }
+        } else {
+            await pool.execute(
+                'UPDATE players SET status = ?, rejection_reason = ?, updated_at = NOW() WHERE id = ?',
+                [status, reason || null, playerId]
+            );
         }
-
-        await pool.execute(
-            'UPDATE players SET status = ?, rejection_reason = ?, updated_at = NOW() WHERE id = ?',
-            [status, reason || null, playerId]
-        );
 
         const action = status === 'approved' ? 'PLAYER_APPROVED' : status === 'rejected' ? 'PLAYER_REJECTED' : 'PLAYER_PENDING';
         await logActivity(
@@ -647,6 +672,13 @@ const checkEligibility = async (req, res, next) => {
 const importPlayers = async (req, res, next) => {
     const conn = await pool.getConnection();
     try {
+        if (!req.user || !['dean_adviser', 'admin'].includes(req.user.role)) {
+            return res.status(403).json({
+                success: false,
+                message: 'Only a department dean/adviser or an admin can import players.',
+            });
+        }
+
         const { players } = req.body;
         const department_id = req.user.role === 'dean_adviser'
             ? req.user.department_id

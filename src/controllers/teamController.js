@@ -321,20 +321,26 @@ const addMember = async (req, res, next) => {
             return res.status(400).json({ success: false, message: 'Player and team belong to different seasons.' });
         }
 
-        // Check capacity
-        const [sport] = await pool.execute('SELECT max_players FROM sports WHERE id = ?', [team[0].sport_id]);
-        const [count] = await pool.execute(
-            "SELECT COUNT(*) AS c FROM players WHERE team_id = ? AND status = 'approved'",
-            [teamId]
+        // Check capacity + assign atomically — same TOCTOU fix as
+        // playerController.updatePlayerStatus: read-then-write on a COUNT
+        // lets two concurrent adds both slip in when the team has exactly
+        // one slot left.
+        const [claim] = await pool.execute(
+            `UPDATE players p
+             JOIN sports s ON s.id = ?
+             SET p.team_id = ?, p.updated_at = NOW()
+             WHERE p.id = ?
+               AND (SELECT COUNT(*) FROM players WHERE team_id = ? AND status = 'approved') < s.max_players`,
+            [team[0].sport_id, teamId, player_id, teamId]
         );
-        if (sport[0] && count[0].c >= sport[0].max_players) {
+        if (claim.affectedRows === 0) {
+            const [sport] = await pool.execute('SELECT max_players FROM sports WHERE id = ?', [team[0].sport_id]);
             return res.status(400).json({
                 success: false,
-                message: `Team is at max capacity (${sport[0].max_players} approved players).`,
+                message: `Team is at max capacity (${sport[0]?.max_players ?? '?'} approved players).`,
             });
         }
 
-        await pool.execute('UPDATE players SET team_id = ?, updated_at = NOW() WHERE id = ?', [teamId, player_id]);
         return res.json({ success: true, message: 'Player added to team.' });
     } catch (err) {
         next(err);
@@ -388,18 +394,22 @@ const updatePlayerStatus = async (req, res, next) => {
         }
 
         if (status === 'approved') {
-            const [limitRes] = await pool.execute(
-                `SELECT s.max_players,
-                        (SELECT COUNT(*) FROM players WHERE team_id = ? AND status = 'approved') AS current_approved
-                 FROM teams t JOIN sports s ON t.sport_id = s.id WHERE t.id = ?`,
-                [teamId, teamId]
+            const [claim] = await pool.execute(
+                `UPDATE players p
+                 JOIN teams t ON t.id = ?
+                 JOIN sports s ON t.sport_id = s.id
+                 SET p.status = 'approved', p.updated_at = NOW()
+                 WHERE p.id = ? AND p.team_id = ?
+                   AND (SELECT COUNT(*) FROM players WHERE team_id = ? AND status = 'approved') < s.max_players`,
+                [teamId, playerId, teamId, teamId]
             );
-            if (limitRes[0] && limitRes[0].current_approved >= limitRes[0].max_players) {
+            if (claim.affectedRows === 0) {
                 return res.status(400).json({
                     success: false,
-                    message: `Cannot approve. Max roster limit is ${limitRes[0].max_players}.`,
+                    message: 'Cannot approve. Max roster limit reached (or player not on this team).',
                 });
             }
+            return res.json({ success: true, message: 'Player marked as approved.' });
         }
 
         await pool.execute('UPDATE players SET status = ?, updated_at = NOW() WHERE id = ? AND team_id = ?', [status, playerId, teamId]);
@@ -455,6 +465,24 @@ const submitRoster = async (req, res, next) => {
 const remove = async (req, res, next) => {
     try {
         const teamId = parseInt(req.params.id);
+
+        // Same guard departmentController.remove() already had — a team
+        // that's an active participant (or has matches scheduled) shouldn't
+        // vanish out from under a tournament in progress.
+        const [active] = await pool.execute(
+            `SELECT COUNT(*) AS count FROM matches m
+             JOIN teams t ON t.id = ?
+             WHERE (m.participant_a_department_id = t.department_id OR m.participant_b_department_id = t.department_id)
+               AND m.sport_id = t.sport_id
+               AND m.status IN ('scheduled', 'ongoing')`,
+            [teamId]
+        );
+        if (active[0].count > 0) {
+            return res.status(400).json({
+                success: false,
+                message: 'Cannot delete a team that has scheduled or ongoing matches.',
+            });
+        }
 
         // Unlink players first
         await pool.execute('UPDATE players SET team_id = NULL WHERE team_id = ?', [teamId]);

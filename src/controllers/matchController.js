@@ -31,6 +31,31 @@ const {
 const safeFK = (val) => { const n = parseInt(val); return Number.isInteger(n) && n > 0 ? n : null; };
 const safeDate = (val) => { if (!val) return null; return String(val).split('T')[0]; };
 
+// ---------------------------------------------------------------------------
+// MATCH STATE MACHINE
+// pending -> scheduled -> ongoing -> completed
+//                                 \-> cancelled (from pending/scheduled/ongoing)
+//
+// Rules:
+//  - schedule (date/time/venue/referee) may only change while the match has
+//    not started yet (pending/scheduled). Once a match is ongoing/completed,
+//    logistics are locked to avoid confusing referees/venues mid-game.
+//  - start requires the match to currently be scheduled (or pending, if an
+//    officer starts it ad-hoc). It can never "re-start" an ongoing/completed match.
+//  - scores may only be written while the match is ongoing.
+//  - complete requires the match to currently be ongoing, and can only
+//    happen once — this prevents double-counting round-robin standings.
+// ---------------------------------------------------------------------------
+const canReschedule = (status) => ['pending', 'scheduled'].includes(status);
+const canStart = (status) => ['pending', 'scheduled'].includes(status);
+const canScore = (status) => status === 'ongoing';
+const canComplete = (status) => status === 'ongoing';
+
+const getMatchStatus = async (matchId) => {
+    const [[row]] = await pool.execute('SELECT status FROM matches WHERE id = ?', [matchId]);
+    return row ? row.status : null;
+};
+
 const getAll = async (req, res, next) => {
     try {
         const { tournament_id, status, date, referee_id, department_id, venue_id } = req.query;
@@ -377,6 +402,19 @@ const schedule = async (req, res, next) => {
         const finalVenue = safeFK(req.body.venue_id);
         const finalReferee = safeFK(req.body.referee_id);
 
+        const currentStatus = await getMatchStatus(matchId);
+        if (currentStatus === null) {
+            return res.status(404).json({ success: false, message: 'Match not found.' });
+        }
+        if (!canReschedule(currentStatus)) {
+            return res.status(409).json({
+                success: false,
+                message: currentStatus === 'ongoing'
+                    ? 'This match is currently in progress — venue, time, and officer are locked until it ends.'
+                    : 'This match is already completed and can no longer be rescheduled.',
+            });
+        }
+
         // Verify the referee is actually an sgo_officer
         if (finalReferee) {
             const [officerCheck] = await pool.execute(
@@ -464,6 +502,19 @@ const startMatch = async (req, res, next) => {
             }
         }
 
+        const currentStatus = await getMatchStatus(matchId);
+        if (currentStatus === null) {
+            return res.status(404).json({ success: false, message: 'Match not found.' });
+        }
+        if (!canStart(currentStatus)) {
+            return res.status(409).json({
+                success: false,
+                message: currentStatus === 'ongoing'
+                    ? 'This match is already in progress.'
+                    : `This match is ${currentStatus} and cannot be started.`,
+            });
+        }
+
         await pool.execute(
             "UPDATE matches SET status = 'ongoing', started_at = COALESCE(started_at, NOW()), updated_at = NOW() WHERE id = ?",
             [matchId]
@@ -527,6 +578,19 @@ const updateScore = async (req, res, next) => {
             if (!assigned.length) {
                 return res.status(403).json({ success: false, message: 'You are not assigned to this match.' });
             }
+        }
+
+        const currentStatus = await getMatchStatus(matchId);
+        if (currentStatus === null) {
+            return res.status(404).json({ success: false, message: 'Match not found.' });
+        }
+        if (!canScore(currentStatus)) {
+            return res.status(409).json({
+                success: false,
+                message: currentStatus === 'completed'
+                    ? 'This match is already completed — scores are locked.'
+                    : 'Scores can only be entered once the match has started.',
+            });
         }
 
         const safeA = parseFloat(score_a) || 0;
@@ -662,6 +726,15 @@ const completeMatch = async (req, res, next) => {
         if (!rows.length) return res.status(404).json({ success: false, message: 'Match not found.' });
         const match = rows[0];
 
+        if (!canComplete(match.status)) {
+            return res.status(409).json({
+                success: false,
+                message: match.status === 'completed'
+                    ? 'This match is already completed.'
+                    : 'Only a match that is currently in progress can be completed.',
+            });
+        }
+
         // ── Binary sports (e.g. Chess): no scores — only pick winner ──
         if (match.scoring_type === 'binary') {
             if (!winner_side || !['a', 'b', 'draw'].includes(winner_side)) {
@@ -679,13 +752,17 @@ const completeMatch = async (req, res, next) => {
 
             await conn.beginTransaction();
 
-            await conn.execute(
+            const [lockResult] = await conn.execute(
                 `UPDATE matches
                  SET status = 'completed', completed_at = NOW(),
                      winner_department_id = ?, updated_at = NOW()
-                 WHERE id = ?`,
+                 WHERE id = ? AND status = 'ongoing'`,
                 [winner_dept_id, matchId]
             );
+            if (lockResult.affectedRows === 0) {
+                await conn.rollback();
+                return res.status(409).json({ success: false, message: 'This match was already completed.' });
+            }
 
             const binaryScoreDisplay = winner_side === 'draw' ? 'Draw' : (winner_side === 'a' ? 'Win — A' : 'Win — B');
 
@@ -788,10 +865,14 @@ const completeMatch = async (req, res, next) => {
 
         await conn.beginTransaction();
 
-        await conn.execute(
-            "UPDATE matches SET status = 'completed', completed_at = NOW(), winner_department_id = ?, updated_at = NOW() WHERE id = ?",
+        const [lockResult] = await conn.execute(
+            "UPDATE matches SET status = 'completed', completed_at = NOW(), winner_department_id = ?, updated_at = NOW() WHERE id = ? AND status = 'ongoing'",
             [winner_dept_id, matchId]
         );
+        if (lockResult.affectedRows === 0) {
+            await conn.rollback();
+            return res.status(409).json({ success: false, message: 'This match was already completed.' });
+        }
 
         await conn.execute(
             `INSERT INTO match_results
@@ -1039,12 +1120,19 @@ const completeFFAMatch = async (req, res, next) => {
             return res.status(400).json({ success: false, message: 'No FFA results recorded yet.' });
         }
 
-        const [[m]] = await pool.execute('SELECT tournament_id FROM matches WHERE id = ?', [matchId]);
+        const [[m]] = await pool.execute('SELECT tournament_id, status FROM matches WHERE id = ?', [matchId]);
+        if (!m) return res.status(404).json({ success: false, message: 'Match not found.' });
+        if (m.status === 'completed') {
+            return res.status(409).json({ success: false, message: 'This FFA event is already completed.' });
+        }
 
-        await pool.execute(
-            "UPDATE matches SET status = 'completed', completed_at = NOW() WHERE id = ?",
+        const [lockResult] = await pool.execute(
+            "UPDATE matches SET status = 'completed', completed_at = NOW() WHERE id = ? AND status != 'completed'",
             [matchId]
         );
+        if (lockResult.affectedRows === 0) {
+            return res.status(409).json({ success: false, message: 'This FFA event is already completed.' });
+        }
 
         await logActivity(userId, 'FFA_COMPLETED', 'match', matchId, `FFA event ${matchId} completed`);
 

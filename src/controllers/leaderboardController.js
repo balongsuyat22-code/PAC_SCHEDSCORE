@@ -30,6 +30,15 @@ const { pool } = require('../config/database');
 const { logActivity } = require('../utils/logger');
 const { getActiveSportFestId } = require('../utils/season');
 const { emitToLeaderboard } = require('../utils/socketEmit');
+const cache = require('../utils/cache');
+const { rebuildDepartmentScores } = require('../utils/scoring');
+
+// Short TTL: these are hit by every visitor on the public /live board.
+// 10s means a burst of 200 concurrent viewers costs one query, not 200,
+// while staying close enough to real-time that nobody notices the delay.
+// getLiveLeaderboard (below) is intentionally NOT cached — that one exists
+// specifically for the "just happened" refresh right after a socket event.
+const LEADERBOARD_TTL = 10;
 
 // ---------------------------------------------------------------------------
 // GET OVERALL LEADERBOARD — active season only
@@ -41,28 +50,31 @@ const getLeaderboard = async (req, res, next) => {
     try {
         const sportFestId = await getActiveSportFestId();
 
-        const [rows] = await pool.execute(
-            `SELECT
-                d.id, d.name, d.code, d.color, d.logo_url, d.short_name,
-                COALESCE(ds.total_points,        0) AS total_points,
-                COALESCE(ds.gold_medals,         0) AS gold_medals,
-                COALESCE(ds.silver_medals,       0) AS silver_medals,
-                COALESCE(ds.bronze_medals,       0) AS bronze_medals,
-                COALESCE(ds.total_participations,0) AS total_participations,
-                COALESCE(ds.tournaments_entered, 0) AS tournaments_entered,
-                RANK() OVER (
-                    ORDER BY
-                        COALESCE(ds.total_points,  0) DESC,
-                        COALESCE(ds.gold_medals,   0) DESC,
-                        COALESCE(ds.silver_medals, 0) DESC,
-                        COALESCE(ds.bronze_medals, 0) DESC
-                ) AS \`rank\`
-             FROM departments d
-             LEFT JOIN department_scores ds ON d.id = ds.department_id AND ds.sport_fest_id <=> ?
-             WHERE d.is_active = 1
-             ORDER BY total_points DESC, gold_medals DESC, silver_medals DESC, bronze_medals DESC`,
-            [sportFestId]
-        );
+        const rows = await cache.wrap(`leaderboard:overall:${sportFestId}`, LEADERBOARD_TTL, async () => {
+            const [r] = await pool.execute(
+                `SELECT
+                    d.id, d.name, d.code, d.color, d.logo_url, d.short_name,
+                    COALESCE(ds.total_points,        0) AS total_points,
+                    COALESCE(ds.gold_medals,         0) AS gold_medals,
+                    COALESCE(ds.silver_medals,       0) AS silver_medals,
+                    COALESCE(ds.bronze_medals,       0) AS bronze_medals,
+                    COALESCE(ds.total_participations,0) AS total_participations,
+                    COALESCE(ds.tournaments_entered, 0) AS tournaments_entered,
+                    RANK() OVER (
+                        ORDER BY
+                            COALESCE(ds.total_points,  0) DESC,
+                            COALESCE(ds.gold_medals,   0) DESC,
+                            COALESCE(ds.silver_medals, 0) DESC,
+                            COALESCE(ds.bronze_medals, 0) DESC
+                    ) AS \`rank\`
+                 FROM departments d
+                 LEFT JOIN department_scores ds ON d.id = ds.department_id AND ds.sport_fest_id <=> ?
+                 WHERE d.is_active = 1
+                 ORDER BY total_points DESC, gold_medals DESC, silver_medals DESC, bronze_medals DESC`,
+                [sportFestId]
+            );
+            return r;
+        });
 
         return res.json({ success: true, data: rows });
     } catch (err) {
@@ -80,8 +92,9 @@ const getDepartmentRanking = async (req, res, next) => {
     try {
         const sportFestId = await getActiveSportFestId();
 
-        const [rows] = await pool.execute(
-            `SELECT
+        const rows = await cache.wrap(`leaderboard:ranking:${sportFestId}`, LEADERBOARD_TTL, async () => {
+            const [r] = await pool.execute(
+                `SELECT
                 d.id, d.name, d.code, d.color, d.logo_url, d.short_name,
                 COALESCE(ds.total_points,        0) AS total_points,
                 COALESCE(ds.gold_medals,         0) AS gold_medals,
@@ -109,8 +122,10 @@ const getDepartmentRanking = async (req, res, next) => {
              WHERE d.is_active = 1
              GROUP BY d.id
              ORDER BY total_points DESC, gold_medals DESC`,
-            [sportFestId]
-        );
+                [sportFestId]
+            );
+            return r;
+        });
 
         return res.json({ success: true, data: rows });
     } catch (err) {
@@ -128,26 +143,29 @@ const getMedalTally = async (req, res, next) => {
     try {
         const sportFestId = await getActiveSportFestId();
 
-        const [rows] = await pool.execute(
-            `SELECT
-                d.id, d.name, d.code, d.color, d.logo_url,
-                COALESCE(ds.gold_medals,   0) AS gold,
-                COALESCE(ds.silver_medals, 0) AS silver,
-                COALESCE(ds.bronze_medals, 0) AS bronze,
-                COALESCE(ds.gold_medals + ds.silver_medals + ds.bronze_medals, 0) AS total_medals,
-                COALESCE(ds.total_points,  0) AS total_points,
-                RANK() OVER (
-                    ORDER BY
-                        COALESCE(ds.gold_medals,   0) DESC,
-                        COALESCE(ds.silver_medals, 0) DESC,
-                        COALESCE(ds.bronze_medals, 0) DESC
-                ) AS \`rank\`
-             FROM departments d
-             LEFT JOIN department_scores ds ON d.id = ds.department_id AND ds.sport_fest_id <=> ?
-             WHERE d.is_active = 1
-             ORDER BY gold DESC, silver DESC, bronze DESC`,
-            [sportFestId]
-        );
+        const rows = await cache.wrap(`leaderboard:medals:${sportFestId}`, LEADERBOARD_TTL, async () => {
+            const [r] = await pool.execute(
+                `SELECT
+                    d.id, d.name, d.code, d.color, d.logo_url,
+                    COALESCE(ds.gold_medals,   0) AS gold,
+                    COALESCE(ds.silver_medals, 0) AS silver,
+                    COALESCE(ds.bronze_medals, 0) AS bronze,
+                    COALESCE(ds.gold_medals + ds.silver_medals + ds.bronze_medals, 0) AS total_medals,
+                    COALESCE(ds.total_points,  0) AS total_points,
+                    RANK() OVER (
+                        ORDER BY
+                            COALESCE(ds.gold_medals,   0) DESC,
+                            COALESCE(ds.silver_medals, 0) DESC,
+                            COALESCE(ds.bronze_medals, 0) DESC
+                    ) AS \`rank\`
+                 FROM departments d
+                 LEFT JOIN department_scores ds ON d.id = ds.department_id AND ds.sport_fest_id <=> ?
+                 WHERE d.is_active = 1
+                 ORDER BY gold DESC, silver DESC, bronze DESC`,
+                [sportFestId]
+            );
+            return r;
+        });
 
         return res.json({ success: true, data: rows });
     } catch (err) {
@@ -541,48 +559,11 @@ const recalculate = async (req, res, next) => {
     try {
         await conn.beginTransaction();
 
-        await conn.execute(
-            `UPDATE department_scores
-             SET total_points       = 0,
-                 gold_medals        = 0,
-                 silver_medals      = 0,
-                 bronze_medals      = 0,
-                 total_participations = 0,
-                 tournaments_entered  = 0`
-        );
-
-        const [results] = await conn.execute(
-            `SELECT
-                tr.department_id,
-                sft.sport_fest_id,
-                SUM(tr.sport_fest_points)                              AS total_points,
-                SUM(CASE WHEN tr.medal = 'gold'   THEN 1 ELSE 0 END)  AS gold,
-                SUM(CASE WHEN tr.medal = 'silver' THEN 1 ELSE 0 END)  AS silver,
-                SUM(CASE WHEN tr.medal = 'bronze' THEN 1 ELSE 0 END)  AS bronze,
-                COUNT(*)                                                AS participations,
-                COUNT(DISTINCT tr.tournament_id)                       AS tournaments
-             FROM tournament_results tr
-             LEFT JOIN sport_fest_tournaments sft ON tr.tournament_id = sft.tournament_id
-             GROUP BY tr.department_id, sft.sport_fest_id`
-        );
-
-        for (const r of results) {
-            await conn.execute(
-                `INSERT INTO department_scores
-                 (department_id, sport_fest_id, total_points, gold_medals, silver_medals, bronze_medals, total_participations, tournaments_entered)
-                 VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-                 ON DUPLICATE KEY UPDATE
-                 total_points        = VALUES(total_points),
-                 gold_medals         = VALUES(gold_medals),
-                 silver_medals       = VALUES(silver_medals),
-                 bronze_medals       = VALUES(bronze_medals),
-                 total_participations = VALUES(total_participations),
-                 tournaments_entered  = VALUES(tournaments_entered)`,
-                [r.department_id, r.sport_fest_id, r.total_points, r.gold, r.silver, r.bronze, r.participations, r.tournaments]
-            );
-        }
+        await rebuildDepartmentScores(conn);
 
         await conn.commit();
+
+        cache.clearPrefix('leaderboard:');
 
         await logActivity(
             req.user.id,

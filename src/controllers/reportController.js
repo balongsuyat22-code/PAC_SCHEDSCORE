@@ -3,13 +3,26 @@
  */
 const { pool } = require('../config/database');
 const { getActiveSportFestId } = require('../utils/season');
+const cache = require('../utils/cache');
+
+// These dashboards get polled by every open admin/president/dean tab.
+// 15s keeps counts feeling live without re-running ~20 subqueries per
+// open tab per poll.
+const DASHBOARD_TTL = 15;
 
 const getDashboard = async (req, res, next) => {
     try {
         const sportFestId = (await getActiveSportFestId()) ?? null;
+        const data = await cache.wrap(`report:dashboard:${sportFestId}`, DASHBOARD_TTL, () => buildDashboard(sportFestId));
+        return res.json({ success: true, data });
+    } catch (err) {
+        next(err);
+    }
+};
 
-        const [[totals]] = await pool.execute(
-            `
+const buildDashboard = async (sportFestId) => {
+    const [[totals]] = await pool.execute(
+        `
             SELECT
                 (SELECT COUNT(*) FROM departments WHERE is_active=1) as total_departments,
                 (SELECT COUNT(*) FROM sports WHERE is_active=1) as total_sports,
@@ -24,10 +37,10 @@ const getDashboard = async (req, res, next) => {
                 (SELECT COUNT(*) FROM users WHERE role = 'sgo_officer' AND is_active = 1) as total_referees,
                 (SELECT COUNT(*) FROM teams WHERE sport_fest_id <=> ?) as total_teams
         `,
-            [sportFestId]
-        );
+        [sportFestId]
+    );
 
-        const [upcomingMatches] = await pool.execute(`
+    const [upcomingMatches] = await pool.execute(`
             SELECT m.id, m.scheduled_date, m.scheduled_time, s.name as sport_name,
                    t.name as tournament_name,
                    da.name as dept_a, db.name as dept_b,
@@ -44,7 +57,7 @@ const getDashboard = async (req, res, next) => {
             LIMIT 10
         `);
 
-        const [recentResults] = await pool.execute(`
+    const [recentResults] = await pool.execute(`
             SELECT m.id, m.completed_at, s.name as sport_name,
                    da.name as dept_a, da.color as color_a,
                    db.name as dept_b, db.color as color_b,
@@ -61,8 +74,8 @@ const getDashboard = async (req, res, next) => {
             LIMIT 10
         `);
 
-        const [leaderboard] = await pool.execute(
-            `
+    const [leaderboard] = await pool.execute(
+        `
             SELECT d.name, d.code, d.color,
                    COALESCE(ds.total_points,0) as total_points,
                    COALESCE(ds.gold_medals,0) as gold,
@@ -73,18 +86,17 @@ const getDashboard = async (req, res, next) => {
             WHERE d.is_active = 1
             ORDER BY total_points DESC, gold DESC
         `,
-            [sportFestId]
-        );
+        [sportFestId]
+    );
 
-        res.json({ success: true, data: { totals, upcomingMatches, recentResults, leaderboard } });
-    } catch (err) {
-        next(err);
-    }
+    return { totals, upcomingMatches, recentResults, leaderboard };
 };
 
 const getReportSummary = async (req, res, next) => {
     try {
-        const [[summary]] = await pool.execute(`
+        const sportFestId = (await getActiveSportFestId()) ?? null;
+        const summary = await cache.wrap(`report:summary:${sportFestId}`, DASHBOARD_TTL, async () => {
+            const [[s]] = await pool.execute(`
             SELECT
                 (SELECT COUNT(*) FROM tournaments t
                  WHERE t.status IN ('ongoing', 'scheduled', 'active', 'open')
@@ -136,6 +148,8 @@ const getReportSummary = async (req, res, next) => {
                    AND m.scheduled_date = CURDATE()
                 ) AS today_scheduled
         `);
+            return s;
+        });
 
         res.json({ success: true, data: summary });
     } catch (err) {

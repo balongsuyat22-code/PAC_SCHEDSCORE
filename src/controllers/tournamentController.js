@@ -5,6 +5,9 @@
  */
 const { pool } = require('../config/database');
 const { getActiveSportFestId } = require('../utils/season');
+const { recordResultsAndRebuild } = require('../utils/scoring');
+const cache = require('../utils/cache');
+const { emitToLeaderboard } = require('../utils/socketEmit');
 
 // ── Helpers ───────────────────────────────────────────────────
 function isTeamSport(row) {
@@ -615,16 +618,12 @@ const update = async (req, res, next) => {
 
 // ── Generate bracket (round robin + single elim basic) ────────
 const generateBracket = async (req, res, next) => {
+    const conn = await pool.getConnection();
     try {
         const t = await getTournamentWithSport(req.params.id);
         if (!t) {
+            conn.release();
             return res.status(404).json({ success: false, message: 'Tournament not found' });
-        }
-        if (!['draft', 'registration'].includes(t.status)) {
-            return res.status(400).json({
-                success: false,
-                message: 'Bracket can only be generated in draft or registration',
-            });
         }
 
         const [participants] = await pool.execute(
@@ -632,24 +631,60 @@ const generateBracket = async (req, res, next) => {
             [req.params.id]
         );
         if (participants.length < 2) {
+            conn.release();
             return res.status(400).json({
                 success: false,
                 message: 'Need at least 2 participants to generate a bracket',
             });
         }
 
+        await conn.beginTransaction();
+
+        // Atomically claim the tournament for bracket generation: this row
+        // is only updatable while status is still draft/registration, and
+        // only one concurrent request can win the race (the loser's UPDATE
+        // affects 0 rows). Prevents two rapid "Generate Bracket" clicks from
+        // both deleting/recreating matches at once.
+        const [claim] = await conn.execute(
+            `UPDATE tournaments SET status = 'ongoing', updated_at = NOW()
+             WHERE id = ? AND status IN ('draft', 'registration')`,
+            [req.params.id]
+        );
+        if (claim.affectedRows === 0) {
+            await conn.rollback();
+            conn.release();
+            return res.status(409).json({
+                success: false,
+                message: 'Bracket can only be generated in draft or registration — it looks like this already happened.',
+            });
+        }
+
         // Clear existing matches for this tournament
-        await pool.execute(`DELETE FROM matches WHERE tournament_id = ?`, [req.params.id]);
+        await conn.execute(`DELETE FROM matches WHERE tournament_id = ?`, [req.params.id]);
 
         const depts = participants.map((p) => p.department_id);
         const format = t.format || 'single_elimination';
         let created = 0;
 
         if (format === 'round_robin') {
+            // Seed a zeroed standings row per participant — previously
+            // nothing did this, so the UPDATE statements that run after
+            // every match (_updateRoundRobinStandings in matchController)
+            // were silently affecting 0 rows and standings never appeared.
+            await conn.execute(`DELETE FROM round_robin_standings WHERE tournament_id = ?`, [req.params.id]);
+            for (const deptId of depts) {
+                await conn.execute(
+                    `INSERT INTO round_robin_standings
+                     (tournament_id, department_id, wins, losses, draws, matches_played, standing_points, points_for, points_against)
+                     VALUES (?, ?, 0, 0, 0, 0, 0, 0, 0)`,
+                    [req.params.id, deptId]
+                );
+            }
+
             let matchNumber = 1;
             for (let i = 0; i < depts.length; i++) {
                 for (let j = i + 1; j < depts.length; j++) {
-                    await pool.execute(
+                    await conn.execute(
                         `INSERT INTO matches
               (tournament_id, sport_id, round_number, match_number,
                participant_a_department_id, participant_b_department_id, status)
@@ -661,7 +696,7 @@ const generateBracket = async (req, res, next) => {
             }
         } else if (format === 'free_for_all') {
             // One placeholder “match” row for FFA events (no A/B)
-            await pool.execute(
+            await conn.execute(
                 `INSERT INTO matches
           (tournament_id, sport_id, round_number, match_number, status)
          VALUES (?, ?, 1, 1, 'scheduled')`,
@@ -679,7 +714,7 @@ const generateBracket = async (req, res, next) => {
             while (queue.length < size) queue.push(null);
 
             for (let i = 0; i < queue.length; i += 2) {
-                await pool.execute(
+                await conn.execute(
                     `INSERT INTO matches
             (tournament_id, sport_id, round_number, match_number, bracket_position,
              participant_a_department_id, participant_b_department_id, status)
@@ -699,10 +734,9 @@ const generateBracket = async (req, res, next) => {
             }
         }
 
-        await pool.execute(
-            `UPDATE tournaments SET status = 'ongoing', updated_at = NOW() WHERE id = ?`,
-            [req.params.id]
-        );
+        // status was already claimed as 'ongoing' atomically above, before
+        // any inserts ran, so there's nothing left to update here.
+        await conn.commit();
 
         res.json({
             success: true,
@@ -710,8 +744,11 @@ const generateBracket = async (req, res, next) => {
             data: { matches_created: created },
         });
     } catch (err) {
+        await conn.rollback();
         console.error('generateBracket error:', err);
         next(err);
+    } finally {
+        conn.release();
     }
 };
 
@@ -752,14 +789,27 @@ const scheduleRoundRobin = async (req, res, next) => {
             });
         }
 
-        const [matches] = await pool.execute(
-            `SELECT id FROM matches WHERE tournament_id = ? ORDER BY match_number ASC, id ASC`,
+        const [allMatches] = await pool.execute(
+            `SELECT id, status FROM matches WHERE tournament_id = ? ORDER BY match_number ASC, id ASC`,
             [req.params.id]
         );
-        if (!matches.length) {
+        if (!allMatches.length) {
             return res.status(400).json({
                 success: false,
                 message: 'No matches found. Generate the bracket first.',
+            });
+        }
+
+        // Only pending/scheduled matches can be re-slotted — a match that's
+        // already ongoing or completed keeps whatever venue/time it was
+        // actually played at, instead of being silently overwritten by an
+        // auto-schedule re-run.
+        const matches = allMatches.filter((m) => ['pending', 'scheduled'].includes(m.status));
+        const locked = allMatches.length - matches.length;
+        if (!matches.length) {
+            return res.status(400).json({
+                success: false,
+                message: 'All matches in this tournament are already in progress or completed — nothing left to schedule.',
             });
         }
 
@@ -791,8 +841,9 @@ const scheduleRoundRobin = async (req, res, next) => {
 
         res.json({
             success: true,
-            message: `Scheduled ${updated} match(es) across ${slots.length} slot(s)`,
-            data: { updated, slots: slots.length },
+            message: `Scheduled ${updated} match(es) across ${slots.length} slot(s)` +
+                (locked ? `; ${locked} already in progress or completed were left untouched` : ''),
+            data: { updated, slots: slots.length, skipped_locked: locked },
         });
     } catch (err) {
         console.error('scheduleRoundRobin error:', err);
@@ -802,9 +853,11 @@ const scheduleRoundRobin = async (req, res, next) => {
 
 // ── Finalize tournament ───────────────────────────────────────
 const finalizeTournament = async (req, res, next) => {
+    const conn = await pool.getConnection();
     try {
         const t = await getTournamentWithSport(req.params.id);
         if (!t) {
+            conn.release();
             return res.status(404).json({ success: false, message: 'Tournament not found' });
         }
 
@@ -814,25 +867,57 @@ const finalizeTournament = async (req, res, next) => {
             [req.params.id]
         );
         if (Number(open[0]?.c || 0) > 0) {
+            conn.release();
             return res.status(400).json({
                 success: false,
                 message: 'All matches must be completed (or cancelled) before finalizing',
             });
         }
 
-        await pool.execute(
-            `UPDATE tournaments SET status = 'completed', updated_at = NOW() WHERE id = ?`,
+        await conn.beginTransaction();
+
+        // Atomic claim, same pattern as generateBracket: only one concurrent
+        // "Finalize" click can win, the other gets a clean 409 instead of
+        // tournament_results being computed/written twice.
+        const [claim] = await conn.execute(
+            `UPDATE tournaments SET status = 'completed', updated_at = NOW()
+             WHERE id = ? AND status != 'completed'`,
             [req.params.id]
         );
+        if (claim.affectedRows === 0) {
+            await conn.rollback();
+            conn.release();
+            return res.status(409).json({ success: false, message: 'This tournament was already finalized.' });
+        }
+
+        // This is the step that used to be entirely missing: compute final
+        // standings from the bracket/standings/FFA results, write medals +
+        // points to tournament_results, and roll that into department_scores
+        // so the leaderboard the visitor page is already listening for
+        // actually has new numbers to show.
+        const { recorded } = await recordResultsAndRebuild(conn, req.params.id);
+
+        await conn.commit();
+
+        cache.clearPrefix('leaderboard:');
+        emitToLeaderboard('leaderboard:changed', {
+            reason: 'tournament_finalized',
+            tournament_id: Number(req.params.id),
+        });
 
         res.json({
             success: true,
-            message: 'Tournament finalized',
-            data: { id: req.params.id, status: 'completed' },
+            message: recorded
+                ? `Tournament finalized — ${recorded} department result(s) recorded.`
+                : 'Tournament finalized (no standings could be determined — check the bracket/results were entered).',
+            data: { id: req.params.id, status: 'completed', results_recorded: recorded },
         });
     } catch (err) {
+        await conn.rollback();
         console.error('finalizeTournament error:', err);
         next(err);
+    } finally {
+        conn.release();
     }
 };
 
