@@ -10,6 +10,23 @@
         rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
     <link rel="stylesheet" href="../css/sgo_president.css">
+    <style>
+        .ffa-tag {
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            font-size: 10px;
+            font-weight: 800;
+            text-transform: uppercase;
+            letter-spacing: .06em;
+            color: var(--gold);
+            background: rgba(255, 176, 32, .12);
+            border: 1px solid rgba(255, 176, 32, .3);
+            border-radius: 100px;
+            padding: 2px 10px;
+            margin-left: 8px;
+        }
+    </style>
 </head>
 
 <body>
@@ -137,6 +154,10 @@
             console.log('=== END DEBUG ===');
         }
 
+        function isFfa(m) {
+            return m.tournament_format === 'free_for_all';
+        }
+
         document.addEventListener('DOMContentLoaded', async () => {
             debugAuth();
             const user = Auth.requireAuth('sgo_president');
@@ -168,7 +189,18 @@
 
                     const upEl = document.getElementById('upcoming-matches');
                     if (dash.data.upcomingMatches?.length) {
-                        upEl.innerHTML = dash.data.upcomingMatches.map(m => `
+                        upEl.innerHTML = dash.data.upcomingMatches.map(m => isFfa(m) ? `
+                    <div class="match-card">
+                        <div class="match-sport-icon">${sportIcon(m.sport_name)}</div>
+                        <div class="match-info">
+                            <div class="match-teams">${m.tournament_name} <span class="ffa-tag"><i class="fa-solid fa-bolt"></i> FFA</span></div>
+                            <div class="match-meta">One-time event · ${m.venue_name || 'Venue TBD'}</div>
+                        </div>
+                        <div style="text-align:right">
+                            <div style="font-weight:600;font-size:13px">${formatDate(m.scheduled_date)}</div>
+                            <div style="color:var(--gold);font-family:'Barlow Condensed',sans-serif;font-size:16px;font-weight:700">${formatTime(m.scheduled_time)}</div>
+                        </div>
+                    </div>` : `
                     <div class="match-card">
                         <div class="match-sport-icon">${sportIcon(m.sport_name)}</div>
                         <div class="match-info">
@@ -255,7 +287,17 @@
                     el.innerHTML = `<div class="empty-state"><div class="empty-text">No live matches right now</div></div>`;
                     return;
                 }
-                el.innerHTML = res.data.slice(0, 3).map(m => `
+                el.innerHTML = res.data.slice(0, 3).map(m => isFfa(m) ? `
+            <div class="live-card">
+                <div class="live-sport-icon">${sportIcon(m.sport_name)}</div>
+                <div style="flex:1">
+                    <div style="font-size:11px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:var(--green);margin-bottom:4px">
+                        <span class="live-dot"></span>LIVE · ${m.sport_name} <span class="ffa-tag"><i class="fa-solid fa-bolt"></i> FFA</span>
+                    </div>
+                    <div style="font-weight:700">${m.tournament_name}</div>
+                    <div style="font-size:12px;color:var(--muted)">${m.venue_name || '—'}</div>
+                </div>
+            </div>` : `
             <div class="live-card">
                 <div class="live-sport-icon">${sportIcon(m.sport_name)}</div>
                 <div style="flex:1">
@@ -291,7 +333,7 @@
             <div class="notif-item">
                 <div class="notif-icon"><i class="fa-solid fa-calendar-days"></i></div>
                 <div class="notif-content">
-                    <strong>${m.dept_a_name || '?'} vs ${m.dept_b_name || '?'}</strong> — ${m.sport_name} scheduled ${formatDate(m.scheduled_date)} ${formatTime(m.scheduled_time)}
+                    <strong>${isFfa(m) ? m.tournament_name + ' (FFA)' : `${m.dept_a_name || '?'} vs ${m.dept_b_name || '?'}`}</strong> — ${m.sport_name} scheduled ${formatDate(m.scheduled_date)} ${formatTime(m.scheduled_time)}
                     <a class="notif-link" href="/SGO_PRESIDENT/schedule.html">Manage schedule →</a>
                 </div>
             </div>`).join('');

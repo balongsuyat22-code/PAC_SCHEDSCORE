@@ -10,6 +10,49 @@
         rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
     <link rel="stylesheet" href="../css/sgo_president.css">
+    <style>
+        /* Free-For-All row treatment — distinct from the dept_a vs dept_b
+           layout, since FFA has no two-sided matchup. */
+        .ffa-row-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 13px;
+            font-weight: 700;
+        }
+
+        .ffa-row-icon {
+            width: 26px;
+            height: 26px;
+            border-radius: 7px;
+            background: rgba(255, 176, 32, .14);
+            color: var(--gold);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 12px;
+            flex-shrink: 0;
+        }
+
+        .ffa-row-tag {
+            font-size: 9px;
+            font-weight: 800;
+            text-transform: uppercase;
+            letter-spacing: .06em;
+            color: var(--gold);
+            background: rgba(255, 176, 32, .12);
+            border: 1px solid rgba(255, 176, 32, .3);
+            border-radius: 100px;
+            padding: 2px 8px;
+            margin-left: 8px;
+        }
+
+        .ffa-row-depts {
+            font-size: 11px;
+            color: var(--muted);
+            font-weight: 400;
+        }
+    </style>
 </head>
 
 <body>
@@ -194,6 +237,8 @@
             }
         }
 
+        // Was 404ing because /matches/officers got swallowed by /matches/:id
+        // in the routes file (fixed server-side — see routes/matches.js).
         async function loadOfficerOptions() {
             try {
                 const res = await api('/matches/officers');
@@ -221,6 +266,27 @@
             }
         }
 
+        // Cache of tournament_id -> participant department names, filled
+        // lazily so FFA rows can show "Dept A, Dept B, Dept C" instead of
+        // "TBD vs TBD" (FFA matches have no participant_a/b — the roster
+        // lives on tournament_participants instead).
+        const ffaParticipantsCache = {};
+        async function getFfaParticipants(tournamentId) {
+            if (ffaParticipantsCache[tournamentId]) return ffaParticipantsCache[tournamentId];
+            try {
+                const res = await api(`/tournaments/${tournamentId}`);
+                const names = res.success ? (res.data.participants || []).map(p => p.department_name) : [];
+                ffaParticipantsCache[tournamentId] = names;
+                return names;
+            } catch {
+                return [];
+            }
+        }
+
+        function isFfa(m) {
+            return m.tournament_format === 'free_for_all';
+        }
+
         async function loadMatches() {
             try {
                 const tournId = document.getElementById('filter-tournament').value;
@@ -243,17 +309,29 @@
                     return;
                 }
 
-                tbody.innerHTML = res.data.map(m => `
-                    <tr>
+                // Render immediately with a lightweight placeholder for FFA
+                // matchup cells, then backfill participant names once fetched
+                // — avoids blocking the whole table on N extra requests.
+                tbody.innerHTML = res.data.map((m, idx) => `
+                    <tr data-row="${idx}">
                         <td>
-                            <span style="margin-right:6px">${sportIcon(m.sport_name)}</span>
-                            <strong>${m.dept_a_name || 'TBD'}</strong>
-                            <span style="color:var(--muted)"> vs </span>
-                            <strong>${m.dept_b_name || 'TBD'}</strong>
+                            ${isFfa(m) ? `
+                                <span class="ffa-row-badge">
+                                    <span class="ffa-row-icon"><i class="fa-solid fa-bolt"></i></span>
+                                    ${m.tournament_name}
+                                    <span class="ffa-row-tag">FFA</span>
+                                </span>
+                                <div class="ffa-row-depts" id="ffa-depts-${idx}">Loading departments…</div>
+                            ` : `
+                                <span style="margin-right:6px">${sportIcon(m.sport_name)}</span>
+                                <strong>${m.dept_a_name || 'TBD'}</strong>
+                                <span style="color:var(--muted)"> vs </span>
+                                <strong>${m.dept_b_name || 'TBD'}</strong>
+                            `}
                         </td>
                         <td style="color:var(--muted);font-size:12px">
                             ${m.tournament_name}<br>
-                            <span style="opacity:.7">${m.bracket_position || ''}</span>
+                            <span style="opacity:.7">${isFfa(m) ? 'One-time event' : (m.bracket_position || '')}</span>
                         </td>
                         <td style="font-size:12px">${formatDate(m.scheduled_date)}</td>
                         <td style="font-size:12px;font-weight:600;color:var(--gold)">${formatTime(m.scheduled_time)}</td>
@@ -266,11 +344,19 @@
                         <td>${statusBadge(m.status)}</td>
                         <td>
                             <button class="btn btn-secondary btn-sm" onclick='openSchedule(${JSON.stringify(m)})'>
-                                <i class="fa-solid fa-calendar-plus"></i> Schedule
+                                <i class="fa-solid fa-calendar-plus"></i> ${isFfa(m) ? 'Set Event Details' : 'Schedule'}
                             </button>
                         </td>
                     </tr>
                 `).join('');
+
+                // Backfill FFA participant lists
+                res.data.forEach(async (m, idx) => {
+                    if (!isFfa(m)) return;
+                    const names = await getFfaParticipants(m.tournament_id);
+                    const el = document.getElementById(`ffa-depts-${idx}`);
+                    if (el) el.textContent = names.length ? names.join(', ') : 'No departments entered yet';
+                });
             } catch (error) {
                 console.error('Error loading matches:', error);
                 Toast.show('Error loading matches', 'error');
@@ -278,8 +364,9 @@
         }
 
         function openSchedule(m) {
-            document.getElementById('sch-title').innerHTML =
-                `<i class="fa-solid fa-calendar-plus" style="margin-right:8px;color:var(--gold)"></i>
+            document.getElementById('sch-title').innerHTML = isFfa(m)
+                ? `<i class="fa-solid fa-bolt" style="margin-right:8px;color:var(--gold)"></i> Set Event Details: ${m.tournament_name}`
+                : `<i class="fa-solid fa-calendar-plus" style="margin-right:8px;color:var(--gold)"></i>
                  Schedule: ${m.dept_a_name || 'TBD'} vs ${m.dept_b_name || 'TBD'}`;
             document.getElementById('sch-match-id').value = m.id;
             document.getElementById('sch-date').value = m.scheduled_date || '';

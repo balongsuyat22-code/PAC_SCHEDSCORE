@@ -10,6 +10,39 @@
         rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
     <link rel="stylesheet" href="../css/sgo_president.css">
+    <style>
+        .ffa-live-tag,
+        .ffa-tag {
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            font-size: 10px;
+            font-weight: 800;
+            text-transform: uppercase;
+            letter-spacing: .06em;
+            color: var(--gold);
+            background: rgba(255, 176, 32, .12);
+            border: 1px solid rgba(255, 176, 32, .3);
+            border-radius: 100px;
+            padding: 2px 10px;
+        }
+
+        .ffa-live-participants {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+            margin-top: 10px;
+        }
+
+        .ffa-live-chip {
+            font-size: 11px;
+            font-weight: 600;
+            background: var(--bg2);
+            border: 1px solid var(--border);
+            border-radius: 100px;
+            padding: 3px 10px;
+        }
+    </style>
 </head>
 
 <body>
@@ -77,6 +110,26 @@
             await Promise.all([loadLive(), loadScheduled()]);
         }
 
+        function isFfa(m) {
+            return m.tournament_format === 'free_for_all';
+        }
+
+        // Same lazy participant-name cache used on Schedule Management —
+        // FFA matches carry no dept_a/dept_b, so names come from the
+        // tournament's participant list instead.
+        const ffaParticipantsCache = {};
+        async function getFfaParticipants(tournamentId) {
+            if (ffaParticipantsCache[tournamentId]) return ffaParticipantsCache[tournamentId];
+            try {
+                const res = await api(`/tournaments/${tournamentId}`);
+                const names = res.success ? (res.data.participants || []).map(p => p.department_name) : [];
+                ffaParticipantsCache[tournamentId] = names;
+                return names;
+            } catch {
+                return [];
+            }
+        }
+
         async function loadLive() {
             const res = await api('/matches/live');
             const el = document.getElementById('live-list');
@@ -88,7 +141,23 @@
                     </div>`;
                 return;
             }
-            el.innerHTML = res.data.map(m => `
+            el.innerHTML = res.data.map((m, idx) => isFfa(m) ? `
+        <div class="live-card">
+            <div class="live-sport-icon">${sportIcon(m.sport_name)}</div>
+            <div style="flex:1">
+                <div style="font-size:12px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:var(--green);margin-bottom:6px;display:flex;align-items:center;gap:8px">
+                    <span class="live-dot"></span>LIVE · ${m.sport_name} · ${m.tournament_name}
+                    <span class="ffa-live-tag"><i class="fa-solid fa-bolt"></i> FFA</span>
+                </div>
+                <div style="font-family:'Barlow Condensed',sans-serif;font-size:20px;font-weight:800">${m.tournament_name}</div>
+                <div class="ffa-live-participants" id="ffa-live-${idx}">
+                    <span class="ffa-live-chip" style="color:var(--muted)">Loading departments…</span>
+                </div>
+                <div style="font-size:12px;color:var(--muted);margin-top:8px;display:flex;align-items:center;gap:6px">
+                    <i class="fa-solid fa-location-dot"></i> ${m.venue_name || '—'}
+                </div>
+            </div>
+        </div>` : `
         <div class="live-card">
             <div class="live-sport-icon">${sportIcon(m.sport_name)}</div>
             <div style="flex:1">
@@ -109,12 +178,22 @@
                 </div>
             </div>
         </div>`).join('');
+
+            res.data.forEach(async (m, idx) => {
+                if (!isFfa(m)) return;
+                const names = await getFfaParticipants(m.tournament_id);
+                const el = document.getElementById(`ffa-live-${idx}`);
+                if (!el) return;
+                el.innerHTML = names.length
+                    ? names.map(n => `<span class="ffa-live-chip">${n}</span>`).join('')
+                    : `<span class="ffa-live-chip" style="color:var(--muted)">No departments listed</span>`;
+            });
         }
 
         async function loadScheduled() {
             const res = await api(`/matches?status=scheduled`);
             const el = document.getElementById('scheduled-list');
-            const upcoming = (res.data || []).filter(m => m.dept_a_name || m.dept_b_name);
+            const upcoming = (res.data || []).filter(m => m.dept_a_name || m.dept_b_name || isFfa(m));
             if (!res.success || !upcoming.length) {
                 el.innerHTML = `
                     <div class="empty-state">
@@ -123,7 +202,20 @@
                     </div>`;
                 return;
             }
-            el.innerHTML = upcoming.map(m => `
+            el.innerHTML = upcoming.map(m => isFfa(m) ? `
+        <div class="match-card">
+            <div class="match-sport-icon">${sportIcon(m.sport_name)}</div>
+            <div class="match-info">
+                <div class="match-teams">${m.tournament_name} <span class="ffa-tag"><i class="fa-solid fa-bolt"></i> FFA</span></div>
+                <div class="match-meta">
+                    ${formatDate(m.scheduled_date)} ${formatTime(m.scheduled_time)}
+                    · <i class="fa-solid fa-location-dot"></i> ${m.venue_name || 'TBD'}
+                </div>
+            </div>
+            <button class="btn btn-success btn-sm" onclick="startMatch(${m.id})">
+                <i class="fa-solid fa-play"></i> Start Event
+            </button>
+        </div>` : `
         <div class="match-card">
             <div class="match-sport-icon">${sportIcon(m.sport_name)}</div>
             <div class="match-info">

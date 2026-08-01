@@ -460,7 +460,7 @@ const create = async (req, res, next) => {
         const {
             name,
             sport_id,
-            sport_fest_id,                 // optional – will fall back to active fest
+            sport_fest_id,
             format = 'single_elimination',
             gender = 'open',
             status = 'draft',
@@ -797,6 +797,7 @@ const scheduleRoundRobin = async (req, res, next) => {
         const dates = Array.isArray(req.body.dates) ? req.body.dates.filter(Boolean) : [];
         const times = Array.isArray(req.body.times) ? req.body.times.filter(Boolean) : [];
         const venueId = req.body.venue_id ? parseInt(req.body.venue_id, 10) : null;
+        const assignOfficers = req.body.assign_officers !== false; // default true
 
         if (!dates.length || !times.length) {
             return res.status(400).json({
@@ -815,6 +816,12 @@ const scheduleRoundRobin = async (req, res, next) => {
                 message: 'No matches found. Generate the bracket first.',
             });
         }
+
+        // Tell the caller exactly how many slots this round robin needs, so the
+        // UI can stop people guessing. Not a hard block here (a re-run with
+        // fewer slots than remaining matches is allowed — matches just repeat
+        // slots), but scheduleRoundRobin's response reports it either way.
+        const requiredSlots = allMatches.length;
 
         // Only pending/scheduled matches can be re-slotted — a match that's
         // already ongoing or completed keeps whatever venue/time it was
@@ -843,14 +850,65 @@ const scheduleRoundRobin = async (req, res, next) => {
             [ordered[i], ordered[j]] = [ordered[j], ordered[i]];
         }
 
+        // Pull the active officer pool once, then track a busy-set of
+        // "officerId|date|time" locally so two matches landing on the same
+        // slot in this same run never both get assigned the same officer.
+        // (This mirrors the exact-timeslot conflict rule schedule() already
+        // enforces for manual assignment in matchController.js.)
+        let officers = [];
+        const officerBusy = new Set();
+        if (assignOfficers) {
+            const [officerRows] = await pool.execute(
+                `SELECT id FROM users WHERE role = 'sgo_officer' AND is_active = 1`
+            );
+            officers = officerRows.map((r) => r.id);
+
+            if (officers.length) {
+                // Seed busy-set with this officer's *existing* commitments across
+                // the whole system (other tournaments included), so auto-assign
+                // never books someone who's already refereeing elsewhere at that
+                // date/time.
+                const [existingAssignments] = await pool.execute(
+                    `SELECT referee_id, scheduled_date, scheduled_time
+             FROM matches
+             WHERE referee_id IS NOT NULL
+               AND status IN ('scheduled','ongoing')
+               AND scheduled_date IS NOT NULL AND scheduled_time IS NOT NULL`
+                );
+                existingAssignments.forEach((r) => {
+                    officerBusy.add(`${r.referee_id}|${r.scheduled_date}|${r.scheduled_time}`);
+                });
+            }
+        }
+
+        const pickOfficer = (date, time) => {
+            if (!officers.length) return null;
+            // Rotate through a shuffled copy each call so assignment isn't
+            // always weighted toward the same first officer.
+            const shuffled = [...officers].sort(() => Math.random() - 0.5);
+            for (const officerId of shuffled) {
+                const key = `${officerId}|${date}|${time}`;
+                if (!officerBusy.has(key)) {
+                    officerBusy.add(key);
+                    return officerId;
+                }
+            }
+            return null; // every officer already busy at this slot — leave unassigned
+        };
+
         let updated = 0;
+        let officersAssigned = 0;
         for (let i = 0; i < ordered.length; i++) {
             const slot = slots[i % slots.length];
+            const referee_id = assignOfficers ? pickOfficer(slot.date, slot.time) : undefined;
+            if (referee_id) officersAssigned++;
+
             await pool.execute(
                 `UPDATE matches
-         SET scheduled_date = ?, scheduled_time = ?, venue_id = COALESCE(?, venue_id), updated_at = NOW()
+         SET scheduled_date = ?, scheduled_time = ?, venue_id = COALESCE(?, venue_id),
+             referee_id = COALESCE(?, referee_id), updated_at = NOW()
          WHERE id = ?`,
-                [slot.date, slot.time, venueId, ordered[i].id]
+                [slot.date, slot.time, venueId, referee_id || null, ordered[i].id]
             );
             updated++;
         }
@@ -858,8 +916,15 @@ const scheduleRoundRobin = async (req, res, next) => {
         res.json({
             success: true,
             message: `Scheduled ${updated} match(es) across ${slots.length} slot(s)` +
+                (assignOfficers ? `, ${officersAssigned} officer(s) auto-assigned` : '') +
                 (locked ? `; ${locked} already in progress or completed were left untouched` : ''),
-            data: { updated, slots: slots.length, skipped_locked: locked },
+            data: {
+                updated,
+                slots: slots.length,
+                required_slots: requiredSlots,
+                officers_assigned: officersAssigned,
+                skipped_locked: locked,
+            },
         });
     } catch (err) {
         console.error('scheduleRoundRobin error:', err);

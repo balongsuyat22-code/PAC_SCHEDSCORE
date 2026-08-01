@@ -9,6 +9,22 @@ const { authenticate, authorize } = require('../middleware/auth');
 router.get('/live', matchCtrl.getLive);
 router.get('/mvps', matchCtrl.getMVPs);
 router.get('/ffa/:tournamentId', matchCtrl.getFFAResults);  // or keep restricted if FFA is internal-only
+
+// ─────────────────────────────────────────────────────────────
+// IMPORTANT: every literal (non-":id") path must be declared
+// BEFORE '/:id'. Express matches routes in registration order,
+// not by specificity — '/:id' happily matches a single path
+// segment like "officers" or "my-assignments" as if it were an
+// id, so those routes must come first or they get swallowed by
+// getOne() and return a false "Match not found." 404.
+//
+// '/officers' and '/my-assignments' need auth, but they're now
+// ahead of router.use(authenticate) below — so authenticate/
+// authorize are attached directly on these two routes instead.
+// ─────────────────────────────────────────────────────────────
+router.get('/officers', authenticate, authorize('sgo_president', 'admin'), matchCtrl.getAvailableOfficers);
+router.get('/my-assignments', authenticate, authorize('sgo_officer'), matchCtrl.getMyAssignments);
+
 router.get('/', matchCtrl.getAll);
 router.get('/:id', matchCtrl.getOne);
 router.get('/:id/scoreboard', matchCtrl.getScoreboard);
@@ -19,8 +35,6 @@ router.get('/:id/watchers', matchCtrl.getWatchers);
 // ═══════════════════════════════════════════════════════════
 router.use(authenticate);
 
-router.get('/officers', authorize('sgo_president', 'admin'), matchCtrl.getAvailableOfficers);
-router.get('/my-assignments', authorize('sgo_officer'), matchCtrl.getMyAssignments);
 router.get('/players/department/:departmentId', authorize('sgo_officer', 'sgo_president', 'admin'), matchCtrl.getPlayersByDepartment);
 router.post('/ffa/:tournamentId/results', authorize('sgo_officer', 'sgo_president', 'admin'), matchCtrl.saveFFAResults);
 router.post('/ffa/:matchId/complete', authorize('sgo_officer', 'sgo_president', 'admin'), matchCtrl.completeFFAMatch);

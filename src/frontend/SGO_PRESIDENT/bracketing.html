@@ -166,6 +166,167 @@
             border: 1px solid var(--border);
             border-radius: 10px;
         }
+
+        /* ── Slot calculator (auto-schedule) ─────────────────── */
+        .slot-calc {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-size: 13px;
+            padding: 12px 14px;
+            border-radius: 10px;
+            border: 1px solid var(--border);
+            background: var(--bg3);
+            margin-bottom: 16px;
+        }
+
+        .slot-calc .slot-num {
+            font-family: 'Barlow Condensed', sans-serif;
+            font-size: 26px;
+            font-weight: 900;
+            color: var(--gold);
+            line-height: 1;
+        }
+
+        .slot-calc.ok {
+            border-color: rgba(34, 197, 94, .35);
+        }
+
+        .slot-calc.ok .slot-num {
+            color: var(--green);
+        }
+
+        .slot-calc.short {
+            border-color: rgba(232, 50, 59, .35);
+        }
+
+        .slot-calc.short .slot-num {
+            color: var(--red);
+        }
+
+        .officer-toggle {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 13px;
+            color: var(--text2);
+            margin-top: 4px;
+        }
+
+        /* ── Free-For-All specific card ──────────────────────── */
+        .ffa-card {
+            border: 1px solid var(--border);
+            border-radius: 14px;
+            background: linear-gradient(155deg, var(--bg3) 0%, var(--bg4) 100%);
+            padding: 20px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .ffa-card::before {
+            content: "";
+            position: absolute;
+            top: -40px;
+            right: -40px;
+            width: 140px;
+            height: 140px;
+            border-radius: 50%;
+            background: radial-gradient(circle, rgba(255, 176, 32, .15), transparent 70%);
+        }
+
+        .ffa-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 11px;
+            font-weight: 800;
+            text-transform: uppercase;
+            letter-spacing: .06em;
+            color: var(--gold);
+            background: rgba(255, 176, 32, .12);
+            border: 1px solid rgba(255, 176, 32, .3);
+            border-radius: 100px;
+            padding: 4px 12px;
+            margin-bottom: 14px;
+        }
+
+        .ffa-title {
+            font-family: 'Barlow Condensed', sans-serif;
+            font-size: 22px;
+            font-weight: 800;
+            margin-bottom: 4px;
+        }
+
+        .ffa-sub {
+            font-size: 12px;
+            color: var(--muted);
+            margin-bottom: 18px;
+        }
+
+        .ffa-participants {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-bottom: 18px;
+        }
+
+        .ffa-chip {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            background: var(--bg2);
+            border: 1px solid var(--border);
+            border-radius: 100px;
+            padding: 6px 14px 6px 6px;
+            font-size: 13px;
+            font-weight: 600;
+        }
+
+        .ffa-chip .rank {
+            width: 22px;
+            height: 22px;
+            border-radius: 50%;
+            background: var(--bg4);
+            font-size: 11px;
+            font-weight: 900;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--gold);
+        }
+
+        .ffa-schedule-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            flex-wrap: wrap;
+            border-top: 1px solid var(--border);
+            padding-top: 16px;
+        }
+
+        .ffa-schedule-info {
+            font-size: 12px;
+            color: var(--muted);
+        }
+
+        .ffa-schedule-info strong {
+            color: var(--text);
+            font-weight: 700;
+        }
+
+        .ffa-lock-note {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 12px;
+            color: var(--gold);
+            background: rgba(255, 176, 32, .08);
+            border: 1px dashed rgba(255, 176, 32, .35);
+            border-radius: 8px;
+            padding: 8px 12px;
+            margin-top: 14px;
+        }
     </style>
 </head>
 
@@ -217,7 +378,8 @@
                     <div class="card-header">
                         <div class="card-title"><i class="fa-solid fa-users"></i> Participants</div>
                         <div style="display:flex;gap:8px;flex-wrap:wrap">
-                            <button class="btn btn-secondary btn-sm" onclick="openAddParticipants()">
+                            <button class="btn btn-secondary btn-sm" id="btn-add-participants"
+                                onclick="openAddParticipants()">
                                 <i class="fa-solid fa-building-user"></i> Add Departments
                             </button>
                             <button class="btn btn-primary btn-sm" id="btn-generate" onclick="generateBracket()">
@@ -226,14 +388,49 @@
                         </div>
                     </div>
                     <div class="card-body" id="participants-list"></div>
+                    <div id="participants-lock-note" style="display:none;padding:0 16px 16px">
+                        <div class="ffa-lock-note">
+                            <i class="fa-solid fa-lock"></i>
+                            <span>Bracket already generated — departments are locked in. To change the lineup, you'd
+                                need to reset this tournament.</span>
+                        </div>
+                    </div>
                 </div>
 
-                <div class="card">
+                <!-- FFA gets its own dedicated card; everything else uses the generic bracket card -->
+                <div class="card" id="ffa-card-wrap" style="display:none;margin-bottom:20px">
+                    <div class="card-body" style="padding:0">
+                        <div class="ffa-card">
+                            <span class="ffa-badge"><i class="fa-solid fa-bolt"></i> Free-For-All · One-Time
+                                Event</span>
+                            <div class="ffa-title" id="ffa-title">—</div>
+                            <div class="ffa-sub">All entered departments compete head-to-head in a single event — no
+                                rounds, no bracket tree, just one date, one time, one result.</div>
+
+                            <div class="ffa-participants" id="ffa-participants"></div>
+
+                            <div class="ffa-schedule-row">
+                                <div class="ffa-schedule-info" id="ffa-schedule-info">Not scheduled yet.</div>
+                                <div style="display:flex;gap:8px">
+                                    <button class="btn btn-secondary btn-sm" id="ffa-btn-schedule"
+                                        onclick="openFfaSchedule()">
+                                        <i class="fa-solid fa-calendar-plus"></i> Set Date, Time &amp; Venue
+                                    </button>
+                                    <button class="btn btn-success btn-sm" onclick="Modal.open('modal-finalize')">
+                                        <i class="fa-solid fa-flag-checkered"></i> Finalize Results
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card" id="standard-bracket-card">
                     <div class="card-header">
                         <div class="card-title" id="bracket-title"><i class="fa-solid fa-trophy"></i> Bracket</div>
                         <div style="display:flex;gap:8px;flex-wrap:wrap">
                             <button class="btn btn-secondary btn-sm" id="btn-auto-schedule" style="display:none"
-                                onclick="Modal.open('modal-auto-schedule')">
+                                onclick="openAutoSchedule()">
                                 <i class="fa-solid fa-dice"></i> Auto-Schedule
                             </button>
                             <button class="btn btn-secondary btn-sm" id="btn-promote" style="display:none"
@@ -282,7 +479,7 @@
         </div>
     </div>
 
-    <!-- Auto-Schedule Modal -->
+    <!-- Auto-Schedule Modal (round robin only) -->
     <div class="modal-overlay" id="modal-auto-schedule">
         <div class="modal">
             <div class="modal-header">
@@ -291,10 +488,20 @@
                         class="fa-solid fa-xmark"></i></button>
             </div>
             <div class="modal-body">
-                <p style="color:var(--text2);font-size:13px;margin-bottom:16px">
+                <p style="color:var(--text2);font-size:13px;margin-bottom:12px">
                     Enter the dates and time slots available. Matches will be shuffled so no department plays two slots
                     in a row.
                 </p>
+
+                <div class="slot-calc" id="slot-calc">
+                    <i class="fa-solid fa-calculator" style="font-size:20px;color:var(--muted)"></i>
+                    <div style="flex:1">
+                        <div><span class="slot-num" id="slot-calc-matches">—</span> matches to schedule</div>
+                        <div style="font-size:12px;color:var(--muted)" id="slot-calc-detail">Add dates and times below
+                            to see how many slots you have.</div>
+                    </div>
+                </div>
+
                 <div class="form-group">
                     <label class="form-label">Dates</label>
                     <div id="as-dates" style="display:flex;flex-direction:column;gap:8px;margin-bottom:8px"></div>
@@ -313,11 +520,60 @@
                         <option value="">No venue / assign later</option>
                     </select>
                 </div>
+                <div class="officer-toggle">
+                    <input type="checkbox" id="as-assign-officers" checked>
+                    <label for="as-assign-officers">Auto-assign an available officer to each match (conflict-free —
+                        never double-books an officer at the same date/time)</label>
+                </div>
             </div>
             <div class="modal-footer">
                 <button class="btn btn-secondary" onclick="Modal.close('modal-auto-schedule')">Cancel</button>
                 <button class="btn btn-primary" onclick="submitAutoSchedule()"><i class="fa-solid fa-dice"></i> Shuffle
                     &amp; Schedule</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- FFA Schedule Modal (single date/time/venue, no repeating slots) -->
+    <div class="modal-overlay" id="modal-ffa-schedule">
+        <div class="modal">
+            <div class="modal-header">
+                <div class="modal-title"><i class="fa-solid fa-calendar-plus"></i> Schedule Free-For-All</div>
+                <button class="modal-close" onclick="Modal.close('modal-ffa-schedule')"><i
+                        class="fa-solid fa-xmark"></i></button>
+            </div>
+            <div class="modal-body">
+                <p style="color:var(--text2);font-size:13px;margin-bottom:16px">
+                    This is a one-time event — just one date, one time, one venue, and (optionally) one officer.
+                </p>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label class="form-label">Date</label>
+                        <input id="ffa-date" type="date" class="form-input">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Time</label>
+                        <input id="ffa-time" type="time" class="form-input">
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Venue</label>
+                    <select id="ffa-venue" class="form-select">
+                        <option value="">Select venue…</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Officer / Referee</label>
+                    <select id="ffa-referee" class="form-select">
+                        <option value="">Unassigned</option>
+                    </select>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="Modal.close('modal-ffa-schedule')">Cancel</button>
+                <button class="btn btn-primary" onclick="submitFfaSchedule()">
+                    <i class="fa-solid fa-floppy-disk"></i> Save
+                </button>
             </div>
         </div>
     </div>
@@ -353,6 +609,9 @@
         let currentTournament = null;
         let eligibilityData = [];
         let eligibilityMeta = null;
+        let currentBracketMatches = [];
+        let venuesCache = [];
+        let officersCache = [];
 
         function statusColor(status) {
             if (status === 'approved') return 'var(--green)';
@@ -366,6 +625,7 @@
             NotifBell.init();
             await loadTournamentSelect();
             await loadVenueOptionsForSchedule();
+            await loadOfficerOptionsForSchedule();
             addDateInput();
             addTimeInput();
             const preselect = new URLSearchParams(location.search).get('tournament_id');
@@ -386,10 +646,32 @@
 
         async function loadVenueOptionsForSchedule() {
             const res = await api('/venues');
+            venuesCache = res.data || [];
             const sel = document.getElementById('as-venue');
-            if (!sel) return;
-            sel.innerHTML = '<option value="">No venue / assign later</option>' +
-                (res.data || []).map(v => `<option value="${v.id}">${v.name}</option>`).join('');
+            if (sel) {
+                sel.innerHTML = '<option value="">No venue / assign later</option>' +
+                    venuesCache.map(v => `<option value="${v.id}">${v.name}</option>`).join('');
+            }
+            const ffaSel = document.getElementById('ffa-venue');
+            if (ffaSel) {
+                ffaSel.innerHTML = '<option value="">Select venue…</option>' +
+                    venuesCache.map(v => `<option value="${v.id}">${v.name}</option>`).join('');
+            }
+        }
+
+        // NOTE: /matches/officers currently 404s because of a route-order bug
+        // in routes/matches.js (a literal path must be registered before
+        // '/:id'). Once fixed server-side, this will populate correctly.
+        async function loadOfficerOptionsForSchedule() {
+            const res = await api('/matches/officers');
+            officersCache = res.success ? (res.data || []) : [];
+            const ffaSel = document.getElementById('ffa-referee');
+            if (ffaSel) {
+                ffaSel.innerHTML = '<option value="">Unassigned</option>' +
+                    officersCache.map(o =>
+                        `<option value="${o.id}">${o.first_name} ${o.last_name}${o.active_assignments ? ` (${o.active_assignments} active)` : ''}</option>`
+                    ).join('');
+            }
         }
 
         function onTournamentChange() {
@@ -413,32 +695,53 @@
             ]);
             if (!tourneyRes.success) return;
             currentTournament = tourneyRes.data;
+            currentBracketMatches = bracketRes.data || [];
+
+            const isFfa = currentTournament.format === 'free_for_all';
+            const isLocked = !['draft', 'registration'].includes(currentTournament.status);
 
             document.getElementById('w-participants').textContent = currentTournament.participants?.length || 0;
-            document.getElementById('w-matches').textContent = bracketRes.data?.length || 0;
+            document.getElementById('w-matches').textContent = currentBracketMatches.length || 0;
             document.getElementById('w-status').textContent = currentTournament.status;
             document.getElementById('bracket-title').innerHTML =
                 `<i class="fa-solid fa-trophy"></i> Bracket — ${currentTournament.name}`;
 
+            // Departments can never be added once the tournament has left
+            // draft/registration (the server already enforces this — see
+            // addParticipants in tournamentController.js — this just mirrors
+            // it in the UI instead of letting people click into a 400 error).
+            document.getElementById('btn-add-participants').style.display = isLocked ? 'none' : '';
             document.getElementById('btn-generate').style.display =
-                ['draft', 'registration'].includes(currentTournament.status) ? '' : 'none';
+                !isLocked ? '' : 'none';
+            document.getElementById('participants-lock-note').style.display = isLocked ? '' : 'none';
+
             document.getElementById('btn-promote').style.display =
                 currentTournament.format?.startsWith('group_stage_') ? '' : 'none';
             document.getElementById('btn-auto-schedule').style.display =
                 currentTournament.format === 'round_robin' ? '' : 'none';
 
             renderParticipants(currentTournament.participants || []);
-            const bracketEl = document.getElementById('bracket-view');
-            if (typeof renderBracketByFormat === 'function') {
-                bracketEl.innerHTML = renderBracketByFormat(
-                    bracketRes.data || [],
-                    currentTournament.participants || [],
-                    currentTournament
-                );
+
+            // Free-For-All gets its own card; everything else uses the
+            // standard bracket card. Toggle instead of duplicating logic.
+            document.getElementById('ffa-card-wrap').style.display = isFfa ? '' : 'none';
+            document.getElementById('standard-bracket-card').style.display = isFfa ? 'none' : '';
+
+            if (isFfa) {
+                renderFfaCard(currentTournament, currentBracketMatches[0] || null);
             } else {
-                bracketEl.innerHTML = (bracketRes.data || []).length
-                    ? `<div class="section-empty">${bracketRes.data.length} match(es) loaded.</div>`
-                    : `<div class="section-empty">No matches yet. Add participants and generate the bracket.</div>`;
+                const bracketEl = document.getElementById('bracket-view');
+                if (typeof renderBracketByFormat === 'function') {
+                    bracketEl.innerHTML = renderBracketByFormat(
+                        currentBracketMatches,
+                        currentTournament.participants || [],
+                        currentTournament
+                    );
+                } else {
+                    bracketEl.innerHTML = currentBracketMatches.length
+                        ? `<div class="section-empty">${currentBracketMatches.length} match(es) loaded.</div>`
+                        : `<div class="section-empty">No matches yet. Add participants and generate the bracket.</div>`;
+                }
             }
         }
 
@@ -454,6 +757,70 @@
           <span style="font-size:13px;font-weight:600">${p.department_name}${p.team_name ? ' — ' + p.team_name : ''}</span>
           <span style="font-size:11px;color:var(--muted)"><i class="fa-solid fa-user" style="font-size:10px"></i> ${(p.players || []).filter(x => x.status === 'approved').length}</span>
         </div>`).join('')}</div>`;
+        }
+
+        // ── Free-For-All card ───────────────────────────────────
+        function renderFfaCard(tournament, match) {
+            document.getElementById('ffa-title').textContent = tournament.name;
+
+            const participants = tournament.participants || [];
+            document.getElementById('ffa-participants').innerHTML = participants.length
+                ? participants.map((p, i) => `
+            <div class="ffa-chip">
+                <div class="rank">${i + 1}</div>
+                <span>${p.department_name}</span>
+            </div>`).join('')
+                : `<div style="font-size:12px;color:var(--muted)">No departments entered yet — add at least 2 to schedule this event.</div>`;
+
+            const infoEl = document.getElementById('ffa-schedule-info');
+            const btnEl = document.getElementById('ffa-btn-schedule');
+            const isLocked = !['draft', 'registration'].includes(tournament.status);
+
+            if (match && match.scheduled_date) {
+                infoEl.innerHTML = `<strong>${formatDate(match.scheduled_date)}</strong> at <strong>${formatTime(match.scheduled_time)}</strong>` +
+                    (match.venue_name ? ` · <i class="fa-solid fa-location-dot"></i> ${match.venue_name}` : ' · Venue TBD') +
+                    (match.referee_name ? ` · <i class="fa-solid fa-user"></i> ${match.referee_name}` : '');
+                btnEl.innerHTML = '<i class="fa-solid fa-pen"></i> Edit Schedule';
+            } else {
+                infoEl.textContent = participants.length < 2
+                    ? 'Add at least 2 departments, then generate the bracket to unlock scheduling.'
+                    : 'Not scheduled yet.';
+                btnEl.innerHTML = '<i class="fa-solid fa-calendar-plus"></i> Set Date, Time & Venue';
+            }
+            // Scheduling needs the placeholder match to exist, which only
+            // happens after "Generate Bracket" has created it.
+            btnEl.disabled = !match;
+            btnEl.style.opacity = match ? 1 : 0.5;
+        }
+
+        function openFfaSchedule() {
+            const match = currentBracketMatches[0];
+            if (!match) {
+                Toast.show('Generate the bracket first to create this event\'s match slot', 'error');
+                return;
+            }
+            document.getElementById('ffa-date').value = match.scheduled_date || '';
+            document.getElementById('ffa-time').value = match.scheduled_time || '';
+            document.getElementById('ffa-venue').value = match.venue_id || '';
+            document.getElementById('ffa-referee').value = match.referee_user_id || match.referee_id || '';
+            Modal.open('modal-ffa-schedule');
+        }
+
+        async function submitFfaSchedule() {
+            const match = currentBracketMatches[0];
+            if (!match) return;
+            const body = {
+                scheduled_date: document.getElementById('ffa-date').value || null,
+                scheduled_time: document.getElementById('ffa-time').value || null,
+                venue_id: document.getElementById('ffa-venue').value || null,
+                referee_id: document.getElementById('ffa-referee').value || null,
+            };
+            const res = await api(`/matches/${match.id}/schedule`, { method: 'PUT', body });
+            Toast.show(res.message || (res.success ? 'Event scheduled!' : 'Error'), res.success ? 'success' : 'error');
+            if (res.success) {
+                Modal.close('modal-ffa-schedule');
+                refreshAll();
+            }
         }
 
         async function openAddParticipants() {
@@ -560,27 +927,79 @@
             const wrap = document.createElement('div');
             wrap.style.cssText = 'display:flex;gap:8px';
             wrap.innerHTML = `<input type="date" class="form-input as-date-input" value="${value}" style="flex:1">
-        <button class="btn btn-secondary btn-sm" onclick="this.parentElement.remove()"><i class="fa-solid fa-xmark"></i></button>`;
+        <button class="btn btn-secondary btn-sm" onclick="this.parentElement.remove();updateSlotCalc()"><i class="fa-solid fa-xmark"></i></button>`;
             document.getElementById('as-dates').appendChild(wrap);
+            wrap.querySelector('input').addEventListener('input', updateSlotCalc);
+            updateSlotCalc();
         }
 
         function addTimeInput(value = '') {
             const wrap = document.createElement('div');
             wrap.style.cssText = 'display:flex;gap:8px';
             wrap.innerHTML = `<input type="time" class="form-input as-time-input" value="${value}" style="flex:1">
-        <button class="btn btn-secondary btn-sm" onclick="this.parentElement.remove()"><i class="fa-solid fa-xmark"></i></button>`;
+        <button class="btn btn-secondary btn-sm" onclick="this.parentElement.remove();updateSlotCalc()"><i class="fa-solid fa-xmark"></i></button>`;
             document.getElementById('as-times').appendChild(wrap);
+            wrap.querySelector('input').addEventListener('input', updateSlotCalc);
+            updateSlotCalc();
+        }
+
+        // Tells you the exact number of dates/times to enter instead of
+        // guessing: matches = N*(N-1)/2 for round robin, slots = dates × times.
+        function updateSlotCalc() {
+            const box = document.getElementById('slot-calc');
+            if (!box) return;
+            const n = currentTournament?.participants?.length || 0;
+            const matchesNeeded = n >= 2 ? (n * (n - 1)) / 2 : 0;
+
+            const dateCount = document.querySelectorAll('.as-date-input').length;
+            const timeCount = document.querySelectorAll('.as-time-input').length;
+            const slotsAvailable = dateCount * timeCount;
+
+            document.getElementById('slot-calc-matches').textContent = matchesNeeded || '—';
+
+            const detail = document.getElementById('slot-calc-detail');
+            box.classList.remove('ok', 'short');
+
+            if (!n) {
+                detail.textContent = 'Add departments to this tournament first.';
+                return;
+            }
+            if (slotsAvailable === 0) {
+                detail.textContent = `You currently have ${dateCount} date(s) × ${timeCount} time(s) = 0 slots.`;
+                return;
+            }
+            if (slotsAvailable < matchesNeeded) {
+                box.classList.add('short');
+                detail.innerHTML = `${dateCount} date(s) × ${timeCount} time(s) = <strong>${slotsAvailable} slots</strong> — that's short by ${matchesNeeded - slotsAvailable}. Add more dates or time slots, e.g. ${matchesNeeded} dates × 1 time, or ${Math.ceil(matchesNeeded / timeCount)} dates × ${timeCount} time(s).`;
+            } else {
+                box.classList.add('ok');
+                const exact = slotsAvailable === matchesNeeded;
+                detail.innerHTML = `${dateCount} date(s) × ${timeCount} time(s) = <strong>${slotsAvailable} slots</strong> — ${exact ? 'exactly enough, no repeats.' : `covers all ${matchesNeeded} matches (${slotsAvailable - matchesNeeded} slot(s) will go unused).`}`;
+            }
+        }
+
+        function openAutoSchedule() {
+            updateSlotCalc();
+            Modal.open('modal-auto-schedule');
         }
 
         async function submitAutoSchedule() {
             const dates = [...document.querySelectorAll('.as-date-input')].map(i => i.value).filter(Boolean);
             const times = [...document.querySelectorAll('.as-time-input')].map(i => i.value).filter(Boolean);
             const venue_id = parseInt(document.getElementById('as-venue').value, 10) || null;
+            const assign_officers = document.getElementById('as-assign-officers').checked;
             if (!dates.length) { Toast.show('Add at least one date', 'error'); return; }
             if (!times.length) { Toast.show('Add at least one time slot', 'error'); return; }
+
+            const n = currentTournament?.participants?.length || 0;
+            const matchesNeeded = n >= 2 ? (n * (n - 1)) / 2 : 0;
+            if (dates.length * times.length < matchesNeeded) {
+                if (!confirm(`You only have ${dates.length * times.length} slot(s) for ${matchesNeeded} matches — some matches will share a slot time. Continue anyway?`)) return;
+            }
+
             const res = await api(`/tournaments/${currentTournamentId}/schedule-round-robin`, {
                 method: 'POST',
-                body: { dates, times, venue_id },
+                body: { dates, times, venue_id, assign_officers },
             });
             Toast.show(res.message || (res.success ? 'Scheduled!' : 'Error'), res.success ? 'success' : 'error');
             if (res.success) { Modal.close('modal-auto-schedule'); refreshAll(); }
