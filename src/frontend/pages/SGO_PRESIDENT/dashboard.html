@@ -1,0 +1,347 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PAC SCHED-SCORE — SGO President Dashboard</title>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;600;700;800;900&family=Barlow:wght@300;400;500;600&display=swap"
+        rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <link rel="stylesheet" href="../../css/sgo_president.css">
+    <style>
+        .ffa-tag {
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            font-size: 10px;
+            font-weight: 800;
+            text-transform: uppercase;
+            letter-spacing: .06em;
+            color: var(--gold);
+            background: rgba(255, 176, 32, .12);
+            border: 1px solid rgba(255, 176, 32, .3);
+            border-radius: 100px;
+            padding: 2px 10px;
+            margin-left: 8px;
+        }
+    </style>
+</head>
+
+<body>
+    <main class="main">
+        <div class="topbar">
+            <div style="display:flex;align-items:center">
+                <button class="burger-menu" onclick="toggleSidebar()" aria-label="Open menu">
+                    <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2"
+                        stroke-linecap="round" stroke-linejoin="round">
+                        <line x1="4" x2="20" y1="12" y2="12" />
+                        <line x1="4" x2="20" y1="6" y2="6" />
+                        <line x1="4" x2="20" y1="18" y2="18" />
+                    </svg>
+                </button>
+                <div class="topbar-title">Dashboard</div>
+            </div>
+            <div class="topbar-right">
+                <div class="nav-notification-container">
+                    <div class="nav-bell" id="notif-bell">
+                        <i class="fa-solid fa-bell"></i>
+                        <span class="notif-badge" id="notif-count" style="display:none">0</span>
+                    </div>
+                    <div class="notif-dropdown" id="notif-dropdown">
+                        <div class="notif-header">Notifications</div>
+                        <div class="notif-list" id="notif-list">
+                            <div class="notif-item empty">Loading…</div>
+                        </div>
+                    </div>
+                </div>
+                <a href="/SGO_PRESIDENT/game-setup.html" class="btn btn-primary btn-sm">New Tournament</a>
+            </div>
+        </div>
+        <div class="content">
+            <div class="page-header">
+                <div class="page-title">Welcome back, President</div>
+                <div class="page-sub">Sport Fest overview — everything happening across all tournaments</div>
+            </div>
+
+            <div id="champion-area"></div>
+
+            <div class="stats-grid">
+                <div class="stat-card stat-gold">
+                    <div class="stat-icon"><i class="fa-solid fa-medal"></i></div>
+                    <div class="stat-value" id="s-tournaments">—</div>
+                    <div class="stat-label">Total Tournaments</div>
+                </div>
+                <div class="stat-card stat-green">
+                    <div class="stat-icon"><i class="fa-solid fa-check"></i></div>
+                    <div class="stat-value" id="s-completed">—</div>
+                    <div class="stat-label">Completed</div>
+                </div>
+                <div class="stat-card stat-red">
+                    <div class="stat-icon"><i class="fa-solid fa-circle"></i></div>
+                    <div class="stat-value" id="s-live">—</div>
+                    <div class="stat-label">Live Now</div>
+                </div>
+                <div class="stat-card stat-blue">
+                    <div class="stat-icon"><i class="fa-solid fa-gamepad"></i></div>
+                    <div class="stat-value" id="s-matches">—</div>
+                    <div class="stat-label">Total Matches</div>
+                </div>
+                <div class="stat-card stat-purple">
+                    <div class="stat-icon"><i class="fa-solid fa-calendar-days"></i></div>
+                    <div class="stat-value" id="s-today">—</div>
+                    <div class="stat-label">Today's Matches</div>
+                </div>
+                <div class="stat-card stat-orange">
+                    <div class="stat-icon"><i class="fa-solid fa-location-dot"></i></div>
+                    <div class="stat-value" id="s-venues">—</div>
+                    <div class="stat-label">Active Venues</div>
+                </div>
+            </div>
+
+            <div class="grid-2" style="align-items:start">
+                <div class="card">
+                    <div class="card-header">
+                        <div class="card-title">Upcoming Matches</div>
+                        <a href="/SGO_PRESIDENT/schedule.html" class="btn btn-secondary btn-sm">Manage</a>
+                    </div>
+                    <div class="card-body" id="upcoming-matches">
+                        <div class="empty-state">
+                            <div class="empty-text">Loading…</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="card">
+                    <div class="card-header">
+                        <div class="card-title">Standings</div>
+                        <a href="/SGO_PRESIDENT/reports.html" class="btn btn-secondary btn-sm">Full View</a>
+                    </div>
+                    <div class="card-body" style="padding:0" id="mini-leaderboard"></div>
+                </div>
+            </div>
+
+            <div class="card" style="margin-top:20px">
+                <div class="card-header">
+                    <div class="card-title">Live Right Now</div>
+                    <a href="/SGO_PRESIDENT/live-scores.html" class="btn btn-secondary btn-sm">Watch Live</a>
+                </div>
+                <div class="card-body" id="live-preview"></div>
+            </div>
+        </div>
+    </main>
+
+    <script>
+        if (window.location.pathname.includes('/sgo_president/')) {
+            const newPath = window.location.pathname.replace('/sgo_president/', '/president/');
+            window.location.replace(newPath);
+        }
+    </script>
+    <script src="../../js/api.js"></script>
+    <script src="../../js/sgo_president.js"></script>
+    <script>
+        function debugAuth() {
+            console.log('=== AUTH DEBUG ===');
+            console.log('sf_token:', localStorage.getItem('sf_token'));
+            console.log('sf_user raw:', localStorage.getItem('sf_user'));
+            try {
+                const user = JSON.parse(localStorage.getItem('sf_user'));
+                console.log('sf_user parsed:', user);
+                console.log('User role:', user?.role);
+            } catch (e) {
+                console.error('Failed to parse user:', e);
+            }
+            console.log('=== END DEBUG ===');
+        }
+
+        function isFfa(m) {
+            return m.tournament_format === 'free_for_all';
+        }
+
+        document.addEventListener('DOMContentLoaded', async () => {
+            debugAuth();
+            const user = Auth.requireAuth('sgo_president');
+            if (!user) {
+                console.error('Auth failed - redirecting to login');
+                return;
+            }
+            renderSidebar('dashboard');
+            NotifBell.init();
+            await loadDashboard();
+            await loadNotifPreview();
+        });
+
+        async function loadDashboard() {
+            try {
+                const [dash, champion, venues] = await Promise.all([
+                    api('/reports/dashboard'),
+                    api('/leaderboard/overall-champion'),
+                    api('/venues'),
+                ]);
+
+                if (dash.success) {
+                    const t = dash.data.totals;
+                    document.getElementById('s-tournaments').textContent = t.total_tournaments || 0;
+                    document.getElementById('s-completed').textContent = t.completed_tournaments || 0;
+                    document.getElementById('s-live').textContent = t.live_matches || 0;
+                    document.getElementById('s-matches').textContent = t.total_matches || 0;
+                    document.getElementById('s-today').textContent = t.todays_matches || 0;
+
+                    const upEl = document.getElementById('upcoming-matches');
+                    if (dash.data.upcomingMatches?.length) {
+                        upEl.innerHTML = dash.data.upcomingMatches.map(m => isFfa(m) ? `
+                    <div class="match-card">
+                        <div class="match-sport-icon">${sportIcon(m.sport_name)}</div>
+                        <div class="match-info">
+                            <div class="match-teams">${m.tournament_name} <span class="ffa-tag"><i class="fa-solid fa-bolt"></i> FFA</span></div>
+                            <div class="match-meta">One-time event · ${m.venue_name || 'Venue TBD'}</div>
+                        </div>
+                        <div style="text-align:right">
+                            <div style="font-weight:600;font-size:13px">${formatDate(m.scheduled_date)}</div>
+                            <div style="color:var(--gold);font-family:'Barlow Condensed',sans-serif;font-size:16px;font-weight:700">${formatTime(m.scheduled_time)}</div>
+                        </div>
+                    </div>` : `
+                    <div class="match-card">
+                        <div class="match-sport-icon">${sportIcon(m.sport_name)}</div>
+                        <div class="match-info">
+                            <div class="match-teams">${m.dept_a || '?'} <span style="color:var(--muted)">vs</span> ${m.dept_b || '?'}</div>
+                            <div class="match-meta">${m.tournament_name} · ${m.venue_name || 'Venue TBD'}</div>
+                        </div>
+                        <div style="text-align:right">
+                            <div style="font-weight:600;font-size:13px">${formatDate(m.scheduled_date)}</div>
+                            <div style="color:var(--gold);font-family:'Barlow Condensed',sans-serif;font-size:16px;font-weight:700">${formatTime(m.scheduled_time)}</div>
+                        </div>
+                    </div>`).join('');
+                    } else {
+                        upEl.innerHTML = `<div class="empty-state"><div class="empty-text">No upcoming matches scheduled</div></div>`;
+                    }
+                }
+
+                if (venues.success) {
+                    document.getElementById('s-venues').textContent = venues.data.filter(v => v.is_active).length ?? venues.data.length;
+                }
+
+                if (champion.success) {
+                    const c = champion.data;
+                    const leader = c.champion || c.current_leader;
+                    const area = document.getElementById('champion-area');
+                    if (leader) {
+                        area.innerHTML = `
+                    <div class="champion-banner">
+                        <div class="champion-trophy"><i class="fa-solid fa-trophy"></i></div>
+                        <div class="champion-info">
+                            <div class="champion-label">${c.is_final ? 'SPORT FEST CHAMPION' : 'CURRENT LEADER'}</div>
+                            <div class="champion-name">${leader.name}</div>
+                            <div class="champion-sub">${c.message}</div>
+                        </div>
+                        <div>
+                            <div class="champion-pts">${leader.total_points}</div>
+                            <div class="champion-pts-lbl">POINTS</div>
+                            <div style="font-size:12px;color:var(--muted);margin-top:4px">
+                                G:${leader.gold_medals || 0} S:${leader.silver_medals || 0} B:${leader.bronze_medals || 0}
+                            </div>
+                        </div>
+                    </div>`;
+                    }
+                }
+
+                await loadMiniLeaderboard();
+                await loadLivePreview();
+            } catch (error) {
+                console.error('Error loading dashboard:', error);
+                Toast.show('Error loading dashboard data', 'error');
+            }
+        }
+
+        async function loadMiniLeaderboard() {
+            try {
+                const res = await api('/leaderboard');
+                const el = document.getElementById('mini-leaderboard');
+                if (!res.success || !res.data.length) {
+                    el.innerHTML = '<div class="empty-state"><div class="empty-text">No standings yet</div></div>';
+                    return;
+                }
+                el.innerHTML = res.data.slice(0, 6).map((d, i) => `
+            <div class="lb-row">
+                <div class="lb-rank ${i < 3 ? `rank-${i + 1}` : ''}">${i + 1}</div>
+                <div class="lb-color" style="background:${d.color || '#666'}"></div>
+                <div class="lb-dept">
+                    <div class="lb-dept-name">${d.name}</div>
+                    <div class="lb-dept-medals">G:${d.gold_medals || 0} S:${d.silver_medals || 0} B:${d.bronze_medals || 0}</div>
+                </div>
+                <div>
+                    <div class="lb-pts">${d.total_points || 0}</div>
+                    <div class="lb-pts-lbl">pts</div>
+                </div>
+            </div>`).join('');
+            } catch (error) {
+                console.error('Error loading leaderboard:', error);
+            }
+        }
+
+        async function loadLivePreview() {
+            try {
+                const res = await api('/matches/live');
+                const el = document.getElementById('live-preview');
+                if (!res.success || !res.data.length) {
+                    el.innerHTML = `<div class="empty-state"><div class="empty-text">No live matches right now</div></div>`;
+                    return;
+                }
+                el.innerHTML = res.data.slice(0, 3).map(m => isFfa(m) ? `
+            <div class="live-card">
+                <div class="live-sport-icon">${sportIcon(m.sport_name)}</div>
+                <div style="flex:1">
+                    <div style="font-size:11px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:var(--green);margin-bottom:4px">
+                        <span class="live-dot"></span>LIVE · ${m.sport_name} <span class="ffa-tag"><i class="fa-solid fa-bolt"></i> FFA</span>
+                    </div>
+                    <div style="font-weight:700">${m.tournament_name}</div>
+                    <div style="font-size:12px;color:var(--muted)">${m.venue_name || '—'}</div>
+                </div>
+            </div>` : `
+            <div class="live-card">
+                <div class="live-sport-icon">${sportIcon(m.sport_name)}</div>
+                <div style="flex:1">
+                    <div style="font-size:11px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:var(--green);margin-bottom:4px">
+                        <span class="live-dot"></span>LIVE · ${m.sport_name}
+                    </div>
+                    <div style="font-weight:700">${m.dept_a || '?'} vs ${m.dept_b || '?'}</div>
+                    <div style="font-size:12px;color:var(--muted)">${m.venue_name || '—'}</div>
+                </div>
+                <div style="font-family:'Barlow Condensed',sans-serif;font-size:32px;font-weight:900;color:var(--gold)">
+                    ${m.live_score_a || 0}–${m.live_score_b || 0}
+                </div>
+            </div>`).join('');
+            } catch (error) {
+                console.error('Error loading live preview:', error);
+            }
+        }
+
+        async function loadNotifPreview() {
+            try {
+                const res = await api('/matches?status=scheduled');
+                const list = document.getElementById('notif-list');
+                const badge = document.getElementById('notif-count');
+                if (!res.success || !res.data.length) {
+                    list.innerHTML = '<div class="notif-item empty">No new notifications</div>';
+                    badge.style.display = 'none';
+                    return;
+                }
+                const upcoming = res.data.slice(0, 6);
+                badge.textContent = upcoming.length;
+                badge.style.display = 'inline-block';
+                list.innerHTML = upcoming.map(m => `
+            <div class="notif-item">
+                <div class="notif-icon"><i class="fa-solid fa-calendar-days"></i></div>
+                <div class="notif-content">
+                    <strong>${isFfa(m) ? m.tournament_name + ' (FFA)' : `${m.dept_a_name || '?'} vs ${m.dept_b_name || '?'}`}</strong> — ${m.sport_name} scheduled ${formatDate(m.scheduled_date)} ${formatTime(m.scheduled_time)}
+                    <a class="notif-link" href="/SGO_PRESIDENT/schedule.html">Manage schedule →</a>
+                </div>
+            </div>`).join('');
+            } catch (error) {
+                console.error('Error loading notifications:', error);
+            }
+        }
+    </script>
+</body>
+
+</html>

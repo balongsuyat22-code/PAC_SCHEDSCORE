@@ -1,0 +1,848 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PAC SCHED-SCORE — Teams & Rosters</title>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;600;700;800;900&family=Barlow:wght@300;400;500;600&display=swap"
+        rel="stylesheet">
+    <link rel="stylesheet" href="../../css/shared.css">
+    <style>
+        .tabs-header {
+            display: flex;
+            gap: 20px;
+            border-bottom: 2px solid var(--border);
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+
+        .tab-btn {
+            background: none;
+            border: none;
+            color: var(--text2);
+            font-family: 'Barlow Condensed', sans-serif;
+            font-size: 20px;
+            text-transform: uppercase;
+            padding: 10px 15px;
+            cursor: pointer;
+            border-bottom: 3px solid transparent;
+            transition: 0.2s;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .tab-btn .icon {
+            width: 18px;
+            height: 18px;
+        }
+
+        .tab-btn.active {
+            color: var(--gold);
+            border-bottom: 3px solid var(--gold);
+            font-weight: bold;
+        }
+
+        .tab-content {
+            display: none;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        .status-pending {
+            color: #f39c12;
+            background: rgba(243, 156, 18, 0.1);
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 12px;
+            font-weight: bold;
+            display: inline-block;
+        }
+
+        .status-approved {
+            color: #2ecc71;
+            background: rgba(46, 204, 113, 0.1);
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 12px;
+            font-weight: bold;
+            display: inline-block;
+        }
+
+        .status-rejected {
+            color: #e74c3c;
+            background: rgba(231, 76, 60, 0.1);
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 12px;
+            font-weight: bold;
+            display: inline-block;
+        }
+
+        .player-avatar {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            object-fit: cover;
+            background: var(--bg3);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 16px;
+            font-weight: bold;
+            color: var(--gold);
+        }
+
+        .player-avatar .icon {
+            width: 20px;
+            height: 20px;
+            color: var(--gold);
+        }
+
+        .player-info-cell {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .player-details {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .player-name {
+            font-weight: 600;
+            font-size: 14px;
+        }
+
+        .player-jersey {
+            font-size: 11px;
+            color: var(--muted);
+        }
+
+        .roster-player-card {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            padding: 12px;
+            background: var(--bg3);
+            border-radius: 10px;
+            margin-bottom: 10px;
+            transition: all 0.2s;
+            flex-wrap: wrap;
+        }
+
+        .roster-player-card:hover {
+            background: var(--bg4);
+            border-color: var(--border-gold);
+        }
+
+        .roster-player-avatar {
+            width: 50px;
+            height: 50px;
+            border-radius: 12px;
+            object-fit: cover;
+            background: var(--bg2);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 20px;
+            font-weight: bold;
+            color: var(--gold);
+        }
+
+        .roster-player-avatar .icon {
+            width: 24px;
+            height: 24px;
+            color: var(--gold);
+        }
+
+        .roster-player-info {
+            flex: 1;
+            min-width: 140px;
+        }
+
+        .roster-player-name {
+            font-weight: 700;
+            font-size: 15px;
+            margin-bottom: 4px;
+        }
+
+        .roster-player-meta {
+            font-size: 12px;
+            color: var(--muted);
+            display: flex;
+            gap: 15px;
+            flex-wrap: wrap;
+        }
+
+        .roster-player-meta span {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .roster-actions {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+
+        .player-status-badge {
+            padding: 4px 10px;
+            border-radius: 20px;
+            font-size: 11px;
+            font-weight: 700;
+        }
+
+        .player-status-approved {
+            background: rgba(46, 204, 113, 0.15);
+            color: #2ecc71;
+        }
+
+        .player-status-pending {
+            background: rgba(243, 156, 18, 0.15);
+            color: #f39c12;
+        }
+
+        .player-status-rejected {
+            background: rgba(231, 76, 60, 0.15);
+            color: #e74c3c;
+        }
+
+        .team-card {
+            transition: all 0.2s;
+        }
+
+        .team-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+        }
+
+        .filter-bar {
+            display: flex;
+            gap: 12px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+
+        .filter-bar .form-select,
+        .filter-bar .form-input {
+            min-width: 180px;
+            flex: 1 1 auto;
+        }
+
+        @media (max-width: 768px) {
+            .tabs-header {
+                gap: 8px;
+            }
+
+            .tab-btn {
+                font-size: 16px;
+                padding: 8px 12px;
+            }
+
+            .filter-bar {
+                flex-direction: column;
+            }
+
+            .filter-bar .form-select,
+            .filter-bar .form-input {
+                min-width: 100%;
+            }
+
+            .roster-player-card {
+                flex-direction: column;
+                align-items: stretch;
+                text-align: center;
+            }
+
+            .roster-player-meta {
+                justify-content: center;
+            }
+
+            .roster-actions {
+                justify-content: center;
+            }
+
+            .topbar {
+                flex-wrap: wrap;
+                height: auto;
+                padding: 10px 16px;
+                gap: 8px;
+            }
+
+            .topbar-title {
+                font-size: 16px;
+            }
+
+            .topbar-actions {
+                flex-wrap: wrap;
+            }
+
+            .content {
+                padding: 16px;
+            }
+
+            .table-wrap {
+                overflow-x: auto;
+            }
+
+            table {
+                font-size: 13px;
+            }
+
+            th,
+            td {
+                padding: 8px 10px;
+            }
+
+            .modal {
+                width: 98vw;
+                max-width: 98vw;
+            }
+
+            .modal-body {
+                padding: 16px;
+            }
+
+            .form-row {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .tab-btn {
+                font-size: 14px;
+                padding: 6px 10px;
+            }
+
+            .tab-btn .icon {
+                width: 14px;
+                height: 14px;
+            }
+
+            .player-info-cell {
+                flex-wrap: wrap;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <aside class="sidebar" id="sidebar"></aside>
+    <main class="main">
+        <div class="topbar">
+            <div class="topbar-title">
+                <span class="icon" style="width:20px;height:20px;color:var(--gold);">
+                    <svg viewBox="0 0 24 24">
+                        <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+                        <circle cx="9" cy="7" r="4"></circle>
+                        <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
+                        <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
+                    </svg>
+                </span>
+                Teams & Roster Management
+            </div>
+            <div class="topbar-actions">
+                <button class="btn btn-secondary btn-sm" onclick="loadPage()">
+                    <span class="icon" style="width:14px;height:14px;"><svg viewBox="0 0 24 24">
+                            <polyline points="23 4 23 10 17 10"></polyline>
+                            <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"></path>
+                        </svg></span>
+                    Refresh
+                </button>
+                <button class="btn btn-primary btn-sm" id="btn-new-team" onclick="openCreateModal()">
+                    <span class="icon" style="width:14px;height:14px;"><svg viewBox="0 0 24 24">
+                            <line x1="12" y1="5" x2="12" y2="19"></line>
+                            <line x1="5" y1="12" x2="19" y2="12"></line>
+                        </svg></span>
+                    New Team
+                </button>
+            </div>
+        </div>
+        <div class="content">
+            <div class="page-header">
+                <div class="page-title">Grade & Strand Rosters</div>
+                <div class="page-sub">Manage teams, approve players, and track individual sport athletes.</div>
+            </div>
+            <div class="tabs-header">
+                <button class="tab-btn active" onclick="switchTab('teams')">
+                    <span class="icon"><svg viewBox="0 0 24 24">
+                            <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+                            <circle cx="9" cy="7" r="4"></circle>
+                            <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
+                            <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
+                        </svg></span>
+                    Teams (Group Sports)
+                </button>
+                <button class="tab-btn" onclick="switchTab('singles')">
+                    <span class="icon"><svg viewBox="0 0 24 24">
+                            <circle cx="12" cy="7" r="4"></circle>
+                            <path d="M5.5 20a8 8 0 0 1 13 0"></path>
+                        </svg></span>
+                    Single Players (Individual)
+                </button>
+            </div>
+            <div class="filter-bar">
+                <select id="filter-grade" class="form-select" onchange="loadPage()">
+                    <option value="">All Grades / Strands</option>
+                </select>
+                <select id="filter-sport" class="form-select" onchange="loadPage()">
+                    <option value="">All Sports</option>
+                </select>
+                <input id="filter-search" class="form-input" placeholder="Search..." oninput="filterRows()">
+            </div>
+            <div id="tab-teams" class="tab-content active card">
+                <div class="table-wrap">
+                    <table id="teams-table">
+                        <thead>
+                            <tr>
+                                <th>Team Name</th>
+                                <th>Grade / Strand</th>
+                                <th>Sport</th>
+                                <th>Coach</th>
+                                <th>Roster Size</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="teams-body"></tbody>
+                    </table>
+                </div>
+            </div>
+            <div id="tab-singles" class="tab-content card">
+                <div class="table-wrap">
+                    <table id="singles-table">
+                        <thead>
+                            <tr>
+                                <th>Athlete</th>
+                                <th>Grade / Strand</th>
+                                <th>Sport</th>
+                                <th>Jersey #</th>
+                                <th>Status</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="singles-body"></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </main>
+
+
+    <div class="modal-overlay" id="modal-team" onclick="if(event.target===this)Modal.close('modal-team')">
+        <div class="modal">
+            <div class="modal-header">
+                <div class="modal-title" id="team-modal-title">
+                    <span class="icon" style="width:18px;height:18px;color:var(--gold);"><svg viewBox="0 0 24 24">
+                            <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+                            <circle cx="9" cy="7" r="4"></circle>
+                            <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
+                            <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
+                        </svg></span>
+                    New Team
+                </div>
+                <button class="modal-close" onclick="Modal.close('modal-team')">✕</button>
+            </div>
+            <div class="modal-body">
+                <input type="hidden" id="team-edit-id">
+                <div class="form-group">
+                    <label class="form-label">Team Name *</label>
+                    <input type="text" id="tm-name" class="form-input" placeholder="e.g. STEM Eagles">
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label class="form-label">Grade / Strand *</label>
+                        <select id="tm-grade" class="form-select">
+                            <option value="">Select...</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Sport *</label>
+                        <select id="tm-sport" class="form-select">
+                            <option value="">Select...</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Gender *</label>
+                        <select id="tm-gender" class="form-select">
+                            <option value="">Select...</option>
+                            <option value="Men">Men</option>
+                            <option value="Women">Women</option>
+                            <option value="Mixed">Mixed</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="form-group" style="margin-bottom:0;">
+                    <label class="form-label">Coach Name</label>
+                    <input type="text" id="tm-coach" class="form-input" placeholder="e.g. Mr. Johnson">
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="Modal.close('modal-team')">Cancel</button>
+                <button class="btn btn-primary" onclick="saveTeam()">Save Team</button>
+            </div>
+        </div>
+    </div>
+
+
+    <div class="modal-overlay" id="modal-roster" onclick="if(event.target===this)Modal.close('modal-roster')">
+        <div class="modal" style="max-width: 700px;">
+            <div class="modal-header">
+                <div class="modal-title" id="roster-title">
+                    <span class="icon" style="width:18px;height:18px;color:var(--gold);"><svg viewBox="0 0 24 24">
+                            <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+                            <circle cx="9" cy="7" r="4"></circle>
+                            <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
+                            <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
+                        </svg></span>
+                    Manage Roster
+                </div>
+                <button class="modal-close" onclick="Modal.close('modal-roster')">✕</button>
+            </div>
+            <div class="modal-body">
+                <div
+                    style="background:var(--bg3); padding:12px; border-radius:8px; margin-bottom:15px; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px;">
+                    <span style="font-size:14px; color:var(--text2);">Approved Players:</span>
+                    <strong style="font-size:18px;"><span id="roster-count" style="color:var(--gold);">0</span> / <span
+                            id="roster-max">15</span> Limit</strong>
+                </div>
+                <div id="roster-list" style="max-height: 500px; overflow-y: auto;">
+                    <div style="text-align:center; padding:20px; color:var(--muted);">Loading roster...</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+
+    <div class="modal-overlay" id="modal-player-detail"
+        onclick="if(event.target===this)Modal.close('modal-player-detail')">
+        <div class="modal" style="max-width: 500px;">
+            <div class="modal-header">
+                <div class="modal-title">
+                    <span class="icon" style="width:18px;height:18px;color:var(--gold);"><svg viewBox="0 0 24 24">
+                            <circle cx="12" cy="7" r="4"></circle>
+                            <path d="M5.5 20a8 8 0 0 1 13 0"></path>
+                        </svg></span>
+                    Player Details
+                </div>
+                <button class="modal-close" onclick="Modal.close('modal-player-detail')">✕</button>
+            </div>
+            <div class="modal-body" id="player-detail-content">
+
+            </div>
+        </div>
+    </div>
+
+    <script src="../../js/shared.js"></script>
+    <script src="../../js/admin-sidebar.js"></script>
+
+    <script>
+        let allTeams = [];
+        let allSingles = [];
+        let currentTab = 'teams';
+
+        document.addEventListener('DOMContentLoaded', async () => {
+            Auth.requireAuth('admin');
+            if (typeof renderSidebar === 'function') renderSidebar('teams');
+            const [gRes, sRes] = await Promise.all([api('/departments'), api('/sports')]);
+            const gOpts = (gRes.data || []).map(g => `<option value="${g.id}">${g.name}</option>`).join('');
+            const sOpts = (sRes.data || []).map(s => `<option value="${s.id}">${s.icon || '🏅'} ${s.name}</option>`).join('');
+            ['filter-grade', 'tm-grade'].forEach(id => {
+                const el = document.getElementById(id);
+                if (el) el.innerHTML += gOpts;
+            });
+            ['filter-sport', 'tm-sport'].forEach(id => {
+                const el = document.getElementById(id);
+                if (el) el.innerHTML += sOpts;
+            });
+            loadPage();
+        });
+
+        function switchTab(tabId) {
+            currentTab = tabId;
+            document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+            document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+            event.target.classList.add('active');
+            document.getElementById('tab-' + tabId).classList.add('active');
+            const newBtn = document.getElementById('btn-new-team');
+            if (newBtn) newBtn.style.display = tabId === 'teams' ? 'inline-flex' : 'none';
+        }
+
+        async function loadPage() {
+            const gradeId = document.getElementById('filter-grade').value;
+            const sportId = document.getElementById('filter-sport').value;
+            let teamUrl = `/teams?department_id=${gradeId}&sport_id=${sportId}`;
+            const teamRes = await api(teamUrl);
+            allTeams = teamRes.data || [];
+            const singleRes = await api('/teams/singles');
+            allSingles = (singleRes.data || []).filter(p => {
+                return (!gradeId || p.department_id == gradeId) && (!sportId || p.sport_id == sportId);
+            });
+            renderTeams();
+            renderSingles();
+        }
+
+        function renderTeams() {
+            const tbody = document.getElementById('teams-body');
+            if (!allTeams.length) {
+                tbody.innerHTML = `<tr><td colspan="6" style="text-align:center; padding:30px;">No teams found</td></tr>`;
+                return;
+            }
+            tbody.innerHTML = allTeams.map(t => {
+                const limitColor = t.approved_count >= t.max_players ? '#e74c3c' : 'var(--text)';
+                return `
+                <tr class="team-card">
+                    <td><strong>${escapeHtml(t.name)}</strong> <small style="color:var(--muted)">(${t.gender})</small></td>
+                    <td><span class="badge" style="background:var(--bg3);">${escapeHtml(t.department_name)}</span></td>
+                    <td>${t.sport_icon || '🏅'} ${escapeHtml(t.sport_name || '—')}</td>
+                    <td>${escapeHtml(t.coach_name || '—')}</td>
+                    <td>
+                        <strong style="color:${limitColor}">${t.approved_count || 0}</strong> / ${t.max_players || '∞'} 
+                        <span style="font-size:11px; color:var(--muted)">(${t.total_count} requests)</span>
+                    </td>
+                    <td>
+                        <button class="btn btn-secondary btn-sm" onclick="openEdit(${t.id})">
+                            <span class="icon" style="width:14px;height:14px;"><svg viewBox="0 0 24 24"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg></span>
+                            Edit
+                        </button>
+                        <button class="btn btn-primary btn-sm" onclick="openRoster(${t.id})">
+                            <span class="icon" style="width:14px;height:14px;"><svg viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg></span>
+                            Manage Roster
+                        </button>
+                    </td>
+                </tr>`;
+            }).join('');
+        }
+
+        function renderSingles() {
+            const tbody = document.getElementById('singles-body');
+            if (!allSingles.length) {
+                tbody.innerHTML = `<tr><td colspan="6" style="text-align:center; padding:30px;">No solo athletes found</td></tr>`;
+                return;
+            }
+            tbody.innerHTML = allSingles.map(p => {
+                const avatarHtml = p.image_url
+                    ? `<img src="${p.image_url}" class="player-avatar" onerror="this.style.display='none';this.nextSibling.style.display='flex'"><span class="player-avatar" style="display:none;"><span class="icon" style="width:20px;height:20px;"><svg viewBox="0 0 24 24"><circle cx="12" cy="7" r="4"></circle><path d="M5.5 20a8 8 0 0 1 13 0"></path></svg></span></span>`
+                    : `<span class="player-avatar"><span class="icon" style="width:20px;height:20px;"><svg viewBox="0 0 24 24"><circle cx="12" cy="7" r="4"></circle><path d="M5.5 20a8 8 0 0 1 13 0"></path></svg></span></span>`;
+
+                return `
+                <tr>
+                    <td>
+                        <div class="player-info-cell">
+                            ${avatarHtml}
+                            <div class="player-details">
+                                <div class="player-name">${escapeHtml(p.first_name)} ${escapeHtml(p.last_name)}</div>
+                                <div class="player-jersey">${p.jersey_number ? `Jersey #${p.jersey_number}` : 'No jersey'}</div>
+                            </div>
+                        </div>
+                    </td>
+                    <td>${escapeHtml(p.department_name)}</td>
+                    <td>${p.sport_icon || '🏅'} ${escapeHtml(p.sport_name)}</td>
+                    <td>${p.jersey_number ? `<span class="badge" style="background:var(--bg3);">#${p.jersey_number}</span>` : '—'}</td>
+                    <td><span class="status-${p.status}">${p.status.toUpperCase()}</span></td>
+                    <td>
+                        <button class="btn btn-secondary btn-sm" onclick="viewPlayerDetail(${p.id})">
+                            <span class="icon" style="width:14px;height:14px;"><svg viewBox="0 0 24 24"><circle cx="12" cy="7" r="4"></circle><path d="M5.5 20a8 8 0 0 1 13 0"></path></svg></span>
+                            View
+                        </button>
+                        ${p.status === 'pending' ? `
+                            <button class="btn btn-sm" style="background:#2ecc71; color:#fff" onclick="updatePlayerStatus(${p.id}, 'approved')">
+                                <span class="icon" style="width:14px;height:14px;"><svg viewBox="0 0 24 24"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg></span>
+                                Approve
+                            </button>
+                            <button class="btn btn-sm" style="background:#e74c3c; color:#fff" onclick="updatePlayerStatus(${p.id}, 'rejected')">
+                                <span class="icon" style="width:14px;height:14px;"><svg viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg></span>
+                                Reject
+                            </button>
+                        ` : `<button class="btn btn-secondary btn-sm" onclick="updatePlayerStatus(${p.id}, 'pending')">
+                            <span class="icon" style="width:14px;height:14px;"><svg viewBox="0 0 24 24"><polyline points="23 4 23 10 17 10"></polyline><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"></path></svg></span>
+                            Reset
+                        </button>`}
+                    </td>
+                </tr>`;
+            }).join('');
+        }
+
+        async function viewPlayerDetail(playerId) {
+            try {
+                const res = await api(`/players/${playerId}`);
+                if (!res.success) throw new Error('Failed to load player details');
+                const p = res.data;
+
+                const avatarHtml = p.image_url
+                    ? `<img src="${p.image_url}" style="width: 80px; height: 80px; border-radius: 50%; object-fit: cover;">`
+                    : `<div style="width: 80px; height: 80px; border-radius: 50%; background: var(--bg3); display: flex; align-items: center; justify-content: center; font-size: 32px; font-weight: bold; color: var(--gold);"><span class="icon" style="width:36px;height:36px;"><svg viewBox="0 0 24 24"><circle cx="12" cy="7" r="4"></circle><path d="M5.5 20a8 8 0 0 1 13 0"></path></svg></span></div>`;
+
+                document.getElementById('player-detail-content').innerHTML = `
+                    <div style="text-align: center; margin-bottom: 20px;">
+                        ${avatarHtml}
+                        <h3 style="margin-top: 12px; margin-bottom: 4px;">${escapeHtml(p.first_name)} ${escapeHtml(p.last_name)}</h3>
+                        <div class="player-status-badge player-status-${p.status}">${p.status.toUpperCase()}</div>
+                    </div>
+                    <div style="display: flex; flex-direction: column; gap: 12px;">
+                        <div style="display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid var(--border);">
+                            <span style="color: var(--muted);">Jersey Number</span>
+                            <span style="font-weight: 600;">${p.jersey_number || 'Not assigned'}</span>
+                        </div>
+                        <div style="display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid var(--border);">
+                            <span style="color: var(--muted);">Position</span>
+                            <span style="font-weight: 600;">${p.position || 'Not specified'}</span>
+                        </div>
+                        <div style="display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid var(--border);">
+                            <span style="color: var(--muted);">Grade/Strand</span>
+                            <span style="font-weight: 600;">${escapeHtml(p.department_name || '—')}</span>
+                        </div>
+                        <div style="display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid var(--border);">
+                            <span style="color: var(--muted);">Sport</span>
+                            <span style="font-weight: 600;">${escapeHtml(p.sport_name || '—')}</span>
+                        </div>
+                        <div style="display: flex; justify-content: space-between; padding: 8px 0;">
+                            <span style="color: var(--muted);">Email</span>
+                            <span style="font-weight: 600;">${escapeHtml(p.email || '—')}</span>
+                        </div>
+                    </div>
+                `;
+                Modal.open('modal-player-detail');
+            } catch (err) {
+                Toast.show('Error loading player details', 'error');
+                console.error(err);
+            }
+        }
+
+        async function openRoster(teamId) {
+            const res = await api(`/teams/${teamId}`);
+            if (!res.success) return;
+            const team = res.data;
+            document.getElementById('roster-title').innerHTML =
+                `<span class="icon" style="width:18px;height:18px;color:var(--gold);"><svg viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg></span> Roster: ${team.name} (${team.gender})`;
+            const approved = team.players.filter(p => p.status === 'approved').length;
+            document.getElementById('roster-count').innerText = approved;
+            document.getElementById('roster-max').innerText = team.max_players || '∞';
+
+            const rosterContainer = document.getElementById('roster-list');
+            if (!team.players.length) {
+                rosterContainer.innerHTML = `<div style="text-align:center; padding:30px; color:var(--muted);">No players registered yet.</div>`;
+            } else {
+                rosterContainer.innerHTML = team.players.map(p => {
+                    const avatarHtml = p.image_url
+                        ? `<img src="${p.image_url}" class="roster-player-avatar" onerror="this.style.display='none';this.nextSibling.style.display='flex'"><span class="roster-player-avatar" style="display:none;"><span class="icon" style="width:24px;height:24px;"><svg viewBox="0 0 24 24"><circle cx="12" cy="7" r="4"></circle><path d="M5.5 20a8 8 0 0 1 13 0"></path></svg></span></span>`
+                        : `<span class="roster-player-avatar"><span class="icon" style="width:24px;height:24px;"><svg viewBox="0 0 24 24"><circle cx="12" cy="7" r="4"></circle><path d="M5.5 20a8 8 0 0 1 13 0"></path></svg></span></span>`;
+
+                    return `
+                    <div class="roster-player-card">
+                        ${avatarHtml}
+                        <div class="roster-player-info">
+                            <div class="roster-player-name">${escapeHtml(p.first_name)} ${escapeHtml(p.last_name)}</div>
+                            <div class="roster-player-meta">
+                                <span>Jersey: ${p.jersey_number || '—'}</span>
+                                <span>${p.position || 'No position'}</span>
+                                <span class="player-status-badge player-status-${p.status}">${p.status.toUpperCase()}</span>
+                            </div>
+                        </div>
+                        <div class="roster-actions">
+                            <button class="btn btn-secondary btn-sm" onclick="viewPlayerDetail(${p.id})">
+                                <span class="icon" style="width:14px;height:14px;"><svg viewBox="0 0 24 24"><circle cx="12" cy="7" r="4"></circle><path d="M5.5 20a8 8 0 0 1 13 0"></path></svg></span>
+                                View
+                            </button>
+                            ${p.status !== 'approved' ? `<button class="btn btn-sm" style="background:#2ecc71; color:#fff" onclick="updatePlayerStatus(${p.id}, 'approved', ${teamId})">
+                                <span class="icon" style="width:14px;height:14px;"><svg viewBox="0 0 24 24"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg></span>
+                                Approve
+                            </button>` : ''}
+                            ${p.status !== 'rejected' ? `<button class="btn btn-sm" style="background:#e74c3c; color:#fff" onclick="updatePlayerStatus(${p.id}, 'rejected', ${teamId})">
+                                <span class="icon" style="width:14px;height:14px;"><svg viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg></span>
+                                Reject
+                            </button>` : ''}
+                        </div>
+                    </div>`;
+                }).join('');
+            }
+            Modal.open('modal-roster');
+        }
+
+        function openCreateModal() {
+            document.getElementById('team-edit-id').value = '';
+            document.getElementById('tm-name').value = '';
+            document.getElementById('tm-grade').value = '';
+            document.getElementById('tm-sport').value = '';
+            document.getElementById('tm-gender').value = '';
+            document.getElementById('tm-coach').value = '';
+            document.getElementById('team-modal-title').innerHTML =
+                `<span class="icon" style="width:18px;height:18px;color:var(--gold);"><svg viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg></span> New Team`;
+            Modal.open('modal-team');
+        }
+
+        function openEdit(id) {
+            const t = allTeams.find(x => x.id === id);
+            if (!t) return;
+            document.getElementById('team-edit-id').value = id;
+            document.getElementById('tm-name').value = t.name;
+            document.getElementById('tm-grade').value = t.department_id || '';
+            document.getElementById('tm-sport').value = t.sport_id || '';
+            document.getElementById('tm-gender').value = t.gender || '';
+            document.getElementById('tm-coach').value = t.coach_name || '';
+            document.getElementById('team-modal-title').innerHTML =
+                `<span class="icon" style="width:18px;height:18px;color:var(--gold);"><svg viewBox="0 0 24 24"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg></span> Edit Team`;
+            Modal.open('modal-team');
+        }
+
+        async function saveTeam() {
+            const id = document.getElementById('team-edit-id').value;
+            const body = {
+                name: document.getElementById('tm-name').value.trim(),
+                department_id: parseInt(document.getElementById('tm-grade').value),
+                sport_id: parseInt(document.getElementById('tm-sport').value),
+                gender: document.getElementById('tm-gender').value,
+                coach_name: document.getElementById('tm-coach').value.trim() || null
+            };
+
+            if (!body.name || !body.department_id || !body.sport_id || !body.gender) {
+                Toast.show("Please fill in all required fields", "error");
+                return;
+            }
+
+            const reqUrl = id ? `/teams/${id}` : '/teams';
+            const res = await api(reqUrl, { method: id ? 'PUT' : 'POST', body: JSON.stringify(body) });
+            Toast.show(res.message || 'Saved successfully', res.success ? 'success' : 'error');
+            if (res.success) { Modal.close('modal-team'); loadPage(); }
+        }
+
+        async function updatePlayerStatus(playerId, status, teamId = null) {
+            const res = await api(`/teams/players/${playerId}/status`, { method: 'PUT', body: JSON.stringify({ status }) });
+            if (res.success) {
+                Toast.show(`Player ${status}`, 'success');
+                if (teamId) {
+                    await openRoster(teamId);
+                }
+                loadPage();
+            } else {
+                Toast.show(res.message || 'Error updating status', 'error');
+            }
+        }
+
+        function filterRows() {
+            const q = document.getElementById('filter-search').value.toLowerCase();
+            const activeBody = currentTab === 'teams' ? '#teams-body tr' : '#singles-body tr';
+            document.querySelectorAll(activeBody).forEach(r => {
+                r.style.display = r.textContent.toLowerCase().includes(q) ? '' : 'none';
+            });
+        }
+
+        function escapeHtml(str) {
+            if (!str) return '';
+            return str.replace(/[&<>]/g, function (m) {
+                if (m === '&') return '&amp;';
+                if (m === '<') return '&lt;';
+                if (m === '>') return '&gt;';
+                return m;
+            });
+        }
+    </script>
+</body>
+
+</html>

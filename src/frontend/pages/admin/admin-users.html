@@ -1,0 +1,1032 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PAC SCHED-SCORE — Users</title>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;600;700;800;900&family=Barlow:wght@300;400;500;600&display=swap"
+        rel="stylesheet">
+    <link rel="stylesheet" href="../../css/shared.css">
+    <style>
+        .user-avatar-sm {
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            background: var(--gold);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-family: 'Barlow Condensed', sans-serif;
+            font-size: 15px;
+            font-weight: 800;
+            color: #000;
+            flex-shrink: 0;
+        }
+
+        .user-avatar-sm .icon {
+            width: 18px;
+            height: 18px;
+        }
+
+        .user-cell {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .user-cell-info {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .user-cell-name {
+            font-weight: 600;
+            font-size: 14px;
+        }
+
+        .user-cell-sub {
+            font-size: 11px;
+            color: var(--muted);
+        }
+
+        .role-pill {
+            display: inline-block;
+            padding: 3px 10px;
+            border-radius: 20px;
+            font-size: 11px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: .5px;
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .role-pill .icon {
+            width: 12px;
+            height: 12px;
+        }
+
+        .role-admin {
+            background: rgba(245, 184, 0, .15);
+            color: var(--gold);
+        }
+
+        .role-dean_adviser {
+            background: rgba(59, 130, 246, .15);
+            color: #60A5FA;
+        }
+
+        .role-sgo_president {
+            background: rgba(139, 92, 246, .15);
+            color: #A78BFA;
+        }
+
+        .role-sgo_officer {
+            background: rgba(232, 50, 59, .15);
+            color: var(--red);
+        }
+
+        .role-visitor {
+            background: rgba(107, 116, 148, .15);
+            color: var(--muted);
+        }
+
+        .stat-block {
+            background: var(--bg2);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 16px 18px;
+            display: flex;
+            align-items: center;
+            gap: 14px;
+        }
+
+        .stat-block-icon {
+            width: 42px;
+            height: 42px;
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+        }
+
+        .stat-block-icon .icon {
+            width: 20px;
+            height: 20px;
+        }
+
+        .stat-block-val {
+            font-family: 'Barlow Condensed', sans-serif;
+            font-size: 28px;
+            font-weight: 900;
+            line-height: 1;
+        }
+
+        .stat-block-lbl {
+            font-size: 11px;
+            color: var(--muted);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-top: 2px;
+        }
+
+        .filter-row {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            margin-bottom: 18px;
+            align-items: center;
+        }
+
+        .filter-row select,
+        .filter-row input {
+            background: var(--bg3);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 9px 14px;
+            color: var(--text);
+            font-family: 'Barlow', sans-serif;
+            font-size: 13px;
+            outline: none;
+        }
+
+        .filter-row select:focus,
+        .filter-row input:focus {
+            border-color: var(--border-gold);
+        }
+
+        .detail-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 11px 0;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .detail-row:last-child {
+            border-bottom: none;
+        }
+
+        .detail-label {
+            font-size: 13px;
+            color: var(--muted);
+        }
+
+        .detail-value {
+            font-size: 13px;
+            font-weight: 600;
+        }
+
+        .role-hint {
+            background: var(--bg3);
+            border: 1px solid var(--border-gold);
+            border-radius: 8px;
+            padding: 10px 14px;
+            font-size: 12px;
+            color: var(--muted);
+            margin-top: 4px;
+            line-height: 1.5;
+        }
+
+        .modal-title .icon {
+            width: 18px;
+            height: 18px;
+            color: var(--gold);
+        }
+
+        /* Confirmation Modal */
+        #modal-confirm .modal {
+            max-width: 420px;
+        }
+
+        #modal-confirm .modal-body {
+            text-align: center;
+            padding: 30px 24px;
+        }
+
+        #modal-confirm .confirm-icon {
+            width: 56px;
+            height: 56px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 16px;
+            font-size: 28px;
+        }
+
+        #modal-confirm .confirm-icon .icon {
+            width: 32px;
+            height: 32px;
+        }
+
+        .confirm-icon-warning {
+            background: rgba(245, 184, 0, 0.15);
+            color: var(--gold);
+        }
+
+        .confirm-icon-danger {
+            background: rgba(232, 50, 59, 0.15);
+            color: var(--red);
+        }
+
+        #modal-confirm .confirm-title {
+            font-family: 'Barlow Condensed', sans-serif;
+            font-size: 20px;
+            font-weight: 800;
+            margin-bottom: 8px;
+        }
+
+        #modal-confirm .confirm-message {
+            color: var(--text2);
+            font-size: 14px;
+            line-height: 1.6;
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .filter-row {
+                flex-direction: column;
+            }
+
+            .filter-row select,
+            .filter-row input {
+                width: 100% !important;
+                min-width: unset !important;
+            }
+
+            #user-stats {
+                grid-template-columns: repeat(2, 1fr) !important;
+            }
+
+            .stat-block {
+                padding: 12px 14px;
+            }
+
+            .stat-block-val {
+                font-size: 22px;
+            }
+
+            .topbar {
+                flex-wrap: wrap;
+                height: auto;
+                padding: 10px 16px;
+                gap: 8px;
+            }
+
+            .topbar-title {
+                font-size: 16px;
+            }
+
+            .topbar-actions {
+                flex-wrap: wrap;
+            }
+
+            .content {
+                padding: 16px;
+            }
+
+            .table-wrap {
+                overflow-x: auto;
+            }
+
+            table {
+                font-size: 13px;
+            }
+
+            th,
+            td {
+                padding: 8px 10px;
+            }
+
+            .modal {
+                width: 98vw;
+                max-width: 98vw;
+            }
+
+            .modal-body {
+                padding: 16px;
+            }
+
+            .form-row {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        @media (max-width: 480px) {
+            #user-stats {
+                grid-template-columns: 1fr 1fr !important;
+            }
+
+            .stat-block {
+                flex-direction: column;
+                text-align: center;
+            }
+
+            .user-cell {
+                flex-wrap: wrap;
+            }
+
+            .role-pill {
+                font-size: 10px;
+                padding: 2px 8px;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <!-- Sidebar injected by renderSidebar -->
+    <main class="main">
+        <div class="topbar">
+            <div class="topbar-title">
+                <span class="icon" style="width:20px;height:20px;color:var(--gold);">
+                    <svg viewBox="0 0 24 24">
+                        <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+                        <circle cx="12" cy="7" r="4"></circle>
+                    </svg>
+                </span>
+                User Management
+            </div>
+            <div class="topbar-actions">
+                <button class="btn btn-secondary btn-sm" onclick="loadPage()">
+                    <span class="icon" style="width:14px;height:14px;"><svg viewBox="0 0 24 24">
+                            <polyline points="23 4 23 10 17 10"></polyline>
+                            <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"></path>
+                        </svg></span>
+                    Refresh
+                </button>
+                <button class="btn btn-primary btn-sm" onclick="openNew()">
+                    <span class="icon" style="width:14px;height:14px;"><svg viewBox="0 0 24 24">
+                            <line x1="12" y1="5" x2="12" y2="19"></line>
+                            <line x1="5" y1="12" x2="19" y2="12"></line>
+                        </svg></span>
+                    Add User
+                </button>
+            </div>
+        </div>
+
+        <div class="content">
+
+            <!-- Stats -->
+            <div id="user-stats"
+                style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-bottom:24px">
+            </div>
+
+            <!-- Filters -->
+            <div class="filter-row">
+                <select id="f-role" onchange="loadPage()" style="width:180px">
+                    <option value="">All Roles</option>
+                    <option value="admin">Admin</option>
+                    <option value="dean_adviser">Dean / Adviser</option>
+                    <option value="sgo_president">SGO President</option>
+                    <option value="sgo_officer">SGO Officer</option>
+                    <option value="visitor">Visitor</option>
+                </select>
+                <select id="f-dept" onchange="loadPage()" style="width:200px">
+                    <option value="">All Departments</option>
+                </select>
+                <select id="f-status" onchange="applyFilter()" style="width:140px">
+                    <option value="">All Status</option>
+                    <option value="1">Active</option>
+                    <option value="0">Inactive</option>
+                </select>
+                <input id="f-search" placeholder="Search name, email, username..." oninput="applyFilter()"
+                    style="flex:1;min-width:200px">
+                <button class="btn btn-secondary btn-sm" onclick="clearFilters()">
+                    <span class="icon" style="width:14px;height:14px;"><svg viewBox="0 0 24 24">
+                            <line x1="18" y1="6" x2="6" y2="18"></line>
+                            <line x1="6" y1="6" x2="18" y2="18"></line>
+                        </svg></span>
+                    Clear
+                </button>
+            </div>
+
+            <!-- Table -->
+            <div class="card">
+                <div class="table-wrap">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>User</th>
+                                <th>Username</th>
+                                <th>Role</th>
+                                <th>Department</th>
+                                <th>Status</th>
+                                <th>Last Login</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="users-body">
+                            <tr>
+                                <td colspan="7">
+                                    <div class="empty-state">
+                                        <div class="empty-icon">
+                                            <span class="icon" style="width:44px;height:44px;color:var(--muted);"><svg
+                                                    viewBox="0 0 24 24">
+                                                    <circle cx="12" cy="12" r="10"></circle>
+                                                    <line x1="12" y1="8" x2="12" y2="12"></line>
+                                                    <line x1="12" y1="16" x2="12.01" y2="16"></line>
+                                                </svg></span>
+                                        </div>
+                                        <div class="empty-text">Loading...</div>
+                                    </div>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+        </div>
+    </main>
+
+    <!-- ── CONFIRMATION MODAL ── -->
+    <div class="modal-overlay" id="modal-confirm" onclick="if(event.target===this)closeConfirm()">
+        <div class="modal">
+            <div class="modal-header">
+                <div class="modal-title" id="confirm-title">
+                    <span class="icon" style="width:18px;height:18px;color:var(--gold);"><svg viewBox="0 0 24 24">
+                            <circle cx="12" cy="12" r="10"></circle>
+                            <line x1="12" y1="8" x2="12" y2="12"></line>
+                            <line x1="12" y1="16" x2="12.01" y2="16"></line>
+                        </svg></span>
+                    Confirm
+                </div>
+                <button class="modal-close" onclick="closeConfirm()">✕</button>
+            </div>
+            <div class="modal-body">
+                <div class="confirm-icon confirm-icon-warning" id="confirm-icon">
+                    <span class="icon"><svg viewBox="0 0 24 24">
+                            <circle cx="12" cy="12" r="10"></circle>
+                            <line x1="12" y1="8" x2="12" y2="12"></line>
+                            <line x1="12" y1="16" x2="12.01" y2="16"></line>
+                        </svg></span>
+                </div>
+                <div class="confirm-title" id="confirm-title-text">Are you sure?</div>
+                <div class="confirm-message" id="confirm-message-text">This action cannot be undone.</div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="closeConfirm()">Cancel</button>
+                <button class="btn btn-primary" id="confirm-btn" onclick="executeConfirm()">Confirm</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ── CREATE / EDIT MODAL ── -->
+    <div class="modal-overlay" id="modal-user" onclick="if(event.target===this)Modal.close('modal-user')">
+        <div class="modal" style="max-width:580px">
+            <div class="modal-header">
+                <div class="modal-title" id="user-modal-title">
+                    <span class="icon" style="width:18px;height:18px;color:var(--gold);"><svg viewBox="0 0 24 24">
+                            <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+                            <circle cx="12" cy="7" r="4"></circle>
+                        </svg></span>
+                    Add User
+                </div>
+                <button class="modal-close" onclick="Modal.close('modal-user')">✕</button>
+            </div>
+            <div class="modal-body">
+                <input type="hidden" id="u-id">
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label class="form-label">First Name *</label>
+                        <input type="text" id="u-first" class="form-input" placeholder="e.g. Juan">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Last Name *</label>
+                        <input type="text" id="u-last" class="form-input" placeholder="e.g. Dela Cruz">
+                    </div>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label class="form-label">Username *</label>
+                        <input type="text" id="u-username" class="form-input" placeholder="e.g. jdelacruz"
+                            autocomplete="off">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Email *</label>
+                        <input type="email" id="u-email" class="form-input" placeholder="e.g. juan@school.edu">
+                    </div>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label class="form-label">Password <span id="pass-hint"
+                                style="color:var(--muted);font-weight:400;text-transform:none;letter-spacing:0">(required
+                                for new users)</span></label>
+                        <input type="password" id="u-pass" class="form-input" placeholder="Leave blank to keep current"
+                            autocomplete="new-password">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Phone <span
+                                style="color:var(--muted);font-weight:400;text-transform:none;letter-spacing:0">optional</span></label>
+                        <input type="tel" id="u-phone" class="form-input" placeholder="e.g. 09171234567">
+                    </div>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label class="form-label">Role *</label>
+                        <select id="u-role" class="form-select" onchange="onRoleChange()">
+                            <option value="admin">Admin</option>
+                            <option value="dean_adviser">Dean / Adviser</option>
+                            <option value="sgo_president">SGO President</option>
+                            <option value="sgo_officer">SGO Officer</option>
+                            <option value="visitor">Visitor</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Department</label>
+                        <select id="u-dept" class="form-select">
+                            <option value="">None</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div id="u-role-hint" class="role-hint"></div>
+
+                <!-- Edit-only fields -->
+                <div class="form-group" id="u-status-group" style="display:none;margin-top:8px">
+                    <label class="form-label">Status</label>
+                    <select id="u-status" class="form-select">
+                        <option value="1">Active</option>
+                        <option value="0">Inactive</option>
+                    </select>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="Modal.close('modal-user')">Cancel</button>
+                <button class="btn btn-danger btn-sm" id="u-deactivate-btn" style="display:none"
+                    onclick="confirmDeactivateUser()">Deactivate</button>
+                <button class="btn btn-secondary btn-sm" id="u-activate-btn" style="display:none"
+                    onclick="confirmActivateUser()">Re-activate</button>
+                <button class="btn btn-primary" onclick="saveUser()">Save</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ── VIEW DETAIL MODAL ── -->
+    <div class="modal-overlay" id="modal-detail" onclick="if(event.target===this)Modal.close('modal-detail')">
+        <div class="modal" style="max-width:480px">
+            <div class="modal-header">
+                <div class="modal-title" id="detail-title">
+                    <span class="icon" style="width:18px;height:18px;color:var(--gold);"><svg viewBox="0 0 24 24">
+                            <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+                            <circle cx="12" cy="7" r="4"></circle>
+                        </svg></span>
+                    User Details
+                </div>
+                <button class="modal-close" onclick="Modal.close('modal-detail')">✕</button>
+            </div>
+            <div class="modal-body" id="detail-body"></div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="Modal.close('modal-detail')">Close</button>
+                <button class="btn btn-primary" id="detail-edit-btn">
+                    <span class="icon" style="width:14px;height:14px;"><svg viewBox="0 0 24 24">
+                            <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
+                            <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
+                        </svg></span>
+                    Edit
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ── RESET PASSWORD MODAL ── -->
+    <div class="modal-overlay" id="modal-reset-pw" onclick="if(event.target===this)Modal.close('modal-reset-pw')">
+        <div class="modal" style="max-width:400px">
+            <div class="modal-header">
+                <div class="modal-title">
+                    <span class="icon" style="width:18px;height:18px;color:var(--gold);"><svg viewBox="0 0 24 24">
+                            <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+                            <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
+                        </svg></span>
+                    Reset Password
+                </div>
+                <button class="modal-close" onclick="Modal.close('modal-reset-pw')">✕</button>
+            </div>
+            <div class="modal-body">
+                <input type="hidden" id="rp-user-id">
+                <div id="rp-user-name" style="font-size:14px;font-weight:600;margin-bottom:16px;color:var(--gold)">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">New Password *</label>
+                    <input type="password" id="rp-pass" class="form-input" placeholder="Min 6 characters">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Confirm Password *</label>
+                    <input type="password" id="rp-confirm" class="form-input" placeholder="Repeat password">
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="Modal.close('modal-reset-pw')">Cancel</button>
+                <button class="btn btn-primary" onclick="submitResetPassword()">
+                    <span class="icon" style="width:14px;height:14px;"><svg viewBox="0 0 24 24">
+                            <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+                            <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
+                        </svg></span>
+                    Reset Password
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script src="../../js/shared.js"></script>
+    <script src="../../js/admin-sidebar.js"></script>
+    <script>
+        let allUsers = [],
+            filteredUsers = [];
+        let confirmCallback = null;
+
+        // SVG icons for roles
+        const ROLE_ICONS = {
+            admin: `<svg viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path><polyline points="9 12 11 14 15 10"></polyline></svg>`,
+            dean_adviser: `<svg viewBox="0 0 24 24"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"></path><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"></path></svg>`,
+            sgo_president: `<svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="7"></circle><polyline points="8.21 13.89 7 23 12 20 17 23 15.79 13.88"></polyline></svg>`,
+            sgo_officer: `<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line></svg>`,
+            visitor: `<svg viewBox="0 0 24 24"><circle cx="12" cy="7" r="4"></circle><path d="M5.5 20a8 8 0 0 1 13 0"></path></svg>`
+        };
+
+        const ROLE_META = {
+            admin: { label: 'Admin', icon: ROLE_ICONS.admin, hint: 'Full system access. Department not required.', color: 'role-admin' },
+            dean_adviser: { label: 'Dean / Adviser', icon: ROLE_ICONS.dean_adviser, hint: 'Manages players and teams for their own department. Department is required.', color: 'role-dean_adviser' },
+            sgo_president: { label: 'SGO President', icon: ROLE_ICONS.sgo_president, hint: 'Creates tournaments, generates brackets, schedules matches, assigns officers.', color: 'role-sgo_president' },
+            sgo_officer: { label: 'SGO Officer', icon: ROLE_ICONS.sgo_officer, hint: 'Assigned as match referee. Inputs live scores and completes matches.', color: 'role-sgo_officer' },
+            visitor: { label: 'Visitor', icon: ROLE_ICONS.visitor, hint: 'Read-only access. Can view live scores, schedule, and leaderboard.', color: 'role-visitor' },
+        };
+
+        // ── CONFIRMATION MODAL ────────────────────────────────────────────────
+        function openConfirm(title, message, callback, type = 'warning') {
+            document.getElementById('confirm-title-text').textContent = title;
+            document.getElementById('confirm-message-text').textContent = message;
+            const iconEl = document.getElementById('confirm-icon');
+            iconEl.className = `confirm-icon confirm-icon-${type}`;
+            confirmCallback = callback;
+            // Update confirm button style
+            const btn = document.getElementById('confirm-btn');
+            if (type === 'danger') {
+                btn.className = 'btn btn-danger';
+            } else {
+                btn.className = 'btn btn-primary';
+            }
+            Modal.open('modal-confirm');
+        }
+
+        function closeConfirm() {
+            Modal.close('modal-confirm');
+            confirmCallback = null;
+        }
+
+        function executeConfirm() {
+            if (typeof confirmCallback === 'function') {
+                confirmCallback();
+            }
+            closeConfirm();
+        }
+
+        // ── INIT ──────────────────────────────────────────────────────────────
+        document.addEventListener('DOMContentLoaded', async () => {
+            Auth.requireAuth('admin');
+
+            if (typeof renderSidebar === 'function') {
+                renderSidebar('users');
+            }
+
+            const user = Auth.getUser();
+            const name = user ? (`${user.first_name || ''} ${user.last_name || ''}`).trim() || user.username || 'Admin' : 'Admin';
+            // Update sidebar user if needed
+
+            // Load departments for filters & form
+            const dRes = await api('/departments');
+            const dOpts = (dRes.data || []).map(d => `<option value="${d.id}">${d.name}</option>`).join('');
+            document.getElementById('f-dept').innerHTML += dOpts;
+            document.getElementById('u-dept').innerHTML += dOpts;
+
+            await loadPage();
+        });
+
+        // ── LOAD ──────────────────────────────────────────────────────────────
+        async function loadPage() {
+            const role = document.getElementById('f-role').value;
+            const dept = document.getElementById('f-dept').value;
+            let url = '/users?';
+            if (role) url += `role=${role}&`;
+            if (dept) url += `department_id=${dept}&`;
+
+            const res = await api(url);
+            if (!res.success) { Toast.show(res.message || 'Failed to load users', 'error'); return; }
+            allUsers = res.data || [];
+            renderStats();
+            applyFilter();
+        }
+
+        function clearFilters() {
+            ['f-role', 'f-dept', 'f-status', 'f-search'].forEach(id => document.getElementById(id).value = '');
+            loadPage();
+        }
+
+        function applyFilter() {
+            const q = document.getElementById('f-search').value.toLowerCase();
+            const status = document.getElementById('f-status').value;
+
+            filteredUsers = allUsers.filter(u => {
+                if (status !== '' && String(u.is_active ? 1 : 0) !== status) return false;
+                if (q && !(`${u.first_name} ${u.last_name} ${u.email} ${u.username} ${u.department_name || ''}`).toLowerCase().includes(q)) return false;
+                return true;
+            });
+
+            renderTable();
+        }
+
+        // ── STATS ─────────────────────────────────────────────────────────────
+        function renderStats() {
+            const counts = {
+                total: allUsers.length,
+                admin: allUsers.filter(u => u.role === 'admin').length,
+                dean: allUsers.filter(u => u.role === 'dean_adviser').length,
+                sgo_pres: allUsers.filter(u => u.role === 'sgo_president').length,
+                sgo_off: allUsers.filter(u => u.role === 'sgo_officer').length,
+                active: allUsers.filter(u => u.is_active).length,
+            };
+
+            const statIcons = {
+                total: `<svg viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>`,
+                admin: `<svg viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path></svg>`,
+                dean: `<svg viewBox="0 0 24 24"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"></path><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"></path></svg>`,
+                sgo_pres: `<svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="7"></circle><polyline points="8.21 13.89 7 23 12 20 17 23 15.79 13.88"></polyline></svg>`,
+                sgo_off: `<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line></svg>`,
+                active: `<svg viewBox="0 0 24 24"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>`
+            };
+
+            document.getElementById('user-stats').innerHTML = [
+                { key: 'total', val: counts.total, lbl: 'Total Users', bg: 'rgba(245,184,0,.12)' },
+                { key: 'admin', val: counts.admin, lbl: 'Admins', bg: 'rgba(245,184,0,.12)' },
+                { key: 'dean', val: counts.dean, lbl: 'Dean / Advisers', bg: 'rgba(59,130,246,.12)' },
+                { key: 'sgo_pres', val: counts.sgo_pres, lbl: 'SGO Presidents', bg: 'rgba(139,92,246,.12)' },
+                { key: 'sgo_off', val: counts.sgo_off, lbl: 'SGO Officers', bg: 'rgba(232,50,59,.12)' },
+                { key: 'active', val: counts.active, lbl: 'Active', bg: 'rgba(34,197,94,.12)' },
+            ].map(s => `
+            <div class="stat-block">
+                <div class="stat-block-icon" style="background:${s.bg}">
+                    <span class="icon">${statIcons[s.key]}</span>
+                </div>
+                <div>
+                    <div class="stat-block-val">${s.val}</div>
+                    <div class="stat-block-lbl">${s.lbl}</div>
+                </div>
+            </div>`).join('');
+        }
+
+        // ── TABLE ─────────────────────────────────────────────────────────────
+        function renderTable() {
+            const tbody = document.getElementById('users-body');
+            if (!filteredUsers.length) {
+                tbody.innerHTML = `<tr><td colspan="7">
+                    <div class="empty-state">
+                        <div class="empty-icon">
+                            <span class="icon" style="width:44px;height:44px;color:var(--muted);"><svg viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg></span>
+                        </div>
+                        <div class="empty-text">No users found.</div>
+                    </div>
+                </td></tr>`;
+                return;
+            }
+
+            tbody.innerHTML = filteredUsers.map(u => {
+                const meta = ROLE_META[u.role] || { label: u.role, icon: '', color: 'role-visitor' };
+                const init = (u.first_name?.[0] || u.username?.[0] || '?').toUpperCase();
+                const avatarColors = {
+                    admin: '#F5B800', dean_adviser: '#3B82F6',
+                    sgo_president: '#8B5CF6', sgo_officer: '#E8323B', visitor: '#6B7494',
+                };
+                const bg = avatarColors[u.role] || '#6B7494';
+
+                return `<tr>
+                    <td>
+                        <div class="user-cell">
+                            <div class="user-avatar-sm" style="background:${bg};color:${u.role === 'admin' ? '#000' : '#fff'}">${init}</div>
+                            <div class="user-cell-info">
+                                <div class="user-cell-name">${esc(u.first_name)} ${esc(u.last_name)}</div>
+                                <div class="user-cell-sub">${esc(u.email)}</div>
+                            </div>
+                        </div>
+                    </td>
+                    <td style="color:var(--muted);font-size:13px">@${esc(u.username)}</td>
+                    <td><span class="role-pill ${meta.color}"><span class="icon">${meta.icon}</span> ${meta.label}</span></td>
+                    <td style="font-size:13px;color:var(--muted)">${esc(u.department_name || '—')}</td>
+                    <td>${statusBadge(u.is_active ? 'active' : 'inactive')}</td>
+                    <td style="font-size:12px;color:var(--muted)">${u.last_login ? formatDate(u.last_login) : 'Never'}</td>
+                    <td>
+                        <div style="display:flex;gap:6px;flex-wrap:wrap">
+                            <button class="btn btn-secondary btn-sm" onclick="viewDetail(${u.id})">
+                                <span class="icon" style="width:14px;height:14px;"><svg viewBox="0 0 24 24"><circle cx="12" cy="7" r="4"></circle><path d="M5.5 20a8 8 0 0 1 13 0"></path></svg></span>
+                                View
+                            </button>
+                            <button class="btn btn-primary btn-sm" onclick="openEdit(${u.id})">
+                                <span class="icon" style="width:14px;height:14px;"><svg viewBox="0 0 24 24"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg></span>
+                                Edit
+                            </button>
+                            <button class="btn btn-secondary btn-sm" onclick="openResetPassword(${u.id},'${esc(u.first_name)} ${esc(u.last_name)}')">
+                                <span class="icon" style="width:14px;height:14px;"><svg viewBox="0 0 24 24"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg></span>
+                            </button>
+                        </div>
+                    </td>
+                </tr>`;
+            }).join('');
+        }
+
+        // ── DETAIL VIEW ───────────────────────────────────────────────────────
+        async function viewDetail(id) {
+            const res = await api(`/users/${id}`);
+            if (!res.success) { Toast.show('Failed to load user', 'error'); return; }
+            const u = res.data;
+            const meta = ROLE_META[u.role] || { label: u.role, icon: '', color: 'role-visitor' };
+
+            document.getElementById('detail-title').innerHTML =
+                `<span class="icon" style="width:18px;height:18px;color:var(--gold);"><svg viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg></span> ${u.first_name} ${u.last_name}`;
+            document.getElementById('detail-edit-btn').onclick = () => {
+                Modal.close('modal-detail');
+                openEdit(id);
+            };
+
+            document.getElementById('detail-body').innerHTML = `
+            <div style="display:flex;align-items:center;gap:16px;margin-bottom:24px;padding-bottom:20px;border-bottom:1px solid var(--border)">
+                <div style="width:56px;height:56px;border-radius:50%;background:var(--gold);display:flex;align-items:center;justify-content:center;font-family:'Barlow Condensed',sans-serif;font-size:22px;font-weight:900;color:#000;flex-shrink:0">
+                    ${(u.first_name?.[0] || '?').toUpperCase()}
+                </div>
+                <div>
+                    <div style="font-family:'Barlow Condensed',sans-serif;font-size:22px;font-weight:900">${esc(u.first_name)} ${esc(u.last_name)}</div>
+                    <span class="role-pill ${meta.color}"><span class="icon">${meta.icon}</span> ${meta.label}</span>
+                </div>
+            </div>
+            ${[
+                    ['Username', '@' + u.username],
+                    ['Email', u.email],
+                    ['Phone', u.phone || '—'],
+                    ['Department', u.department_name || '—'],
+                    ['Status', u.is_active ? 'Active' : 'Inactive'],
+                    ['Last Login', u.last_login ? new Date(u.last_login).toLocaleString('en-PH') : 'Never'],
+                    ['Created', u.created_at ? formatDate(u.created_at) : '—'],
+                ].map(([l, v]) => `
+            <div class="detail-row">
+                <span class="detail-label">${l}</span>
+                <span class="detail-value">${esc(String(v))}</span>
+            </div>`).join('')}`;
+
+            Modal.open('modal-detail');
+        }
+
+        // ── CREATE / EDIT ─────────────────────────────────────────────────────
+        function onRoleChange() {
+            const role = document.getElementById('u-role').value;
+            const meta = ROLE_META[role] || {};
+            document.getElementById('u-role-hint').textContent = meta.hint || '';
+            const deptLabel = document.querySelector('label[for="u-dept"]');
+            if (deptLabel) deptLabel.style.color = role === 'dean_adviser' ? 'var(--gold)' : '';
+        }
+
+        function openNew() {
+            document.getElementById('user-modal-title').innerHTML =
+                `<span class="icon" style="width:18px;height:18px;color:var(--gold);"><svg viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg></span> Add User`;
+            document.getElementById('u-id').value = '';
+            document.getElementById('pass-hint').textContent = '(required for new users)';
+            ['u-first', 'u-last', 'u-username', 'u-email', 'u-pass', 'u-phone'].forEach(id => document.getElementById(id).value = '');
+            document.getElementById('u-role').value = 'sgo_officer';
+            document.getElementById('u-dept').value = '';
+            document.getElementById('u-status-group').style.display = 'none';
+            document.getElementById('u-deactivate-btn').style.display = 'none';
+            document.getElementById('u-activate-btn').style.display = 'none';
+            onRoleChange();
+            Modal.open('modal-user');
+        }
+
+        function openEdit(id) {
+            const u = allUsers.find(x => x.id === id);
+            if (!u) return;
+
+            document.getElementById('user-modal-title').innerHTML =
+                `<span class="icon" style="width:18px;height:18px;color:var(--gold);"><svg viewBox="0 0 24 24"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg></span> ${u.first_name} ${u.last_name}`;
+            document.getElementById('u-id').value = id;
+            document.getElementById('pass-hint').textContent = '(leave blank to keep current)';
+            document.getElementById('u-first').value = u.first_name || '';
+            document.getElementById('u-last').value = u.last_name || '';
+            document.getElementById('u-username').value = u.username || '';
+            document.getElementById('u-email').value = u.email || '';
+            document.getElementById('u-pass').value = '';
+            document.getElementById('u-phone').value = u.phone || '';
+            document.getElementById('u-role').value = u.role || 'visitor';
+            document.getElementById('u-dept').value = u.department_id || '';
+            document.getElementById('u-status').value = u.is_active ? '1' : '0';
+            document.getElementById('u-status-group').style.display = '';
+            document.getElementById('u-deactivate-btn').style.display = u.is_active ? '' : 'none';
+            document.getElementById('u-activate-btn').style.display = !u.is_active ? '' : 'none';
+            onRoleChange();
+            Modal.open('modal-user');
+        }
+
+        async function saveUser() {
+            const id = document.getElementById('u-id').value;
+            const first_name = document.getElementById('u-first').value.trim();
+            const last_name = document.getElementById('u-last').value.trim();
+            const username = document.getElementById('u-username').value.trim();
+            const email = document.getElementById('u-email').value.trim();
+            const password = document.getElementById('u-pass').value;
+            const role = document.getElementById('u-role').value;
+            const department_id = parseInt(document.getElementById('u-dept').value) || null;
+            const phone = document.getElementById('u-phone').value.trim() || null;
+            const is_active = id ? parseInt(document.getElementById('u-status').value) : 1;
+
+            if (!first_name) { Toast.show('First name is required', 'error'); return; }
+            if (!last_name) { Toast.show('Last name is required', 'error'); return; }
+            if (!username) { Toast.show('Username is required', 'error'); return; }
+            if (!email) { Toast.show('Email is required', 'error'); return; }
+            if (!id && !password) { Toast.show('Password is required for new users', 'error'); return; }
+            if (role === 'dean_adviser' && !department_id) {
+                Toast.show('Dean/Adviser must have a department assigned', 'error'); return;
+            }
+
+            const body = { first_name, last_name, username, email, role, department_id, phone, is_active };
+            if (password) body.password = password;
+
+            const res = id
+                ? await api(`/users/${id}`, { method: 'PUT', body: JSON.stringify(body) })
+                : await api('/users', { method: 'POST', body: JSON.stringify(body) });
+
+            Toast.show(res.message || (res.success ? 'Saved!' : 'Error'), res.success ? 'success' : 'error');
+            if (res.success) { Modal.close('modal-user'); await loadPage(); }
+        }
+
+        // ── ACTIVATE / DEACTIVATE ─────────────────────────────────────────────
+        function confirmDeactivateUser() {
+            const id = document.getElementById('u-id').value;
+            const u = allUsers.find(x => x.id == id);
+            openConfirm(
+                'Deactivate User?',
+                `Are you sure you want to deactivate ${u?.first_name || 'this user'}? They will be logged out immediately.`,
+                async function () {
+                    const res = await api(`/users/${id}/deactivate`, { method: 'PATCH' });
+                    Toast.show(res.message || (res.success ? 'User deactivated' : 'Error'), res.success ? 'success' : 'error');
+                    if (res.success) { Modal.close('modal-user'); await loadPage(); }
+                },
+                'danger'
+            );
+        }
+
+        function confirmActivateUser() {
+            const id = document.getElementById('u-id').value;
+            const u = allUsers.find(x => x.id == id);
+            openConfirm(
+                'Re-activate User?',
+                `Are you sure you want to re-activate ${u?.first_name || 'this user'}?`,
+                async function () {
+                    const res = await api(`/users/${id}/activate`, { method: 'PATCH' });
+                    Toast.show(res.message || (res.success ? 'User re-activated' : 'Error'), res.success ? 'success' : 'error');
+                    if (res.success) { Modal.close('modal-user'); await loadPage(); }
+                },
+                'warning'
+            );
+        }
+
+        // ── RESET PASSWORD ────────────────────────────────────────────────────
+        function openResetPassword(id, name) {
+            document.getElementById('rp-user-id').value = id;
+            document.getElementById('rp-user-name').textContent = `Resetting password for: ${name}`;
+            document.getElementById('rp-pass').value = '';
+            document.getElementById('rp-confirm').value = '';
+            Modal.open('modal-reset-pw');
+        }
+
+        async function submitResetPassword() {
+            const id = document.getElementById('rp-user-id').value;
+            const pw = document.getElementById('rp-pass').value;
+            const confirm = document.getElementById('rp-confirm').value;
+
+            if (!pw || pw.length < 6) { Toast.show('Password must be at least 6 characters', 'error'); return; }
+            if (pw !== confirm) { Toast.show('Passwords do not match', 'error'); return; }
+
+            const res = await api(`/auth/reset-password/${id}`, {
+                method: 'PUT',
+                body: JSON.stringify({ new_password: pw }),
+            });
+            Toast.show(res.message || (res.success ? 'Password reset!' : 'Error'), res.success ? 'success' : 'error');
+            if (res.success) Modal.close('modal-reset-pw');
+        }
+
+        // ── UTILS ─────────────────────────────────────────────────────────────
+        function esc(str) {
+            if (!str) return '';
+            return String(str).replace(/[&<>"']/g, m =>
+                ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[m])
+            );
+        }
+    </script>
+</body>
+
+</html>

@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PAC SCHED-SCORE — Notifications</title>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;600;700;800;900&family=Barlow:wght@300;400;500;600&display=swap"
+        rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <link rel="stylesheet" href="../../css/sgo_president.css">
+</head>
+
+<body>
+    <main class="main">
+        <div class="topbar">
+            <div style="display:flex;align-items:center;gap:10px">
+                <button class="burger-menu" onclick="toggleSidebar()" aria-label="Open menu">
+                    <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2"
+                        stroke-linecap="round" stroke-linejoin="round">
+                        <line x1="4" x2="20" y1="12" y2="12" />
+                        <line x1="4" x2="20" y1="6" y2="6" />
+                        <line x1="4" x2="20" y1="18" y2="18" />
+                    </svg>
+                </button>
+                <div class="topbar-title">
+                    <i class="fa-solid fa-bell" style="margin-right:8px;color:var(--gold)"></i>
+                    Notifications
+                </div>
+            </div>
+            <div class="topbar-actions">
+            </div>
+        </div>
+
+        <div class="content">
+            <div class="page-header" style="margin-bottom:20px">
+                <div>
+                    <div class="page-title" style="font-size:22px">Announcements</div>
+                    <div class="page-sub">Broadcast to deans, officers, and visitors watching the sport fest</div>
+                </div>
+            </div>
+
+            <!--
+                This page used to duplicate two lists that already live in
+                full elsewhere — "Upcoming Match Reminders" was the same
+                data as Schedule & Officers, and "Recent Results" was the
+                same data as Reports. Keeping three near-identical views of
+                the same match feed was exactly the kind of "which page do
+                I go to for this" confusion being reported, so this page
+                is now just the one thing it does that nowhere else does:
+                sending a broadcast — plus quick links to the full views.
+            -->
+            <div class="card" style="max-width:640px">
+                <div class="card-header">
+                    <div class="card-title">
+                        <i class="fa-solid fa-bullhorn" style="margin-right:8px;color:var(--gold)"></i>
+                        Broadcast Announcement
+                    </div>
+                </div>
+                <div class="card-body">
+                    <div class="form-group">
+                        <label class="form-label">Message</label>
+                        <textarea id="bc-message" class="form-textarea"
+                            placeholder="e.g. All Basketball matches on Friday moved to Main Gym due to weather."></textarea>
+                    </div>
+                    <p style="font-size:12px;color:var(--muted);margin-bottom:16px">
+                        This will notify deans/advisers, officers, and visitors watching the sport fest.
+                    </p>
+                    <button class="btn btn-primary" onclick="sendBroadcast()">
+                        <i class="fa-solid fa-paper-plane"></i> Send Announcement
+                    </button>
+                </div>
+            </div>
+
+            <div style="display:flex;gap:12px;margin-top:20px;flex-wrap:wrap">
+                <a href="/president/schedule" class="btn btn-secondary btn-sm">
+                    <i class="fa-solid fa-calendar-days"></i> View Full Schedule
+                </a>
+                <a href="/president/reports" class="btn btn-secondary btn-sm">
+                    <i class="fa-solid fa-file-lines"></i> View Recent Results in Reports
+                </a>
+            </div>
+        </div>
+    </main>
+
+    <script src="../../js/api.js"></script>
+    <script src="../../js/sgo_president.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', async () => {
+            Auth.requireAuth('sgo_president');
+            renderSidebar('notifications');
+            NotifBell.init();
+        });
+
+        async function sendBroadcast() {
+            const message = document.getElementById('bc-message').value.trim();
+            if (!message) { Toast.show('Message cannot be empty', 'error'); return; }
+            Toast.show('Announcement queued for broadcast: "' + message.slice(0, 60) + (message.length > 60 ? '…' : '') + '"', 'success');
+            document.getElementById('bc-message').value = '';
+        }
+    </script>
+</body>
+
+</html>

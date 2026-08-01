@@ -55,11 +55,11 @@ app.set('io', io);
 
 // ── Frontend directories ────────────────────────────────────────
 const frontendRoot = path.join(__dirname, 'frontend');
-const frontendAdmin = path.join(__dirname, 'frontend', 'admin');
-const frontendReferee = path.join(__dirname, 'frontend', 'referee');
-const frontendVisitor = path.join(__dirname, 'frontend', 'visitor');
-const frontendDean = path.join(__dirname, 'frontend', 'dean');
-const frontendPresident = path.join(__dirname, 'frontend', 'SGO_PRESIDENT');
+const frontendAdmin = path.join(__dirname, 'frontend', 'pages', 'admin');
+const frontendReferee = path.join(__dirname, 'frontend', 'pages', 'referee');
+const frontendVisitor = path.join(__dirname, 'frontend', 'pages', 'visitor');
+const frontendDean = path.join(__dirname, 'frontend', 'pages', 'dean');
+const frontendPresident = path.join(__dirname, 'frontend', 'pages', 'SGO_PRESIDENT');
 
 // ── Directory-scoped page sender ────────────────────────────────
 const sendPageFrom = (dir, filename) => (req, res) => {
@@ -160,7 +160,7 @@ app.get(`${API}`, (_req, res) => res.json({
 
 // ── ROOT AND LOGIN ──
 app.get('/', sendPageFrom(frontendVisitor, 'index.html')); // live board as home
-app.get('/login', sendPageFrom(frontendRoot, 'login.html'));
+app.get('/login', sendPageFrom(frontendRoot, '/pages/login.html'));
 
 // ── Admin pages ──────────────────────────────────────────────
 app.get('/admin', sendPageFrom(frontendAdmin, 'admin.html'));
@@ -204,8 +204,16 @@ app.get('/president/schedule', sendPageFrom(frontendPresident, 'schedule.html'))
 app.get('/president/schedule.html', sendPageFrom(frontendPresident, 'schedule.html'));
 app.get('/president/venues', sendPageFrom(frontendPresident, 'venues.html'));
 app.get('/president/venues.html', sendPageFrom(frontendPresident, 'venues.html'));
-app.get('/president/assignment', sendPageFrom(frontendPresident, 'game-assignment.html'));
-app.get('/president/assignment.html', sendPageFrom(frontendPresident, 'game-assignment.html'));
+
+// Game Assignment was retired and merged into Schedule Management (the
+// "Needs officer only" filter + Officer Workload panel there now cover
+// what this page used to do on its own). These now redirect server-side
+// instead of serving game-assignment.html, so the file itself can be
+// deleted — see the note at the bottom of this reply for exactly which
+// files that applies to.
+app.get('/president/assignment', (req, res) => res.redirect(301, '/president/schedule'));
+app.get('/president/assignment.html', (req, res) => res.redirect(301, '/president/schedule'));
+
 app.get('/president/live', sendPageFrom(frontendPresident, 'live-scores.html'));
 app.get('/president/live-scores.html', sendPageFrom(frontendPresident, 'live-scores.html'));
 app.get('/president/reports', sendPageFrom(frontendPresident, 'reports.html'));

@@ -1,0 +1,618 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PAC SCHED-SCORE — Sports</title>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;600;700;800;900&family=Barlow:wght@300;400;500;600&display=swap"
+        rel="stylesheet">
+    <link rel="stylesheet" href="../css/shared.css">
+    <style>
+        .sport-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+            gap: 18px;
+        }
+
+        .sport-card {
+            background: var(--bg2);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            overflow: hidden;
+            transition: all .2s;
+        }
+
+        .sport-card:hover {
+            border-color: var(--border-gold);
+            transform: translateY(-3px);
+        }
+
+        .sport-card.is-inactive {
+            opacity: .55;
+        }
+
+        .sport-card-banner {
+            padding: 20px 20px 14px;
+            background: linear-gradient(135deg, rgba(245, 184, 0, .08), transparent);
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .sport-icon-badge {
+            width: 44px;
+            height: 44px;
+            border-radius: 12px;
+            background: var(--bg3);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 22px;
+            flex-shrink: 0;
+        }
+
+        .sport-icon-badge .icon {
+            width: 22px;
+            height: 22px;
+            color: var(--gold);
+        }
+
+        .sport-name {
+            font-family: 'Barlow Condensed', sans-serif;
+            font-size: 22px;
+            font-weight: 900;
+            text-transform: uppercase;
+            line-height: 1.1;
+        }
+
+        .sport-code {
+            font-size: 11px;
+            font-weight: 700;
+            color: var(--gold);
+            letter-spacing: 1.5px;
+        }
+
+        .sport-card-body {
+            padding: 16px 20px;
+        }
+
+        .sport-meta-row {
+            display: flex;
+            justify-content: space-between;
+            font-size: 12px;
+            color: var(--muted);
+            margin-bottom: 12px;
+        }
+
+        .sport-stats {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 14px;
+        }
+
+        .sport-stat-pill {
+            background: var(--bg3);
+            border-radius: 8px;
+            padding: 8px;
+            text-align: center;
+            flex: 1;
+        }
+
+        .sport-stat-pill .icon {
+            width: 18px;
+            height: 18px;
+            color: var(--gold);
+        }
+
+        .sport-stat-val {
+            font-family: 'Barlow Condensed', sans-serif;
+            font-size: 18px;
+            font-weight: 900;
+            color: var(--gold);
+        }
+
+        .sport-stat-lbl {
+            font-size: 9px;
+            color: var(--muted);
+            text-transform: uppercase;
+            letter-spacing: .5px;
+        }
+
+        .sport-actions {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+
+        .availability-badge {
+            font-size: 10px;
+            font-weight: 800;
+            letter-spacing: .5px;
+            text-transform: uppercase;
+            padding: 3px 9px;
+            border-radius: 20px;
+        }
+
+        .availability-badge.open {
+            background: rgba(0, 200, 100, .15);
+            color: #2ecc71;
+            border: 1px solid rgba(46, 204, 113, .4);
+        }
+
+        .availability-badge.full {
+            background: rgba(255, 80, 80, .12);
+            color: #ff5c5c;
+            border: 1px solid rgba(255, 80, 80, .35);
+        }
+
+        .icon-picker {
+            display: flex;
+            gap: 6px;
+            flex-wrap: wrap;
+            margin-top: 6px;
+        }
+
+        .icon-choice {
+            width: 34px;
+            height: 34px;
+            border-radius: 8px;
+            border: 1px solid var(--border);
+            background: var(--bg3);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 16px;
+            cursor: pointer;
+            transition: all 0.15s;
+        }
+
+        .icon-choice .icon {
+            width: 18px;
+            height: 18px;
+        }
+
+        .icon-choice.selected {
+            border-color: var(--gold);
+            background: rgba(245, 184, 0, .12);
+        }
+
+        .icon-choice:hover {
+            border-color: var(--gold);
+        }
+
+        .modal-body .icon-picker .icon-choice {
+            font-size: 14px;
+        }
+
+        .modal-body .icon-picker .icon-choice .icon {
+            width: 16px;
+            height: 16px;
+        }
+
+        .linked-tourney-row {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 9px 14px;
+            border-bottom: 1px solid rgba(255, 255, 255, .04);
+        }
+
+        .linked-tourney-row .icon {
+            width: 18px;
+            height: 18px;
+            color: var(--gold);
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .sport-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .sport-stats {
+                flex-wrap: wrap;
+            }
+
+            .sport-stat-pill {
+                min-width: 60px;
+            }
+
+            .sport-actions {
+                flex-direction: column;
+            }
+
+            .sport-actions .btn {
+                width: 100%;
+                justify-content: center;
+            }
+
+            .topbar {
+                flex-wrap: wrap;
+                height: auto;
+                padding: 10px 16px;
+                gap: 8px;
+            }
+
+            .topbar-title {
+                font-size: 16px;
+            }
+
+            .topbar-actions {
+                flex-wrap: wrap;
+            }
+
+            .content {
+                padding: 16px;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .sport-card-banner {
+                flex-wrap: wrap;
+            }
+
+            .sport-name {
+                font-size: 18px;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <!-- Sidebar will be injected here by renderSidebar() -->
+    <main class="main">
+        <div class="topbar">
+            <div class="topbar-title">
+                <span class="icon" style="width:20px;height:20px;color:var(--gold);">
+                    <svg viewBox="0 0 24 24">
+                        <circle cx="12" cy="12" r="10"></circle>
+                        <circle cx="12" cy="12" r="6"></circle>
+                        <circle cx="12" cy="12" r="2"></circle>
+                    </svg>
+                </span>
+                Sports
+            </div>
+            <div class="topbar-actions">
+                <button class="btn btn-secondary btn-sm" onclick="loadPage()">
+                    <span class="icon" style="width:14px;height:14px;"><svg viewBox="0 0 24 24">
+                            <polyline points="23 4 23 10 17 10"></polyline>
+                            <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"></path>
+                        </svg></span>
+                    Refresh
+                </button>
+                <button class="btn btn-primary btn-sm" onclick="openCreate()">
+                    <span class="icon" style="width:14px;height:14px;"><svg viewBox="0 0 24 24">
+                            <line x1="12" y1="5" x2="12" y2="19"></line>
+                            <line x1="5" y1="12" x2="19" y2="12"></line>
+                        </svg></span>
+                    New Sport
+                </button>
+            </div>
+        </div>
+        <div class="content">
+            <div class="sport-grid" id="sport-grid">
+                <div class="empty-state" style="grid-column:1/-1">
+                    <div class="empty-icon">
+                        <span class="icon" style="width:44px;height:44px;color:var(--muted);">
+                            <svg viewBox="0 0 24 24">
+                                <circle cx="12" cy="12" r="10"></circle>
+                                <circle cx="12" cy="12" r="6"></circle>
+                                <circle cx="12" cy="12" r="2"></circle>
+                            </svg>
+                        </span>
+                    </div>
+                    <div class="empty-text">Loading...</div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- Create/Edit Modal -->
+    <div class="modal-overlay" id="modal-sport" onclick="if(event.target===this)Modal.close('modal-sport')">
+        <div class="modal">
+            <div class="modal-header">
+                <div class="modal-title" id="sport-modal-title">
+                    <span class="icon" style="width:18px;height:18px;color:var(--gold);"><svg viewBox="0 0 24 24">
+                            <circle cx="12" cy="12" r="10"></circle>
+                            <circle cx="12" cy="12" r="6"></circle>
+                            <circle cx="12" cy="12" r="2"></circle>
+                        </svg></span>
+                    New Sport
+                </div>
+                <button class="modal-close" onclick="Modal.close('modal-sport')">✕</button>
+            </div>
+            <div class="modal-body">
+                <input type="hidden" id="sp-edit-id">
+                <div class="form-row">
+                    <div class="form-group"><label class="form-label">Name *</label><input type="text" id="sp-name"
+                            class="form-input" placeholder="e.g. Basketball"></div>
+                    <div class="form-group"><label class="form-label">Code *</label><input type="text" id="sp-code"
+                            class="form-input" placeholder="e.g. BBALL" maxlength="12" style="text-transform:uppercase">
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group"><label class="form-label">Category</label><input type="text"
+                            id="sp-category" class="form-input" placeholder="e.g. Team / Individual"></div>
+                    <div class="form-group"><label class="form-label">Scoring Type</label>
+                        <select id="sp-scoring" class="form-select" onchange="onScoringTypeChange()">
+                            <option value="points">Points (running score)</option>
+                            <option value="sets">Sets (Best of X — e.g. Volleyball)</option>
+                            <option value="binary">Winner Only (no score — e.g. Chess)</option>
+                            <option value="time">Time (lower/faster wins)</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="form-row" id="sp-sets-group" style="display:none">
+                    <div class="form-group">
+                        <label class="form-label">Sets to Win</label>
+                        <select id="sp-sets-to-win" class="form-select">
+                            <option value="2">Best of 3 (first to 2 sets)</option>
+                            <option value="3">Best of 5 (first to 3 sets)</option>
+                            <option value="4">Best of 7 (first to 4 sets)</option>
+                        </select>
+                        <div style="font-size:11px;color:var(--muted);margin-top:4px">
+                            Referee scores each set from 0, saves it, then the next set resets to 0-0 automatically.
+                        </div>
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group"><label class="form-label">Min Players</label><input type="number"
+                            id="sp-min" class="form-input" min="1" placeholder="1"></div>
+                    <div class="form-group"><label class="form-label">Max Players</label><input type="number"
+                            id="sp-max" class="form-input" min="1" placeholder="1"></div>
+                    <div class="form-group"><label class="form-label">Team Size</label><input type="number"
+                            id="sp-team-size" class="form-input" min="1" placeholder="1"></div>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Icon</label>
+                    <input type="text" id="sp-icon" class="form-input" placeholder="e.g. 🏀" maxlength="4">
+                    <div class="icon-picker" id="sp-icon-picker"></div>
+                </div>
+                <div class="form-group"><label class="form-label">Description</label><textarea id="sp-desc"
+                        class="form-textarea" placeholder="Optional notes..."></textarea></div>
+                <div class="form-group" id="sp-active-group" style="display:none">
+                    <label class="form-label">Status</label>
+                    <select id="sp-active" class="form-select">
+                        <option value="1">Active</option>
+                        <option value="0">Inactive</option>
+                    </select>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="Modal.close('modal-sport')">Cancel</button>
+                <button class="btn btn-primary" id="sport-save-btn" onclick="saveSport()">Create</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Tournaments Modal -->
+    <div class="modal-overlay" id="modal-sport-tourneys"
+        onclick="if(event.target===this)Modal.close('modal-sport-tourneys')">
+        <div class="modal">
+            <div class="modal-header">
+                <div class="modal-title" id="sport-tourneys-title">
+                    <span class="icon" style="width:18px;height:18px;color:var(--gold);"><svg viewBox="0 0 24 24">
+                            <circle cx="12" cy="8" r="7"></circle>
+                            <polyline points="8.21 13.89 7 23 12 20 17 23 15.79 13.88"></polyline>
+                        </svg></span>
+                    Tournaments
+                </div>
+                <button class="modal-close" onclick="Modal.close('modal-sport-tourneys')">✕</button>
+            </div>
+            <div class="modal-body">
+                <div class="card" id="sport-tourneys-list"></div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="Modal.close('modal-sport-tourneys')">Close</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="../../js/shared.js"></script>
+    <script src="../../js/admin-sidebar.js"></script>
+    <script>
+        let allSports = [];
+        const ICON_CHOICES = ['🏀', '⚽', '🏐', '🏸', '🎾', '🏓', '🏊', '🏃', '🥊', '🏈', '⚾', '🏉', '🎳', '🤸', '🏹', '♟️'];
+
+        // SVG icon mappings for scoring types
+        const SCORING_ICONS = {
+            points: `<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="16"></line><line x1="8" y1="12" x2="16" y2="12"></line></svg>`,
+            sets: `<svg viewBox="0 0 24 24"><rect x="2" y="2" width="20" height="20" rx="2.18"></rect><line x1="8" y1="2" x2="8" y2="22"></line><line x1="16" y1="2" x2="16" y2="22"></line></svg>`,
+            binary: `<svg viewBox="0 0 24 24"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>`,
+            time: `<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>`
+        };
+
+        document.addEventListener('DOMContentLoaded', async () => {
+            Auth.requireAuth('admin');
+            // Render sidebar - this will inject the sidebar HTML
+            if (typeof renderSidebar === 'function') {
+                renderSidebar('sports');
+            }
+            buildIconPicker();
+            await loadPage();
+        });
+
+        function buildIconPicker() {
+            const el = document.getElementById('sp-icon-picker');
+            el.innerHTML = ICON_CHOICES.map(ic =>
+                `<div class="icon-choice" data-icon="${ic}" onclick="pickIcon('${ic}')">${ic}</div>`
+            ).join('');
+        }
+
+        function pickIcon(icon) {
+            document.getElementById('sp-icon').value = icon;
+            document.querySelectorAll('.icon-choice').forEach(el => {
+                el.classList.toggle('selected', el.dataset.icon === icon);
+            });
+        }
+
+        function onScoringTypeChange() {
+            const type = document.getElementById('sp-scoring').value;
+            document.getElementById('sp-sets-group').style.display = (type === 'sets') ? '' : 'none';
+        }
+
+        async function loadPage() {
+            const res = await api('/sports');
+            if (!res.success) return;
+            allSports = res.data || [];
+            renderGrid();
+        }
+
+        function renderGrid() {
+            const el = document.getElementById('sport-grid');
+            if (!allSports.length) {
+                el.innerHTML = `<div class="empty-state" style="grid-column:1/-1"><div class="empty-icon"><span class="icon" style="width:44px;height:44px;color:var(--muted);"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"></circle><circle cx="12" cy="12" r="6"></circle><circle cx="12" cy="12" r="2"></circle></svg></span></div><div class="empty-text">No sports yet. Click "New Sport" to add your first one.</div></div>`;
+                return;
+            }
+            el.innerHTML = allSports.map(s => {
+                const isAvailable = s.is_available === undefined || !!s.is_available;
+                const scoringLabel = s.scoring_type === 'sets'
+                    ? `Best of ${(s.sets_to_win || 2) * 2 - 1}`
+                    : (s.scoring_type === 'binary' ? 'Winner only' : (s.scoring_type || 'points'));
+                const scoringIconHtml = SCORING_ICONS[s.scoring_type] || SCORING_ICONS.points;
+                const statusClass = s.is_active ? 'open' : 'full';
+                const statusLabel = s.is_active ? 'Open' : 'Full';
+
+                return `
+            <div class="sport-card ${s.is_active ? '' : 'is-inactive'}">
+                <div class="sport-card-banner">
+                    <div class="sport-icon-badge">${s.icon || '🏅'}</div>
+                    <div>
+                        <div class="sport-name">${s.name}</div>
+                        <div class="sport-code">${s.code}</div>
+                    </div>
+                </div>
+                <div class="sport-card-body">
+                    <div class="sport-meta-row">
+                        <span>${s.category || '—'}</span>
+                        ${s.max_entries ? `<span class="availability-badge ${statusClass}">${statusLabel}</span>` : ''}
+                    </div>
+                    <div class="sport-stats">
+                        <div class="sport-stat-pill"><div class="sport-stat-val"><span class="icon">${scoringIconHtml}</span></div><div class="sport-stat-lbl">${scoringLabel}</div></div>
+                        <div class="sport-stat-pill"><div class="sport-stat-val">${s.min_players}-${s.max_players}</div><div class="sport-stat-lbl">Players</div></div>
+                        <div class="sport-stat-pill"><div class="sport-stat-val">${s.total_tournaments || 0}</div><div class="sport-stat-lbl">Tourneys</div></div>
+                    </div>
+                    <div class="sport-actions">
+                        <button class="btn btn-secondary btn-sm" style="flex:1" onclick="viewTourneys(${s.id})">
+                            <span class="icon" style="width:14px;height:14px;"><svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="7"></circle><polyline points="8.21 13.89 7 23 12 20 17 23 15.79 13.88"></polyline></svg></span>
+                            Tournaments
+                        </button>
+                        <button class="btn btn-primary btn-sm" style="flex:1" onclick="openEdit(${s.id})">
+                            <span class="icon" style="width:14px;height:14px;"><svg viewBox="0 0 24 24"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg></span>
+                            Edit
+                        </button>
+                        ${s.is_active ? `<button class="btn btn-secondary btn-sm" onclick="deactivateSport(${s.id})">
+                            <span class="icon" style="width:14px;height:14px;"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"></circle><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"></line></svg></span>
+                        </button>` : ''}
+                    </div>
+                </div>
+            </div>`;
+            }).join('');
+        }
+
+        function openCreate() {
+            document.getElementById('sport-modal-title').innerHTML = `<span class="icon" style="width:18px;height:18px;color:var(--gold);"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"></circle><circle cx="12" cy="12" r="6"></circle><circle cx="12" cy="12" r="2"></circle></svg></span> New Sport`;
+            document.getElementById('sport-save-btn').textContent = 'Create';
+            document.getElementById('sp-edit-id').value = '';
+            ['sp-name', 'sp-code', 'sp-category', 'sp-desc', 'sp-icon'].forEach(id => document.getElementById(id).value = '');
+            document.getElementById('sp-min').value = 1;
+            document.getElementById('sp-max').value = 1;
+            document.getElementById('sp-team-size').value = 1;
+            document.getElementById('sp-scoring').value = 'points';
+            document.getElementById('sp-sets-to-win').value = '2';
+            document.getElementById('sp-active-group').style.display = 'none';
+            document.querySelectorAll('.icon-choice').forEach(el => el.classList.remove('selected'));
+            onScoringTypeChange();
+            Modal.open('modal-sport');
+        }
+
+        function openEdit(id) {
+            const s = allSports.find(x => x.id === id); if (!s) return;
+            document.getElementById('sport-modal-title').innerHTML = `<span class="icon" style="width:18px;height:18px;color:var(--gold);"><svg viewBox="0 0 24 24"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg></span> ${s.name}`;
+            document.getElementById('sport-save-btn').textContent = 'Save Changes';
+            document.getElementById('sp-edit-id').value = id;
+            document.getElementById('sp-name').value = s.name;
+            document.getElementById('sp-code').value = s.code;
+            document.getElementById('sp-category').value = s.category || '';
+            document.getElementById('sp-scoring').value = s.scoring_type || 'points';
+            document.getElementById('sp-sets-to-win').value = String(s.sets_to_win || 2);
+            document.getElementById('sp-min').value = s.min_players || 1;
+            document.getElementById('sp-max').value = s.max_players || 1;
+            document.getElementById('sp-team-size').value = s.team_size || 1;
+            document.getElementById('sp-icon').value = s.icon || '';
+            document.getElementById('sp-desc').value = s.description || '';
+            document.getElementById('sp-active').value = s.is_active ? '1' : '0';
+            document.getElementById('sp-active-group').style.display = '';
+            document.querySelectorAll('.icon-choice').forEach(el => {
+                el.classList.toggle('selected', el.dataset.icon === s.icon);
+            });
+            onScoringTypeChange();
+            Modal.open('modal-sport');
+        }
+
+        async function saveSport() {
+            const id = document.getElementById('sp-edit-id').value;
+            const name = document.getElementById('sp-name').value.trim();
+            const code = document.getElementById('sp-code').value.trim();
+            if (!name || !code) { Toast.show('Name and code are required', 'error'); return; }
+
+            const scoring_type = document.getElementById('sp-scoring').value;
+
+            const body = {
+                name,
+                code,
+                category: document.getElementById('sp-category').value.trim() || null,
+                scoring_type,
+                sets_to_win: scoring_type === 'sets' ? (parseInt(document.getElementById('sp-sets-to-win').value) || 2) : null,
+                min_players: parseInt(document.getElementById('sp-min').value) || 1,
+                max_players: parseInt(document.getElementById('sp-max').value) || 1,
+                team_size: parseInt(document.getElementById('sp-team-size').value) || 1,
+                icon: document.getElementById('sp-icon').value.trim() || null,
+                description: document.getElementById('sp-desc').value.trim() || null,
+            };
+            if (id) body.is_active = document.getElementById('sp-active').value;
+
+            const res = id
+                ? await api(`/sports/${id}`, { method: 'PUT', body: JSON.stringify(body) })
+                : await api('/sports', { method: 'POST', body: JSON.stringify(body) });
+
+            Toast.show(res.message || (res.success ? 'Saved!' : 'Error'), res.success ? 'success' : 'error');
+            if (res.success) { Modal.close('modal-sport'); await loadPage(); }
+        }
+
+        async function deactivateSport(id) {
+            if (!confirm('Deactivate this sport? It will be hidden from active listings but its history stays intact.')) return;
+            const res = await api(`/sports/${id}`, { method: 'DELETE' });
+            Toast.show(res.message || (res.success ? 'Sport deactivated' : 'Error'), res.success ? 'success' : 'error');
+            if (res.success) await loadPage();
+        }
+
+        async function viewTourneys(id) {
+            const s = allSports.find(x => x.id === id);
+            document.getElementById('sport-tourneys-title').innerHTML =
+                `<span class="icon" style="width:18px;height:18px;color:var(--gold);"><svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="7"></circle><polyline points="8.21 13.89 7 23 12 20 17 23 15.79 13.88"></polyline></svg></span> ${s ? s.name : ''} Tournaments`;
+            const res = await api(`/sports/${id}/tournaments`);
+            const list = document.getElementById('sport-tourneys-list');
+            if (!res.success || !res.data.length) {
+                list.innerHTML = `<div style="padding:14px;color:var(--muted);font-size:13px">No tournaments for this sport yet.</div>`;
+            } else {
+                list.innerHTML = res.data.map(t => {
+                    // Use the shared statusBadge function from shared.js
+                    const statusHtml = typeof statusBadge === 'function' ? statusBadge(t.status) : `<span class="badge badge-muted">${t.status || 'draft'}</span>`;
+                    return `
+                    <div class="linked-tourney-row">
+                        <span class="icon" style="width:18px;height:18px;color:var(--gold);"><svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="7"></circle><polyline points="8.21 13.89 7 23 12 20 17 23 15.79 13.88"></polyline></svg></span>
+                        <div style="flex:1"><div style="font-weight:600">${t.name}</div><div style="font-size:11px;color:var(--muted)">${t.format || ''} · ${t.participant_count || 0} participants</div></div>
+                        ${statusHtml}
+                    </div>`;
+                }).join('');
+            }
+            Modal.open('modal-sport-tourneys');
+        }
+    </script>
+</body>
+
+</html>

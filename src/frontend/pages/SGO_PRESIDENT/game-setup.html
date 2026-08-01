@@ -1,0 +1,287 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PAC SCHED-SCORE — Game Setup</title>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;600;700;800;900&family=Barlow:wght@300;400;500;600&display=swap"
+        rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css"
+        integrity="sha512-DTOQO9RWCH3ppGqcWaEA1BIZOC6xxalwEsw9c2QQeAIftl+Vegovlnee1c9QX4TctnWMn13TZye+giMm8e2LwA=="
+        crossorigin="anonymous" referrerpolicy="no-referrer">
+    <link rel="stylesheet" href="../../css/sgo_president.css">
+    <style>
+        .sport-ico {
+            width: 16px;
+            text-align: center;
+            color: var(--gold);
+        }
+    </style>
+</head>
+
+<body>
+    <main class="main">
+        <div class="topbar">
+            <div style="display:flex;align-items:center">
+                <button class="burger-menu" onclick="toggleSidebar()"><i class="fa-solid fa-bars"></i></button>
+                <div class="topbar-title"><i class="fa-solid fa-screwdriver-wrench"></i> Game Setup</div>
+            </div>
+            <div class="topbar-actions">
+                <a class="btn btn-secondary btn-sm" href="/SGO_PRESIDENT/sports.html">
+                    <i class="fa-solid fa-medal"></i> Manage Sports
+                </a>
+                <button class="btn btn-primary btn-sm" onclick="Modal.open('modal-new')">
+                    <i class="fa-solid fa-plus"></i> New Tournament
+                </button>
+            </div>
+        </div>
+        <div class="content">
+            <div class="page-header">
+                <div class="page-title">Tournaments</div>
+                <div class="page-sub">Create and configure competitions — pick format, scoring type, and group settings
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="table-wrap">
+                    <table id="tn-table">
+                        <thead>
+                            <tr>
+                                <th>Tournament</th>
+                                <th>Sport</th>
+                                <th>Format</th>
+                                <th>Gender</th>
+                                <th>Status</th>
+                                <th>Participants</th>
+                                <th>Start</th>
+                                <th></th>
+                            </tr>
+                        </thead>
+                        <tbody id="tn-body">
+                            <tr>
+                                <td colspan="8" style="text-align:center;color:var(--muted);padding:24px">Loading…</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- New Tournament Modal -->
+    <div class="modal-overlay" id="modal-new">
+        <div class="modal">
+            <div class="modal-header">
+                <div class="modal-title"><i class="fa-solid fa-trophy"></i> New Tournament</div>
+                <button class="modal-close" onclick="Modal.close('modal-new')"><i
+                        class="fa-solid fa-xmark"></i></button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label class="form-label">Tournament Name</label>
+                    <input id="tn-name" class="form-input" placeholder="e.g. Basketball Championship 2026">
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label class="form-label">Sport</label>
+                        <select id="tn-sport" class="form-select">
+                            <option value="">Select sport…</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Format</label>
+                        <select id="tn-format" class="form-select" onchange="onFormatChange()">
+                            <option value="">Select format…</option>
+                            <option value="single_elimination">Single Elimination</option>
+                            <option value="double_elimination">Double Elimination</option>
+                            <option value="round_robin">Round Robin</option>
+                            <option value="free_for_all">Free-For-All (individual event)</option>
+                            <option value="team_ranking">Team Ranking (event)</option>
+                            <option value="group_stage_se">Group Stage → Single Elim</option>
+                            <option value="group_stage_de">Group Stage → Double Elim</option>
+                            <option value="group_stage_ffa">Group Stage → FFA</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label class="form-label">Gender Category</label>
+                        <select id="tn-gender" class="form-select">
+                            <option value="open">Open</option>
+                            <option value="men">Men</option>
+                            <option value="women">Women</option>
+                            <option value="mixed">Mixed</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Max Participants</label>
+                        <input id="tn-max" type="number" class="form-input" placeholder="0 = unlimited">
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label class="form-label">Start Date</label>
+                        <input id="tn-start" type="date" class="form-input">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">End Date</label>
+                        <input id="tn-end" type="date" class="form-input">
+                    </div>
+                </div>
+
+                <div id="ffa-fields" style="display:none">
+                    <div class="form-group">
+                        <label class="form-label">FFA Scoring Type</label>
+                        <select id="tn-ffa-scoring" class="form-select" onchange="onFfaScoringChange()">
+                            <option value="points">Points (higher wins)</option>
+                            <option value="time">Time (lower wins)</option>
+                            <option value="distance">Distance (higher wins)</option>
+                            <option value="elimination">Survival / Elimination (last one standing wins)</option>
+                        </select>
+                        <div id="ffa-scoring-hint" style="font-size:12px;color:var(--muted);margin-top:6px"></div>
+                    </div>
+                </div>
+
+                <div id="group-fields" style="display:none">
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label class="form-label">Number of Groups</label>
+                            <input id="tn-groups" type="number" class="form-input" value="2" min="2">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Advance per Group</label>
+                            <input id="tn-advance" type="number" class="form-input" value="2" min="1">
+                        </div>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">Description</label>
+                    <textarea id="tn-desc" class="form-textarea" placeholder="Optional notes…"></textarea>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="Modal.close('modal-new')">Cancel</button>
+                <button class="btn btn-primary" onclick="createTournament()">Create Tournament</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="../../js/api.js"></script>
+    <script src="../../js/sgo_president.js"></script>
+    <script>
+        const VALID_FORMATS = ['round_robin', 'single_elimination', 'double_elimination', 'free_for_all', 'team_ranking', 'group_stage_se', 'group_stage_de', 'group_stage_ffa'];
+
+        const FFA_SCORING_HINTS = {
+            points: 'Officer enters a numeric score for each department — highest score wins.',
+            time: 'Officer enters a time for each department — fastest (lowest) time wins.',
+            distance: 'Officer enters a distance for each department — longest (highest) distance wins.',
+            elimination: 'Officer taps "Eliminate" as departments are knocked out during the event. The last one standing is ranked 1st; whoever was eliminated first is ranked last — no numbers to type.',
+        };
+
+        function onFfaScoringChange() {
+            const val = document.getElementById('tn-ffa-scoring').value;
+            document.getElementById('ffa-scoring-hint').textContent = FFA_SCORING_HINTS[val] || '';
+        }
+
+        // Fallback glyph if a sport's own `icon` field isn't a Font Awesome class yet.
+        function fallbackIcon(name) {
+            const n = (name || '').toLowerCase();
+            const map = {
+                basketball: 'fa-basketball', volleyball: 'fa-volleyball', football: 'fa-futbol',
+                soccer: 'fa-futbol', badminton: 'fa-feather-pointed', 'table tennis': 'fa-table-tennis-paddle-ball',
+                chess: 'fa-chess', baseball: 'fa-baseball', swim: 'fa-person-swimming',
+                track: 'fa-person-running', run: 'fa-person-running', dance: 'fa-music', esports: 'fa-gamepad',
+            };
+            for (const key in map) if (n.includes(key)) return `fa-solid ${map[key]}`;
+            return 'fa-solid fa-medal';
+        }
+
+        // Local icon helper (self-contained — doesn't depend on shared.js so this
+        // page renders correctly even before that helper is updated app-wide).
+        function sportIconHtml(sport) {
+            const cls = sport?.icon && sport.icon.startsWith('fa-') ? sport.icon : fallbackIcon(sport?.name);
+            return `<i class="${cls} sport-ico"></i>`;
+        }
+
+        let allSports = [];
+
+        document.addEventListener('DOMContentLoaded', async () => {
+            Auth.requireAuth('sgo_president');
+            renderSidebar('game-setup');
+            NotifBell.init();
+            await loadSportOptions();
+            await loadTournaments();
+            onFfaScoringChange();
+        });
+
+        async function loadSportOptions() {
+            const res = await api('/sports');
+            allSports = res.data || [];
+            document.getElementById('tn-sport').innerHTML = '<option value="">Select sport…</option>' +
+                allSports.map(s => `<option value="${s.id}">${s.name}</option>`).join('');
+        }
+
+        function onFormatChange() {
+            const format = document.getElementById('tn-format').value;
+            document.getElementById('ffa-fields').style.display = ['free_for_all', 'team_ranking'].includes(format) ? '' : 'none';
+            document.getElementById('group-fields').style.display = format.startsWith('group_stage_') ? '' : 'none';
+        }
+
+        async function loadTournaments() {
+            const res = await api('/tournaments');
+            const tbody = document.getElementById('tn-body');
+            if (!res.success || !res.data.length) {
+                tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;color:var(--muted);padding:24px">No tournaments yet — create one to get started</td></tr>';
+                return;
+            }
+            tbody.innerHTML = res.data.map(t => {
+                const sport = allSports.find(s => s.name === t.sport_name) || { name: t.sport_name, icon: t.sport_icon };
+                return `
+        <tr>
+            <td><strong>${t.name}</strong></td>
+            <td>${sportIconHtml(sport)} ${t.sport_name}</td>
+            <td><span class="badge badge-muted">${(t.format || '').replace(/_/g, ' ').toUpperCase()}</span></td>
+            <td style="text-transform:capitalize">${t.gender || 'open'}</td>
+            <td>${statusBadge(t.status)}</td>
+            <td style="color:var(--muted)">${t.participant_count || 0}</td>
+            <td style="color:var(--muted);font-size:12px">${formatDate(t.start_date)}</td>
+            <td><a class="btn btn-secondary btn-sm" href="/SGO_PRESIDENT/bracketing.html?tournament_id=${t.id}">Manage <i class="fa-solid fa-arrow-right"></i></a></td>
+        </tr>`;
+            }).join('');
+        }
+
+        async function createTournament() {
+            const name = document.getElementById('tn-name').value.trim();
+            const sport_id = parseInt(document.getElementById('tn-sport').value) || null;
+            const format = document.getElementById('tn-format').value;
+            const gender = document.getElementById('tn-gender').value;
+
+            if (!name) { Toast.show('Tournament name is required', 'error'); return; }
+            if (!sport_id) { Toast.show('Please select a sport', 'error'); return; }
+            if (!VALID_FORMATS.includes(format)) { Toast.show('Please select a valid format', 'error'); return; }
+
+            const isGroupStage = format.startsWith('group_stage_');
+            const isFFA = ['free_for_all', 'team_ranking'].includes(format);
+
+            const body = {
+                name, sport_id, format, gender,
+                max_participants: parseInt(document.getElementById('tn-max').value) || 0,
+                start_date: document.getElementById('tn-start').value || null,
+                end_date: document.getElementById('tn-end').value || null,
+                description: document.getElementById('tn-desc').value || null,
+                ffa_scoring: isFFA ? document.getElementById('tn-ffa-scoring').value : null,
+                group_count: isGroupStage ? (parseInt(document.getElementById('tn-groups').value) || 2) : null,
+                advance_per_group: isGroupStage ? (parseInt(document.getElementById('tn-advance').value) || 2) : null,
+            };
+
+            const res = await api('/tournaments', { method: 'POST', body });
+            Toast.show(res.message || (res.success ? 'Tournament created!' : 'Error'), res.success ? 'success' : 'error');
+            if (res.success) { Modal.closeAll(); loadTournaments(); }
+        }
+    </script>
+</body>
+
+</html>

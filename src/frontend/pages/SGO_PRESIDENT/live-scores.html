@@ -1,0 +1,282 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PAC SCHED-SCORE — Live Scores</title>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;600;700;800;900&family=Barlow:wght@300;400;500;600&display=swap"
+        rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <link rel="stylesheet" href="../../css/sgo_president.css">
+    <style>
+        .ffa-live-tag,
+        .ffa-tag {
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            font-size: 10px;
+            font-weight: 800;
+            text-transform: uppercase;
+            letter-spacing: .06em;
+            color: var(--gold);
+            background: rgba(255, 176, 32, .12);
+            border: 1px solid rgba(255, 176, 32, .3);
+            border-radius: 100px;
+            padding: 2px 10px;
+        }
+
+        .ffa-live-participants {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+            margin-top: 10px;
+        }
+
+        .ffa-live-chip {
+            font-size: 11px;
+            font-weight: 600;
+            background: var(--bg2);
+            border: 1px solid var(--border);
+            border-radius: 100px;
+            padding: 3px 10px;
+        }
+    </style>
+</head>
+
+<body>
+    <main class="main">
+        <div class="topbar">
+            <div style="display:flex;align-items:center">
+                <button class="burger-menu" onclick="toggleSidebar()" aria-label="Open menu">
+                    <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2"
+                        stroke-linecap="round" stroke-linejoin="round">
+                        <line x1="4" x2="20" y1="12" y2="12" />
+                        <line x1="4" x2="20" y1="6" y2="6" />
+                        <line x1="4" x2="20" y1="18" y2="18" />
+                    </svg>
+                </button>
+                <div class="topbar-title"><span class="live-dot"></span>Live Scores</div>
+            </div>
+            <div class="topbar-actions">
+                <button class="btn btn-secondary btn-sm" onclick="loadAll()" aria-label="Refresh">
+                    <i class="fa-solid fa-arrows-rotate"></i> Refresh
+                </button>
+            </div>
+        </div>
+        <div class="content">
+            <div class="card" style="margin-bottom:24px">
+                <div class="card-header">
+                    <div class="card-title">
+                        <span class="live-dot"></span> Ongoing Right Now
+                    </div>
+                </div>
+                <div class="card-body" id="live-list">
+                    <div class="empty-state">
+                        <div class="empty-text">Loading…</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-header">
+                    <div class="card-title">
+                        <i class="fa-solid fa-calendar-days" style="margin-right:8px;opacity:.7"></i>
+                        Ready to Start
+                    </div>
+                </div>
+                <div class="card-body" id="scheduled-list">
+                    <div class="empty-state">
+                        <div class="empty-text">Loading…</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+    <script src="../../js/api.js"></script>
+    <script src="../../js/sgo_president.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', async () => {
+            Auth.requireAuth('sgo_president');
+            renderSidebar('live');
+            NotifBell.init();
+            await loadAll();
+            // Poll stays on as a safety net (in case the socket drops or an
+            // event name below doesn't match your server) but is no longer
+            // the primary update path once the socket connects.
+            setInterval(loadAll, 8000);
+            connectRealtime();
+        });
+
+        // ── Real-time via Socket.IO ──────────────────────────────
+        // Your server already runs socket.io (utils/socketEmit.js exposes
+        // emitToMatch/emitToTournament/emitToLeaderboard), but I don't have
+        // socket.js or matchController's actual emit call sites, so the
+        // event names below ('score:updated', 'match:started', etc.) are my
+        // best-guess convention based on the emit* helper names — NOT
+        // confirmed against your server. If nothing here ever fires (check
+        // the console log below), share socket.js / the matchController
+        // lines that call emitToMatch(...)/emitToLeaderboard(...) and I'll
+        // correct the event names exactly instead of guessing.
+        function connectRealtime() {
+            try {
+                const socket = io(window.location.origin);
+
+                socket.on('connect', () => console.log('[realtime] connected', socket.id));
+                socket.on('connect_error', (err) => console.warn('[realtime] connect_error — falling back to polling only', err.message));
+
+                // Global leaderboard/score room — adjust room name if your
+                // socket.js expects an explicit join event instead of
+                // auto-joining on connect.
+                // Confirmed from tournamentController.js: finalizing a
+                // tournament emits 'leaderboard:changed'. The match-level
+                // events (score/start/complete) are still my best-guess
+                // naming — share matchController's emitToMatch(...) calls
+                // to confirm/correct those too.
+                ['score:updated', 'match:started', 'match:completed', 'leaderboard:changed']
+                    .forEach(evt => socket.on(evt, (payload) => {
+                        console.log(`[realtime] ${evt}`, payload);
+                        loadAll();
+                    }));
+            } catch (err) {
+                console.warn('[realtime] socket.io client failed to init, polling only', err);
+            }
+        }
+
+        async function loadAll() {
+            await Promise.all([loadLive(), loadScheduled()]);
+        }
+
+        function isFfa(m) {
+            return m.tournament_format === 'free_for_all';
+        }
+
+        // Same lazy participant-name cache used on Schedule Management —
+        // FFA matches carry no dept_a/dept_b, so names come from the
+        // tournament's participant list instead.
+        const ffaParticipantsCache = {};
+        async function getFfaParticipants(tournamentId) {
+            if (ffaParticipantsCache[tournamentId]) return ffaParticipantsCache[tournamentId];
+            try {
+                const res = await api(`/tournaments/${tournamentId}`);
+                const names = res.success ? (res.data.participants || []).map(p => p.department_name) : [];
+                ffaParticipantsCache[tournamentId] = names;
+                return names;
+            } catch {
+                return [];
+            }
+        }
+
+        async function loadLive() {
+            const res = await api('/matches/live');
+            const el = document.getElementById('live-list');
+            if (!res.success || !res.data.length) {
+                el.innerHTML = `
+                    <div class="empty-state">
+                        <div class="empty-icon"><i class="fa-regular fa-moon" style="font-size:2rem;opacity:.5"></i></div>
+                        <div class="empty-text">No live matches right now</div>
+                    </div>`;
+                return;
+            }
+            el.innerHTML = res.data.map((m, idx) => isFfa(m) ? `
+        <div class="live-card">
+            <div class="live-sport-icon">${sportIcon(m.sport_name)}</div>
+            <div style="flex:1">
+                <div style="font-size:12px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:var(--green);margin-bottom:6px;display:flex;align-items:center;gap:8px">
+                    <span class="live-dot"></span>LIVE · ${m.sport_name} · ${m.tournament_name}
+                    <span class="ffa-live-tag"><i class="fa-solid fa-bolt"></i> FFA</span>
+                </div>
+                <div style="font-family:'Barlow Condensed',sans-serif;font-size:20px;font-weight:800">${m.tournament_name}</div>
+                <div class="ffa-live-participants" id="ffa-live-${idx}">
+                    <span class="ffa-live-chip" style="color:var(--muted)">Loading departments…</span>
+                </div>
+                <div style="font-size:12px;color:var(--muted);margin-top:8px;display:flex;align-items:center;gap:6px">
+                    <i class="fa-solid fa-location-dot"></i> ${m.venue_name || '—'}
+                </div>
+            </div>
+        </div>` : `
+        <div class="live-card">
+            <div class="live-sport-icon">${sportIcon(m.sport_name)}</div>
+            <div style="flex:1">
+                <div style="font-size:12px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:var(--green);margin-bottom:6px">
+                    <span class="live-dot"></span>LIVE · ${m.sport_name} · ${m.tournament_name}
+                </div>
+                <div style="display:flex;align-items:center;gap:16px">
+                    <div style="text-align:center;flex:1">
+                        <div style="font-family:'Barlow Condensed',sans-serif;font-size:18px;font-weight:800">${m.dept_a || '?'}</div>
+                    </div>
+                    <div style="font-family:'Barlow Condensed',sans-serif;font-size:44px;font-weight:900;color:var(--gold);text-align:center;min-width:100px">${m.live_score_a}–${m.live_score_b}</div>
+                    <div style="text-align:center;flex:1">
+                        <div style="font-family:'Barlow Condensed',sans-serif;font-size:18px;font-weight:800">${m.dept_b || '?'}</div>
+                    </div>
+                </div>
+                <div style="font-size:12px;color:var(--muted);margin-top:8px;display:flex;align-items:center;gap:6px">
+                    <i class="fa-solid fa-location-dot"></i> ${m.venue_name || '—'}
+                </div>
+            </div>
+        </div>`).join('');
+
+            res.data.forEach(async (m, idx) => {
+                if (!isFfa(m)) return;
+                const names = await getFfaParticipants(m.tournament_id);
+                const el = document.getElementById(`ffa-live-${idx}`);
+                if (!el) return;
+                el.innerHTML = names.length
+                    ? names.map(n => `<span class="ffa-live-chip">${n}</span>`).join('')
+                    : `<span class="ffa-live-chip" style="color:var(--muted)">No departments listed</span>`;
+            });
+        }
+
+        async function loadScheduled() {
+            const res = await api(`/matches?status=scheduled`);
+            const el = document.getElementById('scheduled-list');
+            const upcoming = (res.data || []).filter(m => m.dept_a_name || m.dept_b_name || isFfa(m));
+            if (!res.success || !upcoming.length) {
+                el.innerHTML = `
+                    <div class="empty-state">
+                        <div class="empty-icon"><i class="fa-solid fa-calendar-days" style="font-size:2rem;opacity:.5"></i></div>
+                        <div class="empty-text">No matches ready to start</div>
+                    </div>`;
+                return;
+            }
+            el.innerHTML = upcoming.map(m => isFfa(m) ? `
+        <div class="match-card">
+            <div class="match-sport-icon">${sportIcon(m.sport_name)}</div>
+            <div class="match-info">
+                <div class="match-teams">${m.tournament_name} <span class="ffa-tag"><i class="fa-solid fa-bolt"></i> FFA</span></div>
+                <div class="match-meta">
+                    ${formatDate(m.scheduled_date)} ${formatTime(m.scheduled_time)}
+                    · <i class="fa-solid fa-location-dot"></i> ${m.venue_name || 'TBD'}
+                </div>
+            </div>
+            <button class="btn btn-success btn-sm" onclick="startMatch(${m.id})">
+                <i class="fa-solid fa-play"></i> Start Event
+            </button>
+        </div>` : `
+        <div class="match-card">
+            <div class="match-sport-icon">${sportIcon(m.sport_name)}</div>
+            <div class="match-info">
+                <div class="match-teams">${m.dept_a_name || 'TBD'} <span style="color:var(--muted)">vs</span> ${m.dept_b_name || 'TBD'}</div>
+                <div class="match-meta">
+                    ${m.tournament_name} · ${formatDate(m.scheduled_date)} ${formatTime(m.scheduled_time)}
+                    · <i class="fa-solid fa-location-dot"></i> ${m.venue_name || 'TBD'}
+                </div>
+            </div>
+            <button class="btn btn-success btn-sm" onclick="startMatch(${m.id})">
+                <i class="fa-solid fa-play"></i> Start Match
+            </button>
+        </div>`).join('');
+        }
+
+        async function startMatch(id) {
+            const res = await api(`/matches/${id}/start`, { method: 'PATCH' });
+            Toast.show(res.message || (res.success ? 'Match started!' : 'Error'), res.success ? 'success' : 'error');
+            if (res.success) loadAll();
+        }
+    </script>
+</body>
+
+</html>

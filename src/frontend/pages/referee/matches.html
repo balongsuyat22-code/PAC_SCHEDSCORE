@@ -1,0 +1,259 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>My Matches — PAC SCHED-SCORE</title>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;600;700;800;900&family=Barlow:wght@300;400;500;600&display=swap"
+        rel="stylesheet">
+    <link rel="stylesheet" href="../../css/referee.css">
+    <style>
+        .tab-nav {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+
+        .tab-btn {
+            padding: 8px 18px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-family: 'Barlow Condensed', sans-serif;
+            font-size: 14px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.4px;
+            transition: all 0.15s;
+            border: 1px solid var(--border);
+            background: var(--bg3);
+            color: var(--text2);
+        }
+
+        .tab-btn:hover {
+            color: var(--text);
+            border-color: rgba(255, 255, 255, 0.14);
+        }
+
+        .tab-btn.active {
+            background: var(--gold-bg);
+            color: var(--gold);
+            border-color: var(--border-gold);
+        }
+
+        .matchup-primary {
+            font-weight: 700;
+            font-size: 15px;
+        }
+
+        .matchup-vs {
+            color: var(--muted);
+            font-weight: 400;
+            margin: 0 5px;
+            font-size: 12px;
+        }
+
+        .format-hint {
+            font-size: 10px;
+            font-weight: 700;
+            letter-spacing: 0.5px;
+            text-transform: uppercase;
+            color: var(--muted);
+            margin-left: 6px;
+        }
+
+        @media (max-width: 720px) {
+
+            thead th:nth-child(4),
+            tbody td:nth-child(4) {
+                display: none;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <aside class="sidebar" id="sidebar"></aside>
+
+    <main class="main">
+        <div class="topbar"></div>
+
+        <div class="content">
+            <div class="page-header">
+                <div>
+                    <div class="page-title">
+                        <span class="title-icon"><svg viewBox="0 0 24 24">
+                                <rect width="8" height="4" x="8" y="2" rx="1" ry="1" />
+                                <path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2" />
+                            </svg></span>
+                        My Assigned Matches
+                    </div>
+                    <div class="page-sub">Manage and track your referee assignments.</div>
+                </div>
+                <button class="btn btn-secondary btn-sm" onclick="loadMatches()">
+                    <svg viewBox="0 0 24 24">
+                        <path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8" />
+                        <path d="M21 3v5h-5" />
+                        <path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16" />
+                        <path d="M8 16H3v5" />
+                    </svg>
+                    Refresh
+                </button>
+            </div>
+
+            <div class="stats-row">
+                <div class="stat-card">
+                    <div class="stat-card-label">Total</div>
+                    <div class="stat-card-value" id="stat-total" style="color:var(--text);">—</div>
+                    <div class="stat-card-sub">Assignments</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-card-label">Ongoing</div>
+                    <div class="stat-card-value" id="stat-ongoing" style="color:var(--green);">—</div>
+                    <div class="stat-card-sub">Live now</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-card-label">Scheduled</div>
+                    <div class="stat-card-value" id="stat-scheduled" style="color:var(--gold);">—</div>
+                    <div class="stat-card-sub">Upcoming</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-card-label">Done</div>
+                    <div class="stat-card-value" id="stat-done" style="color:var(--text2);">—</div>
+                    <div class="stat-card-sub">Completed</div>
+                </div>
+            </div>
+
+            <div class="tab-nav">
+                <button id="tab-active" class="tab-btn active" onclick="switchTab('active')">Upcoming & Ongoing</button>
+                <button id="tab-done" class="tab-btn" onclick="switchTab('done')">Completed</button>
+            </div>
+
+            <div class="card">
+                <div class="table-wrap">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Sport</th>
+                                <th>Matchup</th>
+                                <th>Date & Time</th>
+                                <th>Venue</th>
+                                <th>Status</th>
+                                <th>Action</th>
+                            </tr>
+                        </thead>
+                        <tbody id="matches-body">
+                            <tr>
+                                <td colspan="6">
+                                    <div class="empty-state">
+                                        <div class="empty-icon"><svg viewBox="0 0 24 24">
+                                                <circle cx="12" cy="12" r="10" />
+                                                <polyline points="12 6 12 12 16 14" />
+                                            </svg></div>
+                                        <div class="empty-text">Loading assignments...</div>
+                                    </div>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <script src="../../js/shared.js"></script>
+    <script src="../../js/referee-sidebar.js"></script>
+    <script>
+        let allAssignedMatches = [];
+        let currentTab = 'active';
+
+        document.addEventListener('DOMContentLoaded', async () => {
+            renderRefereeSidebar('matches');
+            renderRefereeTopbar();
+            await loadMatches();
+        });
+
+        async function loadMatches() {
+            const user = Auth.getUser();
+            if (!user) return;
+            try {
+                const res = await api(`/matches?referee_id=${user.id}`);
+                allAssignedMatches = res.data || [];
+            } catch (e) {
+                allAssignedMatches = [];
+            }
+            renderStats();
+            renderMatchTable();
+        }
+
+        function renderStats() {
+            const d = allAssignedMatches;
+            document.getElementById('stat-total').textContent = d.length;
+            document.getElementById('stat-ongoing').textContent = d.filter(m => m.status === 'ongoing').length;
+            document.getElementById('stat-scheduled').textContent = d.filter(m => m.status === 'scheduled').length;
+            document.getElementById('stat-done').textContent = d.filter(m => m.status === 'completed').length;
+        }
+
+        function switchTab(tab) {
+            currentTab = tab;
+            document.getElementById('tab-active').classList.toggle('active', tab === 'active');
+            document.getElementById('tab-done').classList.toggle('active', tab === 'done');
+            renderMatchTable();
+        }
+
+        function formatHint(m) {
+            const st = (m.scoring_type || '').toLowerCase();
+            if (st === 'sets') return '<span class="format-hint">Sets</span>';
+            if (st === 'binary') return '<span class="format-hint">Win/Loss</span>';
+            const fmt = (m.tournament_format || '').toLowerCase();
+            if (fmt === 'free_for_all' || fmt === 'team_ranking') return '<span class="format-hint">FFA</span>';
+            return '';
+        }
+
+        function renderMatchTable() {
+            const tbody = document.getElementById('matches-body');
+            const filtered = allAssignedMatches.filter(m =>
+                currentTab === 'active' ? m.status !== 'completed' : m.status === 'completed'
+            );
+
+            if (!filtered.length) {
+                tbody.innerHTML = `<tr><td colspan="6"><div class="empty-state">
+                    <div class="empty-icon"><svg viewBox="0 0 24 24"><rect width="8" height="4" x="8" y="2" rx="1" ry="1"/><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/></svg></div>
+                    <div class="empty-text">No matches found.</div>
+                </div></td></tr>`;
+                return;
+            }
+
+            tbody.innerHTML = filtered.map(m => {
+                const isFFA = (m.tournament_format || '').toLowerCase() === 'free_for_all' ||
+                    (m.tournament_format || '').toLowerCase() === 'team_ranking';
+                const teamA = m.team_a_name || m.dept_a_name || 'TBD';
+                const teamB = m.team_b_name || m.dept_b_name || 'TBD';
+                const matchup = isFFA
+                    ? `<span class="matchup-primary">${m.tournament_name || 'FFA Event'}</span>`
+                    : `<span class="matchup-primary">${teamA}</span><span class="matchup-vs">vs</span><span class="matchup-primary">${teamB}</span>`;
+
+                const actionBtn = ['scheduled', 'ongoing'].includes(m.status)
+                    ? `<a href="scoring.html?id=${m.id}" class="btn btn-primary btn-sm">Score</a>`
+                    : `<a href="scoring.html?id=${m.id}" class="btn btn-secondary btn-sm">Review</a>`;
+
+                return `
+                    <tr>
+                        <td>${m.sport_name || '—'}${formatHint(m)}</td>
+                        <td>${matchup}</td>
+                        <td style="font-size:12px; color:var(--muted); white-space:nowrap;">
+                            ${typeof formatDate === 'function' ? formatDate(m.scheduled_date) : (m.scheduled_date || 'TBD')}<br>
+                            <span style="color:var(--text2);">${typeof formatTime === 'function' ? formatTime(m.scheduled_time) : (m.scheduled_time || '')}</span>
+                        </td>
+                        <td style="color:var(--text2);">${m.venue_name || 'TBD'}</td>
+                        <td>${typeof statusBadge === 'function' ? statusBadge(m.status) : m.status}</td>
+                        <td>${actionBtn}</td>
+                    </tr>`;
+            }).join('');
+        }
+    </script>
+</body>
+
+</html>

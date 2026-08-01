@@ -1,0 +1,596 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PAC SCHED-SCORE — Schedule Management</title>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;600;700;800;900&family=Barlow:wght@300;400;500;600&display=swap"
+        rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <link rel="stylesheet" href="../../css/sgo_president.css">
+    <style>
+        /* Free-For-All row treatment — distinct from the dept_a vs dept_b
+           layout, since FFA has no two-sided matchup. */
+        .ffa-row-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 13px;
+            font-weight: 700;
+        }
+
+        .ffa-row-icon {
+            width: 26px;
+            height: 26px;
+            border-radius: 7px;
+            background: rgba(255, 176, 32, .14);
+            color: var(--gold);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 12px;
+            flex-shrink: 0;
+        }
+
+        .ffa-row-tag {
+            font-size: 9px;
+            font-weight: 800;
+            text-transform: uppercase;
+            letter-spacing: .06em;
+            color: var(--gold);
+            background: rgba(255, 176, 32, .12);
+            border: 1px solid rgba(255, 176, 32, .3);
+            border-radius: 100px;
+            padding: 2px 8px;
+            margin-left: 8px;
+        }
+
+        .ffa-row-depts {
+            font-size: 11px;
+            color: var(--muted);
+            font-weight: 400;
+        }
+
+        /* ── Locked (completed/cancelled) row guard ──────────────── */
+        .locked-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 11px;
+            font-weight: 700;
+            color: var(--muted);
+            background: rgba(255, 255, 255, .04);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 7px 12px;
+            cursor: default;
+        }
+
+        .needs-officer-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            font-size: 9px;
+            font-weight: 800;
+            text-transform: uppercase;
+            letter-spacing: .05em;
+            color: var(--orange);
+            background: rgba(249, 115, 22, .12);
+            border: 1px solid rgba(249, 115, 22, .3);
+            border-radius: 100px;
+            padding: 2px 8px;
+            margin-left: 6px;
+        }
+
+        /* ── Officer Workload panel (merged in from the old, now-retired
+           Game Assignment page — see the redirect note in that file) ── */
+        .officer-panel {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .officer-row {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 10px 12px;
+            background: var(--bg3);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+        }
+
+        .officer-avatar {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            background: var(--bg4);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 800;
+            color: var(--gold);
+            font-size: 12px;
+            flex-shrink: 0;
+        }
+
+        .officer-info {
+            flex: 1;
+            min-width: 0;
+        }
+
+        .officer-name {
+            font-size: 13px;
+            font-weight: 600;
+        }
+
+        .officer-email {
+            font-size: 11px;
+            color: var(--muted);
+        }
+
+        .quick-filter-chip {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 12px;
+            font-weight: 700;
+            padding: 6px 14px;
+            border-radius: 100px;
+            border: 1px solid var(--border);
+            background: var(--bg3);
+            color: var(--text2);
+            cursor: pointer;
+            transition: all .15s;
+        }
+
+        .quick-filter-chip.active {
+            background: rgba(249, 115, 22, .12);
+            border-color: rgba(249, 115, 22, .3);
+            color: var(--orange);
+        }
+    </style>
+</head>
+
+<body>
+    <main class="main">
+        <div class="topbar">
+            <div style="display:flex;align-items:center;gap:10px">
+                <button class="burger-menu" onclick="toggleSidebar()" aria-label="Open menu">
+                    <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2"
+                        stroke-linecap="round" stroke-linejoin="round">
+                        <line x1="4" x2="20" y1="12" y2="12" />
+                        <line x1="4" x2="20" y1="6" y2="6" />
+                        <line x1="4" x2="20" y1="18" y2="18" />
+                    </svg>
+                </button>
+                <div class="topbar-title">
+                    <i class="fa-solid fa-calendar-days" style="margin-right:8px;color:var(--gold)"></i>
+                    Schedule &amp; Officer Assignment
+                </div>
+            </div>
+            <div class="topbar-actions">
+                <button class="btn btn-secondary btn-sm" onclick="loadMatches()">
+                    <i class="fa-solid fa-arrows-rotate"></i> Refresh
+                </button>
+            </div>
+        </div>
+
+        <div class="content">
+            <div class="page-header" style="margin-bottom:20px">
+                <div>
+                    <div class="page-title" style="font-size:22px">Match Schedule</div>
+                    <div class="page-sub">Dates, times, venues, and officers — all in one place</div>
+                </div>
+            </div>
+
+            <!-- Filters -->
+            <div class="card" style="margin-bottom:16px;padding:14px 16px">
+                <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center">
+                    <div
+                        style="display:flex;align-items:center;gap:6px;color:var(--muted);font-size:12px;font-weight:600">
+                        <i class="fa-solid fa-filter"></i> Filters
+                    </div>
+                    <select id="filter-tournament" class="form-select" style="width:240px" onchange="loadMatches()">
+                        <option value="">All Tournaments</option>
+                    </select>
+                    <select id="filter-status" class="form-select" style="width:180px" onchange="loadMatches()">
+                        <option value="">All Statuses</option>
+                        <option value="pending">Pending (unscheduled)</option>
+                        <option value="scheduled">Scheduled</option>
+                        <option value="ongoing">Ongoing</option>
+                        <option value="completed">Completed</option>
+                    </select>
+                    <input type="date" id="filter-date" class="form-select" style="width:170px"
+                        onchange="loadMatches()">
+                    <button class="btn btn-secondary btn-sm"
+                        onclick="document.getElementById('filter-date').value='';loadMatches()">
+                        <i class="fa-solid fa-xmark"></i> Clear Date
+                    </button>
+                    <span id="chip-unassigned" class="quick-filter-chip" onclick="toggleUnassignedOnly()">
+                        <i class="fa-solid fa-user-slash"></i> Needs officer only
+                    </span>
+                </div>
+            </div>
+
+            <!-- Officer Workload — merged in from the old Game Assignment
+                 page. That page was ~90% the same match list as this one,
+                 just filtered to "unassigned" first; the "Needs officer
+                 only" chip above covers that, and this panel covers the
+                 workload-balance view it added. -->
+            <div class="card" style="margin-bottom:16px">
+                <div class="card-header">
+                    <div class="card-title">
+                        <i class="fa-solid fa-chart-simple" style="color:var(--gold);margin-right:8px"></i>
+                        Officer Workload
+                    </div>
+                    <span id="officer-panel-toggle" class="btn btn-secondary btn-sm" style="cursor:pointer"
+                        onclick="toggleOfficerPanel()">
+                        <i class="fa-solid fa-chevron-down" id="officer-panel-caret"></i>
+                    </span>
+                </div>
+                <div class="card-body officer-panel" id="officer-panel" style="display:none">
+                    <div class="empty-state">
+                        <div class="empty-text">Loading…</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Matches Table -->
+            <div class="card">
+                <div class="table-wrap">
+                    <table id="match-table">
+                        <thead>
+                            <tr>
+                                <th>Match</th>
+                                <th>Tournament</th>
+                                <th>Date</th>
+                                <th>Time</th>
+                                <th>Venue</th>
+                                <th>Officer</th>
+                                <th>Status</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="match-body">
+                            <tr>
+                                <td colspan="8" style="text-align:center;color:var(--muted);padding:24px">Loading…</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- Schedule Modal -->
+    <div class="modal-overlay" id="modal-schedule">
+        <div class="modal">
+            <div class="modal-header">
+                <div class="modal-title" id="sch-title">
+                    <i class="fa-solid fa-calendar-plus" style="margin-right:8px;color:var(--gold)"></i>
+                    Schedule Match
+                </div>
+                <button class="modal-close" onclick="Modal.close('modal-schedule')" aria-label="Close">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+            <div class="modal-body">
+                <input type="hidden" id="sch-match-id">
+                <div class="form-row">
+                    <div class="form-group">
+                        <label class="form-label"><i class="fa-solid fa-calendar" style="margin-right:4px"></i>
+                            Date</label>
+                        <input id="sch-date" type="date" class="form-input">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label"><i class="fa-solid fa-clock" style="margin-right:4px"></i>
+                            Time</label>
+                        <input id="sch-time" type="time" class="form-input">
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label class="form-label"><i class="fa-solid fa-location-dot" style="margin-right:4px"></i>
+                        Venue</label>
+                    <select id="sch-venue" class="form-select">
+                        <option value="">Select venue…</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label class="form-label"><i class="fa-solid fa-user-check" style="margin-right:4px"></i> Assigned
+                        Officer / Referee</label>
+                    <select id="sch-referee" class="form-select">
+                        <option value="">Unassigned</option>
+                    </select>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="Modal.close('modal-schedule')">Cancel</button>
+                <button class="btn btn-primary" onclick="submitSchedule()">
+                    <i class="fa-solid fa-floppy-disk"></i> Save Schedule
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script src="../../js/api.js"></script>
+    <script src="../../js/sgo_president.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', async () => {
+            Auth.requireAuth('sgo_president');
+            renderSidebar('schedule');
+            NotifBell.init();
+            await Promise.all([loadTournamentFilter(), loadVenueOptions(), loadOfficerOptions(), loadOfficerPanel()]);
+            await loadMatches();
+        });
+
+        // A completed or cancelled match is done — its schedule and officer
+        // are historical record at that point, not something that should
+        // still be editable. Everything below keys off this.
+        const LOCKED_STATUSES = ['completed', 'cancelled'];
+        const isLocked = (m) => LOCKED_STATUSES.includes(m.status);
+
+        let unassignedOnly = false;
+        function toggleUnassignedOnly() {
+            unassignedOnly = !unassignedOnly;
+            document.getElementById('chip-unassigned').classList.toggle('active', unassignedOnly);
+            loadMatches();
+        }
+
+        let officerPanelOpen = false;
+        function toggleOfficerPanel() {
+            officerPanelOpen = !officerPanelOpen;
+            document.getElementById('officer-panel').style.display = officerPanelOpen ? '' : 'none';
+            document.getElementById('officer-panel-caret').style.transform = officerPanelOpen ? 'rotate(180deg)' : '';
+        }
+
+        async function loadOfficerPanel() {
+            const res = await api('/matches/officers');
+            const officers = res.data || [];
+            const panel = document.getElementById('officer-panel');
+            if (!officers.length) {
+                panel.innerHTML = `<div class="empty-state"><div class="empty-text">No SGO officers found</div></div>`;
+                return;
+            }
+            panel.innerHTML = officers.map(o => `
+                <div class="officer-row">
+                    <div class="officer-avatar">${initials(o.first_name + ' ' + o.last_name)}</div>
+                    <div class="officer-info">
+                        <div class="officer-name">${o.first_name} ${o.last_name}</div>
+                        <div class="officer-email">${o.email || ''}</div>
+                    </div>
+                    <span class="badge ${o.active_assignments > 2 ? 'badge-orange' : 'badge-blue'}">${o.active_assignments || 0} active</span>
+                </div>`).join('');
+        }
+
+        async function loadTournamentFilter() {
+            try {
+                const res = await api('/tournaments');
+                const select = document.getElementById('filter-tournament');
+                select.innerHTML = '<option value="">All Tournaments</option>';
+                if (res.success && res.data) {
+                    res.data.forEach(t => {
+                        const option = document.createElement('option');
+                        option.value = t.id;
+                        option.textContent = t.name;
+                        select.appendChild(option);
+                    });
+                }
+            } catch (error) {
+                console.error('Error loading tournaments:', error);
+            }
+        }
+
+        async function loadVenueOptions() {
+            try {
+                const res = await api('/venues');
+                const select = document.getElementById('sch-venue');
+                select.innerHTML = '<option value="">Select venue…</option>';
+                if (res.success && res.data) {
+                    res.data.forEach(v => {
+                        const option = document.createElement('option');
+                        option.value = v.id;
+                        option.textContent = v.name;
+                        select.appendChild(option);
+                    });
+                }
+            } catch (error) {
+                console.error('Error loading venues:', error);
+            }
+        }
+
+        // Was 404ing because /matches/officers got swallowed by /matches/:id
+        // in the routes file (fixed server-side — see routes/matches.js).
+        async function loadOfficerOptions() {
+            try {
+                const res = await api('/matches/officers');
+                const select = document.getElementById('sch-referee');
+                select.innerHTML = '<option value="">Unassigned</option>';
+
+                if (res.success && res.data && res.data.length) {
+                    res.data.forEach(o => {
+                        const option = document.createElement('option');
+                        option.value = o.referee_row_id || o.id;
+                        const activeText = o.active_assignments ? ` (${o.active_assignments} active)` : '';
+                        option.textContent = `${o.first_name} ${o.last_name}${activeText}`;
+                        select.appendChild(option);
+                    });
+                } else {
+                    const option = document.createElement('option');
+                    option.value = '';
+                    option.textContent = 'No officers available';
+                    option.disabled = true;
+                    select.appendChild(option);
+                }
+            } catch (error) {
+                console.error('Error loading officers:', error);
+                Toast.show('Could not load officers', 'error');
+            }
+        }
+
+        // Cache of tournament_id -> participant department names, filled
+        // lazily so FFA rows can show "Dept A, Dept B, Dept C" instead of
+        // "TBD vs TBD" (FFA matches have no participant_a/b — the roster
+        // lives on tournament_participants instead).
+        const ffaParticipantsCache = {};
+        async function getFfaParticipants(tournamentId) {
+            if (ffaParticipantsCache[tournamentId]) return ffaParticipantsCache[tournamentId];
+            try {
+                const res = await api(`/tournaments/${tournamentId}`);
+                const names = res.success ? (res.data.participants || []).map(p => p.department_name) : [];
+                ffaParticipantsCache[tournamentId] = names;
+                return names;
+            } catch {
+                return [];
+            }
+        }
+
+        function isFfa(m) {
+            return m.tournament_format === 'free_for_all';
+        }
+
+        async function loadMatches() {
+            try {
+                const tournId = document.getElementById('filter-tournament').value;
+                const status = document.getElementById('filter-status').value;
+                const date = document.getElementById('filter-date').value;
+
+                let url = '/matches?';
+                if (tournId) url += `tournament_id=${tournId}&`;
+                if (status) url += `status=${status}&`;
+                if (date) url += `date=${date}&`;
+
+                const res = await api(url);
+                const tbody = document.getElementById('match-body');
+
+                if (!res.success || !res.data || !res.data.length) {
+                    tbody.innerHTML = `<tr><td colspan="8" style="text-align:center;color:var(--muted);padding:32px">
+                        <i class="fa-solid fa-inbox" style="font-size:1.5rem;opacity:.4;display:block;margin-bottom:8px"></i>
+                        No matches found
+                    </td></tr>`;
+                    return;
+                }
+
+                let rows = res.data;
+                if (unassignedOnly) {
+                    rows = rows.filter(m => !m.referee_name && !isLocked(m));
+                }
+                if (!rows.length) {
+                    tbody.innerHTML = `<tr><td colspan="8" style="text-align:center;color:var(--muted);padding:32px">
+                        <i class="fa-solid fa-circle-check" style="font-size:1.5rem;color:var(--green);opacity:.7;display:block;margin-bottom:8px"></i>
+                        Every match here already has an officer assigned
+                    </td></tr>`;
+                    return;
+                }
+
+                // Render immediately with a lightweight placeholder for FFA
+                // matchup cells, then backfill participant names once fetched
+                // — avoids blocking the whole table on N extra requests.
+                tbody.innerHTML = rows.map((m, idx) => `
+                    <tr data-row="${idx}">
+                        <td>
+                            ${isFfa(m) ? `
+                                <span class="ffa-row-badge">
+                                    <span class="ffa-row-icon"><i class="fa-solid fa-bolt"></i></span>
+                                    ${m.tournament_name}
+                                    <span class="ffa-row-tag">FFA</span>
+                                </span>
+                                <div class="ffa-row-depts" id="ffa-depts-${idx}">Loading departments…</div>
+                            ` : `
+                                <span style="margin-right:6px">${sportIcon(m.sport_name)}</span>
+                                <strong>${m.dept_a_name || 'TBD'}</strong>
+                                <span style="color:var(--muted)"> vs </span>
+                                <strong>${m.dept_b_name || 'TBD'}</strong>
+                            `}
+                        </td>
+                        <td style="color:var(--muted);font-size:12px">
+                            ${m.tournament_name}<br>
+                            <span style="opacity:.7">${isFfa(m) ? 'One-time event' : (m.bracket_position || '')}</span>
+                        </td>
+                        <td style="font-size:12px">${formatDate(m.scheduled_date)}</td>
+                        <td style="font-size:12px;font-weight:600;color:var(--gold)">${formatTime(m.scheduled_time)}</td>
+                        <td style="font-size:12px;color:var(--muted)">
+                            ${m.venue_name ? `<i class="fa-solid fa-location-dot" style="margin-right:4px;opacity:.6"></i>${m.venue_name}` : '—'}
+                        </td>
+                        <td style="font-size:12px;color:var(--muted)">
+                            ${m.referee_name ? `<i class="fa-solid fa-user" style="margin-right:4px;opacity:.6"></i>${m.referee_name}` : '—'}
+                            ${!m.referee_name && !isLocked(m) ? '<span class="needs-officer-badge">Needs officer</span>' : ''}
+                        </td>
+                        <td>${statusBadge(m.status)}</td>
+                        <td>
+                            ${isLocked(m)
+                        ? `<span class="locked-badge"><i class="fa-solid fa-lock"></i> ${m.status === 'completed' ? 'Completed — locked' : 'Cancelled — locked'}</span>`
+                        : `<button class="btn btn-secondary btn-sm" onclick='openSchedule(${JSON.stringify(m)})'>
+                                    <i class="fa-solid fa-calendar-plus"></i> ${isFfa(m) ? 'Set Event Details' : 'Schedule'}
+                                </button>`}
+                        </td>
+                    </tr>
+                `).join('');
+
+                // Backfill FFA participant lists
+                rows.forEach(async (m, idx) => {
+                    if (!isFfa(m)) return;
+                    const names = await getFfaParticipants(m.tournament_id);
+                    const el = document.getElementById(`ffa-depts-${idx}`);
+                    if (el) el.textContent = names.length ? names.join(', ') : 'No departments entered yet';
+                });
+            } catch (error) {
+                console.error('Error loading matches:', error);
+                Toast.show('Error loading matches', 'error');
+            }
+        }
+
+        function openSchedule(m) {
+            // Defense in depth — the button is already hidden for locked
+            // matches, but this blocks anyone calling openSchedule(...)
+            // directly (e.g. from an old cached page or devtools).
+            if (isLocked(m)) {
+                Toast.show(`This match is ${m.status} — its schedule and officer are locked.`, 'error');
+                return;
+            }
+            document.getElementById('sch-title').innerHTML = isFfa(m)
+                ? `<i class="fa-solid fa-bolt" style="margin-right:8px;color:var(--gold)"></i> Set Event Details: ${m.tournament_name}`
+                : `<i class="fa-solid fa-calendar-plus" style="margin-right:8px;color:var(--gold)"></i>
+                 Schedule: ${m.dept_a_name || 'TBD'} vs ${m.dept_b_name || 'TBD'}`;
+            document.getElementById('sch-match-id').value = m.id;
+            document.getElementById('sch-date').value = m.scheduled_date || '';
+            document.getElementById('sch-time').value = m.scheduled_time || '';
+            document.getElementById('sch-venue').value = m.venue_id || '';
+            document.getElementById('sch-referee').value = m.referee_user_id || m.referee_id || '';
+            Modal.open('modal-schedule');
+        }
+
+        async function submitSchedule() {
+            try {
+                const id = document.getElementById('sch-match-id').value;
+                const body = {
+                    scheduled_date: document.getElementById('sch-date').value || null,
+                    scheduled_time: document.getElementById('sch-time').value || null,
+                    venue_id: document.getElementById('sch-venue').value || null,
+                    referee_id: document.getElementById('sch-referee').value || null,
+                };
+
+                const res = await api(`/matches/${id}/schedule`, { method: 'PUT', body });
+                Toast.show(res.message || (res.success ? 'Match scheduled!' : 'Error'), res.success ? 'success' : 'error');
+
+                if (res.success) {
+                    Modal.close('modal-schedule');
+                    await loadMatches();
+                    await loadOfficerOptions();
+                    await loadOfficerPanel();
+                }
+            } catch (error) {
+                console.error('Error scheduling match:', error);
+                Toast.show('Error scheduling match', 'error');
+            }
+        }
+
+        window.loadMatches = loadMatches;
+        window.openSchedule = openSchedule;
+        window.submitSchedule = submitSchedule;
+    </script>
+</body>
+
+</html>

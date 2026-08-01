@@ -12,12 +12,16 @@ const SGO_PRESIDENT_NAV = [
     { key: 'sports', icon: 'fa-solid fa-medal', label: 'Sports', href: '/president/sports' },
     { key: 'bracketing', icon: 'fa-solid fa-trophy', label: 'Bracketing', href: '/president/bracketing' },
     { key: 'game-setup', icon: 'fa-solid fa-screwdriver-wrench', label: 'Game Setup', href: '/president/game-setup' },
-    { key: 'schedule', icon: 'fa-solid fa-calendar-days', label: 'Schedule Management', href: '/president/schedule' },
+    // Game Assignment was retired and merged into Schedule Management (see
+    // game-assignment.html — now just a redirect stub) since it was almost
+    // entirely the same match list/modal with a different default filter.
+    // One nav item covering both instead of two that did nearly the same
+    // thing.
+    { key: 'schedule', icon: 'fa-solid fa-calendar-days', label: 'Schedule & Officers', href: '/president/schedule' },
     { key: 'venues', icon: 'fa-solid fa-location-dot', label: 'Venue Management', href: '/president/venues' },
-    { key: 'assignment', icon: 'fa-solid fa-user-check', label: 'Game Assignment', href: '/president/assignment' },
     { section: 'Comms & Reports' },
     { key: 'reports', icon: 'fa-solid fa-file-lines', label: 'Reports', href: '/president/reports' },
-    { key: 'notifications', icon: 'fa-solid fa-bell', label: 'Notifications', href: '/president/notifications' },
+    { key: 'notifications', icon: 'fa-solid fa-bell', label: 'Announcements', href: '/president/notifications' },
 ];
 
 // Flag to prevent multiple sidebar renders
@@ -161,7 +165,7 @@ document.addEventListener('DOMContentLoaded', function () {
             'game-setup': 'game-setup',
             'schedule': 'schedule',
             'venues': 'venues',
-            'assignment': 'assignment',
+            'assignment': 'schedule', // retired page, keep highlighting Schedule if somehow landed on
             'live': 'live',
             'live-scores': 'live',
             'reports': 'reports',
