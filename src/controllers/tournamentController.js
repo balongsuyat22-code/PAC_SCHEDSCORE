@@ -5,7 +5,7 @@
  */
 const { pool } = require('../config/database');
 const { getActiveSportFestId } = require('../utils/season');
-const { recordResultsAndRebuild } = require('../utils/scoring');
+const { recordResultsAndRebuild, DEFAULT_MEDAL_POINTS } = require('../utils/scoring');
 const cache = require('../utils/cache');
 const { emitToLeaderboard } = require('../utils/socketEmit');
 
@@ -30,6 +30,22 @@ function requiredPlayers(row) {
     if (!team) return minP > 0 ? minP : 1;
     // Team sports never require only 1
     return Math.max(minP, teamSize, 2);
+}
+
+// Validates a { "1": 10, "2": 7, ... } points-per-place map coming from the
+// finalize request body. Returns null if nothing usable was sent (caller
+// falls back to the tournament's saved config, then DEFAULT_MEDAL_POINTS).
+function validatePointsMap(raw) {
+    if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return null;
+    const cleaned = {};
+    for (const [rankStr, pts] of Object.entries(raw)) {
+        const rank = parseInt(rankStr, 10);
+        const points = Number(pts);
+        if (!Number.isInteger(rank) || rank < 1) continue;
+        if (!Number.isFinite(points) || points < 0) continue;
+        cleaned[rank] = Math.round(points);
+    }
+    return Object.keys(cleaned).length ? cleaned : null;
 }
 
 async function getTournamentWithSport(tournamentId) {
@@ -932,6 +948,29 @@ const scheduleRoundRobin = async (req, res, next) => {
     }
 };
 
+// ── Points config (used by the finalize modal to prefill saved/default values) ──
+// Needs migration:  ALTER TABLE tournaments ADD COLUMN points_config JSON NULL;
+const getPointsConfig = async (req, res, next) => {
+    try {
+        const [[t]] = await pool.execute(
+            'SELECT points_config FROM tournaments WHERE id = ?',
+            [req.params.id]
+        );
+        if (!t) return res.status(404).json({ success: false, message: 'Tournament not found' });
+
+        let map = DEFAULT_MEDAL_POINTS;
+        if (t.points_config) {
+            try {
+                const parsed = typeof t.points_config === 'string' ? JSON.parse(t.points_config) : t.points_config;
+                if (parsed && Object.keys(parsed).length) map = parsed;
+            } catch { /* fall back to default */ }
+        }
+        return res.json({ success: true, data: { points_map: map } });
+    } catch (err) {
+        next(err);
+    }
+};
+
 // ── Finalize tournament ───────────────────────────────────────
 const finalizeTournament = async (req, res, next) => {
     const conn = await pool.getConnection();
@@ -955,15 +994,30 @@ const finalizeTournament = async (req, res, next) => {
             });
         }
 
+        // Points-per-place: explicit request body > previously saved config
+        // on this tournament (a re-finalize keeps whatever was used before
+        // unless the president changes it) > global DEFAULT_MEDAL_POINTS.
+        // This is the piece that used to be entirely hardcoded — finalize
+        // always used DEFAULT_MEDAL_POINTS = {1:10, 2:7, 3:5} from
+        // utils/scoring.js with no way to change it per tournament.
+        const requestedMap = validatePointsMap(req.body?.points_map);
+        let savedMap = null;
+        if (!requestedMap && t.points_config) {
+            try {
+                savedMap = typeof t.points_config === 'string' ? JSON.parse(t.points_config) : t.points_config;
+            } catch { savedMap = null; }
+        }
+        const pointsMap = requestedMap || savedMap || DEFAULT_MEDAL_POINTS;
+
         await conn.beginTransaction();
 
         // Atomic claim, same pattern as generateBracket: only one concurrent
         // "Finalize" click can win, the other gets a clean 409 instead of
         // tournament_results being computed/written twice.
         const [claim] = await conn.execute(
-            `UPDATE tournaments SET status = 'completed', updated_at = NOW()
+            `UPDATE tournaments SET status = 'completed', points_config = ?, updated_at = NOW()
              WHERE id = ? AND status != 'completed'`,
-            [req.params.id]
+            [JSON.stringify(pointsMap), req.params.id]
         );
         if (claim.affectedRows === 0) {
             await conn.rollback();
@@ -975,8 +1029,10 @@ const finalizeTournament = async (req, res, next) => {
         // standings from the bracket/standings/FFA results, write medals +
         // points to tournament_results, and roll that into department_scores
         // so the leaderboard the visitor page is already listening for
-        // actually has new numbers to show.
-        const { recorded } = await recordResultsAndRebuild(conn, req.params.id);
+        // actually has new numbers to show. Now takes the president's
+        // per-tournament points map instead of always using the hardcoded
+        // 10/7/5 default.
+        const { recorded } = await recordResultsAndRebuild(conn, req.params.id, pointsMap);
 
         await conn.commit();
 
@@ -991,7 +1047,7 @@ const finalizeTournament = async (req, res, next) => {
             message: recorded
                 ? `Tournament finalized — ${recorded} department result(s) recorded.`
                 : 'Tournament finalized (no standings could be determined — check the bracket/results were entered).',
-            data: { id: req.params.id, status: 'completed', results_recorded: recorded },
+            data: { id: req.params.id, status: 'completed', results_recorded: recorded, points_map: pointsMap },
         });
     } catch (err) {
         await conn.rollback();
@@ -1045,6 +1101,7 @@ module.exports = {
     generateBracket,
     promoteKnockout,
     scheduleRoundRobin,
+    getPointsConfig,
     finalizeTournament,
     isTeamSport,
     requiredPlayers,

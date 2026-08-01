@@ -95,6 +95,7 @@
         </div>
     </main>
 
+    <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
     <script src="../js/api.js"></script>
     <script src="../js/sgo_president.js"></script>
     <script>
@@ -103,8 +104,47 @@
             renderSidebar('live');
             NotifBell.init();
             await loadAll();
-            setInterval(loadAll, 15000);
+            // Poll stays on as a safety net (in case the socket drops or an
+            // event name below doesn't match your server) but is no longer
+            // the primary update path once the socket connects.
+            setInterval(loadAll, 8000);
+            connectRealtime();
         });
+
+        // ── Real-time via Socket.IO ──────────────────────────────
+        // Your server already runs socket.io (utils/socketEmit.js exposes
+        // emitToMatch/emitToTournament/emitToLeaderboard), but I don't have
+        // socket.js or matchController's actual emit call sites, so the
+        // event names below ('score:updated', 'match:started', etc.) are my
+        // best-guess convention based on the emit* helper names — NOT
+        // confirmed against your server. If nothing here ever fires (check
+        // the console log below), share socket.js / the matchController
+        // lines that call emitToMatch(...)/emitToLeaderboard(...) and I'll
+        // correct the event names exactly instead of guessing.
+        function connectRealtime() {
+            try {
+                const socket = io(window.location.origin);
+
+                socket.on('connect', () => console.log('[realtime] connected', socket.id));
+                socket.on('connect_error', (err) => console.warn('[realtime] connect_error — falling back to polling only', err.message));
+
+                // Global leaderboard/score room — adjust room name if your
+                // socket.js expects an explicit join event instead of
+                // auto-joining on connect.
+                // Confirmed from tournamentController.js: finalizing a
+                // tournament emits 'leaderboard:changed'. The match-level
+                // events (score/start/complete) are still my best-guess
+                // naming — share matchController's emitToMatch(...) calls
+                // to confirm/correct those too.
+                ['score:updated', 'match:started', 'match:completed', 'leaderboard:changed']
+                    .forEach(evt => socket.on(evt, (payload) => {
+                        console.log(`[realtime] ${evt}`, payload);
+                        loadAll();
+                    }));
+            } catch (err) {
+                console.warn('[realtime] socket.io client failed to init, polling only', err);
+            }
+        }
 
         async function loadAll() {
             await Promise.all([loadLive(), loadScheduled()]);

@@ -416,7 +416,7 @@
                                         onclick="openFfaSchedule()">
                                         <i class="fa-solid fa-calendar-plus"></i> Set Date, Time &amp; Venue
                                     </button>
-                                    <button class="btn btn-success btn-sm" onclick="Modal.open('modal-finalize')">
+                                    <button class="btn btn-success btn-sm" onclick="openFinalizeModal()">
                                         <i class="fa-solid fa-flag-checkered"></i> Finalize Results
                                     </button>
                                 </div>
@@ -437,7 +437,7 @@
                                 onclick="promoteKnockout()">
                                 <i class="fa-solid fa-arrow-up-from-bracket"></i> Promote Knockout
                             </button>
-                            <button class="btn btn-success btn-sm" onclick="Modal.open('modal-finalize')">
+                            <button class="btn btn-success btn-sm" onclick="openFinalizeModal()">
                                 <i class="fa-solid fa-flag-checkered"></i> Finalize Results
                             </button>
                         </div>
@@ -580,7 +580,7 @@
 
     <!-- Finalize Modal -->
     <div class="modal-overlay" id="modal-finalize">
-        <div class="modal">
+        <div class="modal" style="max-width:520px">
             <div class="modal-header">
                 <div class="modal-title"><i class="fa-solid fa-flag-checkered"></i> Finalize Tournament</div>
                 <button class="modal-close" onclick="Modal.close('modal-finalize')"><i
@@ -588,10 +588,23 @@
             </div>
             <div class="modal-body">
                 <p style="color:var(--text2);font-size:14px;margin-bottom:16px">
-                    Locks final ranks, awards medals, and recalculates the leaderboard. Hard to undo.
+                    Locks final ranks, awards points per placement, and recalculates the leaderboard. Hard to undo.
                 </p>
-                <div id="finalize-preview" style="font-size:13px;color:var(--muted)">Rankings are derived from completed
+                <div id="finalize-preview" style="font-size:13px;color:var(--muted);margin-bottom:16px">Rankings are
+                    derived from completed
                     matches / FFA results.</div>
+
+                <div class="form-group">
+                    <label class="form-label">Points per placement</label>
+                    <div style="font-size:12px;color:var(--muted);margin-bottom:10px">
+                        1st and up — set as many places as you award points for. Only 1st/2nd/3rd get a medal icon;
+                        every place you list here still gets leaderboard points.
+                    </div>
+                    <div id="points-rows" style="display:flex;flex-direction:column;gap:8px"></div>
+                    <button class="btn btn-secondary btn-sm" style="margin-top:10px" onclick="addPointsRow()">
+                        <i class="fa-solid fa-plus"></i> Add Place
+                    </button>
+                </div>
             </div>
             <div class="modal-footer">
                 <button class="btn btn-secondary" onclick="Modal.close('modal-finalize')">Cancel</button>
@@ -1005,8 +1018,81 @@
             if (res.success) { Modal.close('modal-auto-schedule'); refreshAll(); }
         }
 
+        // ── Points-per-place (finalize modal) ───────────────────
+        const DEFAULT_POINTS_MAP = { 1: 10, 2: 7, 3: 5 };
+        let pointsRows = []; // [{ rank, points }]
+
+        function renderPointsRows() {
+            const host = document.getElementById('points-rows');
+            const placeLabel = (r) => r === 1 ? '1st' : r === 2 ? '2nd' : r === 3 ? '3rd' : `${r}th`;
+            host.innerHTML = pointsRows.map((row, i) => `
+                <div style="display:flex;align-items:center;gap:10px">
+                    <div style="width:56px;font-family:'Barlow Condensed',sans-serif;font-weight:800;font-size:16px;color:var(--gold)">${placeLabel(row.rank)}</div>
+                    <input type="number" min="0" class="form-input" style="flex:1" value="${row.points}"
+                        onchange="updatePointsRow(${i}, this.value)" placeholder="Points">
+                    <button class="btn btn-secondary btn-sm" onclick="removePointsRow(${i})" ${pointsRows.length <= 1 ? 'disabled' : ''}>
+                        <i class="fa-solid fa-xmark"></i>
+                    </button>
+                </div>`).join('');
+        }
+
+        function updatePointsRow(idx, value) {
+            const n = parseInt(value, 10);
+            pointsRows[idx].points = Number.isFinite(n) && n >= 0 ? n : 0;
+        }
+
+        function removePointsRow(idx) {
+            if (pointsRows.length <= 1) return;
+            pointsRows.splice(idx, 1);
+            renderPointsRows();
+        }
+
+        function addPointsRow() {
+            const nextRank = pointsRows.length ? Math.max(...pointsRows.map(r => r.rank)) + 1 : 1;
+            pointsRows.push({ rank: nextRank, points: 0 });
+            renderPointsRows();
+        }
+
+        function pointsRowsToMap() {
+            const map = {};
+            pointsRows.forEach(r => { map[r.rank] = r.points; });
+            return map;
+        }
+
+        // Loads whatever points config this tournament was last finalized
+        // with (or saved without finalizing), falling back to the 10/7/5
+        // default. Needs GET /tournaments/:id/points-config — see
+        // finalize-points-patch.js's getPointsConfig.
+        async function openFinalizeModal() {
+            if (!currentTournamentId) return;
+            pointsRows = Object.entries(DEFAULT_POINTS_MAP).map(([rank, points]) => ({ rank: parseInt(rank, 10), points }));
+            renderPointsRows();
+            Modal.open('modal-finalize');
+
+            try {
+                const res = await api(`/tournaments/${currentTournamentId}/points-config`);
+                if (res.success && res.data?.points_map) {
+                    pointsRows = Object.entries(res.data.points_map)
+                        .map(([rank, points]) => ({ rank: parseInt(rank, 10), points: Number(points) }))
+                        .sort((a, b) => a.rank - b.rank);
+                    renderPointsRows();
+                }
+            } catch {
+                // Endpoint not deployed yet — silently keep the 10/7/5 default,
+                // finalize still works, it just won't prefill saved values.
+            }
+        }
+
         async function finalizeTournament() {
-            const res = await api(`/tournaments/${currentTournamentId}/finalize`, { method: 'POST', body: {} });
+            const points_map = pointsRowsToMap();
+            if (!Object.keys(points_map).length) {
+                Toast.show('Add at least one placement with points', 'error');
+                return;
+            }
+            const res = await api(`/tournaments/${currentTournamentId}/finalize`, {
+                method: 'POST',
+                body: { points_map },
+            });
             Toast.show(res.message || (res.success ? 'Tournament finalized!' : 'Error'), res.success ? 'success' : 'error');
             if (res.success) { Modal.close('modal-finalize'); refreshAll(); }
         }

@@ -134,11 +134,13 @@
                 <div id="ffa-fields" style="display:none">
                     <div class="form-group">
                         <label class="form-label">FFA Scoring Type</label>
-                        <select id="tn-ffa-scoring" class="form-select">
+                        <select id="tn-ffa-scoring" class="form-select" onchange="onFfaScoringChange()">
                             <option value="points">Points (higher wins)</option>
                             <option value="time">Time (lower wins)</option>
                             <option value="distance">Distance (higher wins)</option>
+                            <option value="elimination">Survival / Elimination (last one standing wins)</option>
                         </select>
+                        <div id="ffa-scoring-hint" style="font-size:12px;color:var(--muted);margin-top:6px"></div>
                     </div>
                 </div>
 
@@ -172,6 +174,18 @@
     <script>
         const VALID_FORMATS = ['round_robin', 'single_elimination', 'double_elimination', 'free_for_all', 'team_ranking', 'group_stage_se', 'group_stage_de', 'group_stage_ffa'];
 
+        const FFA_SCORING_HINTS = {
+            points: 'Officer enters a numeric score for each department — highest score wins.',
+            time: 'Officer enters a time for each department — fastest (lowest) time wins.',
+            distance: 'Officer enters a distance for each department — longest (highest) distance wins.',
+            elimination: 'Officer taps "Eliminate" as departments are knocked out during the event. The last one standing is ranked 1st; whoever was eliminated first is ranked last — no numbers to type.',
+        };
+
+        function onFfaScoringChange() {
+            const val = document.getElementById('tn-ffa-scoring').value;
+            document.getElementById('ffa-scoring-hint').textContent = FFA_SCORING_HINTS[val] || '';
+        }
+
         // Fallback glyph if a sport's own `icon` field isn't a Font Awesome class yet.
         function fallbackIcon(name) {
             const n = (name || '').toLowerCase();
@@ -200,6 +214,7 @@
             NotifBell.init();
             await loadSportOptions();
             await loadTournaments();
+            onFfaScoringChange();
         });
 
         async function loadSportOptions() {
