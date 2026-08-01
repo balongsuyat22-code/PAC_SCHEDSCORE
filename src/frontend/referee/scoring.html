@@ -387,6 +387,164 @@
             gap: 8px;
         }
 
+        /* ── Live Standings preview (collapsible) ────────────── */
+        .standings-toggle {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 10px;
+            background: rgba(255, 176, 32, .08);
+            border: 1px solid rgba(255, 176, 32, .25);
+            border-radius: 10px;
+            padding: 10px 14px;
+            margin-top: 16px;
+            cursor: pointer;
+            user-select: none;
+        }
+
+        .standings-toggle-label {
+            font-size: 13px;
+            font-weight: 700;
+            color: var(--gold);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .standings-toggle-caret {
+            transition: transform .15s;
+            color: var(--muted);
+        }
+
+        .standings-toggle-caret.open {
+            transform: rotate(90deg);
+        }
+
+        .standings-panel {
+            display: none;
+            margin-top: 10px;
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            overflow: hidden;
+        }
+
+        .standings-panel.open {
+            display: block;
+        }
+
+        .standings-row {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 8px 14px;
+            font-size: 13px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+            background: var(--bg3);
+        }
+
+        .standings-row:last-child {
+            border-bottom: none;
+        }
+
+        .standings-rank {
+            width: 26px;
+            font-family: 'Barlow Condensed', sans-serif;
+            font-weight: 900;
+            font-size: 15px;
+            color: var(--muted);
+            text-align: center;
+        }
+
+        .standings-row:nth-child(1) .standings-rank {
+            color: #FFD700;
+        }
+
+        .standings-row:nth-child(2) .standings-rank {
+            color: #C0C0C0;
+        }
+
+        .standings-row:nth-child(3) .standings-rank {
+            color: #CD7F32;
+        }
+
+        .standings-name {
+            flex: 1;
+            text-align: left;
+            font-weight: 600;
+        }
+
+        .standings-value {
+            font-family: 'Barlow Condensed', sans-serif;
+            font-weight: 800;
+            color: var(--gold);
+        }
+
+        .standings-empty {
+            font-size: 12px;
+            color: var(--muted);
+        }
+
+        /* ── Elimination / Survival FFA mode ─────────────────── */
+        .elim-item {
+            transition: opacity .2s, background .2s;
+        }
+
+        .elim-item.is-out {
+            opacity: .5;
+            background: rgba(232, 50, 59, .06) !important;
+        }
+
+        .elim-order-badge {
+            font-family: 'Barlow Condensed', sans-serif;
+            font-size: 12px;
+            font-weight: 800;
+            padding: 3px 9px;
+            border-radius: 100px;
+            background: rgba(232, 50, 59, .15);
+            color: #f87171;
+            border: 1px solid rgba(232, 50, 59, .3);
+        }
+
+        .elim-survivor-badge {
+            font-family: 'Barlow Condensed', sans-serif;
+            font-size: 12px;
+            font-weight: 800;
+            padding: 3px 9px;
+            border-radius: 100px;
+            background: rgba(34, 197, 94, .15);
+            color: #4ade80;
+            border: 1px solid rgba(34, 197, 94, .3);
+        }
+
+        .btn-eliminate {
+            padding: 8px 14px;
+            border-radius: 8px;
+            border: 1px solid rgba(232, 50, 59, .35);
+            background: rgba(232, 50, 59, .12);
+            color: #f87171;
+            font-weight: 700;
+            font-size: 12px;
+            cursor: pointer;
+            transition: all .15s;
+            white-space: nowrap;
+        }
+
+        .btn-eliminate:hover {
+            background: rgba(232, 50, 59, .22);
+        }
+
+        .btn-restore {
+            padding: 8px 14px;
+            border-radius: 8px;
+            border: 1px solid var(--border);
+            background: var(--bg4);
+            color: var(--muted);
+            font-weight: 700;
+            font-size: 12px;
+            cursor: pointer;
+            white-space: nowrap;
+        }
+
         @media (max-width: 900px) {
             .scoring-container {
                 grid-template-columns: 1fr;
@@ -624,6 +782,7 @@
             target: `<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" fill="none" stroke="currentColor" stroke-width="1.5"/><circle cx="12" cy="12" r="6" fill="none" stroke="currentColor" stroke-width="1.5"/><circle cx="12" cy="12" r="2" fill="currentColor"/></svg>`,
             refresh: `<svg viewBox="0 0 24 24"><path d="M17.65 6.35A7.958 7.958 0 0 0 12 4c-4.42 0-7.99 3.58-7.99 8s3.57 8 7.99 8c3.73 0 6.84-2.55 7.73-6h-2.08A5.99 5.99 0 0 1 12 18c-3.31 0-6-2.69-6-6s2.69-6 6-6c1.66 0 3.14.69 4.22 1.78L13 11h7V4l-2.35 2.35z"/></svg>`,
             bolt: `<svg viewBox="0 0 24 24"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>`,
+            skull: `<svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12c0 3.53 1.83 6.64 4.59 8.41.24-1.07.9-4.1.9-4.1s-.23-.46-.23-1.14c0-1.07.62-1.87 1.39-1.87.66 0 .98.49.98 1.08 0 .66-.42 1.65-.64 2.56-.18.77.39 1.39 1.15 1.39 1.38 0 2.44-1.46 2.44-3.56 0-1.86-1.34-3.16-3.25-3.16-2.21 0-3.51 1.66-3.51 3.37 0 .67.26 1.39.58 1.78a.23.23 0 0 1 .05.22c-.06.23-.19.77-.22.88-.03.15-.11.18-.26.11-.97-.45-1.58-1.86-1.58-3 0-2.44 1.77-4.68 5.11-4.68 2.68 0 4.77 1.91 4.77 4.47 0 2.67-1.68 4.81-4.02 4.81-.79 0-1.53-.41-1.78-.89l-.48 1.85c-.18.68-.66 1.53-.98 2.05.74.23 1.52.35 2.33.35 5.52 0 10-4.48 10-10S17.52 2 12 2z"/></svg>`,
         };
 
         function scoreIcon(name, size = 'icon-sm') {
@@ -641,6 +800,12 @@
         let binaryWinner = null;
         let isSaving = false;
         let currentTab = 'active';
+        let standingsOpen = false;
+
+        // Elimination-mode state: ordered array of department_ids in the
+        // order they were knocked out (index 0 = first out = last place).
+        // Kept separate from ffaParticipants so re-renders don't lose it.
+        let eliminationOrder = [];
 
         document.addEventListener('DOMContentLoaded', async () => {
             renderRefereeSidebar('scoring');
@@ -740,6 +905,7 @@
         async function selectMatch(m) {
             selectedMatch = m;
             scoringType = m.scoring_type || 'points';
+            standingsOpen = false;
 
             const isFFA = m.tournament_format === 'free_for_all' || m.tournament_format === 'team_ranking';
 
@@ -752,6 +918,17 @@
                     ffaParticipants = [];
                     ffaScoringType = 'points';
                     Toast.show(res.message || 'Error loading FFA participants', 'error');
+                }
+                // Rebuild elimination order from any previously-saved results
+                // (result_value doubles as elimination rank — see saveAllFFAScores).
+                if (ffaScoringType === 'elimination') {
+                    const total = ffaParticipants.length;
+                    eliminationOrder = ffaParticipants
+                        .filter(p => p.ffa_result_value !== null && p.ffa_result_value !== undefined && Number(p.ffa_result_value) < total)
+                        .sort((a, b) => Number(a.ffa_result_value) - Number(b.ffa_result_value))
+                        .map(p => p.department_id);
+                } else {
+                    eliminationOrder = [];
                 }
             } else if (scoringType === 'sets') {
                 const setsToWin = m.sets_to_win || 2;
@@ -832,6 +1009,71 @@
             Toast.show(`Push notifications broadcasted to ${notificationTarget} for ${sport}!`, 'success', 5000);
         }
 
+        // ─────────────────────────────────────────────────────────────
+        // Live Standings preview — collapsible sorted view used by every
+        // FFA scoring type so a big roster doesn't turn into an unreadable
+        // wall of inputs. Values are read straight from ffaParticipants /
+        // eliminationOrder, so it updates the instant you type or eliminate,
+        // no save required.
+        // ─────────────────────────────────────────────────────────────
+        function computeStandingsRows() {
+            if (!ffaParticipants.length) return [];
+
+            if (ffaScoringType === 'elimination') {
+                const total = ffaParticipants.length;
+                const stillIn = ffaParticipants.filter(p => !eliminationOrder.includes(p.department_id));
+                const rows = [];
+                // Survivor(s) currently still in — rank 1 (only meaningful once 1 remains, but show while playing too)
+                stillIn.forEach(p => rows.push({ name: p.team_name || p.department_name, sub: p.department_name, value: 'Still in', out: false }));
+                // Eliminated, most-recent-out first (best of the losers)
+                [...eliminationOrder].reverse().forEach((deptId, idx) => {
+                    const p = ffaParticipants.find(x => x.department_id === deptId);
+                    if (!p) return;
+                    const place = total - (eliminationOrder.length - 1 - (eliminationOrder.length - 1 - idx)); // placeholder, recalced below
+                    rows.push({ name: p.team_name || p.department_name, sub: p.department_name, value: `Out #${eliminationOrder.indexOf(deptId) + 1}`, out: true });
+                });
+                return rows;
+            }
+
+            const higherIsBetter = ffaScoringType !== 'time';
+            const withValues = ffaParticipants
+                .filter(p => p.ffa_result_value !== null && p.ffa_result_value !== undefined && p.ffa_result_value !== '')
+                .map(p => ({ name: p.team_name || p.department_name, sub: p.department_name, value: Number(p.ffa_result_value) }))
+                .sort((a, b) => higherIsBetter ? b.value - a.value : a.value - b.value);
+            return withValues;
+        }
+
+        function toggleStandings() {
+            standingsOpen = !standingsOpen;
+            const panel = document.getElementById('standings-panel');
+            const caret = document.getElementById('standings-caret');
+            if (panel) panel.classList.toggle('open', standingsOpen);
+            if (caret) caret.classList.toggle('open', standingsOpen);
+        }
+
+        function renderStandingsPanel() {
+            const rows = computeStandingsRows();
+            const count = ffaParticipants.length;
+            return `
+                <div class="standings-toggle" onclick="toggleStandings()">
+                    <div class="standings-toggle-label">
+                        ${scoreIcon('target', 'icon-sm')} Live Standings (${count} entered)
+                    </div>
+                    <span class="standings-toggle-caret ${standingsOpen ? 'open' : ''}" id="standings-caret">
+                        ${scoreIcon('play', 'icon-sm')}
+                    </span>
+                </div>
+                <div class="standings-panel ${standingsOpen ? 'open' : ''}" id="standings-panel">
+                    ${rows.length ? rows.map((r, i) => `
+                        <div class="standings-row">
+                            <div class="standings-rank">${r.out ? '' : (i + 1)}</div>
+                            <div class="standings-name">${r.name}<div style="font-size:11px;color:var(--muted);font-weight:400">${r.sub}</div></div>
+                            <div class="standings-value">${r.value}</div>
+                        </div>`).join('')
+                    : `<div class="standings-row"><span class="standings-empty">No scores entered yet.</span></div>`}
+                </div>`;
+        }
+
         function renderScoreboard() {
             const m = selectedMatch;
             const isCompleted = m.status === 'completed';
@@ -842,6 +1084,9 @@
 
             if (isFFA) {
                 const scoreLabel = ffaScoringType === 'time' ? 'Time' : 'Score';
+                const isElimination = ffaScoringType === 'elimination';
+                const modeLabel = isElimination ? 'SURVIVAL / ELIMINATION EVENT' : `ALL PARTICIPANTS — ${ffaScoringType.toUpperCase()} EVENT`;
+                const modeIcon = isElimination ? 'skull' : 'users';
 
                 scoreboardHTML = `
         <div class="scoreboard-main" style="${isCompleted ? 'border-color: var(--muted);' : ''}">
@@ -849,8 +1094,9 @@
                 <div style="color:var(--muted); text-transform:uppercase; font-size:12px; letter-spacing:2px">${m.tournament_name}</div>
                 <div style="font-family:'Barlow Condensed'; font-size:24px; font-weight:800">${m.sport_name}</div>
                 <div style="font-size:14px; color:var(--gold); margin-top:5px; display:flex; align-items:center; justify-content:center; gap:6px;">
-                    ${scoreIcon('users', 'icon-sm')} ALL PARTICIPANTS — ${ffaScoringType.toUpperCase()} EVENT
+                    ${scoreIcon(modeIcon, 'icon-sm')} ${modeLabel}
                 </div>
+                ${isElimination ? `<div style="font-size:12px;color:var(--muted);margin-top:4px">Eliminate participants as they're knocked out — the last one standing is ranked 1st, first one out is ranked last.</div>` : ''}
                 ${isCompleted ? `<div style="color:var(--green); font-weight:bold; font-size:14px; margin-top:5px; display:flex; align-items:center; justify-content:center; gap:6px;">${scoreIcon('check', 'icon-sm')} EVENT FINALIZED</div>` : ''}
             </div>
 
@@ -873,9 +1119,33 @@
                     <div id="sync-status" style="font-size:12px; font-weight:600; color:var(--muted); letter-spacing:0.5px;">READY TO SCORE</div>
                 </div>
 
-                <div class="ffa-participant-list">
+                ${renderStandingsPanel()}
+
+                <div class="ffa-participant-list" style="margin-top:16px">
                     ${ffaParticipants.length ? ffaParticipants.map(p => {
                     const init = (p.team_name || p.department_name).split(' ').map(w => w[0]).slice(0, 2).join('').toUpperCase();
+
+                    if (isElimination) {
+                        const outIdx = eliminationOrder.indexOf(p.department_id);
+                        const isOut = outIdx !== -1;
+                        const remaining = ffaParticipants.length - eliminationOrder.length;
+                        const isSoleSurvivor = !isOut && remaining === 1;
+                        return `
+                                <div class="ffa-participant-item elim-item ${isOut ? 'is-out' : ''}">
+                                    <div style="width:40px; height:40px; border-radius:10px; background:${p.department_color || '#555'}; display:flex; align-items:center; justify-content:center; font-family:'Barlow Condensed',sans-serif; font-size:16px; font-weight:900; color:#fff;">${init}</div>
+                                    <div class="ffa-participant-info">
+                                        <div class="ffa-participant-name">${p.team_name || p.department_name}</div>
+                                        <div class="ffa-participant-dept">${p.department_name}</div>
+                                    </div>
+                                    ${isOut
+                                ? `<span class="elim-order-badge">Out #${outIdx + 1} of ${ffaParticipants.length}</span>
+                                           <button class="btn-restore" onclick="restoreEliminated(${p.department_id})">Undo</button>`
+                                : isSoleSurvivor
+                                    ? `<span class="elim-survivor-badge">${scoreIcon('trophy', 'icon-sm')} Last standing</span>`
+                                    : `<button class="btn-eliminate" onclick="eliminateParticipant(${p.department_id})">${scoreIcon('skull', 'icon-sm')} Eliminate</button>`}
+                                </div>`;
+                    }
+
                     return `
                                 <div class="ffa-participant-item">
                                     <div style="font-family:'Barlow Condensed', sans-serif; font-weight:900; color:var(--gold); width:45px; text-align:center; font-size:18px; letter-spacing:1px;">
@@ -992,6 +1262,20 @@
             }
 
             document.getElementById('scoreboard-area').innerHTML = scoreboardHTML;
+        }
+
+        // ─────────────────────────────────────────────────────────────
+        // ELIMINATION / SURVIVAL FFA MODE
+        // ─────────────────────────────────────────────────────────────
+        function eliminateParticipant(deptId) {
+            if (eliminationOrder.includes(deptId)) return;
+            eliminationOrder.push(deptId);
+            renderScoreboard();
+        }
+
+        function restoreEliminated(deptId) {
+            eliminationOrder = eliminationOrder.filter(id => id !== deptId);
+            renderScoreboard();
         }
 
         // ─────────────────────────────────────────────────────────────
@@ -1202,6 +1486,16 @@
                     participant.ffa_result_value = value;
                 }
             }
+            // Live standings panel reads straight from ffaParticipants, so
+            // just re-render it in place instead of the whole scoreboard
+            // (keeps the input focused instead of losing keystrokes).
+            const panelHost = document.getElementById('standings-panel')?.parentElement;
+            if (panelHost) {
+                const temp = document.createElement('div');
+                temp.innerHTML = renderStandingsPanel();
+                panelHost.querySelector('.standings-toggle').outerHTML = temp.querySelector('.standings-toggle').outerHTML;
+                panelHost.querySelector('#standings-panel').outerHTML = temp.querySelector('#standings-panel').outerHTML;
+            }
         }
 
         async function saveAllFFAScores() {
@@ -1219,10 +1513,25 @@
             }
 
             try {
-                const resultsToSave = ffaParticipants.map(p => ({
-                    department_id: p.department_id,
-                    result_value: p.ffa_result_value
-                }));
+                let resultsToSave;
+                if (ffaScoringType === 'elimination') {
+                    // Encode elimination order so higher = survived longer =
+                    // better, matching the "higher is better" convention
+                    // points/distance already use — no special-casing needed
+                    // wherever final ranks get computed downstream, as long
+                    // as 'elimination' is treated like 'points' there.
+                    const total = ffaParticipants.length;
+                    resultsToSave = ffaParticipants.map(p => {
+                        const outIdx = eliminationOrder.indexOf(p.department_id);
+                        const value = outIdx === -1 ? total : outIdx + 1;
+                        return { department_id: p.department_id, result_value: value };
+                    });
+                } else {
+                    resultsToSave = ffaParticipants.map(p => ({
+                        department_id: p.department_id,
+                        result_value: p.ffa_result_value
+                    }));
+                }
 
                 const res = await api(`/matches/ffa/${selectedMatch.tournament_id}/results`, {
                     method: 'POST',
@@ -1258,6 +1567,10 @@
 
         async function openFinishFFAModal() {
             if (!selectedMatch) return;
+            if (ffaScoringType === 'elimination' && eliminationOrder.length < ffaParticipants.length - 1) {
+                Toast.show('Eliminate participants down to a single survivor before finishing', 'error');
+                return;
+            }
             await saveAllFFAScores();
             resetTypeConfirm('ffa-confirm-input', 'btn-submit-ffa');
             Modal.open('modal-complete-ffa');
@@ -1265,7 +1578,10 @@
 
         async function submitCompleteFFA() {
             if (!selectedMatch) return;
-            const res = await api(`/matches/${selectedMatch.id}/complete-ffa`, { method: 'POST' });
+            // Was calling the wrong path (/matches/:id/complete-ffa, 404).
+            // The real route is POST /matches/ffa/:matchId/complete
+            // (see routes/matches.js — matchCtrl.completeFFAMatch).
+            const res = await api(`/matches/ffa/${selectedMatch.id}/complete`, { method: 'POST' });
 
             if (res.success) {
                 Modal.close('modal-complete-ffa');
