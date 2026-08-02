@@ -269,6 +269,74 @@
             transform: rotate(180deg);
         }
 
+        /* Match history table polish */
+        #tab-matches table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        #tab-matches thead th {
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: 0.8px;
+            color: var(--muted);
+            font-weight: 700;
+            padding: 12px 14px;
+            border-bottom: 1px solid var(--border);
+            white-space: nowrap;
+            background: var(--bg2);
+        }
+
+        #tab-matches tbody td {
+            padding: 12px 14px;
+            vertical-align: middle;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+        }
+
+        #tab-matches tbody tr:hover td {
+            background: rgba(255, 255, 255, 0.02);
+        }
+
+        #tab-matches .score-cell {
+            font-family: 'Barlow Condensed', sans-serif;
+            font-size: 20px;
+            font-weight: 900;
+            color: var(--gold);
+            white-space: nowrap;
+        }
+
+        #tab-matches .score-cell.sets {
+            font-size: 22px;
+        }
+
+        #tab-matches .score-cell.binary {
+            font-size: 13px;
+            font-weight: 800;
+            color: var(--green);
+        }
+
+        #tab-matches .matchup-line {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 13px;
+            font-weight: 600;
+            flex-wrap: wrap;
+        }
+
+        #tab-matches .dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            flex-shrink: 0;
+            display: inline-block;
+        }
+
+        #tab-matches .meta-muted {
+            color: var(--muted);
+            font-size: 12px;
+        }
+
         .type-hint {
             display: inline-flex;
             align-items: center;
@@ -603,6 +671,9 @@
             return String(toWhole(num));
         }
 
+        let tournamentByName = {}; // name (lower) -> id
+        let tournamentList = [];
+
         function isFFAMatch(m) {
             const fmt = (m.tournament_format || m.format || '').toLowerCase();
             return m.bracket_side === 'ffa' ||
@@ -610,6 +681,54 @@
                 fmt === 'free_for_all' ||
                 fmt === 'team_ranking' ||
                 (!m.dept_a_name && !m.dept_b_name && !m.team_a_name && !m.team_b_name && !m.team_a_dept && !m.team_b_dept);
+        }
+
+        /** Resolve tournament id from match row (reports API may omit tournament_id). */
+        function resolveTournamentId(m) {
+            const direct = m.tournament_id || m.tournamentId || m.tourney_id || m.tournamentID;
+            if (direct) return String(direct);
+            const name = (m.tournament_name || m.tournament || '').trim().toLowerCase();
+            if (name && tournamentByName[name]) return String(tournamentByName[name]);
+            return '';
+        }
+
+        /** Match scoring type — mirrors matches.html matchType */
+        function matchType(m) {
+            if (isFFAMatch(m)) return 'ffa';
+            const st = (m.scoring_type || '').toLowerCase();
+            if (st === 'sets') return 'sets';
+            if (st === 'binary') return 'binary';
+            // Infer sets when sets_won fields present
+            if (m.sets_won_a != null && m.sets_won_b != null) return 'sets';
+            return 'points';
+        }
+
+        function formatReportScore(m) {
+            const type = matchType(m);
+            if (type === 'ffa') return { html: 'FFA', cls: '' };
+            if (type === 'binary') {
+                const winner = m.winner_dept || m.winner_name || m.winner || null;
+                if (winner) return { html: winner, cls: 'binary' };
+                return { html: m.final_score_display || 'Win / Loss', cls: 'binary' };
+            }
+            if (m.final_score_display) {
+                return { html: m.final_score_display, cls: type === 'sets' ? 'sets' : '' };
+            }
+            if (type === 'sets' && m.sets_won_a != null && m.sets_won_b != null) {
+                return { html: `${toWhole(m.sets_won_a)}–${toWhole(m.sets_won_b)}`, cls: 'sets' };
+            }
+            if (m.total_score_a != null && m.total_score_a !== undefined) {
+                return { html: `${toWhole(m.total_score_a)}–${toWhole(m.total_score_b)}`, cls: '' };
+            }
+            return { html: '—', cls: '' };
+        }
+
+        function typeHintLabel(type) {
+            if (type === 'sets') return 'Sets';
+            if (type === 'binary') return 'Win / Loss';
+            if (type === 'ffa') return 'Free-for-All';
+            if (type === 'points') return 'Points';
+            return '';
         }
 
         document.addEventListener('DOMContentLoaded', async () => {
@@ -620,7 +739,12 @@
             const [sRes, dRes, tRes] = await Promise.all([api('/sports'), api('/departments'), api('/tournaments')]);
             const sOpts = (sRes.data || []).map(s => `<option value="${s.id}">${s.name}</option>`).join('');
             const dOpts = (dRes.data || []).map(d => `<option value="${d.id}">${d.name}</option>`).join('');
-            const tOpts = (tRes.data || []).map(t => `<option value="${t.id}">${t.name}</option>`).join('');
+            tournamentList = tRes.data || [];
+            tournamentByName = {};
+            tournamentList.forEach(t => {
+                if (t.name) tournamentByName[String(t.name).trim().toLowerCase()] = t.id;
+            });
+            const tOpts = tournamentList.map(t => `<option value="${t.id}">${t.name}</option>`).join('');
             document.getElementById('mh-sport').innerHTML += sOpts;
             document.getElementById('mh-dept').innerHTML += dOpts;
             document.getElementById('dr-dept').innerHTML += dOpts;
@@ -679,30 +803,34 @@
             let html = '';
 
             rows.forEach(m => {
-                const ffa = isFFAMatch(m);
+                const type = matchType(m);
+                const ffa = type === 'ffa';
+                const score = formatReportScore(m);
+                const hint = typeHintLabel(type);
+                const hintHtml = hint ? `<div class="type-hint">${hint}</div>` : '';
 
                 if (ffa) {
-                    const rowKey = m.id != null ? m.id : ('t' + (m.tournament_id || Math.random().toString(36).slice(2, 8)));
-                    const tid = m.tournament_id || m.tournamentId || '';
+                    const rowKey = m.id != null ? String(m.id) : ('t' + (resolveTournamentId(m) || Math.random().toString(36).slice(2, 8)));
+                    const tid = resolveTournamentId(m);
+                    const tName = (m.tournament_name || '').replace(/'/g, "\\'");
                     html += `<tr>
-                        <td>${m.sport_name || '—'}</td>
-                        <td style="font-size:12px;color:var(--muted)">${m.tournament_name || '—'}</td>
+                        <td><span style="font-weight:600">${m.sport_name || '—'}</span></td>
+                        <td class="meta-muted" title="${m.tournament_name || ''}">${m.tournament_name || '—'}</td>
                         <td>
-                            <div style="font-size:14px;font-weight:700;color:var(--gold);display:flex;align-items:center;gap:6px">
-                                ALL PARTICIPANTS — FFA EVENT
-                            </div>
-                            <div class="type-hint">Free-for-All</div>
+                            <div style="font-size:14px;font-weight:700;color:var(--gold)">ALL PARTICIPANTS — FFA EVENT</div>
+                            ${hintHtml}
                             <div style="margin-top:6px">
-                                <button type="button" class="ffa-toggle-btn" id="ffa-toggle-${rowKey}" onclick="toggleFFADetails('${rowKey}', '${tid}')">
+                                <button type="button" class="ffa-toggle-btn" id="ffa-toggle-${rowKey}"
+                                    onclick="toggleFFADetails('${rowKey}', '${tid}', '${tName}')">
                                     View Details <span class="chev">▾</span>
                                 </button>
                             </div>
                         </td>
-                        <td style="font-family:'Barlow Condensed',sans-serif;font-size:18px;font-weight:800;color:var(--gold)">FFA</td>
-                        <td style="color:var(--muted);font-size:12px">—</td>
-                        <td style="color:var(--muted);font-size:12px">${m.venue_name || '—'}</td>
-                        <td style="color:var(--muted);font-size:12px">${m.referee_name || '—'}</td>
-                        <td style="color:var(--muted);font-size:12px">${m.completed_at ? formatDate(m.completed_at) : '—'}</td>
+                        <td class="score-cell">${score.html}</td>
+                        <td class="meta-muted">—</td>
+                        <td class="meta-muted">${m.venue_name || '—'}</td>
+                        <td class="meta-muted">${m.referee_name || '—'}</td>
+                        <td class="meta-muted">${m.completed_at ? formatDate(m.completed_at) : '—'}</td>
                     </tr>
                     <tr class="ffa-subrow" id="ffa-subrow-${rowKey}">
                         <td colspan="8">
@@ -710,43 +838,41 @@
                         </td>
                     </tr>`;
                 } else {
-                    // Normal head-to-head — prefer sets display when available (same as Matches)
-                    let scoreDisplay = m.final_score_display || '—';
-                    if (!m.final_score_display) {
-                        if (m.sets_won_a != null && m.sets_won_b != null) {
-                            scoreDisplay = `${toWhole(m.sets_won_a)}–${toWhole(m.sets_won_b)}`;
-                        } else if (m.total_score_a != null) {
-                            scoreDisplay = `${toWhole(m.total_score_a)}–${toWhole(m.total_score_b)}`;
-                        }
-                    }
-                    const scoringHint = (m.scoring_type || '').toLowerCase() === 'sets'
-                        ? `<div class="type-hint">Sets</div>` : '';
+                    const nA = m.team_a_name || m.team_a_dept || m.dept_a_name || '—';
+                    const nB = m.team_b_name || m.team_b_dept || m.dept_b_name || '—';
+                    const cA = m.color_a || m.dept_a_color || '#555';
+                    const cB = m.color_b || m.dept_b_color || '#555';
+                    const winner = m.winner_dept || m.winner_name || m.winner || '—';
                     html += `<tr>
-                        <td>${m.sport_name || '—'}</td>
-                        <td style="font-size:12px;color:var(--muted)">${m.tournament_name || '—'}</td>
+                        <td><span style="font-weight:600">${m.sport_name || '—'}</span></td>
+                        <td class="meta-muted" title="${m.tournament_name || ''}">${m.tournament_name || '—'}</td>
                         <td>
-                            <div style="display:flex;align-items:center;gap:6px;font-size:13px;flex-wrap:wrap">
-                                <span style="width:8px;height:8px;border-radius:50%;background:${m.color_a || '#555'}"></span>${m.team_a_name || m.team_a_dept || m.dept_a_name || '—'}
-                                <span style="color:var(--muted)">vs</span>
-                                <span style="width:8px;height:8px;border-radius:50%;background:${m.color_b || '#555'}"></span>${m.team_b_name || m.team_b_dept || m.dept_b_name || '—'}
+                            <div class="matchup-line">
+                                <span class="dot" style="background:${cA}"></span>
+                                <span>${nA}</span>
+                                <span style="color:var(--muted);font-weight:400;font-size:11px">vs</span>
+                                <span class="dot" style="background:${cB}"></span>
+                                <span>${nB}</span>
                             </div>
-                            ${scoringHint}
+                            ${hintHtml}
                         </td>
-                        <td style="font-family:'Barlow Condensed',sans-serif;font-size:18px;font-weight:800;color:var(--gold)">${scoreDisplay}</td>
-                        <td style="color:var(--green);font-weight:700">${m.winner_dept || m.winner_name || '—'}</td>
-                        <td style="color:var(--muted);font-size:12px">${m.venue_name || '—'}</td>
-                        <td style="color:var(--muted);font-size:12px">${m.referee_name || '—'}</td>
-                        <td style="color:var(--muted);font-size:12px">${m.completed_at ? formatDate(m.completed_at) : '—'}</td>
+                        <td class="score-cell ${score.cls}">${score.html}</td>
+                        <td style="color:var(--green);font-weight:700">${winner}</td>
+                        <td class="meta-muted">${m.venue_name || '—'}</td>
+                        <td class="meta-muted">${m.referee_name || '—'}</td>
+                        <td class="meta-muted">${m.completed_at ? formatDate(m.completed_at) : '—'}</td>
                     </tr>`;
                 }
             });
 
             tbody.innerHTML = html;
+            // Allow re-fetch after filter/refresh
+            Object.keys(_ffaLoaded).forEach(k => delete _ffaLoaded[k]);
         }
 
         const _ffaLoaded = {};
 
-        function toggleFFADetails(rowKey, tournamentId) {
+        function toggleFFADetails(rowKey, tournamentId, tournamentName) {
             const sub = document.getElementById(`ffa-subrow-${rowKey}`);
             const btn = document.getElementById(`ffa-toggle-${rowKey}`);
             if (!sub) return;
@@ -759,20 +885,39 @@
                     : 'View Details <span class="chev">▾</span>';
             }
             if (opening && !_ffaLoaded[rowKey]) {
-                loadFFAForMatchHistory(rowKey, tournamentId);
+                loadFFAForMatchHistory(rowKey, tournamentId, tournamentName);
             }
         }
 
-        async function loadFFAForMatchHistory(rowKey, tournamentId) {
+        async function loadFFAForMatchHistory(rowKey, tournamentId, tournamentName) {
             const container = document.getElementById(`ffa-mh-${rowKey}`);
             if (!container) return;
-            if (!tournamentId) {
-                container.innerHTML = `<div class="ffa-panel"><div style="padding:12px;color:var(--red);font-size:13px">Missing tournament id — cannot load FFA results.</div></div>`;
+
+            // Resolve id: direct → name map → refresh tournaments list once
+            let tid = tournamentId || '';
+            if (!tid && tournamentName) {
+                const key = String(tournamentName).trim().toLowerCase();
+                tid = tournamentByName[key] ? String(tournamentByName[key]) : '';
+            }
+            if (!tid && tournamentName) {
+                try {
+                    const tRes = await api('/tournaments');
+                    tournamentList = tRes.data || [];
+                    tournamentByName = {};
+                    tournamentList.forEach(t => {
+                        if (t.name) tournamentByName[String(t.name).trim().toLowerCase()] = t.id;
+                    });
+                    const key = String(tournamentName).trim().toLowerCase();
+                    tid = tournamentByName[key] ? String(tournamentByName[key]) : '';
+                } catch (e) { /* ignore */ }
+            }
+            if (!tid) {
+                container.innerHTML = `<div class="ffa-panel"><div style="padding:12px;color:var(--red);font-size:13px">Missing tournament id — cannot load FFA results.${tournamentName ? ' (tournament: ' + tournamentName + ')' : ''}</div></div>`;
                 return;
             }
             container.innerHTML = `<div style="padding:10px 16px;color:var(--muted);font-size:13px">Loading standings…</div>`;
             try {
-                const res = await api(`/matches/ffa/${tournamentId}`);
+                const res = await api(`/matches/ffa/${tid}`);
                 if (!res.success) throw new Error(res.message || 'Failed');
                 const t = res.data || {};
                 const scoringType = t.ffa_scoring || 'points';
