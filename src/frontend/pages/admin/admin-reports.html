@@ -158,11 +158,19 @@
             color: var(--gold);
         }
 
-        /* FFA panel (compact, with dept filter — shared style with Matches) */
+        /* FFA panel — collapsible View Details (shared with Matches) */
         .ffa-subrow td {
             padding: 0 !important;
             background: var(--bg2);
             border-bottom: 2px solid var(--border);
+        }
+
+        .ffa-subrow {
+            display: none;
+        }
+
+        .ffa-subrow.open {
+            display: table-row;
         }
 
         .ffa-panel {
@@ -192,23 +200,6 @@
             letter-spacing: 0.5px;
             text-transform: uppercase;
             color: var(--gold);
-        }
-
-        .ffa-dept-filter {
-            background: var(--bg2);
-            border: 1px solid var(--border);
-            border-radius: 6px;
-            padding: 5px 10px;
-            color: var(--text);
-            font-family: 'Barlow', sans-serif;
-            font-size: 12px;
-            outline: none;
-            min-width: 140px;
-            cursor: pointer;
-        }
-
-        .ffa-dept-filter:focus {
-            border-color: var(--border-gold);
         }
 
         .ffa-table-wrap {
@@ -247,8 +238,35 @@
             border-bottom: none;
         }
 
-        .ffa-table tr.ffa-hidden {
-            display: none;
+        .ffa-toggle-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            font-size: 12px;
+            font-weight: 600;
+            color: var(--gold);
+            background: transparent;
+            border: 1px solid rgba(245, 184, 0, 0.35);
+            border-radius: 6px;
+            padding: 4px 10px;
+            cursor: pointer;
+            transition: all .15s;
+            font-family: 'Barlow', sans-serif;
+        }
+
+        .ffa-toggle-btn:hover {
+            background: rgba(245, 184, 0, 0.1);
+            border-color: var(--gold);
+        }
+
+        .ffa-toggle-btn .chev {
+            transition: transform .2s;
+            font-size: 10px;
+            display: inline-block;
+        }
+
+        .ffa-toggle-btn.open .chev {
+            transform: rotate(180deg);
         }
 
         .type-hint {
@@ -659,12 +677,13 @@
             }
 
             let html = '';
-            const ffaQueue = [];
 
             rows.forEach(m => {
                 const ffa = isFFAMatch(m);
 
                 if (ffa) {
+                    const rowKey = m.id != null ? m.id : ('t' + (m.tournament_id || Math.random().toString(36).slice(2, 8)));
+                    const tid = m.tournament_id || m.tournamentId || '';
                     html += `<tr>
                         <td>${m.sport_name || '—'}</td>
                         <td style="font-size:12px;color:var(--muted)">${m.tournament_name || '—'}</td>
@@ -673,19 +692,23 @@
                                 ALL PARTICIPANTS — FFA EVENT
                             </div>
                             <div class="type-hint">Free-for-All</div>
+                            <div style="margin-top:6px">
+                                <button type="button" class="ffa-toggle-btn" id="ffa-toggle-${rowKey}" onclick="toggleFFADetails('${rowKey}', '${tid}')">
+                                    View Details <span class="chev">▾</span>
+                                </button>
+                            </div>
                         </td>
                         <td style="font-family:'Barlow Condensed',sans-serif;font-size:18px;font-weight:800;color:var(--gold)">FFA</td>
-                        <td style="color:var(--muted);font-size:12px">See standings</td>
+                        <td style="color:var(--muted);font-size:12px">—</td>
                         <td style="color:var(--muted);font-size:12px">${m.venue_name || '—'}</td>
                         <td style="color:var(--muted);font-size:12px">${m.referee_name || '—'}</td>
                         <td style="color:var(--muted);font-size:12px">${m.completed_at ? formatDate(m.completed_at) : '—'}</td>
                     </tr>
-                    <tr class="ffa-subrow">
+                    <tr class="ffa-subrow" id="ffa-subrow-${rowKey}">
                         <td colspan="8">
-                            <div id="ffa-mh-${m.id || m.tournament_id}" style="padding:10px 16px;color:var(--muted);font-style:italic">Loading FFA results...</div>
+                            <div id="ffa-mh-${rowKey}" style="padding:10px 16px;color:var(--muted);font-size:13px">Click “View Details” to load standings…</div>
                         </td>
                     </tr>`;
-                    ffaQueue.push(m);
                 } else {
                     // Normal head-to-head — prefer sets display when available (same as Matches)
                     let scoreDisplay = m.final_score_display || '—';
@@ -719,30 +742,48 @@
             });
 
             tbody.innerHTML = html;
-            ffaQueue.forEach(m => loadFFAForMatchHistory(m));
         }
 
-        async function loadFFAForMatchHistory(match) {
-            const tid = match.tournament_id;
-            const elId = `ffa-mh-${match.id || tid}`;
-            const container = document.getElementById(elId);
-            if (!container || !tid) return;
+        const _ffaLoaded = {};
 
+        function toggleFFADetails(rowKey, tournamentId) {
+            const sub = document.getElementById(`ffa-subrow-${rowKey}`);
+            const btn = document.getElementById(`ffa-toggle-${rowKey}`);
+            if (!sub) return;
+            const opening = !sub.classList.contains('open');
+            sub.classList.toggle('open', opening);
+            if (btn) {
+                btn.classList.toggle('open', opening);
+                btn.innerHTML = opening
+                    ? 'Hide Details <span class="chev">▾</span>'
+                    : 'View Details <span class="chev">▾</span>';
+            }
+            if (opening && !_ffaLoaded[rowKey]) {
+                loadFFAForMatchHistory(rowKey, tournamentId);
+            }
+        }
+
+        async function loadFFAForMatchHistory(rowKey, tournamentId) {
+            const container = document.getElementById(`ffa-mh-${rowKey}`);
+            if (!container) return;
+            if (!tournamentId) {
+                container.innerHTML = `<div class="ffa-panel"><div style="padding:12px;color:var(--red);font-size:13px">Missing tournament id — cannot load FFA results.</div></div>`;
+                return;
+            }
+            container.innerHTML = `<div style="padding:10px 16px;color:var(--muted);font-size:13px">Loading standings…</div>`;
             try {
-                const res = await api(`/matches/ffa/${tid}`);
-                if (!res.success) throw new Error('Failed');
-                const t = res.data;
+                const res = await api(`/matches/ffa/${tournamentId}`);
+                if (!res.success) throw new Error(res.message || 'Failed');
+                const t = res.data || {};
                 const scoringType = t.ffa_scoring || 'points';
                 const scoreLabel = scoringType === 'time' ? 'Time (s)' : scoringType === 'distance' ? 'Distance / Score' : 'Points';
                 const participants = t.participants || [];
+                _ffaLoaded[rowKey] = true;
 
                 if (!participants.length) {
                     container.innerHTML = `<div class="ffa-panel"><div style="padding:12px;color:var(--muted);font-size:13px">No participants registered yet.</div></div>`;
                     return;
                 }
-
-                const depts = [...new Set(participants.map(p => p.department_name).filter(Boolean))].sort();
-                const deptOptions = depts.map(d => `<option value="${d.replace(/"/g, '&quot;')}">${d}</option>`).join('');
 
                 const sorted = [...participants].sort((a, b) => {
                     if (a.rank_position != null && b.rank_position != null) return a.rank_position - b.rank_position;
@@ -762,9 +803,8 @@
                         : `<div style="font-weight:700">${p.department_name}</div>`;
                     const val = formatFFAValue(p.ffa_result_value, scoringType);
                     const rank = p.rank_position != null ? p.rank_position : (idx + 1);
-                    const deptKey = (p.department_name || '').replace(/"/g, '&quot;');
                     rowsHtml += `
-                        <tr data-dept="${deptKey}">
+                        <tr>
                             <td style="font-family:'Barlow Condensed',sans-serif;font-size:15px;font-weight:700;color:var(--muted);width:36px">${rank}</td>
                             <td>
                                 <div style="display:flex;align-items:center;gap:10px">
@@ -778,15 +818,10 @@
                         </tr>`;
                 });
 
-                const panelId = `ffa-mh-panel-${match.id || tid}`;
                 container.innerHTML = `
-                    <div class="ffa-panel" id="${panelId}">
+                    <div class="ffa-panel">
                         <div class="ffa-toolbar">
                             <span class="ffa-toolbar-title">FFA Standings · ${scoreLabel}</span>
-                            <select class="ffa-dept-filter" onchange="filterFFAPanel('${panelId}', this.value)">
-                                <option value="">All Departments</option>
-                                ${deptOptions}
-                            </select>
                         </div>
                         <div class="ffa-table-wrap">
                             <table class="ffa-table">
@@ -802,18 +837,9 @@
                         </div>
                     </div>`;
             } catch (err) {
-                container.innerHTML = `<div class="ffa-panel"><div style="padding:12px;color:var(--red);font-size:13px">Failed to load FFA participants</div></div>`;
+                _ffaLoaded[rowKey] = false;
+                container.innerHTML = `<div class="ffa-panel"><div style="padding:12px;color:var(--red);font-size:13px">Failed to load FFA participants${err.message ? ': ' + err.message : ''}</div></div>`;
             }
-        }
-
-        function filterFFAPanel(panelId, dept) {
-            const panel = document.getElementById(panelId);
-            if (!panel) return;
-            panel.querySelectorAll('tbody tr').forEach(tr => {
-                const d = tr.getAttribute('data-dept') || '';
-                if (!dept || d === dept) tr.classList.remove('ffa-hidden');
-                else tr.classList.add('ffa-hidden');
-            });
         }
 
         async function loadDeptReport() {
@@ -903,9 +929,6 @@
                                 return scoringType === 'time' ? va - vb : vb - va;
                             });
 
-                            const depts = [...new Set(sorted.map(p => p.department_name).filter(Boolean))].sort();
-                            const deptOptions = depts.map(d => `<option value="${d.replace(/"/g, '&quot;')}">${d}</option>`).join('');
-                            const panelId = `ffa-tr-panel-${id}`;
                             const rowsHtml = sorted.map((p, idx) => {
                                 const init = (p.team_name || p.department_name || '?').split(' ').map(w => w[0]).slice(0, 2).join('').toUpperCase();
                                 const col = p.department_color || '#555';
@@ -914,9 +937,8 @@
                                     : `<div style="font-weight:700">${p.department_name}</div>`;
                                 const val = formatFFAValue(p.ffa_result_value, scoringType);
                                 const rank = p.rank_position != null ? p.rank_position : (idx + 1);
-                                const deptKey = (p.department_name || '').replace(/"/g, '&quot;');
                                 return `
-                                    <tr data-dept="${deptKey}">
+                                    <tr>
                                         <td style="font-family:'Barlow Condensed',sans-serif;font-size:15px;font-weight:700;color:var(--muted);width:36px">${rank}</td>
                                         <td>
                                             <div style="display:flex;align-items:center;gap:10px">
@@ -932,13 +954,9 @@
 
                             resultsHTML = `
                                 <div style="font-family:'Barlow Condensed',sans-serif;font-size:14px;font-weight:800;color:var(--muted);margin-bottom:8px">FFA Results</div>
-                                <div class="ffa-panel" id="${panelId}" style="max-width:100%;margin:0">
+                                <div class="ffa-panel" style="max-width:100%;margin:0">
                                     <div class="ffa-toolbar">
                                         <span class="ffa-toolbar-title">FFA Standings · ${scoreLabel}</span>
-                                        <select class="ffa-dept-filter" onchange="filterFFAPanel('${panelId}', this.value)">
-                                            <option value="">All Departments</option>
-                                            ${deptOptions}
-                                        </select>
                                     </div>
                                     <div class="ffa-table-wrap">
                                         <table class="ffa-table">
