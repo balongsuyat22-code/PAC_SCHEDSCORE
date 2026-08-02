@@ -700,7 +700,7 @@
         async function loadDropdowns() {
             const [vRes, rRes] = await Promise.all([
                 api('/venues'),
-                api('/matches/referees')
+                api('/matches/officers')
             ]);
             venues = vRes.data || [];
             referees = rRes.data || [];
@@ -1072,7 +1072,7 @@
 
         async function loadFFADetails(match) {
             try {
-                const res = await api(`/matches/ffa-results/${match.tournament_id}`);
+                const res = await api(`/matches/ffa/${match.tournament_id}`);
                 if (!res.success) throw new Error('Failed');
                 const t = res.data;
                 const scoringType = t.ffa_scoring || 'points';
@@ -1303,7 +1303,7 @@
         async function saveScores() {
             let saved = 0;
             for (const p of scorePeriods) {
-                const res = await api(`/matches/${activeId}/scores`, {
+                const res = await api(`/matches/${activeId}/score`, {
                     method: 'PUT',
                     body: JSON.stringify({
                         period: p.period,

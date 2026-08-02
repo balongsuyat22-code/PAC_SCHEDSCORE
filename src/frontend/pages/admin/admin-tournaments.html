@@ -797,7 +797,7 @@
                 api(`/tournaments/${PAGE_ID}`),
                 api('/departments'),
                 api('/venues'),
-                api('/matches/referees'),
+                api('/matches/officers'),
                 api('/sports'),
             ]);
             if (!tRes.success) {
@@ -1154,7 +1154,7 @@
 
         async function loadFFAResults() {
             try {
-                const res = await api(`/tournaments/ffa-results/${PAGE_ID}`);
+                const res = await api(`/matches/ffa/${PAGE_ID}`);
                 if (res.success && res.data) {
                     participants = participants.map(p => {
                         const result = res.data.participants.find(r => r.department_id === p.department_id);
