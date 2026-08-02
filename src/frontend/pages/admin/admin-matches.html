@@ -302,6 +302,8 @@
             color: var(--muted);
         }
 
+
+        /* ── FFA panel (compact, no-overlap, responsive) ── */
         .ffa-subrow td {
             padding: 0 !important;
             background: var(--bg2);
@@ -317,12 +319,14 @@
         }
 
         .ffa-panel {
-            margin: 8px 12px 12px;
+            margin: 10px 12px 14px;
             border: 1px solid var(--border);
-            border-radius: 10px;
+            border-radius: 12px;
             background: var(--bg3);
             overflow: hidden;
-            max-width: 560px;
+            max-width: 640px;
+            width: calc(100% - 24px);
+            box-sizing: border-box;
         }
 
         .ffa-toolbar {
@@ -330,8 +334,8 @@
             align-items: center;
             justify-content: space-between;
             gap: 10px;
-            padding: 8px 12px;
-            background: rgba(0, 0, 0, 0.25);
+            padding: 10px 14px;
+            background: rgba(0, 0, 0, 0.28);
             border-bottom: 1px solid var(--border);
             flex-wrap: wrap;
         }
@@ -340,19 +344,25 @@
             font-family: 'Barlow Condensed', sans-serif;
             font-size: 13px;
             font-weight: 800;
-            letter-spacing: 0.5px;
+            letter-spacing: 0.6px;
             text-transform: uppercase;
             color: var(--gold);
+            line-height: 1.3;
         }
 
         .ffa-table-wrap {
-            max-height: 240px;
+            max-height: 280px;
+            overflow-x: auto;
             overflow-y: auto;
+            -webkit-overflow-scrolling: touch;
         }
 
         .ffa-table {
             width: 100%;
-            border-collapse: collapse;
+            min-width: 280px;
+            border-collapse: separate;
+            border-spacing: 0;
+            table-layout: fixed;
             background: transparent;
         }
 
@@ -363,22 +373,96 @@
             font-weight: 700;
             text-transform: uppercase;
             letter-spacing: 1px;
-            padding: 8px 12px;
+            padding: 9px 12px;
             text-align: left;
             border-bottom: 1px solid var(--border);
             position: sticky;
             top: 0;
             z-index: 1;
+            white-space: nowrap;
+        }
+
+        .ffa-table th:nth-child(1) {
+            width: 44px;
+        }
+
+        .ffa-table th:nth-child(3) {
+            width: 96px;
+            text-align: right;
         }
 
         .ffa-table td {
-            padding: 8px 12px;
-            border-bottom: 1px solid rgba(255, 255, 255, 0.03);
-            font-size: 12px;
+            padding: 10px 12px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+            font-size: 13px;
+            vertical-align: middle;
+            word-break: break-word;
+        }
+
+        .ffa-table td:nth-child(1) {
+            width: 44px;
+            font-family: 'Barlow Condensed', sans-serif;
+            font-size: 15px;
+            font-weight: 700;
+            color: var(--muted);
+        }
+
+        .ffa-table td:nth-child(3) {
+            width: 96px;
+            text-align: right;
+            font-family: 'Barlow Condensed', sans-serif;
+            font-size: 18px;
+            font-weight: 800;
+            color: var(--gold);
+            white-space: nowrap;
         }
 
         .ffa-table tr:last-child td {
             border-bottom: none;
+        }
+
+        .ffa-participant {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            min-width: 0;
+        }
+
+        .ffa-avatar {
+            width: 28px;
+            height: 28px;
+            border-radius: 7px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-family: 'Barlow Condensed', sans-serif;
+            font-size: 11px;
+            font-weight: 900;
+            color: #fff;
+            flex-shrink: 0;
+        }
+
+        .ffa-participant-text {
+            min-width: 0;
+            flex: 1;
+        }
+
+        .ffa-participant-text .name {
+            font-weight: 700;
+            font-size: 13px;
+            line-height: 1.25;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .ffa-participant-text .sub {
+            font-size: 11px;
+            color: var(--muted);
+            margin-top: 2px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
         }
 
         .ffa-toggle-btn {
@@ -410,6 +494,86 @@
 
         .ffa-toggle-btn.open .chev {
             transform: rotate(180deg);
+        }
+
+        /* Card layout for very small screens (avoids cramped table) */
+        .ffa-cards {
+            display: none;
+            padding: 8px;
+        }
+
+        .ffa-card {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 10px 12px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+        }
+
+        .ffa-card:last-child {
+            border-bottom: none;
+        }
+
+        .ffa-card-rank {
+            font-family: 'Barlow Condensed', sans-serif;
+            font-size: 16px;
+            font-weight: 800;
+            color: var(--muted);
+            width: 28px;
+            flex-shrink: 0;
+            text-align: center;
+        }
+
+        .ffa-card-score {
+            margin-left: auto;
+            font-family: 'Barlow Condensed', sans-serif;
+            font-size: 18px;
+            font-weight: 800;
+            color: var(--gold);
+            white-space: nowrap;
+            flex-shrink: 0;
+        }
+
+        @media (max-width: 640px) {
+            .ffa-panel {
+                margin: 8px;
+                width: calc(100% - 16px);
+                max-width: none;
+            }
+
+            .ffa-table-wrap {
+                max-height: 320px;
+            }
+
+            /* Switch to cards on narrow screens */
+            .ffa-table-wrap .ffa-table {
+                display: none;
+            }
+
+            .ffa-cards {
+                display: block;
+            }
+
+            .ffa-toolbar-title {
+                font-size: 12px;
+            }
+        }
+
+        @media (max-width: 400px) {
+            .ffa-participant-text .name {
+                white-space: normal;
+            }
+
+            .ffa-card {
+                flex-wrap: wrap;
+                gap: 8px;
+            }
+
+            .ffa-card-score {
+                width: 100%;
+                text-align: right;
+                margin-left: 40px;
+            }
         }
 
         .badge-purple {
@@ -1207,27 +1371,40 @@
                 });
 
                 let rowsHtml = '';
+                let cardsHtml = '';
                 sorted.forEach((p, idx) => {
                     const init = (p.team_name || p.department_name || '?').split(' ').map(w => w[0]).slice(0, 2).join('').toUpperCase();
                     const col = p.department_color || '#555';
-                    const nameStr = p.team_name
-                        ? `<div style="font-weight:700">${p.team_name}</div><div style="font-size:11px;color:var(--muted)">${p.department_name}</div>`
-                        : `<div style="font-weight:700">${p.department_name}</div>`;
+                    const primary = p.team_name || p.department_name || '—';
+                    const secondary = p.team_name ? (p.department_name || '') : '';
                     const val = formatFFAValue(p.ffa_result_value, scoringType);
                     const rank = p.rank_position != null ? p.rank_position : (idx + 1);
                     rowsHtml += `
                         <tr>
-                            <td style="font-family:'Barlow Condensed',sans-serif;font-size:15px;font-weight:700;color:var(--muted);width:36px">${rank}</td>
+                            <td>${rank}</td>
                             <td>
-                                <div style="display:flex;align-items:center;gap:10px">
-                                    <div style="width:26px;height:26px;border-radius:6px;background:${col};display:flex;align-items:center;justify-content:center;font-family:'Barlow Condensed',sans-serif;font-size:11px;font-weight:900;color:#fff;flex-shrink:0">${init}</div>
-                                    <div>${nameStr}</div>
+                                <div class="ffa-participant">
+                                    <div class="ffa-avatar" style="background:${col}">${init}</div>
+                                    <div class="ffa-participant-text">
+                                        <div class="name">${primary}</div>
+                                        ${secondary ? `<div class="sub">${secondary}</div>` : ''}
+                                    </div>
                                 </div>
                             </td>
-                            <td style="text-align:right;font-family:'Barlow Condensed',sans-serif;font-size:18px;font-weight:800;color:var(--gold);white-space:nowrap">
-                                ${val}
-                            </td>
+                            <td>${val}</td>
                         </tr>`;
+                    cardsHtml += `
+                        <div class="ffa-card">
+                            <div class="ffa-card-rank">${rank}</div>
+                            <div class="ffa-participant">
+                                <div class="ffa-avatar" style="background:${col}">${init}</div>
+                                <div class="ffa-participant-text">
+                                    <div class="name">${primary}</div>
+                                    ${secondary ? `<div class="sub">${secondary}</div>` : ''}
+                                </div>
+                            </div>
+                            <div class="ffa-card-score">${val}</div>
+                        </div>`;
                 });
 
                 container.innerHTML = `
@@ -1239,15 +1416,17 @@
                             <table class="ffa-table">
                                 <thead>
                                     <tr>
-                                        <th style="width:36px">#</th>
+                                        <th>#</th>
                                         <th>Participant</th>
-                                        <th style="text-align:right">${scoreLabel}</th>
+                                        <th>${scoreLabel}</th>
                                     </tr>
                                 </thead>
                                 <tbody>${rowsHtml}</tbody>
                             </table>
+                            <div class="ffa-cards">${cardsHtml}</div>
                         </div>
                     </div>`;
+
             } catch (err) {
                 _ffaLoaded[match.id] = false;
                 container.innerHTML = `<div class="ffa-panel"><div style="padding:12px;color:var(--red);font-size:13px">Failed to load participants${err.message ? ': ' + err.message : ''}</div></div>`;
