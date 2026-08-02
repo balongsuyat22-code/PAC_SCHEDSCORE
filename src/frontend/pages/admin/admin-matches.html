@@ -302,8 +302,7 @@
             color: var(--muted);
         }
 
-
-        /* ── FFA panel (compact, no-overlap, responsive) ── */
+        /* ── FFA standings (full-width, tournament-style, responsive) ── */
         .ffa-subrow td {
             padding: 0 !important;
             background: var(--bg2);
@@ -319,13 +318,13 @@
         }
 
         .ffa-panel {
-            margin: 10px 12px 14px;
-            border: 1px solid var(--border);
-            border-radius: 12px;
-            background: var(--bg3);
+            margin: 0;
+            border: none;
+            border-radius: 0;
+            background: var(--bg2);
             overflow: hidden;
-            max-width: 640px;
-            width: calc(100% - 24px);
+            max-width: none;
+            width: 100%;
             box-sizing: border-box;
         }
 
@@ -334,8 +333,8 @@
             align-items: center;
             justify-content: space-between;
             gap: 10px;
-            padding: 10px 14px;
-            background: rgba(0, 0, 0, 0.28);
+            padding: 10px 16px;
+            background: rgba(0, 0, 0, 0.22);
             border-bottom: 1px solid var(--border);
             flex-wrap: wrap;
         }
@@ -344,99 +343,93 @@
             font-family: 'Barlow Condensed', sans-serif;
             font-size: 13px;
             font-weight: 800;
-            letter-spacing: 0.6px;
+            letter-spacing: 0.8px;
             text-transform: uppercase;
             color: var(--gold);
             line-height: 1.3;
         }
 
         .ffa-table-wrap {
-            max-height: 280px;
-            overflow-x: auto;
-            overflow-y: auto;
-            -webkit-overflow-scrolling: touch;
+            max-height: none;
+            overflow: visible;
+            width: 100%;
         }
 
+        /* Desktop / tablet: table */
         .ffa-table {
             width: 100%;
-            min-width: 280px;
-            border-collapse: separate;
-            border-spacing: 0;
-            table-layout: fixed;
+            border-collapse: collapse;
+            table-layout: auto;
             background: transparent;
         }
 
         .ffa-table th {
-            background: var(--bg2);
+            background: transparent;
             color: var(--muted);
             font-size: 10px;
             font-weight: 700;
             text-transform: uppercase;
-            letter-spacing: 1px;
-            padding: 9px 12px;
+            letter-spacing: 1.2px;
+            padding: 10px 16px;
             text-align: left;
             border-bottom: 1px solid var(--border);
-            position: sticky;
-            top: 0;
-            z-index: 1;
             white-space: nowrap;
         }
 
-        .ffa-table th:nth-child(1) {
-            width: 44px;
-        }
-
-        .ffa-table th:nth-child(3) {
-            width: 96px;
+        .ffa-table th:last-child {
             text-align: right;
         }
 
         .ffa-table td {
-            padding: 10px 12px;
-            border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+            padding: 12px 16px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
             font-size: 13px;
             vertical-align: middle;
-            word-break: break-word;
         }
 
-        .ffa-table td:nth-child(1) {
-            width: 44px;
+        .ffa-table td:first-child {
+            width: 48px;
             font-family: 'Barlow Condensed', sans-serif;
-            font-size: 15px;
-            font-weight: 700;
+            font-size: 20px;
+            font-weight: 900;
             color: var(--muted);
+            text-align: center;
         }
 
-        .ffa-table td:nth-child(3) {
-            width: 96px;
+        .ffa-table td:last-child {
             text-align: right;
             font-family: 'Barlow Condensed', sans-serif;
-            font-size: 18px;
-            font-weight: 800;
+            font-size: 22px;
+            font-weight: 900;
             color: var(--gold);
             white-space: nowrap;
+            min-width: 72px;
         }
 
         .ffa-table tr:last-child td {
             border-bottom: none;
         }
 
+        .ffa-table tbody tr:hover td {
+            background: rgba(255, 255, 255, 0.02);
+        }
+
         .ffa-participant {
             display: flex;
             align-items: center;
-            gap: 10px;
+            gap: 12px;
             min-width: 0;
         }
 
         .ffa-avatar {
-            width: 28px;
-            height: 28px;
-            border-radius: 7px;
+            width: 32px;
+            height: 32px;
+            border-radius: 8px;
             display: flex;
             align-items: center;
             justify-content: center;
             font-family: 'Barlow Condensed', sans-serif;
-            font-size: 11px;
+            font-size: 12px;
             font-weight: 900;
             color: #fff;
             flex-shrink: 0;
@@ -448,21 +441,28 @@
         }
 
         .ffa-participant-text .name {
-            font-weight: 700;
-            font-size: 13px;
-            line-height: 1.25;
-            overflow: hidden;
-            text-overflow: ellipsis;
-            white-space: nowrap;
+            font-weight: 600;
+            font-size: 14px;
+            line-height: 1.3;
         }
 
         .ffa-participant-text .sub {
             font-size: 11px;
             color: var(--muted);
             margin-top: 2px;
-            overflow: hidden;
-            text-overflow: ellipsis;
-            white-space: nowrap;
+        }
+
+        /* Rank colors (tournament-style) */
+        .ffa-table tbody tr:nth-child(1) td:first-child {
+            color: #FFD700;
+        }
+
+        .ffa-table tbody tr:nth-child(2) td:first-child {
+            color: #C0C0C0;
+        }
+
+        .ffa-table tbody tr:nth-child(3) td:first-child {
+            color: #CD7F32;
         }
 
         .ffa-toggle-btn {
@@ -475,10 +475,11 @@
             background: transparent;
             border: 1px solid rgba(245, 184, 0, 0.35);
             border-radius: 6px;
-            padding: 4px 10px;
+            padding: 5px 12px;
             cursor: pointer;
             transition: all .15s;
             font-family: 'Barlow', sans-serif;
+            white-space: nowrap;
         }
 
         .ffa-toggle-btn:hover {
@@ -496,18 +497,25 @@
             transform: rotate(180deg);
         }
 
-        /* Card layout for very small screens (avoids cramped table) */
+        /* Mobile cards (tournament ffa-rank-card style) */
         .ffa-cards {
             display: none;
-            padding: 8px;
+            width: 100%;
         }
 
         .ffa-card {
             display: flex;
             align-items: center;
             gap: 12px;
-            padding: 10px 12px;
-            border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+            padding: 12px 16px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+            transition: background 0.15s;
+            width: 100%;
+            box-sizing: border-box;
+        }
+
+        .ffa-card:hover {
+            background: rgba(255, 255, 255, 0.02);
         }
 
         .ffa-card:last-child {
@@ -516,36 +524,61 @@
 
         .ffa-card-rank {
             font-family: 'Barlow Condensed', sans-serif;
-            font-size: 16px;
-            font-weight: 800;
-            color: var(--muted);
-            width: 28px;
+            font-size: 20px;
+            font-weight: 900;
+            width: 36px;
             flex-shrink: 0;
             text-align: center;
+            color: var(--muted);
+        }
+
+        .ffa-cards .ffa-card:nth-child(1) .ffa-card-rank {
+            color: #FFD700;
+        }
+
+        .ffa-cards .ffa-card:nth-child(2) .ffa-card-rank {
+            color: #C0C0C0;
+        }
+
+        .ffa-cards .ffa-card:nth-child(3) .ffa-card-rank {
+            color: #CD7F32;
         }
 
         .ffa-card-score {
             margin-left: auto;
             font-family: 'Barlow Condensed', sans-serif;
-            font-size: 18px;
-            font-weight: 800;
+            font-size: 22px;
+            font-weight: 900;
             color: var(--gold);
             white-space: nowrap;
             flex-shrink: 0;
         }
 
-        @media (max-width: 640px) {
-            .ffa-panel {
-                margin: 8px;
-                width: calc(100% - 16px);
-                max-width: none;
+        @media (max-width: 768px) {
+            .ffa-toolbar {
+                padding: 10px 12px;
             }
 
-            .ffa-table-wrap {
-                max-height: 320px;
+            .ffa-table th,
+            .ffa-table td {
+                padding: 10px 12px;
             }
 
-            /* Switch to cards on narrow screens */
+            .ffa-table td:first-child {
+                font-size: 18px;
+                width: 40px;
+            }
+
+            .ffa-table td:last-child {
+                font-size: 18px;
+            }
+
+            .ffa-participant-text .name {
+                font-size: 13px;
+            }
+        }
+
+        @media (max-width: 560px) {
             .ffa-table-wrap .ffa-table {
                 display: none;
             }
@@ -557,24 +590,37 @@
             .ffa-toolbar-title {
                 font-size: 12px;
             }
-        }
-
-        @media (max-width: 400px) {
-            .ffa-participant-text .name {
-                white-space: normal;
-            }
 
             .ffa-card {
+                padding: 12px;
+                gap: 10px;
+            }
+
+            .ffa-avatar {
+                width: 28px;
+                height: 28px;
+                font-size: 11px;
+            }
+
+            .ffa-card-score {
+                font-size: 18px;
+            }
+        }
+
+        @media (max-width: 380px) {
+            .ffa-card {
                 flex-wrap: wrap;
-                gap: 8px;
             }
 
             .ffa-card-score {
                 width: 100%;
                 text-align: right;
-                margin-left: 40px;
+                margin-left: 48px;
+                margin-top: 2px;
             }
         }
+
+
 
         .badge-purple {
             background: rgba(139, 92, 246, .15);
@@ -1312,7 +1358,7 @@
                 if (isFFA) {
                     html += `<tr class="ffa-subrow" id="ffa-subrow-${m.id}">
                         <td colspan="9">
-                            <div id="ffa-list-${m.id}" style="padding:10px 16px;color:var(--muted);font-size:13px">Click “View Details” to load standings…</div>
+                            <div id="ffa-list-${m.id}" style="padding:12px 16px;color:var(--muted);font-size:13px">Click “View Details” to load standings…</div>
                         </td>
                     </tr>`;
                 }
