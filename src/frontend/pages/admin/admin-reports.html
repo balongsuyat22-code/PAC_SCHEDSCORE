@@ -966,9 +966,25 @@
             return 'points';
         }
 
+        /** Parse "16-8, 16-19, 11-26, 7-15" into sets won { a, b } */
+        function parseSetsFromDisplay(fsd) {
+            if (!fsd) return null;
+            const parts = String(fsd).match(/\d+(?:\.\d+)?\s*[-–]\s*\d+(?:\.\d+)?/g);
+            if (!parts || parts.length < 1) return null;
+            let a = 0, b = 0;
+            parts.forEach(p => {
+                const m = p.match(/(\d+(?:\.\d+)?)\s*[-–]\s*(\d+(?:\.\d+)?)/);
+                if (!m) return;
+                const sa = Number(m[1]), sb = Number(m[2]);
+                if (sa > sb) a++;
+                else if (sb > sa) b++;
+            });
+            return { a, b, periods: parts.length };
+        }
+
         /**
          * Score cell — same rules as matches.html formatMatchScore:
-         *  sets   → sets_won_a–sets_won_b  (+ optional period detail)
+         *  sets   → sets_won_a–sets_won_b  (+ optional period detail under)
          *  points → total_score_a–total_score_b
          *  binary → winner name
          */
@@ -986,21 +1002,35 @@
             }
 
             if (type === 'sets') {
-                let primary = null;
-                if (m.sets_won_a != null && m.sets_won_b != null) {
-                    primary = `${toWhole(m.sets_won_a)}–${toWhole(m.sets_won_b)}`;
-                }
-                // Detail: period-by-period string from final_score_display (if not just the same sets total)
-                let detail = null;
                 const fsd = (m.final_score_display || '').trim();
-                if (fsd && fsd !== primary && /\d+\s*[-–]\s*\d+/.test(fsd)) {
-                    // Don't show detail if it's identical to primary
-                    if (!primary || fsd.replace(/\s/g, '') !== primary.replace(/\s/g, '')) {
-                        detail = fsd;
+                let setsA = m.sets_won_a != null ? toWhole(m.sets_won_a) : null;
+                let setsB = m.sets_won_b != null ? toWhole(m.sets_won_b) : null;
+
+                // Derive sets won from period scores when API omits sets_won_*
+                if (setsA == null || setsB == null) {
+                    const parsed = parseSetsFromDisplay(fsd);
+                    if (parsed) {
+                        setsA = parsed.a;
+                        setsB = parsed.b;
                     }
                 }
+
+                let primary = (setsA != null && setsB != null) ? `${setsA}–${setsB}` : null;
+
+                // Period detail only when we have a real sets total AND a multi-period string
+                let detail = null;
+                if (primary && fsd) {
+                    const parsed = parseSetsFromDisplay(fsd);
+                    if (parsed && parsed.periods >= 2) {
+                        const fsdNorm = fsd.replace(/\s/g, '');
+                        const primaryNorm = primary.replace(/\s/g, '');
+                        if (fsdNorm !== primaryNorm) detail = fsd;
+                    }
+                }
+
                 if (!primary && fsd) primary = fsd;
                 if (!primary) primary = '—';
+
                 return {
                     html: `<span class="score-primary">${primary}</span>${detail ? `<span class="score-detail">${detail}</span>` : ''}`,
                     cls: 'sets',
