@@ -327,6 +327,183 @@
             padding: 8px 12px;
             margin-top: 14px;
         }
+
+        /* Admin-like tournament detail chrome */
+        .t-hero {
+            background: linear-gradient(135deg, rgba(139, 92, 246, 0.12), transparent 60%);
+            border: 1px solid var(--border);
+            border-radius: 14px;
+            padding: 20px 22px;
+            margin-bottom: 14px;
+        }
+
+        .t-hero-content {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 16px;
+            flex-wrap: wrap;
+        }
+
+        .t-hero-sport {
+            font-size: 12px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: var(--muted);
+            margin-bottom: 4px;
+        }
+
+        .t-hero-name {
+            font-family: 'Barlow Condensed', sans-serif;
+            font-size: 28px;
+            font-weight: 900;
+            line-height: 1.15;
+        }
+
+        .t-hero-tags {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-top: 10px;
+            align-items: center;
+        }
+
+        .t-hero-stats {
+            display: flex;
+            gap: 18px;
+        }
+
+        .t-hero-stat {
+            text-align: center;
+            min-width: 72px;
+        }
+
+        .t-hero-stat-val {
+            font-family: 'Barlow Condensed', sans-serif;
+            font-size: 28px;
+            font-weight: 900;
+            color: var(--gold);
+            line-height: 1;
+        }
+
+        .t-hero-stat-lbl {
+            font-size: 10px;
+            color: var(--muted);
+            text-transform: uppercase;
+            letter-spacing: 0.8px;
+            margin-top: 4px;
+        }
+
+        .status-pill {
+            display: inline-flex;
+            align-items: center;
+            padding: 3px 10px;
+            border-radius: 20px;
+            font-size: 11px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.4px;
+            background: rgba(255, 255, 255, 0.06);
+            color: var(--muted);
+        }
+
+        .status-pill.status-draft {
+            background: rgba(255, 255, 255, 0.06);
+            color: var(--muted);
+        }
+
+        .status-pill.status-registration {
+            background: rgba(59, 130, 246, 0.15);
+            color: var(--blue);
+        }
+
+        .status-pill.status-ongoing {
+            background: rgba(34, 197, 94, 0.15);
+            color: var(--green);
+        }
+
+        .status-pill.status-completed {
+            background: rgba(139, 92, 246, 0.15);
+            color: var(--gold);
+        }
+
+        .dates-bar {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            flex-wrap: wrap;
+            padding: 12px 16px;
+            background: var(--bg2);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            margin-bottom: 16px;
+            font-size: 13px;
+            color: var(--text2);
+        }
+
+        .date-item {
+            white-space: nowrap;
+        }
+
+        .page-tabs {
+            display: flex;
+            gap: 4px;
+            margin-bottom: 16px;
+            background: var(--bg2);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            padding: 4px;
+            flex-wrap: wrap;
+        }
+
+        .page-tab {
+            flex: 1;
+            text-align: center;
+            padding: 9px 12px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 13px;
+            font-weight: 600;
+            color: var(--muted);
+            border: none;
+            background: transparent;
+            font-family: 'Barlow', sans-serif;
+            transition: all 0.15s;
+            min-width: 90px;
+        }
+
+        .page-tab:hover {
+            color: var(--text);
+        }
+
+        .page-tab.active {
+            background: var(--bg3);
+            color: var(--text);
+        }
+
+        .ws-toolbar {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            flex-wrap: wrap;
+            margin-bottom: 16px;
+        }
+
+        @media (max-width: 640px) {
+            .t-hero-name {
+                font-size: 22px;
+            }
+
+            .t-hero-stat-val {
+                font-size: 22px;
+            }
+
+            .page-tab {
+                flex: none;
+                width: 100%;
+            }
+        }
     </style>
 </head>
 
@@ -386,113 +563,48 @@
 
             <!-- DETAIL / BRACKET WORKSPACE -->
             <div id="tourn-workspace" style="display:none">
-                <div style="margin-bottom:16px;display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+                <div class="ws-toolbar">
                     <button class="btn btn-secondary btn-sm" onclick="backToList()">
                         <i class="fa-solid fa-arrow-left"></i> All Tournaments
                     </button>
-                    <div style="font-family:'Barlow Condensed',sans-serif;font-size:18px;font-weight:800;color:var(--gold)"
-                        id="ws-name">—</div>
+                    <button class="btn btn-secondary btn-sm" onclick="refreshAll()">
+                        <i class="fa-solid fa-arrows-rotate"></i> Refresh
+                    </button>
+                    <button class="btn btn-secondary btn-sm" id="btn-add-participants" onclick="openAddParticipants()">
+                        <i class="fa-solid fa-building-user"></i> Add Departments
+                    </button>
+                    <button class="btn btn-primary btn-sm" id="btn-generate" onclick="generateBracket()">
+                        <i class="fa-solid fa-bolt"></i> Generate Bracket
+                    </button>
+                    <button class="btn btn-secondary btn-sm" id="btn-auto-schedule" style="display:none"
+                        onclick="openAutoSchedule()">
+                        <i class="fa-solid fa-dice"></i> Auto-Schedule
+                    </button>
+                    <button class="btn btn-secondary btn-sm" id="btn-promote" style="display:none"
+                        onclick="promoteKnockout()">
+                        <i class="fa-solid fa-arrow-up-from-bracket"></i> Promote Knockout
+                    </button>
+                    <button class="btn btn-success btn-sm" id="btn-finalize-top" onclick="openFinalizeModal()">
+                        <i class="fa-solid fa-flag-checkered"></i> Finalize
+                    </button>
                 </div>
 
-                <div class="grid-3" style="margin-bottom:20px">
-                    <div class="stat-card stat-blue">
-                        <div class="stat-icon"><i class="fa-solid fa-users"></i></div>
-                        <div class="stat-value" id="w-participants">—</div>
-                        <div class="stat-label">Participants</div>
-                    </div>
-                    <div class="stat-card stat-gold">
-                        <div class="stat-icon"><i class="fa-solid fa-diagram-project"></i></div>
-                        <div class="stat-value" id="w-matches">—</div>
-                        <div class="stat-label">Matches</div>
-                    </div>
-                    <div class="stat-card stat-green">
-                        <div class="stat-icon"><i class="fa-solid fa-thumbtack"></i></div>
-                        <div class="stat-value" id="w-status">—</div>
-                        <div class="stat-label">Status</div>
-                    </div>
-                </div>
-
-                <div id="finalized-note" style="display:none;margin-bottom:20px">
+                <div id="ws-hero"></div>
+                <div id="ws-dates"></div>
+                <div id="finalized-note" style="display:none;margin-bottom:16px">
                     <div class="ffa-lock-note" style="justify-content:center">
                         <i class="fa-solid fa-circle-check" style="color:var(--green)"></i>
-                        <span>This tournament is finalized — medals and points are locked in. Schedule, participants,
-                            and results can no longer be edited.</span>
+                        <span>This tournament is finalized — medals and points are locked in.</span>
                     </div>
                 </div>
+                <div class="page-tabs" id="ws-tabs"></div>
+                <div id="tab-content"></div>
 
-                <div class="card" style="margin-bottom:20px">
-                    <div class="card-header">
-                        <div class="card-title"><i class="fa-solid fa-users"></i> Participants</div>
-                        <div style="display:flex;gap:8px;flex-wrap:wrap">
-                            <button class="btn btn-secondary btn-sm" id="btn-add-participants"
-                                onclick="openAddParticipants()">
-                                <i class="fa-solid fa-building-user"></i> Add Departments
-                            </button>
-                            <button class="btn btn-primary btn-sm" id="btn-generate" onclick="generateBracket()">
-                                <i class="fa-solid fa-bolt"></i> Generate Bracket
-                            </button>
-                        </div>
-                    </div>
-                    <div class="card-body" id="participants-list"></div>
-                    <div id="participants-lock-note" style="display:none;padding:0 16px 16px">
-                        <div class="ffa-lock-note">
-                            <i class="fa-solid fa-lock"></i>
-                            <span>Bracket already generated — departments are locked in. To change the lineup, you'd
-                                need to reset this tournament.</span>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- FFA gets its own dedicated card; everything else uses the generic bracket card -->
-                <div class="card" id="ffa-card-wrap" style="display:none;margin-bottom:20px">
-                    <div class="card-body" style="padding:0">
-                        <div class="ffa-card">
-                            <span class="ffa-badge"><i class="fa-solid fa-bolt"></i> Free-For-All · One-Time
-                                Event</span>
-                            <div class="ffa-title" id="ffa-title">—</div>
-                            <div class="ffa-sub">All entered departments compete head-to-head in a single event — no
-                                rounds, no bracket tree, just one date, one time, one result.</div>
-
-                            <div class="ffa-participants" id="ffa-participants"></div>
-
-                            <div class="ffa-schedule-row">
-                                <div class="ffa-schedule-info" id="ffa-schedule-info">Not scheduled yet.</div>
-                                <div style="display:flex;gap:8px">
-                                    <button class="btn btn-secondary btn-sm" id="ffa-btn-schedule"
-                                        onclick="openFfaSchedule()">
-                                        <i class="fa-solid fa-calendar-plus"></i> Set Date, Time &amp; Venue
-                                    </button>
-                                    <button class="btn btn-success btn-sm" id="ffa-btn-finalize"
-                                        onclick="openFinalizeModal()">
-                                        <i class="fa-solid fa-flag-checkered"></i> Finalize Results
-                                    </button>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <div class="card" id="standard-bracket-card">
-                    <div class="card-header">
-                        <div class="card-title" id="bracket-title"><i class="fa-solid fa-trophy"></i> Bracket</div>
-                        <div style="display:flex;gap:8px;flex-wrap:wrap">
-                            <button class="btn btn-secondary btn-sm" id="btn-auto-schedule" style="display:none"
-                                onclick="openAutoSchedule()">
-                                <i class="fa-solid fa-dice"></i> Auto-Schedule
-                            </button>
-                            <button class="btn btn-secondary btn-sm" id="btn-promote" style="display:none"
-                                onclick="promoteKnockout()">
-                                <i class="fa-solid fa-arrow-up-from-bracket"></i> Promote Knockout
-                            </button>
-                            <button class="btn btn-success btn-sm" id="std-btn-finalize" onclick="openFinalizeModal()">
-                                <i class="fa-solid fa-flag-checkered"></i> Finalize Results
-                            </button>
-                        </div>
-                    </div>
-                    <div class="card-body" id="bracket-view">
-                        <div class="section-empty">No matches yet. Add participants and generate the bracket.</div>
-                    </div>
-                </div>
+                <!-- Hidden hosts kept for FFA schedule modal state (filled by tab renderers) -->
+                <div id="ffa-title" style="display:none"></div>
+                <div id="ffa-participants" style="display:none"></div>
+                <div id="ffa-schedule-info" style="display:none"></div>
+                <button id="ffa-btn-schedule" style="display:none"></button>
             </div>
         </div>
     </main>
@@ -1001,16 +1113,18 @@
         }
 
         function onTournamentChange() {
-            const id = document.getElementById('tourn-select').value;
-            if (!id) {
-                document.getElementById('no-selection').style.display = '';
-                document.getElementById('tourn-workspace').style.display = 'none';
-                return;
-            }
-            currentTournamentId = id;
-            document.getElementById('no-selection').style.display = 'none';
-            document.getElementById('tourn-workspace').style.display = '';
-            refreshAll();
+            /* legacy — use openTournament(id) */
+        }
+
+
+        let activeTab = 'overview';
+
+        function isFfaFormat(fmt) {
+            return ['free_for_all', 'team_ranking', 'group_stage_ffa'].includes(fmt);
+        }
+
+        function formatLabel(fmt) {
+            return (fmt || '').replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
         }
 
         async function refreshAll() {
@@ -1023,85 +1137,295 @@
             currentTournament = tourneyRes.data;
             currentBracketMatches = bracketRes.data || [];
 
-            const isFfa = currentTournament.format === 'free_for_all';
             const isLocked = !['draft', 'registration'].includes(currentTournament.status);
             const isFinalized = currentTournament.status === 'completed';
+            const fmt = currentTournament.format || '';
+            const isFfa = isFfaFormat(fmt);
 
-            document.getElementById('w-participants').textContent = currentTournament.participants?.length || 0;
-            document.getElementById('w-matches').textContent = currentBracketMatches.length || 0;
-            document.getElementById('w-status').textContent = currentTournament.status;
-            const wn = document.getElementById('ws-name');
-            if (wn) wn.textContent = currentTournament.name || '';
             const title = document.getElementById('topbar-title');
             if (title) title.innerHTML = '<i class="fa-solid fa-trophy"></i> ' + (currentTournament.name || 'Tournament');
-            document.getElementById('bracket-title').innerHTML =
-                `<i class="fa-solid fa-trophy"></i> Bracket — ${currentTournament.name}`;
 
-            // Departments can never be added once the tournament has left
-            // draft/registration (the server already enforces this — see
-            // addParticipants in tournamentController.js — this just mirrors
-            // it in the UI instead of letting people click into a 400 error).
-            document.getElementById('btn-add-participants').style.display = isLocked ? 'none' : '';
-            document.getElementById('btn-generate').style.display =
-                !isLocked ? '' : 'none';
-            document.getElementById('participants-lock-note').style.display = isLocked ? '' : 'none';
+            // Toolbar visibility
+            const btnAdd = document.getElementById('btn-add-participants');
+            const btnGen = document.getElementById('btn-generate');
+            const btnAuto = document.getElementById('btn-auto-schedule');
+            const btnPromo = document.getElementById('btn-promote');
+            const btnFin = document.getElementById('btn-finalize-top');
+            if (btnAdd) btnAdd.style.display = isLocked ? 'none' : '';
+            if (btnGen) {
+                btnGen.style.display = isFinalized ? 'none' : '';
+                btnGen.innerHTML = currentBracketMatches.length
+                    ? (isFfa ? '<i class="fa-solid fa-bolt"></i> Re-Initialize Event' : '<i class="fa-solid fa-bolt"></i> Regenerate Bracket')
+                    : (isFfa ? '<i class="fa-solid fa-bolt"></i> Initialize Event' : '<i class="fa-solid fa-bolt"></i> Generate Bracket');
+            }
+            if (btnAuto) btnAuto.style.display = (fmt === 'round_robin' && !isFinalized) ? '' : 'none';
+            if (btnPromo) btnPromo.style.display = (fmt.startsWith('group_stage_') && !isFinalized) ? '' : 'none';
+            if (btnFin) btnFin.style.display = isFinalized ? 'none' : '';
 
-            document.getElementById('btn-promote').style.display =
-                currentTournament.format?.startsWith('group_stage_') ? '' : 'none';
-            // Auto-schedule and Finalize both need to disappear once the
-            // tournament is completed — finalizing locks in medals/points
-            // server-side, so re-shuffling the schedule or re-finalizing
-            // after that point is meaningless and was previously still
-            // clickable (the finalize endpoint does 409 on a second call,
-            // but auto-schedule had no guard against a finished event at all).
-            document.getElementById('btn-auto-schedule').style.display =
-                (currentTournament.format === 'round_robin' && !isFinalized) ? '' : 'none';
-
-            ['std-btn-finalize', 'ffa-btn-finalize'].forEach(id => {
-                const btn = document.getElementById(id);
-                if (!btn) return;
-                btn.style.display = isFinalized ? 'none' : '';
-            });
             const finalizedNote = document.getElementById('finalized-note');
             if (finalizedNote) finalizedNote.style.display = isFinalized ? '' : 'none';
 
-            renderParticipants(currentTournament.participants || []);
+            renderHeroBar();
+            renderDatesBar();
+            renderWsTabs();
+            renderActiveTab();
+        }
 
-            // Free-For-All gets its own card; everything else uses the
-            // standard bracket card. Toggle instead of duplicating logic.
-            document.getElementById('ffa-card-wrap').style.display = isFfa ? '' : 'none';
-            document.getElementById('standard-bracket-card').style.display = isFfa ? 'none' : '';
+        function renderHeroBar() {
+            const el = document.getElementById('ws-hero');
+            if (!el || !currentTournament) return;
+            const t = currentTournament;
+            const parts = t.participants || [];
+            const sl = { draft: 'Draft', registration: 'Registration', ongoing: 'Ongoing', completed: 'Completed' }[t.status] || t.status;
+            el.innerHTML = `<div class="t-hero">
+                <div class="t-hero-content">
+                    <div class="t-hero-info">
+                        <div class="t-hero-sport">${t.sport_name || '—'}</div>
+                        <div class="t-hero-name">${t.name || '—'}</div>
+                        <div class="t-hero-tags">
+                            <span class="status-pill status-${t.status || 'draft'}">${sl}</span>
+                            <span class="badge badge-muted">${formatLabel(t.format)}</span>
+                            <span class="badge badge-muted" style="text-transform:capitalize">${t.gender || 'open'}</span>
+                        </div>
+                    </div>
+                    <div class="t-hero-stats">
+                        <div class="t-hero-stat">
+                            <div class="t-hero-stat-val">${parts.length}</div>
+                            <div class="t-hero-stat-lbl">Participants</div>
+                        </div>
+                        <div class="t-hero-stat">
+                            <div class="t-hero-stat-val">${currentBracketMatches.length}</div>
+                            <div class="t-hero-stat-lbl">Matches</div>
+                        </div>
+                    </div>
+                </div>
+            </div>`;
+        }
 
-            if (isFfa) {
-                renderFfaCard(currentTournament, currentBracketMatches[0] || null);
-            } else {
-                const bracketEl = document.getElementById('bracket-view');
-                if (typeof renderBracketByFormat === 'function') {
-                    bracketEl.innerHTML = renderBracketByFormat(
-                        currentBracketMatches,
-                        currentTournament.participants || [],
-                        currentTournament
-                    );
-                } else {
-                    bracketEl.innerHTML = currentBracketMatches.length
-                        ? `<div class="section-empty">${currentBracketMatches.length} match(es) loaded.</div>`
-                        : `<div class="section-empty">No matches yet. Add participants and generate the bracket.</div>`;
-                }
+        function renderDatesBar() {
+            const el = document.getElementById('ws-dates');
+            if (!el || !currentTournament) return;
+            const t = currentTournament;
+            const fd = typeof formatDate === 'function' ? formatDate : (d => d || 'Not set');
+            el.innerHTML = `<div class="dates-bar">
+                <div class="date-item">Start: <strong>${t.start_date ? fd(t.start_date) : 'Not set'}</strong></div>
+                <div class="date-item">End: <strong>${t.end_date ? fd(t.end_date) : 'Not set'}</strong></div>
+                <div class="date-item">Format: <strong>${formatLabel(t.format)}</strong></div>
+            </div>`;
+        }
+
+        function renderWsTabs() {
+            const el = document.getElementById('ws-tabs');
+            if (!el || !currentTournament) return;
+            const fmt = currentTournament.format || '';
+            const isFfa = isFfaFormat(fmt);
+            const parts = (currentTournament.participants || []).length;
+            const done = currentTournament.status === 'completed';
+            const tabs = [
+                { id: 'overview', label: 'Overview' },
+                { id: 'participants', label: `Participants (${parts})` },
+            ];
+            if (isFfa) tabs.push({ id: 'event', label: 'Event' });
+            else tabs.push({ id: 'bracket', label: `Bracket (${currentBracketMatches.length})` });
+            if (!done) tabs.push({ id: 'finalize', label: 'Finalize' });
+
+            if (!tabs.find(x => x.id === activeTab)) activeTab = 'overview';
+
+            el.innerHTML = tabs.map(tab =>
+                `<button type="button" class="page-tab ${tab.id === activeTab ? 'active' : ''}" data-tab="${tab.id}" onclick="switchWsTab('${tab.id}')">${tab.label}</button>`
+            ).join('');
+        }
+
+        function switchWsTab(id) {
+            activeTab = id;
+            document.querySelectorAll('#ws-tabs .page-tab').forEach(b => b.classList.toggle('active', b.dataset.tab === id));
+            renderActiveTab();
+        }
+
+        function renderActiveTab() {
+            const el = document.getElementById('tab-content');
+            if (!el || !currentTournament) return;
+            const map = {
+                overview: tabOverview,
+                participants: tabParticipants,
+                bracket: tabBracket,
+                event: tabEvent,
+                finalize: tabFinalize,
+            };
+            el.innerHTML = (map[activeTab] || tabOverview)();
+        }
+
+        function tabOverview() {
+            const t = currentTournament;
+            const parts = t.participants || [];
+            const done = currentBracketMatches.filter(m => m.status === 'completed').length;
+            const pct = currentBracketMatches.length ? Math.round((done / currentBracketMatches.length) * 100) : 0;
+            return `
+            <div class="grid-3" style="margin-bottom:16px">
+                <div class="stat-card stat-blue">
+                    <div class="stat-icon"><i class="fa-solid fa-users"></i></div>
+                    <div class="stat-value">${parts.length}</div>
+                    <div class="stat-label">Participants</div>
+                </div>
+                <div class="stat-card stat-gold">
+                    <div class="stat-icon"><i class="fa-solid fa-diagram-project"></i></div>
+                    <div class="stat-value">${currentBracketMatches.length}</div>
+                    <div class="stat-label">Matches</div>
+                </div>
+                <div class="stat-card stat-green">
+                    <div class="stat-icon"><i class="fa-solid fa-chart-simple"></i></div>
+                    <div class="stat-value">${pct}%</div>
+                    <div class="stat-label">Completed</div>
+                </div>
+            </div>
+            <div class="card">
+                <div class="card-header"><div class="card-title">Tournament Info</div></div>
+                <div class="card-body" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px;font-size:13px">
+                    <div><div style="color:var(--muted);font-size:11px;text-transform:uppercase">Status</div><div>${t.status || '—'}</div></div>
+                    <div><div style="color:var(--muted);font-size:11px;text-transform:uppercase">Sport</div><div>${t.sport_name || '—'}</div></div>
+                    <div><div style="color:var(--muted);font-size:11px;text-transform:uppercase">Format</div><div>${formatLabel(t.format)}</div></div>
+                    <div><div style="color:var(--muted);font-size:11px;text-transform:uppercase">Gender</div><div style="text-transform:capitalize">${t.gender || 'open'}</div></div>
+                    <div><div style="color:var(--muted);font-size:11px;text-transform:uppercase">Participants</div><div>${parts.length}${t.max_participants ? ' / ' + t.max_participants : ''}</div></div>
+                </div>
+                ${t.description ? `<div style="padding:0 16px 16px;color:var(--muted);font-size:13px">${t.description}</div>` : ''}
+            </div>`;
+        }
+
+        function tabParticipants() {
+            const parts = currentTournament.participants || [];
+            const isLocked = !['draft', 'registration'].includes(currentTournament.status);
+            if (!parts.length) {
+                return `<div class="card"><div class="card-body">
+                    <div class="section-empty">No departments entered yet.
+                    ${!isLocked ? `<br><br><button class="btn btn-primary" onclick="openAddParticipants()"><i class="fa-solid fa-building-user"></i> Add Departments</button>` : ''}
+                    </div>
+                    ${isLocked ? `<div class="ffa-lock-note" style="margin-top:12px"><i class="fa-solid fa-lock"></i><span>Lineup is locked after bracket generation.</span></div>` : ''}
+                </div></div>`;
             }
+            const chips = parts.map(p => {
+                const primary = p.department_name || p.team_name || '—';
+                const secondary = (p.team_name && p.department_name && p.team_name !== p.department_name) ? p.team_name : '';
+                const approved = (p.players || []).filter(x => x.status === 'approved').length;
+                return `<div style="display:flex;align-items:center;gap:10px;background:var(--bg3);border:1px solid var(--border);border-radius:12px;padding:10px 14px;min-width:0">
+                    <div style="width:32px;height:32px;border-radius:8px;background:${p.department_color || '#555'};display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:900;color:#fff;flex-shrink:0">${typeof initials === 'function' ? initials(primary) : '?'}</div>
+                    <div style="min-width:0;flex:1">
+                        <div style="font-weight:700;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${primary}</div>
+                        ${secondary ? `<div style="font-size:11px;color:var(--muted)">${secondary}</div>` : ''}
+                    </div>
+                    <span style="font-size:11px;color:var(--muted);flex-shrink:0"><i class="fa-solid fa-user"></i> ${approved}</span>
+                </div>`;
+            }).join('');
+            return `<div class="card">
+                <div class="card-header">
+                    <div class="card-title"><i class="fa-solid fa-users"></i> Participants</div>
+                    ${!isLocked ? `<button class="btn btn-secondary btn-sm" onclick="openAddParticipants()"><i class="fa-solid fa-plus"></i> Add</button>` : ''}
+                </div>
+                <div class="card-body">
+                    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:10px">${chips}</div>
+                    ${isLocked ? `<div class="ffa-lock-note" style="margin-top:14px"><i class="fa-solid fa-lock"></i><span>Bracket already generated — departments are locked in.</span></div>` : ''}
+                </div>
+            </div>`;
+        }
+
+        function tabBracket() {
+            let body;
+            if (typeof renderBracketByFormat === 'function') {
+                body = renderBracketByFormat(currentBracketMatches, currentTournament.participants || [], currentTournament);
+            } else if (currentBracketMatches.length) {
+                body = currentBracketMatches.map(m => {
+                    const nA = m.team_a_name || m.dept_a_name || 'TBD';
+                    const nB = m.team_b_name || m.dept_b_name || 'TBD';
+                    return `<div class="match-card">
+                        <div class="match-info">
+                            <div class="match-teams"><strong>${nA}</strong> vs <strong>${nB}</strong></div>
+                            <div class="match-meta">${m.bracket_position || ''} · ${m.status || 'pending'}${m.scheduled_date ? ' · ' + m.scheduled_date : ''}</div>
+                        </div>
+                    </div>`;
+                }).join('');
+            } else {
+                body = `<div class="section-empty">No matches yet. Add participants and generate the bracket.</div>`;
+            }
+            return `<div class="card">
+                <div class="card-header">
+                    <div class="card-title"><i class="fa-solid fa-trophy"></i> Bracket</div>
+                </div>
+                <div class="card-body" id="bracket-view">${body}</div>
+            </div>`;
+        }
+
+        function tabEvent() {
+            // FFA event card (same logic as old renderFfaCard)
+            const tournament = currentTournament;
+            const match = currentBracketMatches[0] || null;
+            const participants = tournament.participants || [];
+            const isFinalized = tournament.status === 'completed';
+            const chips = participants.length
+                ? participants.map((p, i) => `
+                    <div class="ffa-chip">
+                        <div class="rank">${i + 1}</div>
+                        <span>${p.department_name || p.team_name || '—'}</span>
+                    </div>`).join('')
+                : `<div style="font-size:12px;color:var(--muted)">No departments entered yet — add at least 2 to schedule this event.</div>`;
+
+            let scheduleInfo = 'Not scheduled yet.';
+            if (match && match.scheduled_date) {
+                const fd = typeof formatDate === 'function' ? formatDate(match.scheduled_date) : match.scheduled_date;
+                const ft = typeof formatTime === 'function' ? formatTime(match.scheduled_time) : (match.scheduled_time || '');
+                scheduleInfo = `<strong>${fd}</strong> at <strong>${ft}</strong>` +
+                    (match.venue_name ? ` · <i class="fa-solid fa-location-dot"></i> ${match.venue_name}` : ' · Venue TBD') +
+                    (match.referee_name ? ` · <i class="fa-solid fa-user"></i> ${match.referee_name}` : '');
+            } else if (participants.length < 2) {
+                scheduleInfo = 'Add at least 2 departments, then initialize the event to unlock scheduling.';
+            }
+
+            // Keep hidden hosts in sync for schedule modal
+            const ht = document.getElementById('ffa-title');
+            if (ht) ht.textContent = tournament.name;
+
+            return `<div class="card" style="margin-bottom:0">
+                <div class="card-body" style="padding:0">
+                    <div class="ffa-card">
+                        <span class="ffa-badge"><i class="fa-solid fa-bolt"></i> Free-For-All · One-Time Event</span>
+                        <div class="ffa-title">${tournament.name}</div>
+                        <div class="ffa-sub">All entered departments compete in a single event — one date, one time, one result.</div>
+                        <div class="ffa-participants">${chips}</div>
+                        <div class="ffa-schedule-row">
+                            <div class="ffa-schedule-info">${scheduleInfo}</div>
+                            <div style="display:flex;gap:8px;flex-wrap:wrap">
+                                <button class="btn btn-secondary btn-sm" id="ffa-btn-schedule" onclick="openFfaSchedule()" ${(!match || isFinalized) ? 'disabled style="opacity:.5"' : ''}>
+                                    <i class="fa-solid fa-${isFinalized ? 'lock' : 'calendar-plus'}"></i>
+                                    ${isFinalized ? 'Finalized' : (match && match.scheduled_date ? 'Edit Schedule' : 'Set Date, Time & Venue')}
+                                </button>
+                                ${!isFinalized ? `<button class="btn btn-success btn-sm" onclick="openFinalizeModal()"><i class="fa-solid fa-flag-checkered"></i> Finalize Results</button>` : ''}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>`;
+        }
+
+        function tabFinalize() {
+            if (currentTournament.status === 'completed') {
+                return `<div class="card"><div class="card-body"><div class="section-empty">
+                    <i class="fa-solid fa-circle-check" style="color:var(--green);font-size:28px"></i><br><br>
+                    Tournament already finalized.
+                </div></div></div>`;
+            }
+            return `<div class="card">
+                <div class="card-header"><div class="card-title"><i class="fa-solid fa-flag-checkered"></i> Finalize Tournament</div></div>
+                <div class="card-body">
+                    <p style="color:var(--muted);font-size:13px;margin-bottom:16px">
+                        Finalizing locks standings, awards medals, and updates the leaderboard. Configure points per place, then confirm.
+                    </p>
+                    <button class="btn btn-success" onclick="openFinalizeModal()">
+                        <i class="fa-solid fa-flag-checkered"></i> Open Finalize
+                    </button>
+                </div>
+            </div>`;
         }
 
         function renderParticipants(participants) {
-            const el = document.getElementById('participants-list');
-            if (!participants.length) {
-                el.innerHTML = '<div class="section-empty">No departments entered yet. Click "Add Departments" to begin.</div>';
-                return;
-            }
-            el.innerHTML = `<div style="display:flex;flex-wrap:wrap;gap:10px">${participants.map(p => `
-        <div style="display:flex;align-items:center;gap:8px;background:var(--bg3);border:1px solid var(--border);border-radius:20px;padding:6px 14px 6px 6px">
-          <div style="width:26px;height:26px;border-radius:50%;background:${p.department_color || '#555'};display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:900;color:#fff">${initials(p.department_name)}</div>
-          <span style="font-size:13px;font-weight:600">${p.department_name}${p.team_name ? ' — ' + p.team_name : ''}</span>
-          <span style="font-size:11px;color:var(--muted)"><i class="fa-solid fa-user" style="font-size:10px"></i> ${(p.players || []).filter(x => x.status === 'approved').length}</span>
-        </div>`).join('')}</div>`;
+            // Back-compat no-op — participants rendered via tabParticipants
         }
 
         // ── Free-For-All card ───────────────────────────────────
