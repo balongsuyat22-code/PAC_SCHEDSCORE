@@ -209,6 +209,13 @@
     <!-- Sidebar injected by renderSidebar -->
     <main class="main">
         <div class="topbar">
+            <button class="burger-menu" id="burger-menu" aria-label="Toggle navigation menu" type="button">
+                <span class="icon"><svg viewBox="0 0 24 24">
+                        <line x1="3" y1="6" x2="21" y2="6"></line>
+                        <line x1="3" y1="12" x2="21" y2="12"></line>
+                        <line x1="3" y1="18" x2="21" y2="18"></line>
+                    </svg></span>
+            </button>
             <div class="topbar-title">
                 <span class="icon" style="width:20px;height:20px;color:var(--gold);">
                     <svg viewBox="0 0 24 24">
@@ -268,6 +275,7 @@
     <script src="../../js/admin-sidebar.js"></script>
     <script>
         document.addEventListener('DOMContentLoaded', async () => {
+            if (typeof Auth !== 'undefined' && Auth.requireAuth) Auth.requireAuth('admin');
             if (typeof renderSidebar === 'function') {
                 renderSidebar('schedule');
             }

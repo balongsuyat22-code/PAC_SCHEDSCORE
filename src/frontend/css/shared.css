@@ -183,7 +183,7 @@ body {
 .btn-danger:hover { background: var(--red); color: #fff; }
 .btn-sm { padding: 5px 12px; font-size: 12px; }
 
-.content { padding: 28px; flex: 1; }
+.content { padding: 28px; flex: 1; min-width: 0; }
 
 /* ── PAGE HEADER ── */
 .page-header { margin-bottom: 28px; }
@@ -233,6 +233,7 @@ body {
 .card-header {
   padding: 18px 20px; border-bottom: 1px solid var(--border);
   display: flex; align-items: center; justify-content: space-between;
+  flex-wrap: wrap; gap: 8px;
 }
 .card-title {
   font-family: 'Barlow Condensed', sans-serif;
@@ -243,7 +244,7 @@ body {
 .card-body { padding: 20px; }
 
 /* ── TABLES ── */
-.table-wrap { overflow-x: auto; }
+.table-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
 table { width: 100%; border-collapse: collapse; }
 th {
   text-align: left; padding: 10px 14px;
@@ -375,6 +376,7 @@ tr:last-child td { border-bottom: none; }
   position: fixed; inset: 0; background: rgba(0,0,0,0.7); backdrop-filter: blur(4px);
   z-index: 200; display: flex; align-items: center; justify-content: center;
   opacity: 0; pointer-events: none; transition: opacity 0.2s;
+  padding: 16px;
 }
 .modal-overlay.open { opacity: 1; pointer-events: all; }
 .modal {
@@ -401,6 +403,7 @@ tr:last-child td { border-bottom: none; }
 .modal-footer {
   padding: 16px 24px; border-top: 1px solid var(--border);
   display: flex; justify-content: flex-end; gap: 10px;
+  flex-wrap: wrap;
 }
 
 /* ── TOAST ── */
@@ -623,6 +626,7 @@ tr:last-child td { border-bottom: none; }
     padding: 5px;
     transition: color 0.2s;
     align-items: center; justify-content: center;
+    flex-shrink: 0;
 }
 .burger-menu .icon { width: 22px; height: 22px; }
 
@@ -896,4 +900,54 @@ tr:last-child td { border-bottom: none; }
 .logout-cancel-btn:active,
 .logout-confirm-btn:active {
     transform: scale(0.97);
+}
+
+/* ============================================================
+   ADDITIONAL RESPONSIVE HARDENING (applies to every admin page
+   that includes this stylesheet — topbar, modal, forms, cards)
+   ============================================================ */
+@media (max-width: 900px) {
+  .content { padding: 22px; }
+}
+
+@media (max-width: 768px) {
+  .topbar {
+    flex-wrap: wrap;
+    height: auto;
+    min-height: 60px;
+    padding: 12px 16px;
+    gap: 10px;
+  }
+  .topbar-title { font-size: 17px; }
+  .topbar-actions { flex-wrap: wrap; gap: 8px; }
+  .content { padding: 16px; }
+  .page-title { font-size: 26px; }
+  .modal { width: 96vw; max-width: 96vw; }
+  .modal-body { padding: 16px; }
+  .modal-header { padding: 16px 18px; }
+  .modal-footer { padding: 14px 18px; }
+  .card-header { padding: 14px 16px; }
+  .card-body { padding: 16px; }
+  .score-teams { grid-template-columns: 1fr; gap: 12px; }
+  .score-num { font-size: 48px; }
+}
+
+@media (max-width: 480px) {
+  .stats-grid { grid-template-columns: 1fr 1fr; gap: 10px; }
+  .stat-card { padding: 14px; }
+  .stat-value { font-size: 28px; }
+  .topbar-title { font-size: 15px; }
+  .btn { padding: 7px 12px; font-size: 12px; }
+  .page-title { font-size: 21px; }
+  .lb-pts { font-size: 18px; }
+  .score-num { font-size: 38px; }
+  th, td { padding: 8px 10px; font-size: 12.5px; }
+}
+
+/* Buttons/links inside a topbar shouldn't force horizontal scroll on tiny
+   screens — let them wrap under the title instead. */
+@media (max-width: 420px) {
+  .topbar { justify-content: flex-start; }
+  .topbar-title { flex: 1 1 auto; }
+  .topbar-actions { width: 100%; justify-content: flex-start; }
 }

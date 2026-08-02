@@ -1,6 +1,13 @@
 /* ============================================================
    ADMIN SIDEBAR — PAC SCHED-SCORE
    Roles: admin | dean_adviser | sgo_president | sgo_officer | visitor
+
+   Single source of truth for the admin sidebar. Every admin page should:
+     1) include ../../js/shared.js then ../../js/admin-sidebar.js
+     2) call Auth.requireAuth('admin') as the very first thing on
+        DOMContentLoaded (before touching the DOM / making API calls)
+     3) call renderSidebar('<nav-key>') to inject the sidebar + wire up
+        the mobile burger toggle
    ============================================================ */
 const ADMIN_ICONS = {
     dashboard: `<svg viewBox="0 0 24 24"><line x1="18" y1="20" x2="18" y2="10"></line><line x1="12" y1="20" x2="12" y2="4"></line><line x1="6" y1="20" x2="6" y2="14"></line></svg>`,
@@ -19,6 +26,7 @@ const ADMIN_ICONS = {
     trophy: `<svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="7"></circle><polyline points="8.21 13.89 7 23 12 20 17 23 15.79 13.88"></polyline></svg>`,
     settings: `<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>`,
     logout: `<svg viewBox="0 0 24 24"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><polyline points="16 17 21 12 16 7"></polyline><line x1="21" y1="12" x2="9" y2="12"></line></svg>`,
+    menu: `<svg viewBox="0 0 24 24"><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="18" x2="21" y2="18"></line></svg>`,
 };
 
 const ADMIN_NAV = [
@@ -80,6 +88,9 @@ function renderSidebar(activePage) {
     </div>
 </aside>`;
 
+    // Replace any previous render so this is always safe to call more than once.
+    document.getElementById('admin-sidebar')?.remove();
+
     const mainEl = document.querySelector('main.main') || document.querySelector('main');
     if (mainEl) mainEl.insertAdjacentHTML('beforebegin', sidebarHtml);
     else document.body.insertAdjacentHTML('afterbegin', sidebarHtml);
@@ -93,6 +104,68 @@ function renderSidebar(activePage) {
         badge.textContent = count;
         badge.style.display = count > 0 ? '' : 'none';
     }).catch(() => { });
+
+    setupBurgerMenu();
+}
+
+/* ── MOBILE SIDEBAR TOGGLE ──
+   Wires up any element with id="burger-menu" (or class="burger-menu")
+   already present in the page's topbar to open/close the sidebar on
+   narrow screens, including a dimmed overlay that closes it on tap and
+   auto-close on nav-link click / resize back to desktop width. Safe to
+   call repeatedly — it removes previous listeners by cloning the node. */
+function setupBurgerMenu() {
+    const sidebar = document.getElementById('admin-sidebar');
+    if (!sidebar) return;
+
+    let burger = document.getElementById('burger-menu') || document.querySelector('.burger-menu');
+    if (!burger) return;
+
+    // Clone-replace to avoid stacking duplicate listeners if this runs twice.
+    const freshBurger = burger.cloneNode(true);
+    burger.parentNode.replaceChild(freshBurger, burger);
+    burger = freshBurger;
+    if (!burger.innerHTML.trim()) {
+        burger.innerHTML = `<span class="icon">${ADMIN_ICONS.menu}</span>`;
+    }
+    burger.setAttribute('aria-label', 'Toggle navigation menu');
+    burger.setAttribute('type', 'button');
+
+    const getOverlay = () => document.querySelector('.sidebar-open-overlay');
+
+    const closeSidebar = () => {
+        sidebar.classList.remove('sidebar-open');
+        getOverlay()?.remove();
+    };
+
+    const openSidebar = () => {
+        sidebar.classList.add('sidebar-open');
+        if (!getOverlay()) {
+            const overlay = document.createElement('div');
+            overlay.className = 'sidebar-open-overlay';
+            overlay.addEventListener('click', closeSidebar);
+            document.body.appendChild(overlay);
+        }
+    };
+
+    burger.addEventListener('click', () => {
+        sidebar.classList.contains('sidebar-open') ? closeSidebar() : openSidebar();
+    });
+
+    // Tapping a nav link on mobile should close the drawer, not leave it open
+    // behind the next page load.
+    sidebar.querySelectorAll('.nav-item').forEach(a => a.addEventListener('click', closeSidebar));
+
+    // If the viewport grows back past the mobile breakpoint, make sure the
+    // drawer/overlay state doesn't linger.
+    window.addEventListener('resize', () => {
+        if (window.innerWidth > 900) closeSidebar();
+    });
+
+    // Escape key closes it too.
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape') closeSidebar();
+    });
 }
 
 function confirmAdminLogout() {
