@@ -225,9 +225,18 @@
                         <line x1="3" y1="10" x2="21" y2="10"></line>
                     </svg>
                 </span>
-                Schedule
+                Calendar View <span
+                    style="font-size:11px;font-weight:500;color:var(--muted);text-transform:none;letter-spacing:0;margin-left:8px;">—
+                    read-only, grouped by date</span>
             </div>
             <div class="topbar-actions">
+                <a class="btn btn-secondary btn-sm" href="/admin/matches" style="text-decoration:none;">
+                    <span class="icon" style="width:14px;height:14px;"><svg viewBox="0 0 24 24">
+                            <line x1="19" y1="12" x2="5" y2="12"></line>
+                            <polyline points="12 19 5 12 12 5"></polyline>
+                        </svg></span>
+                    Manage in Matches
+                </a>
                 <button class="btn btn-secondary btn-sm" onclick="loadPage()">
                     <span class="icon" style="width:14px;height:14px;"><svg viewBox="0 0 24 24">
                             <polyline points="23 4 23 10 17 10"></polyline>
@@ -277,7 +286,7 @@
         document.addEventListener('DOMContentLoaded', async () => {
             if (typeof Auth !== 'undefined' && Auth.requireAuth) Auth.requireAuth('admin');
             if (typeof renderSidebar === 'function') {
-                renderSidebar('schedule');
+                renderSidebar('matches');
             }
             setToday();
             const [vRes, tRes] = await Promise.all([api('/venues'), api('/tournaments')]);

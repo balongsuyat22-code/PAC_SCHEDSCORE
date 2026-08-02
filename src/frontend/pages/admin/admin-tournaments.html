@@ -522,6 +522,11 @@
                     </select>
                 </div>
             </div>
+            <p style="font-size:12px;color:var(--muted);padding:0 20px 12px;margin:0;">
+                This bulk-assigns dates/times/venues to every unscheduled match in this tournament.
+                To adjust a single match afterward, use its edit action in the bracket below or go to
+                <a href="/admin/matches" style="color:var(--gold);">Matches</a>.
+            </p>
             <div class="modal-footer">
                 <button class="btn btn-secondary" onclick="Modal.close('modal-schedule-config')">Cancel</button>
                 <button class="btn btn-primary" onclick="confirmAutoSchedule()">Start Auto-Scheduling</button>

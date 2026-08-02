@@ -251,8 +251,17 @@
                         <line x1="3" y1="18" x2="21" y2="18"></line>
                     </svg></span>
             </button>
-            <div class="topbar-title">Live Matches</div>
+            <div class="topbar-title">Live Board <span
+                    style="font-size:11px;font-weight:500;color:var(--muted);text-transform:none;letter-spacing:0;margin-left:8px;">—
+                    read-only view, auto-refreshes</span></div>
             <div class="topbar-actions">
+                <a class="btn btn-secondary btn-sm" href="/admin/matches" style="text-decoration:none;">
+                    <span class="icon" style="width:14px;height:14px;"><svg viewBox="0 0 24 24">
+                            <line x1="19" y1="12" x2="5" y2="12"></line>
+                            <polyline points="12 19 5 12 12 5"></polyline>
+                        </svg></span>
+                    Manage in Matches
+                </a>
                 <span style="font-size:12px;color:var(--muted)" id="refresh-label">Refreshing in 10s</span>
                 <button class="btn btn-secondary btn-sm" onclick="refresh()">Refresh Now</button>
             </div>
@@ -330,7 +339,7 @@
 
         document.addEventListener('DOMContentLoaded', () => {
             Auth.requireAuth('admin');
-            renderSidebar('live');
+            renderSidebar('matches');
             refresh();
             timer = setInterval(() => {
                 countdown--;

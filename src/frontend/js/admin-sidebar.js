@@ -32,21 +32,30 @@ const ADMIN_ICONS = {
 const ADMIN_NAV = [
     { section: 'Overview' },
     { key: 'dashboard', icon: ADMIN_ICONS.dashboard, label: 'Dashboard', href: '/admin' },
-    { key: 'live', icon: ADMIN_ICONS.live, label: 'Live Matches', href: '/admin/live', badge: 'live' },
     { key: 'leaderboard', icon: ADMIN_ICONS.leaderboard, label: 'Leaderboard', href: '/admin/leaderboard' },
     { section: 'Management' },
     { key: 'tournaments', icon: ADMIN_ICONS.tournaments, label: 'Tournaments', href: '/admin/tournaments' },
-    { key: 'matches', icon: ADMIN_ICONS.matches, label: 'Matches', href: '/admin/matches' },
+    { key: 'matches', icon: ADMIN_ICONS.matches, label: 'Matches', href: '/admin/matches', badge: 'live' },
     { key: 'departments', icon: ADMIN_ICONS.departments, label: 'Grades & Strands', href: '/admin/departments' },
     { key: 'sports', icon: ADMIN_ICONS.sports, label: 'Sports', href: '/admin/sports' },
     { key: 'teams', icon: ADMIN_ICONS.teams, label: 'Teams', href: '/admin/teams' },
     { key: 'venues', icon: ADMIN_ICONS.venues, label: 'Venues', href: '/admin/venues' },
     { section: 'System' },
     { key: 'users', icon: ADMIN_ICONS.users, label: 'Users', href: '/admin/users' },
-    { key: 'schedule', icon: ADMIN_ICONS.schedule, label: 'Schedule', href: '/admin/schedule' },
     { key: 'sport-fest', icon: ADMIN_ICONS.sportFest, label: 'Sport Fest', href: '/admin/sport-fest' },
     { key: 'reports', icon: ADMIN_ICONS.reports, label: 'Reports & Logs', href: '/admin/reports' },
 ];
+
+/* NOTE ON REMOVED NAV ITEMS ("Live Matches", "Schedule"):
+   Both pages still exist (admin-live.html, admin-schedule.html) and still
+   work — they were not deleted. They were removed from the PRIMARY sidebar
+   because they are read-only subsets of what /admin/matches already shows
+   (same match data, no schedule/score/complete actions of their own), and
+   having three destinations for "matches" was the confusing part, not the
+   pages themselves. They're now reachable as secondary "Calendar view" /
+   "Live board" links from the top of the Matches page instead of competing
+   for a spot in the main nav. If you want them back in the sidebar, just
+   re-add the two entries above with their old hrefs. */
 
 function renderSidebar(activePage) {
     const user = Auth.getUser();
