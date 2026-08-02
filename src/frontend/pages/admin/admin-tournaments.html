@@ -220,6 +220,378 @@
             font-size: 14px;
             color: var(--green);
         }
+
+        /* Participants — clean, no overlap */
+        .participants-toolbar {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            margin-bottom: 16px;
+            flex-wrap: wrap;
+        }
+
+        .participants-title {
+            font-family: 'Barlow Condensed', sans-serif;
+            font-size: 20px;
+            font-weight: 800;
+            color: var(--gold);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .participants-grid {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .participant-card {
+            background: var(--bg2);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            overflow: hidden;
+        }
+
+        .participant-card-header {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 14px 16px;
+            cursor: pointer;
+            min-width: 0;
+        }
+
+        .participant-logo {
+            width: 40px;
+            height: 40px;
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-family: 'Barlow Condensed', sans-serif;
+            font-size: 14px;
+            font-weight: 900;
+            color: #fff;
+            flex-shrink: 0;
+        }
+
+        .participant-info {
+            flex: 1;
+            min-width: 0;
+        }
+
+        .participant-name {
+            font-weight: 700;
+            font-size: 14px;
+            line-height: 1.3;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .participant-meta {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-top: 4px;
+            flex-wrap: wrap;
+        }
+
+        .participant-dept {
+            font-size: 12px;
+            color: var(--muted);
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            max-width: 220px;
+        }
+
+        .participant-meta-hint {
+            font-size: 11px;
+            color: var(--muted);
+        }
+
+        .participant-actions {
+            display: flex;
+            gap: 6px;
+            flex-shrink: 0;
+            flex-wrap: wrap;
+        }
+
+        .participant-expand {
+            color: var(--muted);
+            font-size: 12px;
+            transition: transform 0.2s;
+            flex-shrink: 0;
+            width: 20px;
+            text-align: center;
+        }
+
+        .participant-players {
+            padding: 0 16px 14px 68px;
+            border-top: 1px solid rgba(255, 255, 255, 0.04);
+        }
+
+        .participant-players-label {
+            font-size: 11px;
+            color: var(--muted);
+            text-transform: uppercase;
+            letter-spacing: 0.8px;
+            font-weight: 700;
+            margin: 12px 0 8px;
+        }
+
+        .participant-empty-players {
+            font-size: 12px;
+            color: var(--muted);
+            padding: 8px 0;
+        }
+
+        .player-row {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 8px 0;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.03);
+        }
+
+        .player-row:last-child {
+            border-bottom: none;
+        }
+
+        .player-avatar {
+            width: 28px;
+            height: 28px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 12px;
+            font-weight: 800;
+            color: #fff;
+            flex-shrink: 0;
+        }
+
+        .player-name {
+            flex: 1;
+            font-size: 13px;
+            font-weight: 600;
+            min-width: 0;
+        }
+
+        .player-jersey {
+            font-size: 12px;
+            color: var(--gold);
+            font-weight: 700;
+        }
+
+        .player-pos {
+            font-size: 11px;
+            color: var(--muted);
+        }
+
+        /* FFA standings rank cards */
+        .ffa-standings-list {
+            width: 100%;
+        }
+
+        .ffa-rank-avatar {
+            width: 36px;
+            height: 36px;
+            border-radius: 9px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-family: 'Barlow Condensed', sans-serif;
+            font-size: 13px;
+            font-weight: 900;
+            color: #fff;
+            flex-shrink: 0;
+        }
+
+        .ffa-rank-info {
+            flex: 1;
+            min-width: 0;
+        }
+
+        .ffa-rank-name {
+            font-weight: 700;
+            font-size: 14px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .ffa-rank-sub {
+            font-size: 11px;
+            color: var(--muted);
+            margin-top: 2px;
+        }
+
+        .ffa-rank-result {
+            flex-shrink: 0;
+            text-align: right;
+        }
+
+        .ffa-rank-pts {
+            font-family: 'Barlow Condensed', sans-serif;
+            font-size: 16px;
+            font-weight: 800;
+            color: var(--gold);
+            min-width: 40px;
+            text-align: right;
+            flex-shrink: 0;
+        }
+
+        .ffa-pending-label {
+            padding: 12px 16px 4px;
+            font-size: 11px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: var(--muted);
+        }
+
+        .ffa-rank-card.ffa-pending {
+            opacity: 0.65;
+        }
+
+        /* Bracket view */
+        .bracket-view {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        .bracket-view-header {
+            margin-bottom: 4px;
+        }
+
+        .bracket-view-title {
+            font-family: 'Barlow Condensed', sans-serif;
+            font-size: 18px;
+            font-weight: 800;
+            color: var(--gold);
+            text-transform: uppercase;
+        }
+
+        .bracket-round-title {
+            font-size: 12px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: var(--muted);
+            margin-bottom: 10px;
+        }
+
+        .bracket-matches {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .bracket-match-card {
+            background: var(--bg2);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 14px 16px;
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            flex-wrap: wrap;
+        }
+
+        .bracket-match-pos {
+            font-size: 11px;
+            color: var(--muted);
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            min-width: 80px;
+        }
+
+        .bracket-match-sides {
+            flex: 1;
+            min-width: 180px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        .bracket-side {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .bracket-side-name {
+            font-weight: 600;
+            font-size: 13px;
+        }
+
+        .bracket-vs {
+            color: var(--muted);
+            font-size: 11px;
+        }
+
+        .bracket-match-meta {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        .bracket-score {
+            font-family: 'Barlow Condensed', sans-serif;
+            font-size: 18px;
+            font-weight: 900;
+            color: var(--gold);
+        }
+
+        .bracket-date {
+            font-size: 12px;
+            color: var(--muted);
+        }
+
+        .dept-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            display: inline-block;
+            flex-shrink: 0;
+        }
+
+        @media (max-width: 640px) {
+            .participant-card-header {
+                flex-wrap: wrap;
+            }
+
+            .participant-actions {
+                width: 100%;
+                margin-left: 52px;
+            }
+
+            .participant-players {
+                padding-left: 16px;
+            }
+
+            .ffa-rank-card {
+                flex-wrap: wrap;
+                gap: 10px;
+            }
+
+            .ffa-rank-pts {
+                width: 100%;
+                text-align: right;
+            }
+
+            .bracket-match-card {
+                flex-direction: column;
+                align-items: flex-start;
+            }
+        }
     </style>
 </head>
 
@@ -856,11 +1228,13 @@
                 { id: 'schedule', label: 'Schedule' },
                 { id: 'participants', label: `Participants (${participants.length})` },
             ];
+            // Bracket for head-to-head formats only (FFA has no bracket tree)
             if (!IS_FFA(fmt)) tabs.push({ id: 'bracket', label: `Bracket (${matches.length})` });
-            else tabs.push({ id: 'ffa', label: 'Event Results' });
             tabs.push({ id: 'standings', label: 'Standings' });
             if (ongoing || done) tabs.push({ id: 'results', label: 'Results' });
             if (!done) tabs.push({ id: 'finalize', label: 'Finalize' });
+            // Migrate away from removed "ffa" / Event Results tab
+            if (activeTab === 'ffa') activeTab = 'standings';
 
             setContent(`
                 ${renderHero()}
@@ -909,7 +1283,9 @@
         async function switchTab(n) {
             activeTab = n;
             document.querySelectorAll('.page-tab').forEach(b => b.classList.toggle('active', b.dataset.tab === n));
-            if (n === 'ffa') await loadFFAResults();
+            if (IS_FFA(tournament?.format) && (n === 'standings' || n === 'results' || n === 'finalize')) {
+                await loadFFAResults();
+            }
             renderTab();
         }
 
@@ -958,43 +1334,57 @@
             const req = Math.floor(currentSport?.min_players || tournament?.min_players || 1);
             const cards = participants.map(p => {
                 const col = p.department_color || '#555';
-                const name = p.team_name || p.department_name || 'Unknown';
-                const deptName = p.department_name || 'Unknown Dept';
-                const init = name.split(' ').map(w => w[0]).slice(0, 2).join('').toUpperCase() || '?';
+                const teamName = (p.team_name || '').trim();
+                const deptName = (p.department_name || '').trim();
+                // Avoid duplicated course name when team === department
+                const primary = teamName || deptName || 'Unknown';
+                const secondary = (teamName && deptName && teamName.toLowerCase() !== deptName.toLowerCase())
+                    ? deptName : '';
+                const init = primary.split(' ').map(w => w[0]).filter(Boolean).slice(0, 2).join('').toUpperCase() || '?';
                 const pls = p.players || [];
                 const isDQ = !!dqList[p.department_id];
                 const playerCount = pls.length;
                 const hasEnough = playerCount >= req;
                 const playerBadge = hasEnough
-                    ? `<span class="player-count-badge player-count-ok">${playerCount}/${req} players</span>`
-                    : `<span class="player-count-badge player-count-warning">${playerCount}/${req} (need ${req})</span>`;
+                    ? `<span class="player-count-badge player-count-ok">${playerCount}/${req}</span>`
+                    : `<span class="player-count-badge player-count-warning">${playerCount}/${req}</span>`;
+                const safeDept = (deptName || primary).replace(/'/g, "\\'");
                 return `<div class="participant-card ${isDQ ? 'is-dq' : ''} ${!hasEnough ? 'player-warning' : ''}">
                     <div class="participant-card-header" onclick="toggleP('${p.department_id}')">
                         <div class="participant-logo" style="background:${col}">${init}</div>
                         <div class="participant-info">
-                            <div class="participant-name">${name} ${isDQ ? '<span class="dq-badge">DQ</span>' : ''}</div>
-                            <div class="participant-dept">${deptName} ${playerBadge}</div>
+                            <div class="participant-name">${primary}${isDQ ? ' <span class="dq-badge">DQ</span>' : ''}</div>
+                            <div class="participant-meta">
+                                ${secondary ? `<span class="participant-dept">${secondary}</span>` : ''}
+                                ${playerBadge}
+                                <span class="participant-meta-hint">${hasEnough ? 'Ready' : 'Need players'}</span>
+                            </div>
                         </div>
-                        <div style="display:flex;gap:8px;" onclick="event.stopPropagation()">
+                        <div class="participant-actions" onclick="event.stopPropagation()">
                             ${isDQ
                         ? `<button class="btn btn-secondary btn-sm" onclick="unDQ(${p.department_id})">Undo DQ</button>`
-                        : `<button class="btn btn-secondary btn-sm" style="color:var(--red)" onclick="openDQ(${p.department_id},'${deptName.replace(/'/g, "\\'")}')">DQ</button>`}
+                        : `<button class="btn btn-secondary btn-sm" style="color:var(--red)" onclick="openDQ(${p.department_id},'${safeDept}')">DQ</button>`}
                             <button class="btn btn-secondary btn-sm" onclick="removeP(${p.id},event)">Remove</button>
                         </div>
-                        <div class="participant-expand" id="exp-${p.department_id}">▼</div>
+                        <div class="participant-expand" id="exp-${p.department_id}" aria-hidden="true">▾</div>
                     </div>
-                    <div class="participant-players" id="pls-${p.department_id}">
-                        <div style="font-size:11px;color:var(--muted);margin-bottom:8px;text-transform:uppercase;">Registered Athletes (${playerCount})</div>
+                    <div class="participant-players" id="pls-${p.department_id}" style="display:none">
+                        <div class="participant-players-label">Athletes (${playerCount})</div>
                         ${pls.length
-                        ? pls.map(pl => `<div class="player-row"><div class="player-avatar" style="background:${col}">${pl.first_name?.[0] || '?'}</div><div class="player-name">${pl.first_name} ${pl.last_name} ${pl.jersey_number ? `(#${pl.jersey_number})` : ''}</div></div>`).join('')
-                        : `<div style="font-size:12px;color:var(--muted);padding:10px 0">No players registered.</div>`}
+                        ? pls.map(pl => `<div class="player-row">
+                                <div class="player-avatar" style="background:${col}">${(pl.first_name || '?')[0]}</div>
+                                <div class="player-name">${pl.first_name || ''} ${pl.last_name || ''}</div>
+                                ${pl.jersey_number ? `<span class="player-jersey">#${pl.jersey_number}</span>` : ''}
+                                ${pl.position ? `<span class="player-pos">${pl.position}</span>` : ''}
+                            </div>`).join('')
+                        : `<div class="participant-empty-players">No players registered for this entry.</div>`}
                     </div>
                 </div>`;
             }).join('');
 
             return `
-            <div style="display:flex;justify-content:space-between;margin-bottom:20px;">
-                <div style="font-size:20px;font-weight:800;color:var(--gold);">Tournament Participants</div>
+            <div class="participants-toolbar">
+                <div class="participants-title">Participants</div>
                 ${canAddPart ? `<button class="btn btn-primary" style="background:var(--green);color:#000;" onclick="openAddParticipantModal()">Add Grade/Strand</button>` : ''}
             </div>
             <div class="participants-grid">${cards || `<div class="section-empty">No participants yet.${canAddPart ? `<br><br><button class="btn btn-primary" onclick="openAddParticipantModal()">Add Grade/Strand</button>` : ''}</div>`}</div>`;
@@ -1004,9 +1394,9 @@
             const p = document.getElementById(`pls-${id}`);
             const a = document.getElementById(`exp-${id}`);
             if (p) {
-                const isHidden = p.style.display === 'none';
-                p.style.display = isHidden ? 'block' : 'none';
-                if (a) a.style.transform = isHidden ? 'rotate(180deg)' : 'rotate(0deg)';
+                const opening = p.style.display === 'none' || !p.style.display;
+                p.style.display = opening ? 'block' : 'none';
+                if (a) a.style.transform = opening ? 'rotate(180deg)' : 'rotate(0deg)';
             }
         }
 
@@ -1146,10 +1536,64 @@
         }
 
         function tabBracket() {
-            if (!matches.length && participants.length < 2) {
-                return `<div class="section-empty">Need at least 2 participants to generate bracket.</div>`;
+            if (!matches.length) {
+                if (participants.length < 2) {
+                    return `<div class="section-empty">Need at least 2 participants to generate bracket.</div>`;
+                }
+                return `<div class="section-empty">No matches yet. Click <strong>Generate Bracket</strong> to create the bracket.</div>`;
             }
-            return `<div class="section-empty">Bracket view — ${matches.length} matches available.</div>`;
+
+            // Group by round / bracket_position prefix
+            const groups = {};
+            matches.forEach(m => {
+                const key = m.round_name || m.bracket_round || m.bracket_side || m.bracket_position || 'Matches';
+                const groupKey = String(key).replace(/\s*#?\d+$/, '').trim() || 'Matches';
+                if (!groups[groupKey]) groups[groupKey] = [];
+                groups[groupKey].push(m);
+            });
+
+            const order = Object.keys(groups);
+            return `<div class="bracket-view">
+                <div class="bracket-view-header">
+                    <div class="bracket-view-title">Bracket · ${matches.length} match${matches.length !== 1 ? 'es' : ''}</div>
+                </div>
+                ${order.map(gName => {
+                const list = groups[gName];
+                return `<div class="bracket-round">
+                        <div class="bracket-round-title">${gName}</div>
+                        <div class="bracket-matches">
+                            ${list.map(m => {
+                    const nA = m.team_a_name || m.dept_a_name || 'TBD';
+                    const nB = m.team_b_name || m.dept_b_name || 'TBD';
+                    const cA = m.dept_a_color || '#555';
+                    const cB = m.dept_b_color || '#555';
+                    const done = m.status === 'completed';
+                    const score = done ? formatMatchScoreText(m) : '';
+                    const status = m.status || 'pending';
+                    return `<div class="bracket-match-card status-${status}">
+                                    <div class="bracket-match-pos">${m.bracket_position || ''}</div>
+                                    <div class="bracket-match-sides">
+                                        <div class="bracket-side">
+                                            <span class="dept-dot" style="background:${cA}"></span>
+                                            <span class="bracket-side-name">${nA}</span>
+                                        </div>
+                                        <div class="bracket-vs">vs</div>
+                                        <div class="bracket-side">
+                                            <span class="dept-dot" style="background:${cB}"></span>
+                                            <span class="bracket-side-name">${nB}</span>
+                                        </div>
+                                    </div>
+                                    <div class="bracket-match-meta">
+                                        ${score ? `<span class="bracket-score">${score}</span>` : `<span class="badge badge-muted">${status}</span>`}
+                                        ${m.scheduled_date ? `<span class="bracket-date">${typeof formatDate === 'function' ? formatDate(m.scheduled_date) : m.scheduled_date}${m.scheduled_time ? ' · ' + (typeof formatTime === 'function' ? formatTime(m.scheduled_time) : m.scheduled_time) : ''}</span>` : ''}
+                                    </div>
+                                    ${tournament.status !== 'completed' ? `<button class="btn btn-secondary btn-sm" onclick="openEditMatch(${m.id})">Edit</button>` : ''}
+                                </div>`;
+                }).join('')}
+                        </div>
+                    </div>`;
+            }).join('')}
+            </div>`;
         }
 
         async function loadFFAResults() {
@@ -1225,20 +1669,59 @@
                 const ffaScoring = tournament.ffa_scoring || 'points';
                 const unit = ffaScoring === 'time' ? 's' : ffaScoring === 'distance' ? 'm' : 'pts';
                 const lowerBetter = ffaScoring === 'time';
-                const ranked = participants
-                    .filter(p => !dqList[p.department_id] && p.ffa_result_value !== null && p.ffa_result_value !== undefined)
-                    .sort((a, b) => lowerBetter ? a.ffa_result_value - b.ffa_result_value : b.ffa_result_value - a.ffa_result_value);
-                return `<div class="standings-table">
-                    <div class="standings-header"><div>#</div><div>Department</div><div>Result</div><div>Points</div></div>
-                    ${ranked.map((p, i) => {
-                    const val = ffaScoring === 'time' ? p.ffa_result_value : toWhole(p.ffa_result_value);
-                    return `<div class="standings-row">
-                            <div style="font-weight:800;color:${i === 0 ? '#FFD700' : i === 1 ? '#C0C0C0' : i === 2 ? '#CD7F32' : 'var(--muted)'}">${i + 1}</div>
-                            <div><strong>${p.team_name || p.department_name}</strong><div style="font-size:11px;color:var(--muted)">${p.department_name}</div></div>
-                            <div style="font-family:'Barlow Condensed',sans-serif;font-size:18px;color:var(--gold)">${val}<span style="font-size:11px;"> ${unit}</span></div>
-                            <div>${i === 0 ? '10' : i === 1 ? '7' : i === 2 ? '5' : '2'} pts</div>
-                        </div>`;
-                }).join('')}
+                const active = participants.filter(p => !dqList[p.department_id]);
+                const withScores = active.filter(p => p.ffa_result_value !== null && p.ffa_result_value !== undefined);
+                const without = active.filter(p => p.ffa_result_value === null || p.ffa_result_value === undefined);
+                const ranked = [...withScores].sort((a, b) =>
+                    lowerBetter ? a.ffa_result_value - b.ffa_result_value : b.ffa_result_value - a.ffa_result_value
+                );
+                const festPts = (i) => i === 0 ? 10 : i === 1 ? 7 : i === 2 ? 5 : i === 3 ? 3 : 2;
+
+                if (!active.length) {
+                    return `<div class="section-empty">No participants yet.</div>`;
+                }
+
+                return `<div class="card">
+                    <div class="card-header">
+                        <div class="card-title">FFA Standings · ${unit === 's' ? 'Time' : unit === 'm' ? 'Distance' : 'Points'}</div>
+                    </div>
+                    <div class="ffa-standings-list">
+                        ${ranked.length ? ranked.map((p, i) => {
+                    const teamName = (p.team_name || '').trim();
+                    const deptName = (p.department_name || '').trim();
+                    const primary = teamName || deptName || '—';
+                    const secondary = (teamName && deptName && teamName.toLowerCase() !== deptName.toLowerCase()) ? deptName : '';
+                    const col = p.department_color || '#555';
+                    const init = primary.split(' ').map(w => w[0]).filter(Boolean).slice(0, 2).join('').toUpperCase() || '?';
+                    const val = ffaScoring === 'time'
+                        ? (Number.isInteger(Number(p.ffa_result_value)) ? p.ffa_result_value : Number(p.ffa_result_value).toFixed(1))
+                        : toWhole(p.ffa_result_value);
+                    const rankCls = i === 0 ? 'ffa-rank-1' : i === 1 ? 'ffa-rank-2' : i === 2 ? 'ffa-rank-3' : 'ffa-rank-other';
+                    return `<div class="ffa-rank-card">
+                                <div class="ffa-rank-number ${rankCls}">${i + 1}</div>
+                                <div class="ffa-rank-avatar" style="background:${col}">${init}</div>
+                                <div class="ffa-rank-info">
+                                    <div class="ffa-rank-name">${primary}</div>
+                                    ${secondary ? `<div class="ffa-rank-sub">${secondary}</div>` : ''}
+                                </div>
+                                <div class="ffa-rank-result">
+                                    <span class="ffa-score-display">${val}</span><span class="ffa-unit">${unit}</span>
+                                </div>
+                                <div class="ffa-rank-pts">+${festPts(i)}</div>
+                            </div>`;
+                }).join('') : `<div style="padding:20px;color:var(--muted);text-align:center">No results recorded yet.</div>`}
+                        ${without.length ? `<div class="ffa-pending-label">Awaiting results</div>` + without.map(p => {
+                    const primary = (p.team_name || p.department_name || '—').trim();
+                    const col = p.department_color || '#555';
+                    const init = primary.split(' ').map(w => w[0]).filter(Boolean).slice(0, 2).join('').toUpperCase() || '?';
+                    return `<div class="ffa-rank-card ffa-pending">
+                                <div class="ffa-rank-number ffa-rank-other">—</div>
+                                <div class="ffa-rank-avatar" style="background:${col}">${init}</div>
+                                <div class="ffa-rank-info"><div class="ffa-rank-name">${primary}</div></div>
+                                <div class="ffa-rank-result"><span class="ffa-unit">pending</span></div>
+                            </div>`;
+                }).join('') : ''}
+                    </div>
                 </div>`;
             }
 
@@ -1284,6 +1767,30 @@
         }
 
         function tabResults() {
+            // FFA: show event completion summary (standings tab has the ranked list)
+            if (IS_FFA(tournament.format)) {
+                const ffaMatch = matches.find(m => m.bracket_side === 'ffa' || m.bracket_position === 'FFA Event');
+                const scored = participants.filter(p => !dqList[p.department_id] && p.ffa_result_value != null).length;
+                const total = participants.filter(p => !dqList[p.department_id]).length;
+                const done = ffaMatch?.status === 'completed';
+                return `<div class="card">
+                    <div class="card-header"><div class="card-title">FFA Event Results</div></div>
+                    <div style="padding:20px">
+                        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:12px;margin-bottom:16px">
+                            <div class="stat-card"><div class="stat-value">${scored}/${total}</div><div class="stat-label">Scores In</div></div>
+                            <div class="stat-card"><div class="stat-value" style="color:${done ? 'var(--green)' : 'var(--orange)'}">${done ? 'Done' : 'Open'}</div><div class="stat-label">Status</div></div>
+                        </div>
+                        <p style="color:var(--muted);font-size:13px;margin:0">
+                            Ranked scores live under <strong>Standings</strong>.
+                            ${done ? 'Event is complete — you can finalize the tournament.' : 'Referee enters scores; standings update as results come in.'}
+                        </p>
+                        <div style="margin-top:14px">
+                            <button class="btn btn-secondary btn-sm" onclick="switchTab('standings')">View Standings</button>
+                        </div>
+                    </div>
+                </div>`;
+            }
+
             const completedMatches = matches.filter(m => m.status === 'completed');
             if (!completedMatches.length) {
                 return `<div class="section-empty">No completed matches yet.</div>`;
@@ -1298,13 +1805,13 @@
                 const type = matchScoringType(m);
                 const scoreText = formatMatchScoreText(m);
                 return `<div class="result-card">
-                        <div style="flex:1">
-                            <div style="display:flex;align-items:center;gap:8px;">
-                                <span class="dept-dot" style="background:${cA}"></span>${nA}
+                        <div style="flex:1;min-width:0">
+                            <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+                                <span class="dept-dot" style="background:${cA}"></span><span>${nA}</span>
                                 <span style="color:var(--muted)">vs</span>
-                                <span class="dept-dot" style="background:${cB}"></span>${nB}
+                                <span class="dept-dot" style="background:${cB}"></span><span>${nB}</span>
                             </div>
-                            <div style="font-size:12px;color:var(--muted)">${m.bracket_position || ''} ${type !== 'points' ? `· ${type}` : ''}</div>
+                            <div style="font-size:12px;color:var(--muted);margin-top:4px">${m.bracket_position || ''}${type !== 'points' ? ` · ${type}` : ''}</div>
                         </div>
                         <div class="result-score ${type === 'binary' ? 'binary' : ''}">${scoreText}</div>
                     </div>`;
