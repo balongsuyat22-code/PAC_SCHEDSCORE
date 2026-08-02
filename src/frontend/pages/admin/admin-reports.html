@@ -158,6 +158,111 @@
             color: var(--gold);
         }
 
+        /* FFA panel (compact, with dept filter — shared style with Matches) */
+        .ffa-subrow td {
+            padding: 0 !important;
+            background: var(--bg2);
+            border-bottom: 2px solid var(--border);
+        }
+
+        .ffa-panel {
+            margin: 8px 12px 12px;
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            background: var(--bg3);
+            overflow: hidden;
+            max-width: 560px;
+        }
+
+        .ffa-toolbar {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 10px;
+            padding: 8px 12px;
+            background: rgba(0, 0, 0, 0.25);
+            border-bottom: 1px solid var(--border);
+            flex-wrap: wrap;
+        }
+
+        .ffa-toolbar-title {
+            font-family: 'Barlow Condensed', sans-serif;
+            font-size: 13px;
+            font-weight: 800;
+            letter-spacing: 0.5px;
+            text-transform: uppercase;
+            color: var(--gold);
+        }
+
+        .ffa-dept-filter {
+            background: var(--bg2);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            padding: 5px 10px;
+            color: var(--text);
+            font-family: 'Barlow', sans-serif;
+            font-size: 12px;
+            outline: none;
+            min-width: 140px;
+            cursor: pointer;
+        }
+
+        .ffa-dept-filter:focus {
+            border-color: var(--border-gold);
+        }
+
+        .ffa-table-wrap {
+            max-height: 240px;
+            overflow-y: auto;
+        }
+
+        .ffa-table {
+            width: 100%;
+            border-collapse: collapse;
+            background: transparent;
+        }
+
+        .ffa-table th {
+            background: var(--bg2);
+            color: var(--muted);
+            font-size: 10px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            padding: 8px 12px;
+            text-align: left;
+            border-bottom: 1px solid var(--border);
+            position: sticky;
+            top: 0;
+            z-index: 1;
+        }
+
+        .ffa-table td {
+            padding: 8px 12px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.03);
+            font-size: 12px;
+        }
+
+        .ffa-table tr:last-child td {
+            border-bottom: none;
+        }
+
+        .ffa-table tr.ffa-hidden {
+            display: none;
+        }
+
+        .type-hint {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            font-size: 10px;
+            font-weight: 700;
+            letter-spacing: .5px;
+            text-transform: uppercase;
+            color: var(--muted);
+            margin-top: 4px;
+        }
+
         @media (max-width: 768px) {
             .rp-tabs {
                 flex-direction: column;
@@ -459,6 +564,36 @@
         let alOffset = 0;
         const AL_LIMIT = 50;
 
+        /** Strip decimals (MySQL DECIMAL / SUM often returns "12.00"). Keep at most one decimal for time. */
+        function toWhole(n) {
+            if (n == null || n === '') return 0;
+            const num = Number(n);
+            if (Number.isNaN(num)) return n;
+            return Math.round(num);
+        }
+
+        /** Format FFA result value: whole numbers for points/distance; time keeps up to 1 decimal. */
+        function formatFFAValue(raw, scoringType) {
+            if (raw == null || raw === '') return '—';
+            const num = Number(raw);
+            if (Number.isNaN(num)) return raw;
+            if (scoringType === 'time') {
+                // Keep at most one decimal place for time
+                return Number.isInteger(num) ? String(num) : num.toFixed(1);
+            }
+            // points / distance / default → whole number (no decimals)
+            return String(toWhole(num));
+        }
+
+        function isFFAMatch(m) {
+            const fmt = (m.tournament_format || m.format || '').toLowerCase();
+            return m.bracket_side === 'ffa' ||
+                m.bracket_position === 'FFA Event' ||
+                fmt === 'free_for_all' ||
+                fmt === 'team_ranking' ||
+                (!m.dept_a_name && !m.dept_b_name && !m.team_a_name && !m.team_b_name && !m.team_a_dept && !m.team_b_dept);
+        }
+
         document.addEventListener('DOMContentLoaded', async () => {
             Auth.requireAuth('admin');
             if (typeof renderSidebar === 'function') {
@@ -522,23 +657,163 @@
                     `<tr><td colspan="8"><div class="empty-state"><div class="empty-icon"><span class="icon" style="width:44px;height:44px;color:var(--muted);"><svg viewBox="0 0 24 24"><line x1="5" y1="19" x2="19" y2="5"></line><polyline points="14 5 19 5 19 10"></polyline><line x1="19" y1="19" x2="5" y2="5"></line><polyline points="10 19 5 19 5 14"></polyline></svg></span></div><div class="empty-text">No matches found.</div></div></td></tr>`;
                 return;
             }
-            tbody.innerHTML = rows.map(m => `
-                <tr>
-                    <td>${m.sport_name}</td>
-                    <td style="font-size:12px;color:var(--muted)">${m.tournament_name}</td>
-                    <td>
-                        <div style="display:flex;align-items:center;gap:6px;font-size:13px;flex-wrap:wrap">
-                            <span style="width:8px;height:8px;border-radius:50%;background:${m.color_a || '#555'}"></span>${m.team_a_name || m.team_a_dept || '—'}
-                            <span style="color:var(--muted)">vs</span>
-                            <span style="width:8px;height:8px;border-radius:50%;background:${m.color_b || '#555'}"></span>${m.team_b_name || m.team_b_dept || '—'}
+
+            let html = '';
+            const ffaQueue = [];
+
+            rows.forEach(m => {
+                const ffa = isFFAMatch(m);
+
+                if (ffa) {
+                    html += `<tr>
+                        <td>${m.sport_name || '—'}</td>
+                        <td style="font-size:12px;color:var(--muted)">${m.tournament_name || '—'}</td>
+                        <td>
+                            <div style="font-size:14px;font-weight:700;color:var(--gold);display:flex;align-items:center;gap:6px">
+                                ALL PARTICIPANTS — FFA EVENT
+                            </div>
+                            <div class="type-hint">Free-for-All</div>
+                        </td>
+                        <td style="font-family:'Barlow Condensed',sans-serif;font-size:18px;font-weight:800;color:var(--gold)">FFA</td>
+                        <td style="color:var(--muted);font-size:12px">See standings</td>
+                        <td style="color:var(--muted);font-size:12px">${m.venue_name || '—'}</td>
+                        <td style="color:var(--muted);font-size:12px">${m.referee_name || '—'}</td>
+                        <td style="color:var(--muted);font-size:12px">${m.completed_at ? formatDate(m.completed_at) : '—'}</td>
+                    </tr>
+                    <tr class="ffa-subrow">
+                        <td colspan="8">
+                            <div id="ffa-mh-${m.id || m.tournament_id}" style="padding:10px 16px;color:var(--muted);font-style:italic">Loading FFA results...</div>
+                        </td>
+                    </tr>`;
+                    ffaQueue.push(m);
+                } else {
+                    // Normal head-to-head — prefer sets display when available (same as Matches)
+                    let scoreDisplay = m.final_score_display || '—';
+                    if (!m.final_score_display) {
+                        if (m.sets_won_a != null && m.sets_won_b != null) {
+                            scoreDisplay = `${toWhole(m.sets_won_a)}–${toWhole(m.sets_won_b)}`;
+                        } else if (m.total_score_a != null) {
+                            scoreDisplay = `${toWhole(m.total_score_a)}–${toWhole(m.total_score_b)}`;
+                        }
+                    }
+                    const scoringHint = (m.scoring_type || '').toLowerCase() === 'sets'
+                        ? `<div class="type-hint">Sets</div>` : '';
+                    html += `<tr>
+                        <td>${m.sport_name || '—'}</td>
+                        <td style="font-size:12px;color:var(--muted)">${m.tournament_name || '—'}</td>
+                        <td>
+                            <div style="display:flex;align-items:center;gap:6px;font-size:13px;flex-wrap:wrap">
+                                <span style="width:8px;height:8px;border-radius:50%;background:${m.color_a || '#555'}"></span>${m.team_a_name || m.team_a_dept || m.dept_a_name || '—'}
+                                <span style="color:var(--muted)">vs</span>
+                                <span style="width:8px;height:8px;border-radius:50%;background:${m.color_b || '#555'}"></span>${m.team_b_name || m.team_b_dept || m.dept_b_name || '—'}
+                            </div>
+                            ${scoringHint}
+                        </td>
+                        <td style="font-family:'Barlow Condensed',sans-serif;font-size:18px;font-weight:800;color:var(--gold)">${scoreDisplay}</td>
+                        <td style="color:var(--green);font-weight:700">${m.winner_dept || m.winner_name || '—'}</td>
+                        <td style="color:var(--muted);font-size:12px">${m.venue_name || '—'}</td>
+                        <td style="color:var(--muted);font-size:12px">${m.referee_name || '—'}</td>
+                        <td style="color:var(--muted);font-size:12px">${m.completed_at ? formatDate(m.completed_at) : '—'}</td>
+                    </tr>`;
+                }
+            });
+
+            tbody.innerHTML = html;
+            ffaQueue.forEach(m => loadFFAForMatchHistory(m));
+        }
+
+        async function loadFFAForMatchHistory(match) {
+            const tid = match.tournament_id;
+            const elId = `ffa-mh-${match.id || tid}`;
+            const container = document.getElementById(elId);
+            if (!container || !tid) return;
+
+            try {
+                const res = await api(`/matches/ffa/${tid}`);
+                if (!res.success) throw new Error('Failed');
+                const t = res.data;
+                const scoringType = t.ffa_scoring || 'points';
+                const scoreLabel = scoringType === 'time' ? 'Time (s)' : scoringType === 'distance' ? 'Distance / Score' : 'Points';
+                const participants = t.participants || [];
+
+                if (!participants.length) {
+                    container.innerHTML = `<div class="ffa-panel"><div style="padding:12px;color:var(--muted);font-size:13px">No participants registered yet.</div></div>`;
+                    return;
+                }
+
+                const depts = [...new Set(participants.map(p => p.department_name).filter(Boolean))].sort();
+                const deptOptions = depts.map(d => `<option value="${d.replace(/"/g, '&quot;')}">${d}</option>`).join('');
+
+                const sorted = [...participants].sort((a, b) => {
+                    if (a.rank_position != null && b.rank_position != null) return a.rank_position - b.rank_position;
+                    const va = Number(a.ffa_result_value), vb = Number(b.ffa_result_value);
+                    if (Number.isNaN(va) && Number.isNaN(vb)) return 0;
+                    if (Number.isNaN(va)) return 1;
+                    if (Number.isNaN(vb)) return -1;
+                    return scoringType === 'time' ? va - vb : vb - va;
+                });
+
+                let rowsHtml = '';
+                sorted.forEach((p, idx) => {
+                    const init = (p.team_name || p.department_name || '?').split(' ').map(w => w[0]).slice(0, 2).join('').toUpperCase();
+                    const col = p.department_color || '#555';
+                    const nameStr = p.team_name
+                        ? `<div style="font-weight:700">${p.team_name}</div><div style="font-size:11px;color:var(--muted)">${p.department_name}</div>`
+                        : `<div style="font-weight:700">${p.department_name}</div>`;
+                    const val = formatFFAValue(p.ffa_result_value, scoringType);
+                    const rank = p.rank_position != null ? p.rank_position : (idx + 1);
+                    const deptKey = (p.department_name || '').replace(/"/g, '&quot;');
+                    rowsHtml += `
+                        <tr data-dept="${deptKey}">
+                            <td style="font-family:'Barlow Condensed',sans-serif;font-size:15px;font-weight:700;color:var(--muted);width:36px">${rank}</td>
+                            <td>
+                                <div style="display:flex;align-items:center;gap:10px">
+                                    <div style="width:26px;height:26px;border-radius:6px;background:${col};display:flex;align-items:center;justify-content:center;font-family:'Barlow Condensed',sans-serif;font-size:11px;font-weight:900;color:#fff;flex-shrink:0">${init}</div>
+                                    <div>${nameStr}</div>
+                                </div>
+                            </td>
+                            <td style="text-align:right;font-family:'Barlow Condensed',sans-serif;font-size:18px;font-weight:800;color:var(--gold);white-space:nowrap">
+                                ${val}
+                            </td>
+                        </tr>`;
+                });
+
+                const panelId = `ffa-mh-panel-${match.id || tid}`;
+                container.innerHTML = `
+                    <div class="ffa-panel" id="${panelId}">
+                        <div class="ffa-toolbar">
+                            <span class="ffa-toolbar-title">FFA Standings · ${scoreLabel}</span>
+                            <select class="ffa-dept-filter" onchange="filterFFAPanel('${panelId}', this.value)">
+                                <option value="">All Departments</option>
+                                ${deptOptions}
+                            </select>
                         </div>
-                    </td>
-                    <td style="font-family:'Barlow Condensed',sans-serif;font-size:18px;font-weight:800;color:var(--gold)">${m.final_score_display || (m.total_score_a != null ? `${m.total_score_a}–${m.total_score_b}` : '—')}</td>
-                    <td style="color:var(--green);font-weight:700">${m.winner_dept || '—'}</td>
-                    <td style="color:var(--muted);font-size:12px">${m.venue_name || '—'}</td>
-                    <td style="color:var(--muted);font-size:12px">${m.referee_name || '—'}</td>
-                    <td style="color:var(--muted);font-size:12px">${m.completed_at ? formatDate(m.completed_at) : '—'}</td>
-                </tr>`).join('');
+                        <div class="ffa-table-wrap">
+                            <table class="ffa-table">
+                                <thead>
+                                    <tr>
+                                        <th style="width:36px">#</th>
+                                        <th>Participant</th>
+                                        <th style="text-align:right">${scoreLabel}</th>
+                                    </tr>
+                                </thead>
+                                <tbody>${rowsHtml}</tbody>
+                            </table>
+                        </div>
+                    </div>`;
+            } catch (err) {
+                container.innerHTML = `<div class="ffa-panel"><div style="padding:12px;color:var(--red);font-size:13px">Failed to load FFA participants</div></div>`;
+            }
+        }
+
+        function filterFFAPanel(panelId, dept) {
+            const panel = document.getElementById(panelId);
+            if (!panel) return;
+            panel.querySelectorAll('tbody tr').forEach(tr => {
+                const d = tr.getAttribute('data-dept') || '';
+                if (!dept || d === dept) tr.classList.remove('ffa-hidden');
+                else tr.classList.add('ffa-hidden');
+            });
         }
 
         async function loadDeptReport() {
@@ -604,6 +879,96 @@
                 return;
             }
             const { tournament: t, stats: s, results } = res.data;
+            const fmt = (t.format || '').toLowerCase();
+            const isFFA = fmt === 'free_for_all' || fmt === 'team_ranking' || t.ffa_scoring;
+
+            let resultsHTML = '';
+
+            if (isFFA) {
+                // Load full FFA participant table (same style as Matches page)
+                try {
+                    const ffaRes = await api(`/matches/ffa/${id}`);
+                    if (ffaRes.success && ffaRes.data) {
+                        const scoringType = ffaRes.data.ffa_scoring || t.ffa_scoring || 'points';
+                        const scoreLabel = scoringType === 'time' ? 'Time (s)' : scoringType === 'distance' ? 'Distance / Score' : 'Points';
+                        const participants = ffaRes.data.participants || [];
+
+                        if (participants.length) {
+                            const sorted = [...participants].sort((a, b) => {
+                                if (a.rank_position != null && b.rank_position != null) return a.rank_position - b.rank_position;
+                                const va = Number(a.ffa_result_value), vb = Number(b.ffa_result_value);
+                                if (Number.isNaN(va) && Number.isNaN(vb)) return 0;
+                                if (Number.isNaN(va)) return 1;
+                                if (Number.isNaN(vb)) return -1;
+                                return scoringType === 'time' ? va - vb : vb - va;
+                            });
+
+                            const depts = [...new Set(sorted.map(p => p.department_name).filter(Boolean))].sort();
+                            const deptOptions = depts.map(d => `<option value="${d.replace(/"/g, '&quot;')}">${d}</option>`).join('');
+                            const panelId = `ffa-tr-panel-${id}`;
+                            const rowsHtml = sorted.map((p, idx) => {
+                                const init = (p.team_name || p.department_name || '?').split(' ').map(w => w[0]).slice(0, 2).join('').toUpperCase();
+                                const col = p.department_color || '#555';
+                                const nameStr = p.team_name
+                                    ? `<div style="font-weight:700">${p.team_name}</div><div style="font-size:11px;color:var(--muted)">${p.department_name}</div>`
+                                    : `<div style="font-weight:700">${p.department_name}</div>`;
+                                const val = formatFFAValue(p.ffa_result_value, scoringType);
+                                const rank = p.rank_position != null ? p.rank_position : (idx + 1);
+                                const deptKey = (p.department_name || '').replace(/"/g, '&quot;');
+                                return `
+                                    <tr data-dept="${deptKey}">
+                                        <td style="font-family:'Barlow Condensed',sans-serif;font-size:15px;font-weight:700;color:var(--muted);width:36px">${rank}</td>
+                                        <td>
+                                            <div style="display:flex;align-items:center;gap:10px">
+                                                <div style="width:26px;height:26px;border-radius:6px;background:${col};display:flex;align-items:center;justify-content:center;font-family:'Barlow Condensed',sans-serif;font-size:11px;font-weight:900;color:#fff;flex-shrink:0">${init}</div>
+                                                <div>${nameStr}</div>
+                                            </div>
+                                        </td>
+                                        <td style="text-align:right;font-family:'Barlow Condensed',sans-serif;font-size:18px;font-weight:800;color:var(--gold);white-space:nowrap">
+                                            ${val}
+                                        </td>
+                                    </tr>`;
+                            }).join('');
+
+                            resultsHTML = `
+                                <div style="font-family:'Barlow Condensed',sans-serif;font-size:14px;font-weight:800;color:var(--muted);margin-bottom:8px">FFA Results</div>
+                                <div class="ffa-panel" id="${panelId}" style="max-width:100%;margin:0">
+                                    <div class="ffa-toolbar">
+                                        <span class="ffa-toolbar-title">FFA Standings · ${scoreLabel}</span>
+                                        <select class="ffa-dept-filter" onchange="filterFFAPanel('${panelId}', this.value)">
+                                            <option value="">All Departments</option>
+                                            ${deptOptions}
+                                        </select>
+                                    </div>
+                                    <div class="ffa-table-wrap">
+                                        <table class="ffa-table">
+                                            <thead>
+                                                <tr>
+                                                    <th style="width:36px">#</th>
+                                                    <th>Participant</th>
+                                                    <th style="text-align:right">${scoreLabel}</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>${rowsHtml}</tbody>
+                                        </table>
+                                    </div>
+                                </div>`;
+                        } else {
+                            resultsHTML = `<div class="card"><div style="padding:14px;color:var(--muted);font-size:13px">No FFA results recorded yet.</div></div>`;
+                        }
+                    } else {
+                        // Fallback to regular results if FFA endpoint fails
+                        resultsHTML = renderRegularResults(results);
+                    }
+                } catch (e) {
+                    resultsHTML = renderRegularResults(results);
+                }
+            } else {
+                resultsHTML = `
+                    <div style="font-family:'Barlow Condensed',sans-serif;font-size:14px;font-weight:800;color:var(--muted);margin-bottom:8px">Final Results</div>
+                    ${renderRegularResults(results)}`;
+            }
+
             el.innerHTML = `
                 <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:12px;margin-bottom:20px">
                     ${[
@@ -614,17 +979,23 @@
                 ].map(([l, v]) => `
                         <div class="stat-mini"><div class="stat-mini-val">${v}</div><div class="stat-mini-lbl">${l}</div></div>`).join('')}
                 </div>
-                <div style="font-family:'Barlow Condensed',sans-serif;font-size:14px;font-weight:800;color:var(--muted);margin-bottom:8px">Final Results</div>
-                <div class="card">
-                    ${(results || []).map(r => `
-                        <div class="dept-report-row">
-                            <div style="font-family:'Barlow Condensed',sans-serif;font-weight:900;font-size:18px;width:28px;color:${r.rank === 1 ? '#FFD700' : r.rank === 2 ? '#C0C0C0' : r.rank === 3 ? '#CD7F32' : 'var(--muted)'}">${r.rank}</div>
-                            <span style="width:10px;height:10px;border-radius:50%;background:${r.color || '#555'}"></span>
-                            <div style="flex:1">${r.department_name}${r.team_name ? ` <span style="color:var(--muted);font-size:11px">(${r.team_name})</span>` : ''}</div>
-                            <div style="font-size:18px">${r.medal === 'gold' ? '🥇' : r.medal === 'silver' ? '🥈' : r.medal === 'bronze' ? '🥉' : ''}</div>
-                            <div style="font-family:'Barlow Condensed',sans-serif;font-size:18px;font-weight:800;color:var(--gold)">+${r.sport_fest_points}</div>
-                        </div>`).join('') || `<div style="padding:14px;color:var(--muted);font-size:13px">Not finalized yet.</div>`}
-                </div>`;
+                ${resultsHTML}`;
+        }
+
+        function renderRegularResults(results) {
+            if (!results || !results.length) {
+                return `<div class="card"><div style="padding:14px;color:var(--muted);font-size:13px">Not finalized yet.</div></div>`;
+            }
+            return `<div class="card">
+                ${(results || []).map(r => `
+                    <div class="dept-report-row">
+                        <div style="font-family:'Barlow Condensed',sans-serif;font-weight:900;font-size:18px;width:28px;color:${r.rank === 1 ? '#FFD700' : r.rank === 2 ? '#C0C0C0' : r.rank === 3 ? '#CD7F32' : 'var(--muted)'}">${r.rank}</div>
+                        <span style="width:10px;height:10px;border-radius:50%;background:${r.color || '#555'}"></span>
+                        <div style="flex:1">${r.department_name}${r.team_name ? ` <span style="color:var(--muted);font-size:11px">(${r.team_name})</span>` : ''}</div>
+                        <div style="font-size:18px">${r.medal === 'gold' ? '🥇' : r.medal === 'silver' ? '🥈' : r.medal === 'bronze' ? '🥉' : ''}</div>
+                        <div style="font-family:'Barlow Condensed',sans-serif;font-size:18px;font-weight:800;color:var(--gold)">+${r.sport_fest_points}</div>
+                    </div>`).join('')}
+            </div>`;
         }
 
         const ACTION_COLOR = {
