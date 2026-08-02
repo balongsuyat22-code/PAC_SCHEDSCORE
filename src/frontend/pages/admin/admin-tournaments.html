@@ -1032,21 +1032,42 @@
                 const ms = !q || t.name.toLowerCase().includes(q) || (t.sport_name || '').toLowerCase().includes(q);
                 return mf && ms;
             });
-            const bySport = {};
-            filtered.forEach(t => {
-                const k = t.sport_name || 'Other';
-                (bySport[k] = bySport[k] || []).push(t);
-            });
-            const body = !Object.keys(bySport).length
+
+            const genderLabel = { male: 'Men', female: 'Women', mixed: 'Mixed', open: 'Open' };
+            const rows = filtered.map(t => {
+                const fm = FORMAT_META[t.format] || { label: (t.format || '').replace(/_/g, ' ') };
+                const iconHtml = (typeof window.sportIcon === 'function') ? window.sportIcon(t.sport_name) : '';
+                return `<tr style="cursor:pointer" onclick="location.href='/admin/tournaments?id=${t.id}'">
+                    <td><strong>${t.name}</strong></td>
+                    <td style="white-space:nowrap">${iconHtml} ${t.sport_name || '—'}</td>
+                    <td><span class="badge badge-muted">${fm.label}</span></td>
+                    <td style="text-transform:capitalize">${genderLabel[t.gender] || t.gender || 'Open'}</td>
+                    <td>${typeof statusBadge === 'function' ? statusBadge(t.status) : t.status}</td>
+                    <td style="color:var(--muted)">${t.participant_count || 0}</td>
+                    <td style="color:var(--muted);font-size:12px">${t.start_date ? (typeof formatDate === 'function' ? formatDate(t.start_date) : t.start_date) : '—'}</td>
+                    <td onclick="event.stopPropagation()">
+                        <a class="btn btn-secondary btn-sm" href="/admin/tournaments?id=${t.id}">Manage</a>
+                    </td>
+                </tr>`;
+            }).join('');
+
+            const body = !filtered.length
                 ? `<div class="empty-state"><div class="empty-text">No tournaments found.</div></div>`
-                : Object.entries(bySport).map(([sport, ts]) => `
-                    <div class="sport-section">
-                        <div class="sport-section-header">
-                            <div class="sport-section-name">${sport}</div>
-                            <div class="sport-section-count">${ts.length} tournament${ts.length !== 1 ? 's' : ''}</div>
-                        </div>
-                        <div class="tournament-cards">${ts.map(t => renderCard(t)).join('')}</div>
-                    </div>`).join('');
+                : `<div class="card"><div class="table-wrap"><table id="tn-table">
+                    <thead>
+                        <tr>
+                            <th>Tournament</th>
+                            <th>Sport</th>
+                            <th>Format</th>
+                            <th>Gender</th>
+                            <th>Status</th>
+                            <th>Participants</th>
+                            <th>Start</th>
+                            <th></th>
+                        </tr>
+                    </thead>
+                    <tbody>${rows}</tbody>
+                </table></div></div>`;
 
             setContent(`
             <div class="filter-bar">
@@ -1062,34 +1083,11 @@
                 ${Object.keys(FORMAT_META).map(f =>
                         `<button class="filter-pill ${activeFilter === f ? 'active' : ''}" onclick="setFilt('${f}')" title="${FORMAT_META[f].label}">${FORMAT_META[f].label.split(' ')[0]}</button>`
                     ).join('')}
-                <input id="lst-search" style="margin-left:auto;background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:7px 14px;color:var(--text);font-family:'Barlow',sans-serif;font-size:13px;outline:none;width:200px" placeholder="Search..." oninput="renderList()">
+                <input id="lst-search" style="margin-left:auto;background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:7px 14px;color:var(--text);font-family:'Barlow',sans-serif;font-size:13px;outline:none;width:200px" placeholder="Search..." oninput="renderList()" value="${(document.getElementById('lst-search')?.value || '').replace(/"/g, '&quot;')}">
             </div>${body}`);
         }
 
         function setFilt(f) { activeFilter = f; renderList(); }
-
-        function renderCard(t) {
-            const fm = FORMAT_META[t.format] || { label: t.format, tag: 'rr' };
-            const gTag = t.gender
-                ? `<span class="t-tag t-tag-${t.gender}">${{ male: 'Men', female: 'Women', mixed: 'Mixed', open: 'Open' }[t.gender] || t.gender}</span>`
-                : '';
-            return `<div class="t-card" onclick="location.href='/admin/tournaments?id=${t.id}'">
-                <div class="t-card-status-bar" style="background:${STATUS_COLOR[t.status] || '#6B7494'}"></div>
-                <div class="t-card-top">
-                    <div class="t-card-info">
-                        <div class="t-card-name" title="${t.name}">${t.name}</div>
-                        <div class="t-card-tags">${gTag}<span class="t-tag t-tag-${fm.tag}">${fm.label}</span>${typeof statusBadge === 'function' ? statusBadge(t.status) : t.status}</div>
-                    </div>
-                </div>
-                <div class="t-card-bottom">
-                    <div class="t-card-meta">
-                        <div>${t.participant_count || 0} participants · ${t.match_count || 0} matches</div>
-                        <div>${t.start_date ? (typeof formatDate === 'function' ? formatDate(t.start_date) : t.start_date) : 'No date set'}</div>
-                    </div>
-                    <button class="btn btn-primary btn-sm" onclick="event.stopPropagation();location.href='/admin/tournaments?id=${t.id}'">View</button>
-                </div>
-            </div>`;
-        }
 
         function onFormatChange() {
             const fmt = document.getElementById('tn-format').value;
