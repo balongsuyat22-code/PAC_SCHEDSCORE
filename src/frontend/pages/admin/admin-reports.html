@@ -512,9 +512,30 @@
             font-weight: 900;
             color: var(--gold);
             white-space: nowrap;
+            line-height: 1.15;
         }
 
-        #tab-matches .score-cell.sets {
+        #tab-matches .score-cell .score-primary {
+            display: block;
+            font-size: inherit;
+            font-weight: 900;
+            color: var(--gold);
+        }
+
+        #tab-matches .score-cell .score-detail {
+            display: block;
+            margin-top: 3px;
+            font-family: 'Barlow', sans-serif;
+            font-size: 11px;
+            font-weight: 500;
+            color: var(--muted);
+            letter-spacing: 0.2px;
+            white-space: normal;
+            max-width: 160px;
+            line-height: 1.3;
+        }
+
+        #tab-matches .score-cell.sets .score-primary {
             font-size: 22px;
         }
 
@@ -522,6 +543,8 @@
             font-size: 13px;
             font-weight: 800;
             color: var(--green);
+            white-space: normal;
+            max-width: 140px;
         }
 
         #tab-matches .matchup-line {
@@ -531,6 +554,13 @@
             font-size: 13px;
             font-weight: 600;
             flex-wrap: wrap;
+        }
+
+        #tab-matches .matchup-line .vs {
+            color: var(--muted);
+            font-weight: 400;
+            font-size: 11px;
+            margin: 0 2px;
         }
 
         #tab-matches .dot {
@@ -544,6 +574,27 @@
         #tab-matches .meta-muted {
             color: var(--muted);
             font-size: 12px;
+        }
+
+        @media (max-width: 768px) {
+            #tab-matches .score-cell .score-detail {
+                max-width: 120px;
+            }
+        }
+
+        @media (max-width: 480px) {
+            #tab-matches .score-cell {
+                font-size: 16px;
+            }
+
+            #tab-matches .score-cell.sets .score-primary {
+                font-size: 18px;
+            }
+
+            #tab-matches .score-cell .score-detail {
+                font-size: 10px;
+                max-width: 100px;
+            }
         }
 
         .type-hint {
@@ -909,27 +960,65 @@
             if (st === 'binary') return 'binary';
             // Infer sets when sets_won fields present
             if (m.sets_won_a != null && m.sets_won_b != null) return 'sets';
+            // Infer sets from multi-set final_score_display like "16-8, 16-19, 11-26"
+            const fsd = String(m.final_score_display || '');
+            if (fsd && (fsd.match(/\d+\s*[-–]\s*\d+/g) || []).length >= 2) return 'sets';
             return 'points';
         }
 
+        /**
+         * Score cell — same rules as matches.html formatMatchScore:
+         *  sets   → sets_won_a–sets_won_b  (+ optional period detail)
+         *  points → total_score_a–total_score_b
+         *  binary → winner name
+         */
         function formatReportScore(m) {
             const type = matchType(m);
-            if (type === 'ffa') return { html: 'FFA', cls: '' };
+
+            if (type === 'ffa') {
+                return { html: '<span class="score-primary">FFA</span>', cls: '' };
+            }
+
             if (type === 'binary') {
                 const winner = m.winner_dept || m.winner_name || m.winner || null;
-                if (winner) return { html: winner, cls: 'binary' };
-                return { html: m.final_score_display || 'Win / Loss', cls: 'binary' };
+                const label = winner || m.final_score_display || 'Win / Loss';
+                return { html: `<span class="score-primary">${label}</span>`, cls: 'binary' };
+            }
+
+            if (type === 'sets') {
+                let primary = null;
+                if (m.sets_won_a != null && m.sets_won_b != null) {
+                    primary = `${toWhole(m.sets_won_a)}–${toWhole(m.sets_won_b)}`;
+                }
+                // Detail: period-by-period string from final_score_display (if not just the same sets total)
+                let detail = null;
+                const fsd = (m.final_score_display || '').trim();
+                if (fsd && fsd !== primary && /\d+\s*[-–]\s*\d+/.test(fsd)) {
+                    // Don't show detail if it's identical to primary
+                    if (!primary || fsd.replace(/\s/g, '') !== primary.replace(/\s/g, '')) {
+                        detail = fsd;
+                    }
+                }
+                if (!primary && fsd) primary = fsd;
+                if (!primary) primary = '—';
+                return {
+                    html: `<span class="score-primary">${primary}</span>${detail ? `<span class="score-detail">${detail}</span>` : ''}`,
+                    cls: 'sets',
+                };
+            }
+
+            // points / default — prefer whole-number totals (matches.html style)
+            if (m.total_score_a != null && m.total_score_a !== undefined) {
+                return {
+                    html: `<span class="score-primary">${toWhole(m.total_score_a)}–${toWhole(m.total_score_b)}</span>`,
+                    cls: '',
+                };
             }
             if (m.final_score_display) {
-                return { html: m.final_score_display, cls: type === 'sets' ? 'sets' : '' };
+                const cleaned = String(m.final_score_display).replace(/(\d+)\.0+\b/g, '$1');
+                return { html: `<span class="score-primary">${cleaned}</span>`, cls: '' };
             }
-            if (type === 'sets' && m.sets_won_a != null && m.sets_won_b != null) {
-                return { html: `${toWhole(m.sets_won_a)}–${toWhole(m.sets_won_b)}`, cls: 'sets' };
-            }
-            if (m.total_score_a != null && m.total_score_a !== undefined) {
-                return { html: `${toWhole(m.total_score_a)}–${toWhole(m.total_score_b)}`, cls: '' };
-            }
-            return { html: '—', cls: '' };
+            return { html: '<span class="score-primary">—</span>', cls: '' };
         }
 
         function typeHintLabel(type) {
@@ -1059,7 +1148,7 @@
                             <div class="matchup-line">
                                 <span class="dot" style="background:${cA}"></span>
                                 <span>${nA}</span>
-                                <span style="color:var(--muted);font-weight:400;font-size:11px">vs</span>
+                                <span class="vs">vs</span>
                                 <span class="dot" style="background:${cB}"></span>
                                 <span>${nB}</span>
                             </div>
