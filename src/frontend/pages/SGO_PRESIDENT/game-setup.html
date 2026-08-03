@@ -504,6 +504,443 @@
                 width: 100%;
             }
         }
+
+
+        /* Participant cards (admin-like) */
+        .participants-toolbar {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            margin-bottom: 16px;
+            flex-wrap: wrap;
+        }
+
+        .participants-grid {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .participant-card {
+            background: var(--bg2);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            overflow: hidden;
+        }
+
+        .participant-card-header {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 14px 16px;
+            cursor: pointer;
+            min-width: 0;
+        }
+
+        .participant-logo {
+            width: 40px;
+            height: 40px;
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-family: 'Barlow Condensed', sans-serif;
+            font-size: 14px;
+            font-weight: 900;
+            color: #fff;
+            flex-shrink: 0;
+        }
+
+        .participant-info {
+            flex: 1;
+            min-width: 0;
+        }
+
+        .participant-name {
+            font-weight: 700;
+            font-size: 14px;
+            line-height: 1.3;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .participant-meta {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-top: 4px;
+            flex-wrap: wrap;
+        }
+
+        .participant-dept {
+            font-size: 12px;
+            color: var(--muted);
+        }
+
+        .participant-expand {
+            color: var(--muted);
+            font-size: 12px;
+            transition: transform .2s;
+            flex-shrink: 0;
+            width: 20px;
+            text-align: center;
+        }
+
+        .participant-players {
+            padding: 0 16px 14px 68px;
+            border-top: 1px solid rgba(255, 255, 255, 0.04);
+        }
+
+        .participant-players-label {
+            font-size: 11px;
+            color: var(--muted);
+            text-transform: uppercase;
+            letter-spacing: .8px;
+            font-weight: 700;
+            margin: 12px 0 8px;
+        }
+
+        .player-row {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 8px 0;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.03);
+        }
+
+        .player-row:last-child {
+            border-bottom: none;
+        }
+
+        .player-avatar {
+            width: 28px;
+            height: 28px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 12px;
+            font-weight: 800;
+            color: #fff;
+            flex-shrink: 0;
+        }
+
+        .player-name {
+            flex: 1;
+            font-size: 13px;
+            font-weight: 600;
+            min-width: 0;
+        }
+
+        .player-jersey {
+            font-size: 12px;
+            color: var(--gold);
+            font-weight: 700;
+        }
+
+        .player-count-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            padding: 2px 8px;
+            border-radius: 20px;
+            font-size: 11px;
+            font-weight: 700;
+        }
+
+        .player-count-ok {
+            background: rgba(34, 197, 94, .15);
+            color: var(--green);
+        }
+
+        .player-count-warning {
+            background: rgba(232, 50, 59, .15);
+            color: var(--red);
+        }
+
+        /* Bracket cards */
+        .bracket-view {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        .bracket-round-title {
+            font-size: 12px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: var(--muted);
+            margin-bottom: 10px;
+        }
+
+        .bracket-matches {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .bracket-match-card {
+            background: var(--bg2);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 14px 16px;
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            flex-wrap: wrap;
+        }
+
+        .bracket-match-pos {
+            font-size: 11px;
+            color: var(--muted);
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: .5px;
+            min-width: 80px;
+        }
+
+        .bracket-match-sides {
+            flex: 1;
+            min-width: 180px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        .bracket-side {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .bracket-side-name {
+            font-weight: 600;
+            font-size: 13px;
+        }
+
+        .bracket-vs {
+            color: var(--muted);
+            font-size: 11px;
+        }
+
+        .bracket-match-meta {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        .bracket-score {
+            font-family: 'Barlow Condensed', sans-serif;
+            font-size: 18px;
+            font-weight: 900;
+            color: var(--gold);
+        }
+
+        .bracket-date {
+            font-size: 12px;
+            color: var(--muted);
+        }
+
+        .dept-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            display: inline-block;
+            flex-shrink: 0;
+        }
+
+        /* Standings */
+        .standings-table {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .standings-header,
+        .standings-row {
+            display: grid;
+            grid-template-columns: 40px 1fr 48px 48px 48px 48px 56px;
+            gap: 8px;
+            align-items: center;
+            padding: 12px 16px;
+            font-size: 13px;
+        }
+
+        .standings-header {
+            font-size: 11px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: .8px;
+            color: var(--muted);
+            border-bottom: 1px solid var(--border);
+        }
+
+        .standings-row {
+            border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+        }
+
+        .standings-row:last-child {
+            border-bottom: none;
+        }
+
+        .ffa-rank-card {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            padding: 12px 16px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+        }
+
+        .ffa-rank-card:last-child {
+            border-bottom: none;
+        }
+
+        .ffa-rank-number {
+            width: 36px;
+            font-family: 'Barlow Condensed', sans-serif;
+            font-size: 20px;
+            font-weight: 900;
+            text-align: center;
+        }
+
+        .ffa-rank-1 {
+            color: #FFD700;
+        }
+
+        .ffa-rank-2 {
+            color: #C0C0C0;
+        }
+
+        .ffa-rank-3 {
+            color: #CD7F32;
+        }
+
+        .ffa-rank-other {
+            color: var(--muted);
+        }
+
+        .ffa-rank-avatar {
+            width: 36px;
+            height: 36px;
+            border-radius: 9px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-family: 'Barlow Condensed', sans-serif;
+            font-size: 13px;
+            font-weight: 900;
+            color: #fff;
+            flex-shrink: 0;
+        }
+
+        .ffa-rank-info {
+            flex: 1;
+            min-width: 0;
+        }
+
+        .ffa-rank-name {
+            font-weight: 700;
+            font-size: 14px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .ffa-rank-sub {
+            font-size: 11px;
+            color: var(--muted);
+            margin-top: 2px;
+        }
+
+        .ffa-rank-result {
+            flex-shrink: 0;
+            text-align: right;
+        }
+
+        .ffa-score-display {
+            font-family: 'Barlow Condensed', sans-serif;
+            font-size: 22px;
+            font-weight: 900;
+            color: var(--gold);
+        }
+
+        .ffa-unit {
+            font-size: 12px;
+            color: var(--muted);
+            margin-left: 4px;
+        }
+
+        .ffa-rank-pts {
+            font-family: 'Barlow Condensed', sans-serif;
+            font-size: 16px;
+            font-weight: 800;
+            color: var(--gold);
+            min-width: 40px;
+            text-align: right;
+        }
+
+        /* Schedule timeline */
+        .timeline-day {
+            margin-bottom: 18px;
+        }
+
+        .timeline-day-header {
+            font-family: 'Barlow Condensed', sans-serif;
+            font-size: 16px;
+            font-weight: 800;
+            color: var(--gold);
+            margin-bottom: 10px;
+            text-transform: uppercase;
+        }
+
+        .schedule-ffa-card {
+            background: linear-gradient(135deg, rgba(139, 92, 246, 0.12), transparent);
+            border-color: var(--border-gold);
+        }
+
+        .slot-match-card {
+            background: var(--bg3);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            padding: 12px 14px;
+            margin-bottom: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            flex-wrap: wrap;
+        }
+
+        @media (max-width: 640px) {
+            .participant-card-header {
+                flex-wrap: wrap;
+            }
+
+            .participant-players {
+                padding-left: 16px;
+            }
+
+            .standings-header,
+            .standings-row {
+                grid-template-columns: 32px 1fr 36px 36px 36px;
+            }
+
+            .standings-header div:nth-child(6),
+            .standings-row div:nth-child(6),
+            .standings-header div:nth-child(4),
+            .standings-row div:nth-child(4) {
+                display: none;
+            }
+
+            .bracket-match-card {
+                flex-direction: column;
+                align-items: flex-start;
+            }
+        }
     </style>
 </head>
 
@@ -1214,6 +1651,7 @@
             </div>`;
         }
 
+
         function renderWsTabs() {
             const el = document.getElementById('ws-tabs');
             if (!el || !currentTournament) return;
@@ -1221,12 +1659,17 @@
             const isFfa = isFfaFormat(fmt);
             const parts = (currentTournament.participants || []).length;
             const done = currentTournament.status === 'completed';
+            const ongoing = currentTournament.status === 'ongoing' || done;
+
             const tabs = [
                 { id: 'overview', label: 'Overview' },
+                { id: 'schedule', label: 'Schedule' },
                 { id: 'participants', label: `Participants (${parts})` },
             ];
             if (isFfa) tabs.push({ id: 'event', label: 'Event' });
             else tabs.push({ id: 'bracket', label: `Bracket (${currentBracketMatches.length})` });
+            tabs.push({ id: 'standings', label: 'Standings' });
+            if (ongoing) tabs.push({ id: 'results', label: 'Results' });
             if (!done) tabs.push({ id: 'finalize', label: 'Finalize' });
 
             if (!tabs.find(x => x.id === activeTab)) activeTab = 'overview';
@@ -1247,9 +1690,12 @@
             if (!el || !currentTournament) return;
             const map = {
                 overview: tabOverview,
+                schedule: tabSchedule,
                 participants: tabParticipants,
                 bracket: tabBracket,
                 event: tabEvent,
+                standings: tabStandings,
+                results: tabResults,
                 finalize: tabFinalize,
             };
             el.innerHTML = (map[activeTab] || tabOverview)();
@@ -1281,7 +1727,7 @@
             <div class="card">
                 <div class="card-header"><div class="card-title">Tournament Info</div></div>
                 <div class="card-body" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px;font-size:13px">
-                    <div><div style="color:var(--muted);font-size:11px;text-transform:uppercase">Status</div><div>${t.status || '—'}</div></div>
+                    <div><div style="color:var(--muted);font-size:11px;text-transform:uppercase">Status</div><div style="text-transform:capitalize">${t.status || '—'}</div></div>
                     <div><div style="color:var(--muted);font-size:11px;text-transform:uppercase">Sport</div><div>${t.sport_name || '—'}</div></div>
                     <div><div style="color:var(--muted);font-size:11px;text-transform:uppercase">Format</div><div>${formatLabel(t.format)}</div></div>
                     <div><div style="color:var(--muted);font-size:11px;text-transform:uppercase">Gender</div><div style="text-transform:capitalize">${t.gender || 'open'}</div></div>
@@ -1291,9 +1737,88 @@
             </div>`;
         }
 
+        function tabSchedule() {
+            const matches = currentBracketMatches || [];
+            const isFfa = isFfaFormat(currentTournament.format);
+            const dates = [...new Set(matches.map(m => m.scheduled_date).filter(Boolean))].sort();
+
+            if (!dates.length) {
+                return `<div class="card"><div class="card-body">
+                    <div class="section-empty">
+                        No scheduled matches yet.
+                        ${isFfa
+                        ? `<br><br><button class="btn btn-secondary btn-sm" onclick="switchWsTab('event')"><i class="fa-solid fa-calendar-plus"></i> Schedule Event</button>`
+                        : (currentTournament.format === 'round_robin'
+                            ? `<br><br><button class="btn btn-secondary btn-sm" onclick="openAutoSchedule()"><i class="fa-solid fa-dice"></i> Auto-Schedule</button>`
+                            : '')}
+                    </div>
+                </div></div>`;
+            }
+
+            const fd = typeof formatDate === 'function' ? formatDate : (d => d);
+            const ft = typeof formatTime === 'function' ? formatTime : (t => t || '');
+
+            return dates.map(date => {
+                const dayMatches = matches.filter(m => m.scheduled_date === date);
+                const cards = dayMatches.map(m => {
+                    if (isFfa && (m.bracket_side === 'ffa' || (m.bracket_position || '').includes('FFA'))) {
+                        return `<div class="slot-match-card schedule-ffa-card">
+                            <div>
+                                <div style="color:var(--gold);font-weight:700">FREE-FOR-ALL EVENT</div>
+                                <div style="font-size:12px;color:var(--muted);margin-top:4px">
+                                    ${(currentTournament.participants || []).length} participants
+                                    ${m.venue_name ? ' · ' + m.venue_name : ''}
+                                    ${m.referee_name ? ' · ' + m.referee_name : ''}
+                                    ${m.scheduled_time ? ' · ' + ft(m.scheduled_time) : ''}
+                                </div>
+                            </div>
+                            ${currentTournament.status !== 'completed' ? `<button class="btn btn-secondary btn-sm" onclick="openFfaSchedule()"><i class="fa-solid fa-pen"></i> Edit</button>` : ''}
+                        </div>`;
+                    }
+                    const nA = m.team_a_name || m.dept_a_name || 'TBD';
+                    const nB = m.team_b_name || m.dept_b_name || 'TBD';
+                    const cA = m.dept_a_color || m.color_a || '#555';
+                    const cB = m.dept_b_color || m.color_b || '#555';
+                    const score = m.status === 'completed'
+                        ? (m.final_score_display || `${m.total_score_a ?? '—'}–${m.total_score_b ?? '—'}`)
+                        : '';
+                    return `<div class="slot-match-card">
+                        <div>
+                            <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;font-weight:600;font-size:13px">
+                                <span class="dept-dot" style="background:${cA}"></span>${nA}
+                                <span style="color:var(--muted);font-weight:400">vs</span>
+                                <span class="dept-dot" style="background:${cB}"></span>${nB}
+                                ${score ? `<span class="bracket-score" style="margin-left:6px">${score}</span>` : ''}
+                            </div>
+                            <div style="font-size:12px;color:var(--muted);margin-top:4px">
+                                ${m.bracket_position || m.status || ''}
+                                ${m.scheduled_time ? ' · ' + ft(m.scheduled_time) : ''}
+                                ${m.venue_name ? ' · ' + m.venue_name : ''}
+                            </div>
+                        </div>
+                    </div>`;
+                }).join('');
+                return `<div class="timeline-day">
+                    <div class="timeline-day-header">${fd(date)}</div>
+                    ${cards}
+                </div>`;
+            }).join('');
+        }
+
+        function toggleP(id) {
+            const p = document.getElementById(`pls-${id}`);
+            const a = document.getElementById(`exp-${id}`);
+            if (!p) return;
+            const opening = p.style.display === 'none' || !p.style.display;
+            p.style.display = opening ? 'block' : 'none';
+            if (a) a.style.transform = opening ? 'rotate(180deg)' : 'rotate(0deg)';
+        }
+
         function tabParticipants() {
             const parts = currentTournament.participants || [];
             const isLocked = !['draft', 'registration'].includes(currentTournament.status);
+            const req = Math.max(1, Number(currentTournament.min_players || 1));
+
             if (!parts.length) {
                 return `<div class="card"><div class="card-body">
                     <div class="section-empty">No departments entered yet.
@@ -1302,59 +1827,123 @@
                     ${isLocked ? `<div class="ffa-lock-note" style="margin-top:12px"><i class="fa-solid fa-lock"></i><span>Lineup is locked after bracket generation.</span></div>` : ''}
                 </div></div>`;
             }
-            const chips = parts.map(p => {
-                const primary = p.department_name || p.team_name || '—';
-                const secondary = (p.team_name && p.department_name && p.team_name !== p.department_name) ? p.team_name : '';
-                const approved = (p.players || []).filter(x => x.status === 'approved').length;
-                return `<div style="display:flex;align-items:center;gap:10px;background:var(--bg3);border:1px solid var(--border);border-radius:12px;padding:10px 14px;min-width:0">
-                    <div style="width:32px;height:32px;border-radius:8px;background:${p.department_color || '#555'};display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:900;color:#fff;flex-shrink:0">${typeof initials === 'function' ? initials(primary) : '?'}</div>
-                    <div style="min-width:0;flex:1">
-                        <div style="font-weight:700;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${primary}</div>
-                        ${secondary ? `<div style="font-size:11px;color:var(--muted)">${secondary}</div>` : ''}
+
+            const cards = parts.map(p => {
+                const teamName = (p.team_name || '').trim();
+                const deptName = (p.department_name || '').trim();
+                const primary = teamName || deptName || 'Unknown';
+                const secondary = (teamName && deptName && teamName.toLowerCase() !== deptName.toLowerCase()) ? deptName : '';
+                const col = p.department_color || '#555';
+                const init = (typeof initials === 'function' ? initials(primary) : primary.slice(0, 2)).toUpperCase();
+                const pls = p.players || [];
+                const approved = pls.filter(x => !x.status || x.status === 'approved');
+                const count = approved.length || pls.length;
+                const hasEnough = count >= req;
+                const badge = hasEnough
+                    ? `<span class="player-count-badge player-count-ok">${count}/${req}</span>`
+                    : `<span class="player-count-badge player-count-warning">${count}/${req}</span>`;
+                const pid = p.department_id || p.id;
+
+                const playersHtml = pls.length
+                    ? pls.map(pl => `<div class="player-row">
+                        <div class="player-avatar" style="background:${col}">${(pl.first_name || '?')[0]}</div>
+                        <div class="player-name">${pl.first_name || ''} ${pl.last_name || ''}</div>
+                        ${pl.jersey_number != null ? `<span class="player-jersey">#${pl.jersey_number}</span>` : ''}
+                        ${pl.status ? `<span style="font-size:10px;color:var(--muted);text-transform:uppercase">${pl.status}</span>` : ''}
+                    </div>`).join('')
+                    : `<div style="font-size:12px;color:var(--muted);padding:8px 0">No players registered.</div>`;
+
+                return `<div class="participant-card">
+                    <div class="participant-card-header" onclick="toggleP('${pid}')">
+                        <div class="participant-logo" style="background:${col}">${init}</div>
+                        <div class="participant-info">
+                            <div class="participant-name">${primary}</div>
+                            <div class="participant-meta">
+                                ${secondary ? `<span class="participant-dept">${secondary}</span>` : ''}
+                                ${badge}
+                            </div>
+                        </div>
+                        <div class="participant-expand" id="exp-${pid}">▾</div>
                     </div>
-                    <span style="font-size:11px;color:var(--muted);flex-shrink:0"><i class="fa-solid fa-user"></i> ${approved}</span>
+                    <div class="participant-players" id="pls-${pid}" style="display:none">
+                        <div class="participant-players-label">Athletes (${pls.length})</div>
+                        ${playersHtml}
+                    </div>
                 </div>`;
             }).join('');
-            return `<div class="card">
-                <div class="card-header">
-                    <div class="card-title"><i class="fa-solid fa-users"></i> Participants</div>
-                    ${!isLocked ? `<button class="btn btn-secondary btn-sm" onclick="openAddParticipants()"><i class="fa-solid fa-plus"></i> Add</button>` : ''}
-                </div>
-                <div class="card-body">
-                    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:10px">${chips}</div>
-                    ${isLocked ? `<div class="ffa-lock-note" style="margin-top:14px"><i class="fa-solid fa-lock"></i><span>Bracket already generated — departments are locked in.</span></div>` : ''}
-                </div>
-            </div>`;
+
+            return `
+            <div class="participants-toolbar">
+                <div class="card-title" style="margin:0"><i class="fa-solid fa-users"></i> Participants</div>
+                ${!isLocked ? `<button class="btn btn-primary btn-sm" onclick="openAddParticipants()"><i class="fa-solid fa-plus"></i> Add Departments</button>` : ''}
+            </div>
+            <div class="participants-grid">${cards}</div>
+            ${isLocked ? `<div class="ffa-lock-note" style="margin-top:14px"><i class="fa-solid fa-lock"></i><span>Bracket already generated — departments are locked in.</span></div>` : ''}`;
         }
 
         function tabBracket() {
-            let body;
+            const matches = currentBracketMatches || [];
+            if (!matches.length) {
+                return `<div class="card"><div class="card-body">
+                    <div class="section-empty">No matches yet. Add participants and generate the bracket.</div>
+                </div></div>`;
+            }
+
+            // Prefer shared renderer if available
             if (typeof renderBracketByFormat === 'function') {
-                body = renderBracketByFormat(currentBracketMatches, currentTournament.participants || [], currentTournament);
-            } else if (currentBracketMatches.length) {
-                body = currentBracketMatches.map(m => {
+                const body = renderBracketByFormat(matches, currentTournament.participants || [], currentTournament);
+                return `<div class="card"><div class="card-header"><div class="card-title"><i class="fa-solid fa-trophy"></i> Bracket</div></div>
+                    <div class="card-body">${body}</div></div>`;
+            }
+
+            // Admin-style grouped match cards
+            const groups = {};
+            matches.forEach(m => {
+                const key = m.round_name || m.bracket_round || m.bracket_side || m.bracket_position || 'Matches';
+                const groupKey = String(key).replace(/\s*#?\d+$/, '').trim() || 'Matches';
+                if (!groups[groupKey]) groups[groupKey] = [];
+                groups[groupKey].push(m);
+            });
+
+            const fd = typeof formatDate === 'function' ? formatDate : (d => d || '');
+            const ft = typeof formatTime === 'function' ? formatTime : (x => x || '');
+
+            const body = Object.keys(groups).map(gName => {
+                const list = groups[gName];
+                return `<div class="bracket-round">
+                    <div class="bracket-round-title">${gName}</div>
+                    <div class="bracket-matches">
+                        ${list.map(m => {
                     const nA = m.team_a_name || m.dept_a_name || 'TBD';
                     const nB = m.team_b_name || m.dept_b_name || 'TBD';
-                    return `<div class="match-card">
-                        <div class="match-info">
-                            <div class="match-teams"><strong>${nA}</strong> vs <strong>${nB}</strong></div>
-                            <div class="match-meta">${m.bracket_position || ''} · ${m.status || 'pending'}${m.scheduled_date ? ' · ' + m.scheduled_date : ''}</div>
-                        </div>
-                    </div>`;
-                }).join('');
-            } else {
-                body = `<div class="section-empty">No matches yet. Add participants and generate the bracket.</div>`;
-            }
+                    const cA = m.dept_a_color || m.color_a || '#555';
+                    const cB = m.dept_b_color || m.color_b || '#555';
+                    const done = m.status === 'completed';
+                    const score = done ? (m.final_score_display || `${m.total_score_a ?? '—'}–${m.total_score_b ?? '—'}`) : '';
+                    return `<div class="bracket-match-card status-${m.status || 'pending'}">
+                                <div class="bracket-match-pos">${m.bracket_position || ''}</div>
+                                <div class="bracket-match-sides">
+                                    <div class="bracket-side"><span class="dept-dot" style="background:${cA}"></span><span class="bracket-side-name">${nA}</span></div>
+                                    <div class="bracket-vs">vs</div>
+                                    <div class="bracket-side"><span class="dept-dot" style="background:${cB}"></span><span class="bracket-side-name">${nB}</span></div>
+                                </div>
+                                <div class="bracket-match-meta">
+                                    ${score ? `<span class="bracket-score">${score}</span>` : `<span class="badge badge-muted">${m.status || 'pending'}</span>`}
+                                    ${m.scheduled_date ? `<span class="bracket-date">${fd(m.scheduled_date)}${m.scheduled_time ? ' · ' + ft(m.scheduled_time) : ''}</span>` : ''}
+                                </div>
+                            </div>`;
+                }).join('')}
+                    </div>
+                </div>`;
+            }).join('');
+
             return `<div class="card">
-                <div class="card-header">
-                    <div class="card-title"><i class="fa-solid fa-trophy"></i> Bracket</div>
-                </div>
-                <div class="card-body" id="bracket-view">${body}</div>
+                <div class="card-header"><div class="card-title"><i class="fa-solid fa-trophy"></i> Bracket · ${matches.length} match${matches.length !== 1 ? 'es' : ''}</div></div>
+                <div class="card-body"><div class="bracket-view">${body}</div></div>
             </div>`;
         }
 
         function tabEvent() {
-            // FFA event card (same logic as old renderFfaCard)
             const tournament = currentTournament;
             const match = currentBracketMatches[0] || null;
             const participants = tournament.participants || [];
@@ -1378,7 +1967,6 @@
                 scheduleInfo = 'Add at least 2 departments, then initialize the event to unlock scheduling.';
             }
 
-            // Keep hidden hosts in sync for schedule modal
             const ht = document.getElementById('ffa-title');
             if (ht) ht.textContent = tournament.name;
 
@@ -1400,6 +1988,156 @@
                             </div>
                         </div>
                     </div>
+                </div>
+            </div>`;
+        }
+
+        function tabStandings() {
+            const parts = currentTournament.participants || [];
+            const matches = currentBracketMatches || [];
+            const isFfa = isFfaFormat(currentTournament.format);
+
+            if (isFfa) {
+                // Rank by ffa_result_value if present on participants
+                const scoring = currentTournament.ffa_scoring || 'points';
+                const unit = scoring === 'time' ? 's' : scoring === 'distance' ? 'm' : 'pts';
+                const lowerBetter = scoring === 'time';
+                const withScores = parts.filter(p => p.ffa_result_value != null && p.ffa_result_value !== '');
+                const without = parts.filter(p => p.ffa_result_value == null || p.ffa_result_value === '');
+                const ranked = [...withScores].sort((a, b) =>
+                    lowerBetter ? Number(a.ffa_result_value) - Number(b.ffa_result_value)
+                        : Number(b.ffa_result_value) - Number(a.ffa_result_value)
+                );
+                const festPts = i => i === 0 ? 10 : i === 1 ? 7 : i === 2 ? 5 : i === 3 ? 3 : 2;
+
+                if (!parts.length) return `<div class="section-empty">No participants yet.</div>`;
+
+                return `<div class="card">
+                    <div class="card-header"><div class="card-title">FFA Standings · ${scoring}</div></div>
+                    <div>
+                        ${ranked.length ? ranked.map((p, i) => {
+                    const primary = (p.team_name || p.department_name || '—').trim();
+                    const secondary = (p.team_name && p.department_name && p.team_name !== p.department_name) ? p.department_name : '';
+                    const col = p.department_color || '#555';
+                    const init = (typeof initials === 'function' ? initials(primary) : primary.slice(0, 2)).toUpperCase();
+                    const rankCls = i === 0 ? 'ffa-rank-1' : i === 1 ? 'ffa-rank-2' : i === 2 ? 'ffa-rank-3' : 'ffa-rank-other';
+                    const val = scoring === 'time' ? Number(p.ffa_result_value).toFixed(1) : Math.round(Number(p.ffa_result_value));
+                    return `<div class="ffa-rank-card">
+                                <div class="ffa-rank-number ${rankCls}">${i + 1}</div>
+                                <div class="ffa-rank-avatar" style="background:${col}">${init}</div>
+                                <div class="ffa-rank-info">
+                                    <div class="ffa-rank-name">${primary}</div>
+                                    ${secondary ? `<div class="ffa-rank-sub">${secondary}</div>` : ''}
+                                </div>
+                                <div class="ffa-rank-result"><span class="ffa-score-display">${val}</span><span class="ffa-unit">${unit}</span></div>
+                                <div class="ffa-rank-pts">+${festPts(i)}</div>
+                            </div>`;
+                }).join('') : `<div style="padding:20px;color:var(--muted);text-align:center">No results recorded yet.</div>`}
+                        ${without.length ? `<div style="padding:12px 16px 4px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--muted)">Awaiting results</div>` +
+                        without.map(p => {
+                            const primary = (p.team_name || p.department_name || '—').trim();
+                            const col = p.department_color || '#555';
+                            const init = (typeof initials === 'function' ? initials(primary) : primary.slice(0, 2)).toUpperCase();
+                            return `<div class="ffa-rank-card" style="opacity:.65">
+                                    <div class="ffa-rank-number ffa-rank-other">—</div>
+                                    <div class="ffa-rank-avatar" style="background:${col}">${init}</div>
+                                    <div class="ffa-rank-info"><div class="ffa-rank-name">${primary}</div></div>
+                                    <div class="ffa-rank-result"><span class="ffa-unit">pending</span></div>
+                                </div>`;
+                        }).join('') : ''}
+                    </div>
+                </div>`;
+            }
+
+            // Head-to-head W/D/L table
+            const standing = {};
+            parts.forEach(p => {
+                const id = p.department_id;
+                standing[id] = { p, wins: 0, losses: 0, draws: 0, pf: 0, pa: 0, pts: 0, played: 0 };
+            });
+            matches.filter(m => m.status === 'completed').forEach(m => {
+                const aId = m.participant_a_department_id || m.dept_a_id;
+                const bId = m.participant_b_department_id || m.dept_b_id;
+                const a = standing[aId];
+                const b = standing[bId];
+                if (!a || !b) return;
+                const sA = Number(m.total_score_a || 0);
+                const sB = Number(m.total_score_b || 0);
+                a.played++; b.played++;
+                a.pf += sA; a.pa += sB;
+                b.pf += sB; b.pa += sA;
+                const wId = m.winner_department_id;
+                if (wId && String(wId) === String(aId)) { a.wins++; a.pts += 3; b.losses++; }
+                else if (wId && String(wId) === String(bId)) { b.wins++; b.pts += 3; a.losses++; }
+                else { a.draws++; b.draws++; a.pts += 1; b.pts += 1; }
+            });
+            const sorted = Object.values(standing)
+                .sort((a, b) => b.pts - a.pts || (b.pf - b.pa) - (a.pf - a.pa) || b.wins - a.wins);
+
+            if (!sorted.length) return `<div class="section-empty">No standings yet.</div>`;
+
+            return `<div class="card">
+                <div class="card-header"><div class="card-title">Standings</div></div>
+                <div class="standings-table">
+                    <div class="standings-header"><div>#</div><div>Department</div><div>W</div><div>D</div><div>L</div><div>MP</div><div>Pts</div></div>
+                    ${sorted.map((s, i) => `
+                        <div class="standings-row">
+                            <div style="font-weight:800;color:${i === 0 ? '#FFD700' : i === 1 ? '#C0C0C0' : i === 2 ? '#CD7F32' : 'var(--muted)'}">${i + 1}</div>
+                            <div><strong>${s.p.team_name || s.p.department_name}</strong></div>
+                            <div style="color:var(--green)">${s.wins}</div>
+                            <div style="color:var(--muted)">${s.draws}</div>
+                            <div style="color:var(--red)">${s.losses}</div>
+                            <div>${s.played}</div>
+                            <div style="color:var(--gold);font-weight:800">${s.pts}</div>
+                        </div>`).join('')}
+                </div>
+            </div>`;
+        }
+
+        function tabResults() {
+            const isFfa = isFfaFormat(currentTournament.format);
+            if (isFfa) {
+                const match = currentBracketMatches[0];
+                const parts = currentTournament.participants || [];
+                const scored = parts.filter(p => p.ffa_result_value != null).length;
+                const done = match?.status === 'completed';
+                return `<div class="card">
+                    <div class="card-header"><div class="card-title">FFA Event Results</div></div>
+                    <div class="card-body">
+                        <div class="grid-3" style="margin-bottom:16px">
+                            <div class="stat-card"><div class="stat-value">${scored}/${parts.length}</div><div class="stat-label">Scores In</div></div>
+                            <div class="stat-card"><div class="stat-value" style="color:${done ? 'var(--green)' : 'var(--orange)'}">${done ? 'Done' : 'Open'}</div><div class="stat-label">Status</div></div>
+                        </div>
+                        <p style="color:var(--muted);font-size:13px">Ranked scores live under <strong>Standings</strong>.</p>
+                        <button class="btn btn-secondary btn-sm" style="margin-top:12px" onclick="switchWsTab('standings')">View Standings</button>
+                    </div>
+                </div>`;
+            }
+
+            const completed = (currentBracketMatches || []).filter(m => m.status === 'completed');
+            if (!completed.length) return `<div class="section-empty">No completed matches yet.</div>`;
+
+            return `<div class="card">
+                <div class="card-header"><div class="card-title">Completed Matches</div></div>
+                <div class="card-body" style="padding:0">
+                    ${completed.map(m => {
+                const nA = m.team_a_name || m.dept_a_name || 'TBD';
+                const nB = m.team_b_name || m.dept_b_name || 'TBD';
+                const cA = m.dept_a_color || m.color_a || '#555';
+                const cB = m.dept_b_color || m.color_b || '#555';
+                const score = m.final_score_display || `${m.total_score_a ?? '—'}–${m.total_score_b ?? '—'}`;
+                return `<div class="bracket-match-card" style="border-radius:0;border-left:none;border-right:none">
+                            <div class="bracket-match-sides">
+                                <div class="bracket-side"><span class="dept-dot" style="background:${cA}"></span><span class="bracket-side-name">${nA}</span></div>
+                                <div class="bracket-vs">vs</div>
+                                <div class="bracket-side"><span class="dept-dot" style="background:${cB}"></span><span class="bracket-side-name">${nB}</span></div>
+                            </div>
+                            <div class="bracket-match-meta">
+                                <span class="bracket-score">${score}</span>
+                                <span class="bracket-date">${m.bracket_position || ''}</span>
+                            </div>
+                        </div>`;
+            }).join('')}
                 </div>
             </div>`;
         }
