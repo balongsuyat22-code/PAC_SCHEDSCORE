@@ -1602,10 +1602,36 @@
             const finalizedNote = document.getElementById('finalized-note');
             if (finalizedNote) finalizedNote.style.display = isFinalized ? '' : 'none';
 
+            if (isFfa) await loadFFAResults();
+
             renderHeroBar();
             renderDatesBar();
             renderWsTabs();
             renderActiveTab();
+        }
+
+        async function loadFFAResults() {
+            if (!currentTournamentId || !currentTournament) return;
+            try {
+                const res = await api(`/matches/ffa/${currentTournamentId}`);
+                if (!res.success || !res.data) return;
+                const list = res.data.participants || res.data || [];
+                if (!Array.isArray(list)) return;
+                const byDept = {};
+                list.forEach(r => {
+                    if (r.department_id != null) byDept[r.department_id] = r;
+                });
+                currentTournament.participants = (currentTournament.participants || []).map(p => {
+                    const hit = byDept[p.department_id];
+                    if (!hit) return p;
+                    return {
+                        ...p,
+                        ffa_result_value: hit.ffa_result_value != null ? parseFloat(hit.ffa_result_value) : p.ffa_result_value,
+                        ffa_rank: hit.rank_position ?? hit.rank ?? p.ffa_rank,
+                    };
+                });
+                if (res.data.ffa_scoring) currentTournament.ffa_scoring = res.data.ffa_scoring;
+            } catch (e) { /* ignore */ }
         }
 
         function renderHeroBar() {
@@ -1644,10 +1670,13 @@
             if (!el || !currentTournament) return;
             const t = currentTournament;
             const fd = typeof formatDate === 'function' ? formatDate : (d => d || 'Not set');
+            const scoring = isFfaFormat(t.format) && t.ffa_scoring
+                ? `<div class="date-item">Scoring: <strong>${String(t.ffa_scoring).replace(/_/g, ' ')}</strong></div>`
+                : '';
             el.innerHTML = `<div class="dates-bar">
                 <div class="date-item">Start: <strong>${t.start_date ? fd(t.start_date) : 'Not set'}</strong></div>
                 <div class="date-item">End: <strong>${t.end_date ? fd(t.end_date) : 'Not set'}</strong></div>
-                <div class="date-item">Format: <strong>${formatLabel(t.format)}</strong></div>
+                ${scoring}
             </div>`;
         }
 
@@ -1666,10 +1695,13 @@
                 { id: 'schedule', label: 'Schedule' },
                 { id: 'participants', label: `Participants (${parts})` },
             ];
-            if (isFfa) tabs.push({ id: 'event', label: 'Event' });
-            else tabs.push({ id: 'bracket', label: `Bracket (${currentBracketMatches.length})` });
-            tabs.push({ id: 'standings', label: 'Standings' });
-            if (ongoing) tabs.push({ id: 'results', label: 'Results' });
+            // FFA: Event lives under Schedule + Standings (no duplicate Event/Results tabs)
+            if (isFfa) tabs.push({ id: 'standings', label: 'Standings' });
+            else {
+                tabs.push({ id: 'bracket', label: `Bracket (${currentBracketMatches.length})` });
+                tabs.push({ id: 'standings', label: 'Standings' });
+                if (ongoing) tabs.push({ id: 'results', label: 'Results' });
+            }
             if (!done) tabs.push({ id: 'finalize', label: 'Finalize' });
 
             if (!tabs.find(x => x.id === activeTab)) activeTab = 'overview';
@@ -1679,9 +1711,12 @@
             ).join('');
         }
 
-        function switchWsTab(id) {
+        async function switchWsTab(id) {
             activeTab = id;
             document.querySelectorAll('#ws-tabs .page-tab').forEach(b => b.classList.toggle('active', b.dataset.tab === id));
+            if (isFfaFormat(currentTournament?.format) && id === 'standings') {
+                await loadFFAResults();
+            }
             renderActiveTab();
         }
 
@@ -1693,7 +1728,6 @@
                 schedule: tabSchedule,
                 participants: tabParticipants,
                 bracket: tabBracket,
-                event: tabEvent,
                 standings: tabStandings,
                 results: tabResults,
                 finalize: tabFinalize,
@@ -1704,53 +1738,60 @@
         function tabOverview() {
             const t = currentTournament;
             const parts = t.participants || [];
+            const isFfa = isFfaFormat(t.format);
             const done = currentBracketMatches.filter(m => m.status === 'completed').length;
             const pct = currentBracketMatches.length ? Math.round((done / currentBracketMatches.length) * 100) : 0;
+            const matchLabel = isFfa ? 'Event' : 'Matches';
+            const matchVal = isFfa ? (currentBracketMatches[0]?.status === 'completed' ? 'Done' : (currentBracketMatches.length ? 'Ready' : '—')) : currentBracketMatches.length;
+
+            // Stats only — status/sport/format/gender already in hero
             return `
             <div class="grid-3" style="margin-bottom:16px">
                 <div class="stat-card stat-blue">
                     <div class="stat-icon"><i class="fa-solid fa-users"></i></div>
-                    <div class="stat-value">${parts.length}</div>
+                    <div class="stat-value">${parts.length}${t.max_participants ? `<span style="font-size:16px;color:var(--muted)">/${t.max_participants}</span>` : ''}</div>
                     <div class="stat-label">Participants</div>
                 </div>
                 <div class="stat-card stat-gold">
-                    <div class="stat-icon"><i class="fa-solid fa-diagram-project"></i></div>
-                    <div class="stat-value">${currentBracketMatches.length}</div>
-                    <div class="stat-label">Matches</div>
+                    <div class="stat-icon"><i class="fa-solid fa-${isFfa ? 'bolt' : 'diagram-project'}"></i></div>
+                    <div class="stat-value">${matchVal}</div>
+                    <div class="stat-label">${matchLabel}</div>
                 </div>
                 <div class="stat-card stat-green">
                     <div class="stat-icon"><i class="fa-solid fa-chart-simple"></i></div>
-                    <div class="stat-value">${pct}%</div>
+                    <div class="stat-value">${isFfa ? (done ? '100%' : '0%') : pct + '%'}</div>
                     <div class="stat-label">Completed</div>
                 </div>
             </div>
-            <div class="card">
-                <div class="card-header"><div class="card-title">Tournament Info</div></div>
-                <div class="card-body" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px;font-size:13px">
-                    <div><div style="color:var(--muted);font-size:11px;text-transform:uppercase">Status</div><div style="text-transform:capitalize">${t.status || '—'}</div></div>
-                    <div><div style="color:var(--muted);font-size:11px;text-transform:uppercase">Sport</div><div>${t.sport_name || '—'}</div></div>
-                    <div><div style="color:var(--muted);font-size:11px;text-transform:uppercase">Format</div><div>${formatLabel(t.format)}</div></div>
-                    <div><div style="color:var(--muted);font-size:11px;text-transform:uppercase">Gender</div><div style="text-transform:capitalize">${t.gender || 'open'}</div></div>
-                    <div><div style="color:var(--muted);font-size:11px;text-transform:uppercase">Participants</div><div>${parts.length}${t.max_participants ? ' / ' + t.max_participants : ''}</div></div>
+            ${isFfa ? `<div class="card" style="margin-bottom:16px">
+                <div class="card-body" style="padding:0">
+                    <div class="ffa-card">
+                        <span class="ffa-badge"><i class="fa-solid fa-bolt"></i> Free-For-All</span>
+                        <div class="ffa-sub" style="margin-bottom:0">Scoring: <strong style="color:var(--text)">${(t.ffa_scoring || 'points')}</strong> · All departments compete in one event. Rankings appear under Standings once results are in.</div>
+                    </div>
                 </div>
-                ${t.description ? `<div style="padding:0 16px 16px;color:var(--muted);font-size:13px">${t.description}</div>` : ''}
-            </div>`;
+            </div>` : ''}
+            ${t.description ? `<div class="card"><div class="card-header"><div class="card-title">Notes</div></div>
+                <div class="card-body" style="color:var(--muted);font-size:13px">${t.description}</div></div>` : (isFfa ? '' : `<div class="card"><div class="card-body"><div class="section-empty" style="padding:20px">No description.</div></div></div>`)
+                }`;
         }
 
         function tabSchedule() {
             const matches = currentBracketMatches || [];
             const isFfa = isFfaFormat(currentTournament.format);
+
+            // FFA: show dedicated event card (admin-style) instead of empty/duplicate timeline
+            if (isFfa) return tabFfaEventCard();
+
             const dates = [...new Set(matches.map(m => m.scheduled_date).filter(Boolean))].sort();
 
             if (!dates.length) {
                 return `<div class="card"><div class="card-body">
                     <div class="section-empty">
                         No scheduled matches yet.
-                        ${isFfa
-                        ? `<br><br><button class="btn btn-secondary btn-sm" onclick="switchWsTab('event')"><i class="fa-solid fa-calendar-plus"></i> Schedule Event</button>`
-                        : (currentTournament.format === 'round_robin'
-                            ? `<br><br><button class="btn btn-secondary btn-sm" onclick="openAutoSchedule()"><i class="fa-solid fa-dice"></i> Auto-Schedule</button>`
-                            : '')}
+                        ${currentTournament.format === 'round_robin'
+                        ? `<br><br><button class="btn btn-secondary btn-sm" onclick="openAutoSchedule()"><i class="fa-solid fa-dice"></i> Auto-Schedule</button>`
+                        : ''}
                     </div>
                 </div></div>`;
             }
@@ -1943,7 +1984,7 @@
             </div>`;
         }
 
-        function tabEvent() {
+        function tabFfaEventCard() {
             const tournament = currentTournament;
             const match = currentBracketMatches[0] || null;
             const participants = tournament.participants || [];
