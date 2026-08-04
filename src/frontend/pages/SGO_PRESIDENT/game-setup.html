@@ -2525,10 +2525,6 @@
             return map;
         }
 
-        // Loads whatever points config this tournament was last finalized
-        // with (or saved without finalizing), falling back to the 10/7/5
-        // default. Needs GET /tournaments/:id/points-config — see
-        // finalize-points-patch.js's getPointsConfig.
         async function openFinalizeModal() {
             if (!currentTournamentId) return;
             pointsRows = Object.entries(DEFAULT_POINTS_MAP).map(([rank, points]) => ({ rank: parseInt(rank, 10), points }));
