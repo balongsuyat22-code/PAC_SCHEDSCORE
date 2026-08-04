@@ -1,6 +1,6 @@
 /**
  * PAC SCHED-SCORE — Visitor Live Scores
- * Full scores.js: list, filters, cards, FFA/binary/sets/points modals, sockets
+ * scores.js (fixed: strict FFA, crowns only when completed)
  */
 (function () {
     'use strict';
@@ -19,7 +19,7 @@
     let countdownTimer = null;
     let clockTimer = null;
 
-    // ── DOM refs ───────────────────────────────────────────────
+    // ── DOM ────────────────────────────────────────────────────
     const $ = (sel) => document.querySelector(sel);
     const $$ = (sel) => document.querySelectorAll(sel);
 
@@ -30,7 +30,6 @@
 
     async function init() {
         startClock();
-        bindFilters();
         bindMatchCardClicks('#matches-container');
         bindMatchCardClicks('#featured-match-wrap');
         await loadMatches();
@@ -83,8 +82,18 @@
             sets_to_win: m.sets_to_win || null,
             dept_a_name: m.dept_a_name || m.dept_a || null,
             dept_b_name: m.dept_b_name || m.dept_b || null,
-            live_total_a: m.live_total_a != null ? Number(m.live_total_a) : (m.total_score_a != null ? Number(m.total_score_a) : 0),
-            live_total_b: m.live_total_b != null ? Number(m.live_total_b) : (m.total_score_b != null ? Number(m.total_score_b) : 0),
+            live_total_a:
+                m.live_total_a != null
+                    ? Number(m.live_total_a)
+                    : m.total_score_a != null
+                        ? Number(m.total_score_a)
+                        : 0,
+            live_total_b:
+                m.live_total_b != null
+                    ? Number(m.live_total_b)
+                    : m.total_score_b != null
+                        ? Number(m.total_score_b)
+                        : 0,
             sets_won_a: m.sets_won_a != null ? Number(m.sets_won_a) : 0,
             sets_won_b: m.sets_won_b != null ? Number(m.sets_won_b) : 0,
             watchers: m.watchers || 0,
@@ -99,12 +108,23 @@
     };
 
     // ═══════════════════════════════════════════════════════════
-    // FILTERS
+    // FFA DETECTION (strict — format / bracket only)
     // ═══════════════════════════════════════════════════════════
-    function bindFilters() {
-        // status chips already use onclick in HTML
+    function isFFAMatch(m) {
+        if (!m) return false;
+        const fmt = String(m.tournament_format || m.format || '').toLowerCase();
+        const side = String(m.bracket_side || '').toLowerCase();
+        const pos = String(m.bracket_position || '').toLowerCase();
+
+        if (fmt === 'free_for_all' || fmt === 'ffa') return true;
+        if (side === 'ffa') return true;
+        if (pos === 'ffa event' || pos.startsWith('ffa')) return true;
+        return false;
     }
 
+    // ═══════════════════════════════════════════════════════════
+    // FILTERS
+    // ═══════════════════════════════════════════════════════════
     window.filterByStatus = function (status, el) {
         currentStatus = status;
         $$('.status-filters .filter-chip').forEach((c) => c.classList.remove('active'));
@@ -126,7 +146,6 @@
             return true;
         });
 
-        // Spotlight: move matching matches first
         if (spotlightDeptId) {
             filteredMatches = [...filteredMatches].sort((a, b) => {
                 const aHit =
@@ -210,8 +229,16 @@
         applyFilters();
     };
 
+    function isSpotlight(m) {
+        if (!spotlightDeptId) return false;
+        return (
+            String(m.participant_a_department_id) === String(spotlightDeptId) ||
+            String(m.participant_b_department_id) === String(spotlightDeptId)
+        );
+    }
+
     // ═══════════════════════════════════════════════════════════
-    // RENDER LIST
+    // RENDER
     // ═══════════════════════════════════════════════════════════
     function renderFeatured() {
         const wrap = $('#featured-match-wrap');
@@ -223,7 +250,6 @@
             return;
         }
 
-        // Prefer spotlight live match
         let featured = live[0];
         if (spotlightDeptId) {
             const hit = live.find(
@@ -241,14 +267,7 @@
         const box = $('#matches-container');
         if (!box) return;
 
-        // Exclude the featured one from the grid if it’s live (optional: show all)
-        const featuredId = $('#featured-match-wrap [data-match-id]')?.getAttribute('data-match-id');
-        const list = filteredMatches.filter((m) => {
-            // keep featured in list too for simplicity, or hide:
-            // if (featuredId && String(m.id) === String(featuredId)) return false;
-            return true;
-        });
-
+        const list = [...filteredMatches];
         if (!list.length) {
             box.innerHTML = `
         <div class="empty-state">
@@ -258,7 +277,6 @@
             return;
         }
 
-        // Sort: ongoing → scheduled → completed → others
         const order = { ongoing: 0, scheduled: 1, pending: 2, completed: 3, cancelled: 4 };
         list.sort((a, b) => (order[a.status] ?? 9) - (order[b.status] ?? 9));
 
@@ -268,35 +286,13 @@
     }
 
     // ═══════════════════════════════════════════════════════════
-    // CARD BUILDERS
+    // CARDS
     // ═══════════════════════════════════════════════════════════
-    function isFFAMatch(m) {
-        if (!m) return false;
-        const fmt = String(m.tournament_format || m.format || '').toLowerCase();
-        const side = String(m.bracket_side || '').toLowerCase();
-        const pos = String(m.bracket_position || '').toLowerCase();
-
-        if (fmt === 'free_for_all' || fmt === 'ffa') return true;
-        if (side === 'ffa') return true;
-        if (pos.includes('ffa')) return true;
-        if (m.ffa_scoring || m.ffa_scoring_type) return true;
-        // No sides + multi-dept event name heuristic is risky — rely on format fields
-        return false;
-    }
-
-    function isSpotlight(m) {
-        if (!spotlightDeptId) return false;
-        return (
-            String(m.participant_a_department_id) === String(spotlightDeptId) ||
-            String(m.participant_b_department_id) === String(spotlightDeptId)
-        );
-    }
-
     function renderMatchCard(m) {
         const isLive = m.status === 'ongoing';
         const isDone = m.status === 'completed';
         const isBinary = m.scoring_type === 'binary';
-        const isSets = m.scoring_type === 'sets' || m.sets_to_win;
+        const isSets = m.scoring_type === 'sets' || !!m.sets_to_win;
         const isTime = m.scoring_type === 'time';
 
         const nameA = m.dept_a_name || 'TBD';
@@ -308,20 +304,30 @@
             scoreA = m.sets_won_a;
             scoreB = m.sets_won_b;
         }
-        if (isBinary && isDone) {
-            // show W / L style in center later
-        }
 
-        const aWon = isDone && !isBinary && (isTime ? scoreA < scoreB : scoreA > scoreB);
-        const bWon = isDone && !isBinary && (isTime ? scoreB < scoreA : scoreB > scoreA);
-        const winnerSide = m.winner_side || m.result?.winner_side;
+        const winnerSide = m.winner_side || m.result?.winner_side || null;
 
-        const statusBadge =
-            isLive
-                ? `<span class="status-badge status-live"><span class="status-dot"></span>Live</span>`
-                : isDone
-                    ? `<span class="status-badge status-done">Final</span>`
-                    : `<span class="status-badge status-upcoming">Upcoming</span>`;
+        // Crowns / winner styling ONLY when completed
+        const aWon =
+            isDone &&
+            (isBinary
+                ? winnerSide === 'a'
+                : isTime
+                    ? scoreA < scoreB
+                    : scoreA > scoreB);
+        const bWon =
+            isDone &&
+            (isBinary
+                ? winnerSide === 'b'
+                : isTime
+                    ? scoreB < scoreA
+                    : scoreB > scoreA);
+
+        const statusBadge = isLive
+            ? `<span class="status-badge status-live"><span class="status-dot"></span>Live</span>`
+            : isDone
+                ? `<span class="status-badge status-done">Final</span>`
+                : `<span class="status-badge status-upcoming">Upcoming</span>`;
 
         const formatPill = isBinary
             ? `<span class="format-pill binary">Win / Loss</span>`
@@ -335,11 +341,7 @@
         if (isBinary) {
             if (isDone && winnerSide) {
                 const label =
-                    winnerSide === 'draw'
-                        ? 'Draw'
-                        : winnerSide === 'a'
-                            ? 'Win A'
-                            : 'Win B';
+                    winnerSide === 'draw' ? 'Draw' : winnerSide === 'a' ? 'Win A' : 'Win B';
                 scoreCenter = `
           <div class="score-center">
             <div class="winner-ribbon">${escapeHtml(label)}</div>
@@ -362,7 +364,7 @@
         }
 
         return `
-      <div class="match-card ${isBinary ? 'binary-card' : ''} ${isLive ? 'is-live' : ''} ${isDone ? 'is-winner-card' : ''} ${isSpotlight(m) ? 'spotlight-highlight' : ''}"
+      <div class="match-card ${isBinary ? 'binary-card' : ''} ${isLive ? 'is-live' : ''} ${isDone && (aWon || bWon) ? 'is-winner-card' : ''} ${isSpotlight(m) ? 'spotlight-highlight' : ''}"
            data-match-id="${m.id}"
            role="button"
            tabindex="0"
@@ -378,16 +380,16 @@
         <div class="teams-row">
           <div class="team">
             <div class="dept-avatar-wrap">
-              ${deptAvatarHtml(nameA, m.dept_a_color, m.dept_a_logo, aWon || (isBinary && winnerSide === 'a'))}
+              ${deptAvatarHtml(nameA, m.dept_a_color, m.dept_a_logo, aWon)}
             </div>
-            <div class="dept-name ${aWon || (isBinary && winnerSide === 'a') ? 'winner-final' : ''}">${escapeHtml(nameA)}</div>
+            <div class="dept-name ${aWon ? 'winner-final' : ''}">${escapeHtml(nameA)}</div>
           </div>
           ${scoreCenter}
           <div class="team">
             <div class="dept-avatar-wrap">
-              ${deptAvatarHtml(nameB, m.dept_b_color, m.dept_b_logo, bWon || (isBinary && winnerSide === 'b'))}
+              ${deptAvatarHtml(nameB, m.dept_b_color, m.dept_b_logo, bWon)}
             </div>
-            <div class="dept-name ${bWon || (isBinary && winnerSide === 'b') ? 'winner-final' : ''}">${escapeHtml(nameB)}</div>
+            <div class="dept-name ${bWon ? 'winner-final' : ''}">${escapeHtml(nameB)}</div>
           </div>
         </div>
         <div class="match-footer">
@@ -402,12 +404,11 @@
     function renderFFACard(m) {
         const isLive = m.status === 'ongoing';
         const isDone = m.status === 'completed';
-        const statusBadge =
-            isLive
-                ? `<span class="status-badge status-live"><span class="status-dot"></span>Live</span>`
-                : isDone
-                    ? `<span class="status-badge status-done">Final</span>`
-                    : `<span class="status-badge status-upcoming">Upcoming</span>`;
+        const statusBadge = isLive
+            ? `<span class="status-badge status-live"><span class="status-dot"></span>Live</span>`
+            : isDone
+                ? `<span class="status-badge status-done">Final</span>`
+                : `<span class="status-badge status-upcoming">Upcoming</span>`;
 
         return `
       <div class="ffa-card ${isLive ? 'is-live' : ''} ${isDone ? 'is-winner-card' : ''}"
@@ -436,15 +437,25 @@
     function renderFeaturedCard(m) {
         if (isFFAMatch(m)) {
             return `
-        <div class="featured-match ffa-card is-live" data-match-id="${m.id}" role="button" tabindex="0" onclick="openMatchModal(${m.id})">
+        <div class="featured-match is-live" data-match-id="${m.id}" role="button" tabindex="0" onclick="openMatchModal(${m.id})">
           <div class="featured-label"><span class="live-dot"></span> Featured FFA</div>
-          ${renderFFACard(m).replace('class="ffa-card', 'class="ffa-card').replace(/onclick="openMatchModal\(\d+\)"/, '')}
+          <div class="ffa-header">
+            <div>
+              <span class="ffa-badge">FFA</span>
+              <div class="ffa-title" style="margin-top:6px">${escapeHtml(m.sport_name || m.tournament_name || 'FFA Event')}</div>
+            </div>
+            <span class="status-badge status-live"><span class="status-dot"></span>Live</span>
+          </div>
+          <div class="ffa-footer">
+            <span>${escapeHtml(m.tournament_name || '')}</span>
+            <span class="click-hint">Rankings →</span>
+          </div>
         </div>`;
         }
 
         const nameA = m.dept_a_name || 'TBD';
         const nameB = m.dept_b_name || 'TBD';
-        const isSets = m.scoring_type === 'sets' || m.sets_to_win;
+        const isSets = m.scoring_type === 'sets' || !!m.sets_to_win;
         const scoreA = isSets ? m.sets_won_a : m.live_total_a;
         const scoreB = isSets ? m.sets_won_b : m.live_total_b;
 
@@ -479,6 +490,7 @@
       </div>`;
     }
 
+    /** Crown only on list cards when isWinner === true (already gated to completed). */
     function deptAvatarHtml(name, color, logo, isWinner) {
         const bg = color || '#4b5563';
         const ring = isWinner ? 'is-winner-ring' : '';
@@ -547,10 +559,9 @@
 
         wrap.style.display = '';
         const next = upcoming[0];
-        const name =
-            isFFAMatch(next.m)
-                ? next.m.sport_name || next.m.tournament_name || 'FFA Event'
-                : `${next.m.dept_a_name || 'TBD'} vs ${next.m.dept_b_name || 'TBD'}`;
+        const name = isFFAMatch(next.m)
+            ? next.m.sport_name || next.m.tournament_name || 'FFA Event'
+            : `${next.m.dept_a_name || 'TBD'} vs ${next.m.dept_b_name || 'TBD'}`;
         setText('cd-match-name', name);
 
         const tick = () => {
@@ -594,7 +605,7 @@
             })
             .join('');
 
-        track.innerHTML = items + items; // loop
+        track.innerHTML = items + items;
     }
 
     function startClock() {
@@ -612,7 +623,7 @@
     }
 
     // ═══════════════════════════════════════════════════════════
-    // SOCKET.IO
+    // SOCKET
     // ═══════════════════════════════════════════════════════════
     function connectSocket() {
         if (typeof io === 'undefined') {
@@ -665,7 +676,7 @@
     }
 
     // ═══════════════════════════════════════════════════════════
-    // MODAL SYSTEM
+    // MODAL
     // ═══════════════════════════════════════════════════════════
     window.openMatchModal = async function openMatchModal(matchIdOrObj) {
         const body = $('#modal-body');
@@ -696,12 +707,12 @@
                 match = normalizeMatch(json.data);
             }
 
-            // Merge list-level fields if missing on detail
             const fromList = allMatches.find((x) => x.id === match.id);
             if (fromList) {
                 match.tournament_format = match.tournament_format || fromList.tournament_format;
-                match.ffa_scoring = match.ffa_scoring || fromList.ffa_scoring;
                 match.scoring_type = match.scoring_type || fromList.scoring_type;
+                match.bracket_side = match.bracket_side || fromList.bracket_side;
+                match.bracket_position = match.bracket_position || fromList.bracket_position;
             }
 
             if (isFFAMatch(match)) {
@@ -743,7 +754,6 @@
         root.addEventListener('click', (e) => {
             const card = e.target.closest('[data-match-id]');
             if (!card) return;
-            // inline onclick already fires; this is backup
             if (!e.target.closest('[onclick]')) {
                 openMatchModal(card.getAttribute('data-match-id'));
             }
@@ -751,7 +761,7 @@
     }
     window.bindMatchCardClicks = bindMatchCardClicks;
 
-    // ── Modal builders ─────────────────────────────────────────
+    // ── FFA modal ──────────────────────────────────────────────
     async function buildFFAModal(match) {
         const tournamentId = match.tournament_id;
         let participants = [];
@@ -881,15 +891,17 @@
       </div>`;
     }
 
+    // ── Binary modal ───────────────────────────────────────────
     function buildBinaryModal(match) {
         const result = match.result || {};
         const winnerSide = result.winner_side || match.winner_side;
         const isDraw = winnerSide === 'draw';
-        const aWon = winnerSide === 'a';
-        const bWon = winnerSide === 'b';
+        const isDone = match.status === 'completed';
+        const aWon = isDone && winnerSide === 'a';
+        const bWon = isDone && winnerSide === 'b';
         const nameA = match.dept_a_name || 'Side A';
         const nameB = match.dept_b_name || 'Side B';
-        const winnerName = isDraw ? null : aWon ? nameA : nameB;
+        const winnerName = isDraw ? null : aWon ? nameA : bWon ? nameB : null;
 
         const banner = isDraw
             ? `<div class="binary-result-banner binary-draw-banner">
@@ -897,7 +909,7 @@
            <div class="binary-result-name">Draw</div>
            <div class="binary-result-sub">No winner declared</div>
          </div>`
-            : winnerSide
+            : isDone && winnerSide
                 ? `<div class="binary-result-banner">
              <div class="binary-result-label">Winner</div>
              <div class="binary-result-name">${escapeHtml(winnerName || '—')}</div>
@@ -932,11 +944,13 @@
       </div>`;
     }
 
+    // ── Sets modal (unchanged design) ──────────────────────────
     function buildSetsModal(match) {
         const scores = match.scores || [];
         const result = match.result || {};
         const nameA = match.dept_a_name || 'Side A';
         const nameB = match.dept_b_name || 'Side B';
+        const isDone = match.status === 'completed';
 
         let setsA = 0;
         let setsB = 0;
@@ -947,8 +961,8 @@
         if (result.total_score_a != null) setsA = result.total_score_a;
         if (result.total_score_b != null) setsB = result.total_score_b;
 
-        const aWon = match.status === 'completed' && setsA > setsB;
-        const bWon = match.status === 'completed' && setsB > setsA;
+        const aWon = isDone && setsA > setsB;
+        const bWon = isDone && setsB > setsA;
 
         const setPills = scores
             .map((s, i) => {
@@ -1019,12 +1033,14 @@
       </div>`;
     }
 
+    // ── Points / Time modal ────────────────────────────────────
     function buildStandardModal(match) {
         const scores = match.scores || [];
         const result = match.result || {};
         const nameA = match.dept_a_name || 'Side A';
         const nameB = match.dept_b_name || 'Side B';
         const isTime = match.scoring_type === 'time';
+        const isDone = match.status === 'completed';
 
         let totalA =
             result.total_score_a != null
@@ -1037,8 +1053,8 @@
         if (match.live_total_a != null) totalA = match.live_total_a;
         if (match.live_total_b != null) totalB = match.live_total_b;
 
-        const aWon = match.status === 'completed' && (isTime ? totalA < totalB : totalA > totalB);
-        const bWon = match.status === 'completed' && (isTime ? totalB < totalA : totalB > totalA);
+        const aWon = isDone && (isTime ? totalA < totalB : totalA > totalB);
+        const bWon = isDone && (isTime ? totalB < totalA : totalB > totalA);
 
         const tableRows = scores
             .map((s, i) => {
@@ -1098,7 +1114,7 @@
                    </tbody>
                  </table>
                </div>`
-                : match.status === 'completed' && result.final_score_display
+                : isDone && result.final_score_display
                     ? `<div style="text-align:center;margin-bottom:1rem;font-family:var(--font-mono);font-size:14px;color:var(--muted2)">${escapeHtml(result.final_score_display)}</div>`
                     : ''
             }
@@ -1107,7 +1123,7 @@
       </div>`;
     }
 
-    // ── Modal helpers ──────────────────────────────────────────
+    // ── Modal helpers (NO crown emoji — gold ring only) ────────
     function modalAvatar(name, color, logo, isWinner) {
         const bg = color || '#4b5563';
         const cls = isWinner ? 'is-winner' : '';
@@ -1210,12 +1226,12 @@
 
     function sportEmoji(name) {
         const n = String(name || '').toLowerCase();
-        if (/basket|volley|badminton|tennis|table/.test(n)) return '🏸';
+        if (/basket/.test(n)) return '🏀';
+        if (/volley|badminton|tennis|table/.test(n)) return '🏸';
         if (/soccer|football|futsal/.test(n)) return '⚽';
         if (/chess|board/.test(n)) return '♟️';
         if (/swim|aqua/.test(n)) return '🏊';
         if (/track|dash|sprint|relay|run|athlet/.test(n)) return '🏃';
-        if (/chess/.test(n)) return '♟️';
         return '🏅';
     }
 })();
