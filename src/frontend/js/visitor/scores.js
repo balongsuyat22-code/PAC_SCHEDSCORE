@@ -300,9 +300,10 @@
 
         let scoreA = m.live_total_a;
         let scoreB = m.live_total_b;
+        // inside renderMatchCard, when isSets:
         if (isSets) {
-            scoreA = m.sets_won_a;
-            scoreB = m.sets_won_b;
+            scoreA = Math.round(Number(m.sets_won_a) || 0);
+            scoreB = Math.round(Number(m.sets_won_b) || 0);
         }
 
         const winnerSide = m.winner_side || m.result?.winner_side || null;
@@ -944,7 +945,7 @@
       </div>`;
     }
 
-    // ── Sets modal (unchanged design) ──────────────────────────
+    // ── Sets modal ───────────────────────────────────────────────
     function buildSetsModal(match) {
         const scores = match.scores || [];
         const result = match.result || {};
@@ -952,85 +953,92 @@
         const nameB = match.dept_b_name || 'Side B';
         const isDone = match.status === 'completed';
 
+        const whole = (n) => Math.round(Number(n) || 0);
+
         let setsA = 0;
         let setsB = 0;
         scores.forEach((s) => {
-            if ((s.score_a || 0) > (s.score_b || 0)) setsA++;
-            else if ((s.score_b || 0) > (s.score_a || 0)) setsB++;
+            const a = whole(s.score_a);
+            const b = whole(s.score_b);
+            if (a > b) setsA++;
+            else if (b > a) setsB++;
         });
-        if (result.total_score_a != null) setsA = result.total_score_a;
-        if (result.total_score_b != null) setsB = result.total_score_b;
+        if (result.total_score_a != null) setsA = whole(result.total_score_a);
+        if (result.total_score_b != null) setsB = whole(result.total_score_b);
 
         const aWon = isDone && setsA > setsB;
         const bWon = isDone && setsB > setsA;
 
         const setPills = scores
             .map((s, i) => {
-                const a = s.score_a || 0;
-                const b = s.score_b || 0;
+                const a = whole(s.score_a);
+                const b = whole(s.score_b);
                 return `
-          <div class="set-pill ${a > b || b > a ? 'won' : ''}">
-            <div class="set-pill-label">${escapeHtml(s.period_label || 'Set ' + (s.period || i + 1))}</div>
-            <div class="set-pill-val">${a}–${b}</div>
-          </div>`;
+        <div class="set-pill ${a > b || b > a ? 'won' : ''}">
+          <div class="set-pill-label">${escapeHtml(s.period_label || 'Set ' + (s.period || i + 1))}</div>
+          <div class="set-pill-val">${a}–${b}</div>
+        </div>`;
             })
             .join('');
 
         const tableRows = scores
             .map((s, i) => {
-                const a = s.score_a || 0;
-                const b = s.score_b || 0;
+                const a = whole(s.score_a);
+                const b = whole(s.score_b);
                 return `<tr>
-          <td>${escapeHtml(s.period_label || 'Set ' + (s.period || i + 1))}</td>
-          <td class="${a > b ? 'winner-score-cell' : ''}">${a}</td>
-          <td class="${b > a ? 'winner-score-cell' : ''}">${b}</td>
-        </tr>`;
+        <td>${escapeHtml(s.period_label || 'Set ' + (s.period || i + 1))}</td>
+        <td class="${a > b ? 'winner-score-cell' : ''}">${a}</td>
+        <td class="${b > a ? 'winner-score-cell' : ''}">${b}</td>
+      </tr>`;
             })
             .join('');
 
         return `
-      <div class="modal-sets">
-        <div class="modal-header">
-          <div class="modal-sport">
-            <span class="format-pill sets">Sets</span>
-            ${escapeHtml(match.sport_name || '')}
-          </div>
-          <div class="modal-title">${escapeHtml(match.tournament_name || 'Match')}</div>
+    <div class="modal-sets">
+      <div class="modal-header">
+        <div class="modal-sport">
+          <span class="format-pill sets">Sets</span>
+          ${escapeHtml(match.sport_name || '')}
         </div>
-        ${statusChip(match.status)}
-        ${match.status === 'ongoing' ? watchersChip(match.watchers) : ''}
-        <div class="modal-teams">
-          <div class="modal-team">
-            ${modalAvatar(nameA, match.dept_a_color, match.dept_a_logo, aWon)}
-            <div class="modal-dept-name ${aWon ? 'winner' : ''}">${escapeHtml(nameA)}</div>
-          </div>
-          <div class="modal-final-score">
-            <div class="modal-score-big ${aWon ? 'winner-a' : ''} ${bWon ? 'winner-b' : ''}">
-              <span class="score-a">${setsA}</span>
-              <span style="color:var(--muted);font-weight:300">–</span>
-              <span class="score-b">${setsB}</span>
-            </div>
-            <div class="modal-score-label">Sets</div>
-          </div>
-          <div class="modal-team">
-            ${modalAvatar(nameB, match.dept_b_color, match.dept_b_logo, bWon)}
-            <div class="modal-dept-name ${bWon ? 'winner' : ''}">${escapeHtml(nameB)}</div>
-          </div>
+        <div class="modal-title">${escapeHtml(match.tournament_name || 'Match')}</div>
+      </div>
+      ${statusChip(match.status)}
+      ${match.status === 'ongoing' ? watchersChip(match.watchers) : ''}
+      <div class="modal-teams">
+        <div class="modal-team">
+          ${modalAvatar(nameA, match.dept_a_color, match.dept_a_logo, aWon)}
+          <div class="modal-dept-name ${aWon ? 'winner' : ''}">${escapeHtml(nameA)}</div>
         </div>
-        ${setPills ? `<div class="set-score-summary">${setPills}</div>` : ''}
-        ${scores.length
+        <div class="modal-final-score">
+          <div class="modal-score-big ${aWon ? 'winner-a' : ''} ${bWon ? 'winner-b' : ''}">
+            <span class="score-a">${setsA}</span>
+            <span style="color:var(--muted);font-weight:300">–</span>
+            <span class="score-b">${setsB}</span>
+          </div>
+          <div class="modal-score-label">Sets</div>
+        </div>
+        <div class="modal-team">
+          ${modalAvatar(nameB, match.dept_b_color, match.dept_b_logo, bWon)}
+          <div class="modal-dept-name ${bWon ? 'winner' : ''}">${escapeHtml(nameB)}</div>
+        </div>
+      </div>
+      ${setPills ? `<div class="set-score-summary">${setPills}</div>` : ''}
+      ${scores.length
                 ? `<div class="modal-breakdown">
-                 <div class="modal-breakdown-title">Set Breakdown</div>
-                 <table class="period-table">
-                   <thead><tr><th>Set</th><th>${escapeHtml(nameA)}</th><th>${escapeHtml(nameB)}</th></tr></thead>
-                   <tbody>${tableRows}<tr class="total-row"><td>Sets</td><td>${setsA}</td><td>${setsB}</td></tr></tbody>
-                 </table>
-               </div>`
+               <div class="modal-breakdown-title">Set Breakdown</div>
+               <table class="period-table">
+                 <thead><tr><th>Set</th><th>${escapeHtml(nameA)}</th><th>${escapeHtml(nameB)}</th></tr></thead>
+                 <tbody>
+                   ${tableRows}
+                   <tr class="total-row"><td>Sets</td><td>${setsA}</td><td>${setsB}</td></tr>
+                 </tbody>
+               </table>
+             </div>`
                 : ''
             }
-        ${mvpBlock(result)}
-        ${metaRow(match)}
-      </div>`;
+      ${mvpBlock(result)}
+      ${metaRow(match)}
+    </div>`;
     }
 
     // ── Points / Time modal ────────────────────────────────────
