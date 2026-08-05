@@ -32,6 +32,7 @@
         startClock();
         bindMatchCardClicks('#matches-container');
         bindMatchCardClicks('#featured-match-wrap');
+        await loadChampion();
         await loadMatches();
         connectSocket();
     }
@@ -1243,3 +1244,143 @@
         return '🏅';
     }
 })();
+// ═══════════════════════════════════════════════════════════
+// SPORT FEST CHAMPION
+// ═══════════════════════════════════════════════════════════
+let championData = null; // { department_id, name, color, logo_url, points, ... }
+
+async function loadChampion() {
+    try {
+        // Prefer a dedicated champion endpoint if you have one:
+        // const res = await fetch(`${API_BASE}/sport-fest/champion`);
+        // Fallback: overall leaderboard, rank 1 only when fest is complete
+        const res = await fetch(`${API_BASE}/leaderboard`);
+        const json = await res.json();
+        if (!json.success) return hideChampion();
+
+        const rows = json.data || json.standings || [];
+        const meta = json.meta || {};
+
+        // Only show after champion is declared
+        const declared =
+            meta.champion_declared === true ||
+            meta.status === 'completed' ||
+            meta.sport_fest_status === 'completed' ||
+            json.champion_declared === true;
+
+        if (!declared || !rows.length) {
+            hideChampion();
+            return;
+        }
+
+        const top = rows[0];
+        championData = {
+            department_id: top.department_id || top.id,
+            name: top.department_name || top.name || top.dept_name,
+            color: top.department_color || top.color || top.dept_color,
+            logo_url: top.logo_url || top.department_logo || top.dept_logo,
+            points: top.total_points ?? top.points ?? top.pts,
+            gold: top.gold ?? top.medals_gold,
+            silver: top.silver ?? top.medals_silver,
+            bronze: top.bronze ?? top.medals_bronze,
+        };
+
+        showChampion(championData);
+    } catch (e) {
+        console.warn('Champion load failed', e);
+        hideChampion();
+    }
+}
+
+function showChampion(c) {
+    const bar = document.getElementById('champion-bar');
+    const fab = document.getElementById('champion-fab');
+    const nameEl = document.getElementById('champion-bar-name');
+    if (nameEl) nameEl.textContent = c.name || 'Champion';
+    if (bar) bar.style.display = '';
+    if (fab) fab.style.display = '';
+
+    // One-shot confetti when champion appears this session
+    const key = 'champ_confetti_' + (c.department_id || c.name);
+    if (!sessionStorage.getItem(key) && typeof confetti === 'function') {
+        sessionStorage.setItem(key, '1');
+        fireChampionConfetti();
+    }
+}
+
+function hideChampion() {
+    championData = null;
+    const bar = document.getElementById('champion-bar');
+    const fab = document.getElementById('champion-fab');
+    if (bar) bar.style.display = 'none';
+    if (fab) fab.style.display = 'none';
+}
+
+function fireChampionConfetti() {
+    if (typeof confetti !== 'function') return;
+    const end = Date.now() + 2500;
+    const colors = ['#f59e0b', '#fbbf24', '#ffffff', '#ffb020'];
+    (function frame() {
+        confetti({
+            particleCount: 3,
+            angle: 60,
+            spread: 55,
+            origin: { x: 0 },
+            colors,
+        });
+        confetti({
+            particleCount: 3,
+            angle: 120,
+            spread: 55,
+            origin: { x: 1 },
+            colors,
+        });
+        if (Date.now() < end) requestAnimationFrame(frame);
+    })();
+}
+
+window.openChampionModal = function openChampionModal() {
+    if (!championData) return;
+    const body = document.getElementById('modal-body');
+    const overlay = document.getElementById('modal-overlay');
+    if (!body || !overlay) return;
+
+    const c = championData;
+    const bg = c.color || '#f59e0b';
+
+    body.innerHTML = `
+      <div class="modal-header" style="text-align:center">
+        <div style="font-size:40px;margin-bottom:8px">🏆</div>
+        <div class="modal-final-badge" style="margin:0 auto 10px;background:rgba(245,158,11,.15);border-color:rgba(245,158,11,.4);color:var(--gold)">
+          Sport Fest Champion
+        </div>
+        <div class="modal-title" style="color:var(--gold)">${escapeHtml(c.name || '—')}</div>
+      </div>
+      <div style="display:flex;justify-content:center;margin:1.25rem 0">
+        <div class="modal-dept-avatar is-winner" style="width:72px;height:72px;font-size:22px;background:${bg}">
+          ${c.logo_url
+            ? `<img src="${escapeAttr(c.logo_url)}" alt="">`
+            : initials(c.name)}
+        </div>
+      </div>
+      <div style="text-align:center;margin-bottom:1.25rem">
+        <div style="font-family:var(--font-mono);font-size:28px;font-weight:700;color:var(--accent)">
+          ${c.points != null ? Number(c.points).toLocaleString() : '—'}
+        </div>
+        <div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.06em">Total points</div>
+      </div>
+      ${c.gold != null || c.silver != null || c.bronze != null
+            ? `<div style="display:flex;justify-content:center;gap:16px;margin-bottom:1rem">
+               <div style="text-align:center"><div style="font-size:18px">🥇</div><div style="font-family:var(--font-mono);font-weight:700">${c.gold ?? 0}</div></div>
+               <div style="text-align:center"><div style="font-size:18px">🥈</div><div style="font-family:var(--font-mono);font-weight:700">${c.silver ?? 0}</div></div>
+               <div style="text-align:center"><div style="font-size:18px">🥉</div><div style="font-family:var(--font-mono);font-weight:700">${c.bronze ?? 0}</div></div>
+             </div>`
+            : ''
+        }
+      <div class="modal-meta" style="justify-content:center">
+        <div class="modal-meta-item">Overall Sport Fest champion</div>
+      </div>`;
+
+    overlay.classList.add('open');
+    document.body.style.overflow = 'hidden';
+};
