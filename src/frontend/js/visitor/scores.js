@@ -1,6 +1,6 @@
 /**
  * PAC SCHED-SCORE — Visitor Live Scores
- * Modals (FFA / binary / sets / points) + Champion FAB near mobile nav
+ * Match modals (FFA / binary / sets / points) + Champion FAB celebration
  */
 (function () {
     'use strict';
@@ -112,7 +112,7 @@
     }
 
     // ═══════════════════════════════════════════════════════════
-    // CHAMPION FAB + CONFIDENTIAL (original confetti style)
+    // CHAMPION
     // ═══════════════════════════════════════════════════════════
     async function loadChampion() {
         try {
@@ -121,8 +121,6 @@
             if (!json.success || !json.data) return hideChampion();
 
             const fest = json.data;
-
-            // Champion is declared when this is set on the fest
             if (!fest.champion_department_id) {
                 hideChampion();
                 return;
@@ -135,7 +133,6 @@
             let color = fest.champion_color || null;
             let logo_url = null;
 
-            // Optional: pull points/medals from leaderboard
             try {
                 const lbRes = await fetch(`${API_BASE}/leaderboard`);
                 const lb = await lbRes.json();
@@ -195,8 +192,7 @@
         if (fab) fab.style.display = 'none';
     }
 
-    /** Original-style side cannons (canvas-confetti) */
-    /** Same confetti burst as standings page */
+    /** Same burst as standings — zIndex above celebration overlay */
     function fireChampionConfetti(color) {
         if (typeof confetti !== 'function') return;
         const col = color || '#f59e0b';
@@ -205,6 +201,7 @@
             spread: 110,
             startVelocity: 60,
             colors: [col, '#ffffff', '#f59e0b'],
+            zIndex: 2000,
         };
         confetti({ ...base, angle: 60, origin: { x: 0, y: 0.65 } });
         confetti({ ...base, angle: 120, origin: { x: 1, y: 0.65 } });
@@ -223,43 +220,83 @@
         const style = document.createElement('style');
         style.id = 'champion-celebration-styles';
         style.textContent = `
-    .champion-overlay{position:fixed;inset:0;z-index:1000;background:rgba(5,6,7,.88);backdrop-filter:blur(10px);
-      display:flex;align-items:center;justify-content:center;opacity:0;visibility:hidden;
-      transition:opacity .35s ease,visibility .35s ease;padding:1.25rem}
+    .champion-overlay{
+      position:fixed;inset:0;z-index:1000;
+      background:rgba(5,6,7,.88);backdrop-filter:blur(10px);
+      display:flex;align-items:center;justify-content:center;
+      opacity:0;visibility:hidden;
+      transition:opacity .35s ease,visibility .35s ease;
+      padding:1.25rem;
+      overflow:hidden;
+      overscroll-behavior:none;
+    }
     .champion-overlay.open{opacity:1;visibility:visible}
-    .champion-modal{position:relative;max-width:420px;width:100%;text-align:center;
+    .champion-modal{
+      position:relative;max-width:420px;width:100%;
+      text-align:center;
       background:radial-gradient(circle at 50% 0%, color-mix(in srgb, var(--cc-color) 22%, #111417), #0a0c0e 70%);
       border:1px solid color-mix(in srgb, var(--cc-color) 55%, transparent);
-      border-radius:28px;padding:2.25rem 1.5rem 1.75rem;
+      border-radius:28px;
+      padding:2.25rem 1.5rem 1.75rem;
       box-shadow:0 30px 80px rgba(0,0,0,.6), 0 0 60px color-mix(in srgb, var(--cc-color) 35%, transparent);
-      transform:scale(.85) translateY(20px);transition:transform .4s cubic-bezier(.34,1.56,.64,1);
-      max-height:min(90vh,640px);overflow-y:auto}
+      transform:scale(.85) translateY(20px);
+      transition:transform .4s cubic-bezier(.34,1.56,.64,1);
+      max-height:min(90vh,640px);
+      overflow-x:hidden;
+      overflow-y:auto;
+      -webkit-overflow-scrolling:touch;
+      box-sizing:border-box;
+    }
     .champion-overlay.open .champion-modal{transform:scale(1) translateY(0)}
-    .cc-close{position:absolute;top:14px;right:14px;width:34px;height:34px;border-radius:50%;
+    .cc-close{
+      position:absolute;top:14px;right:14px;width:34px;height:34px;border-radius:50%;
       border:1px solid rgba(255,255,255,.2);background:rgba(255,255,255,.06);color:#fff;font-size:18px;
-      cursor:pointer;display:flex;align-items:center;justify-content:center;z-index:2}
+      cursor:pointer;display:flex;align-items:center;justify-content:center;z-index:2
+    }
     .cc-trophy{font-size:44px;margin-bottom:.35rem;filter:drop-shadow(0 0 14px var(--cc-color))}
-    .cc-logo{width:80px;height:80px;border-radius:50%;object-fit:cover;margin:.4rem auto .85rem;
-      border:3px solid var(--cc-color);box-shadow:0 0 24px color-mix(in srgb, var(--cc-color) 50%, transparent);
-      display:flex;align-items:center;justify-content:center}
+    .cc-logo{
+      width:80px;height:80px;border-radius:50%;object-fit:cover;margin:.4rem auto .85rem;
+      border:3px solid var(--cc-color);
+      box-shadow:0 0 24px color-mix(in srgb, var(--cc-color) 50%, transparent);
+      display:flex;align-items:center;justify-content:center
+    }
     .cc-logo-initials{font-family:var(--font-head);font-size:26px;font-weight:800;color:#fff}
-    .cc-eyebrow{font-family:var(--font-mono);font-size:11px;letter-spacing:.14em;text-transform:uppercase;
-      color:var(--cc-color);margin-bottom:.35rem}
-    .cc-name{font-family:var(--font-head);font-size:clamp(26px,7vw,36px);font-weight:900;text-transform:uppercase;
-      color:#fff;line-height:1.05;text-shadow:0 0 20px color-mix(in srgb, var(--cc-color) 60%, transparent);
-      word-break:break-word;padding:0 .5rem}
-    .cc-sub{font-size:13px;color:var(--muted2);margin-top:.5rem}
-    .cc-podium{display:grid;grid-template-columns:1fr 1.15fr 1fr;gap:8px;align-items:end;margin:1.25rem 0 .5rem}
-    .cc-slot{background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.1);border-radius:14px;padding:.7rem .45rem;text-align:center}
-    .cc-slot.gold{background:rgba(245,158,11,.14);border-color:rgba(245,158,11,.45);padding-top:1rem;padding-bottom:.9rem}
+    .cc-eyebrow{
+      font-family:var(--font-mono);font-size:11px;letter-spacing:.14em;text-transform:uppercase;
+      color:var(--cc-color);margin-bottom:.35rem
+    }
+    .cc-name{
+      font-family:var(--font-head);font-size:clamp(26px,7vw,36px);font-weight:900;text-transform:uppercase;
+      color:#fff;line-height:1.05;
+      text-shadow:0 0 20px color-mix(in srgb, var(--cc-color) 60%, transparent);
+      word-break:break-word;padding:0 .5rem;max-width:100%
+    }
+    .cc-sub{font-size:13px;color:var(--muted2);margin-top:.5rem;padding:0 .5rem}
+    .cc-podium{
+      display:grid;grid-template-columns:1fr 1.15fr 1fr;gap:8px;align-items:end;
+      margin:1.25rem 0 .5rem;width:100%;max-width:100%;box-sizing:border-box
+    }
+    .cc-slot{
+      background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.1);
+      border-radius:14px;padding:.7rem .45rem;text-align:center;min-width:0
+    }
+    .cc-slot.gold{
+      background:rgba(245,158,11,.14);border-color:rgba(245,158,11,.45);
+      padding-top:1rem;padding-bottom:.9rem
+    }
     .cc-slot.silver{border-color:rgba(148,163,184,.35)}
     .cc-slot.bronze{border-color:rgba(194,98,42,.35)}
     .cc-slot-rank{font-size:16px;margin-bottom:4px}
-    .cc-slot-av{width:36px;height:36px;border-radius:50%;margin:0 auto 5px;display:flex;align-items:center;justify-content:center;
-      font-family:var(--font-head);font-size:12px;font-weight:700;color:#fff;overflow:hidden}
+    .cc-slot-av{
+      width:36px;height:36px;border-radius:50%;margin:0 auto 5px;
+      display:flex;align-items:center;justify-content:center;
+      font-family:var(--font-head);font-size:12px;font-weight:700;color:#fff;overflow:hidden
+    }
     .cc-slot.gold .cc-slot-av{width:44px;height:44px;font-size:14px;box-shadow:0 0 0 2px var(--gold)}
     .cc-slot-av img{width:100%;height:100%;object-fit:cover}
-    .cc-slot-name{font-size:11px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    .cc-slot-name{
+      font-size:11px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%
+    }
     .cc-slot-pts{font-family:var(--font-mono);font-size:13px;font-weight:700;color:var(--gold);margin-top:3px}
     .cc-slot.gold .cc-slot-pts{font-size:15px}`;
         document.head.appendChild(style);
@@ -273,16 +310,14 @@
         setTimeout(() => overlay.remove(), 300);
     };
 
-    /** Opens full-screen celebration (same UI family as standings) + top 3 */
+    /** Full-screen celebration + top 3 — ONLY champion modal (no match sheet) */
     window.openChampionModal = async function () {
         injectChampionStyles();
 
-        // Confetti in FRONT of everything (z-index of canvas is high; fire after overlay mounts)
         let champion = championData || {};
         let top3 = [];
 
         try {
-            // Prefer overall-champion endpoint used by standings
             const r = await fetch(`${API_BASE}/leaderboard/overall-champion`);
             if (r.ok) {
                 const j = await r.json();
@@ -315,20 +350,19 @@
             championData?.name ||
             'Champion';
         const pts =
-            champion.total_points ??
-            champion.points ??
-            championData?.points ??
-            0;
-        const gold = champion.gold_medals ?? champion.gold ?? championData?.gold ?? 0;
-        const silver = champion.silver_medals ?? champion.silver ?? championData?.silver ?? 0;
-        const bronze = champion.bronze_medals ?? champion.bronze ?? championData?.bronze ?? 0;
+            champion.total_points ?? champion.points ?? championData?.points ?? 0;
+        const gold =
+            champion.gold_medals ?? champion.gold ?? championData?.gold ?? 0;
+        const silver =
+            champion.silver_medals ?? champion.silver ?? championData?.silver ?? 0;
+        const bronze =
+            champion.bronze_medals ?? champion.bronze ?? championData?.bronze ?? 0;
         const logo = champion.logo_url || championData?.logo_url;
 
         const imgHtml = logo
             ? `<img src="${escapeAttr(logo)}" class="cc-logo" alt="">`
             : `<div class="cc-logo cc-logo-initials" style="background:${col}">${initials(name)}</div>`;
 
-        // Podium visual order: 2nd | 1st | 3rd
         const order = [1, 0, 2];
         const medal = (i) => (i === 0 ? '🥇' : i === 1 ? '🥈' : '🥉');
         const rankCls = (i) => (i === 0 ? 'gold' : i === 1 ? 'silver' : 'bronze');
@@ -354,7 +388,6 @@
                     .join('')}</div>`
                 : '';
 
-        // Remove any previous overlay
         document.querySelector('.champion-overlay')?.remove();
 
         const overlay = document.createElement('div');
@@ -371,146 +404,14 @@
       </div>`;
         document.body.appendChild(overlay);
         document.body.style.overflow = 'hidden';
-        requestAnimationFrame(() => overlay.classList.add('open'));
-
-        // Fire confetti AFTER overlay is up so particles sit on top of the dim layer
-        requestAnimationFrame(() => fireChampionConfetti(col));
+        requestAnimationFrame(() => {
+            overlay.classList.add('open');
+            setTimeout(() => fireChampionConfetti(col), 50);
+        });
     };
 
-    window.openChampionModal = async function () {
-        const body = document.getElementById('modal-body');
-        const overlay = document.getElementById('modal-overlay');
-        if (!body || !overlay) return;
-
-        // Confetti every time the champion button is pressed
-        fireChampionConfetti();
-
-        body.innerHTML = `<div class="empty-state" style="padding:2rem 1rem">
-    <div class="live-dot" style="margin:0 auto 12px"></div>
-    <div class="empty-sub">Loading podium…</div>
-  </div>`;
-        overlay.classList.add('open');
-        document.body.style.overflow = 'hidden';
-
-        try {
-            // Top 3 from leaderboard
-            const lbRes = await fetch(`${API_BASE}/leaderboard`);
-            const lb = await lbRes.json();
-            const rows = (lb.data || lb.standings || []).slice(0, 3);
-
-            // Active fest name (optional)
-            let festName = championData?.fest_name || 'Sport Fest';
-            let festYear = championData?.fest_year || '';
-            try {
-                const festRes = await fetch(`${API_BASE}/sport-fest/active`);
-                const festJson = await festRes.json();
-                if (festJson.success && festJson.data) {
-                    festName = festJson.data.name || festName;
-                    festYear = festJson.data.year || festYear;
-                }
-            } catch (_) { }
-
-            if (!rows.length) {
-                body.innerHTML = `<div class="empty-state" style="padding:2rem 1rem">
-        <div class="empty-title">No standings yet</div>
-        <div class="empty-sub">Leaderboard is empty.</div>
-      </div>`;
-                return;
-            }
-
-            const medal = (i) => (i === 0 ? '🥇' : i === 1 ? '🥈' : '🥉');
-            const rankClass = (i) => (i === 0 ? 'gold' : i === 1 ? 'silver' : 'bronze');
-
-            // Podium order: 2nd | 1st | 3rd (visual)
-            const order = [1, 0, 2];
-            const podiumHtml = `
-      <div class="modal-ffa-podium champion-podium">
-        ${order
-                    .map((idx) => {
-                        const p = rows[idx];
-                        if (!p) return '<div></div>';
-                        const name =
-                            p.department_name || p.name || p.dept_name || '—';
-                        const color =
-                            p.department_color || p.color || p.dept_color || '#4b5563';
-                        const logo =
-                            p.logo_url || p.department_logo || p.dept_logo || null;
-                        const pts = p.total_points ?? p.points ?? p.pts ?? 0;
-                        const cls = rankClass(idx);
-                        return `
-              <div class="podium-slot ${cls}">
-                <div class="podium-rank">${medal(idx)}</div>
-                <div class="podium-avatar" style="background:${color}">
-                  ${logo
-                                ? `<img src="${escapeAttr(logo)}" alt="">`
-                                : initials(name)
-                            }
-                </div>
-                <div class="podium-name">${escapeHtml(name)}</div>
-                <div class="podium-score">${Number(pts).toLocaleString()} pts</div>
-              </div>`;
-                    })
-                    .join('')}
-      </div>`;
-
-            const listHtml = rows
-                .map((p, i) => {
-                    const name = p.department_name || p.name || p.dept_name || '—';
-                    const color = p.department_color || p.color || p.dept_color || '#4b5563';
-                    const logo = p.logo_url || p.department_logo || p.dept_logo || null;
-                    const pts = p.total_points ?? p.points ?? p.pts ?? 0;
-                    const gold = p.gold ?? p.medals_gold ?? p.gold_medals ?? 0;
-                    const silver = p.silver ?? p.medals_silver ?? p.silver_medals ?? 0;
-                    const bronze = p.bronze ?? p.medals_bronze ?? p.bronze_medals ?? 0;
-                    const rankCls =
-                        i === 0 ? 'rank-1 top3' : i === 1 ? 'rank-2 top3' : 'rank-3 top3';
-                    return `
-          <div class="ffa-rank-row ${rankCls}">
-            <div class="ffa-rank-num">${i + 1}</div>
-            <div class="ffa-rank-avatar" style="background:${color}">
-              ${logo
-                            ? `<img src="${escapeAttr(logo)}" alt="">`
-                            : initials(name)
-                        }
-            </div>
-            <div class="ffa-rank-info">
-              <div class="ffa-rank-name">${escapeHtml(name)}</div>
-              <div class="ffa-rank-dept">🥇 ${gold} · 🥈 ${silver} · 🥉 ${bronze}</div>
-            </div>
-            <div class="ffa-rank-value">${Number(pts).toLocaleString()}</div>
-          </div>`;
-                })
-                .join('');
-
-            body.innerHTML = `
-      <div class="modal-ffa modal-champion">
-        <div class="modal-header" style="text-align:center">
-          <div style="font-size:36px;margin-bottom:6px">🏆</div>
-          <div class="modal-ffa-badge">Sport Fest Champion</div>
-          <div class="modal-ffa-title">${escapeHtml(
-                rows[0]?.department_name ||
-                rows[0]?.name ||
-                championData?.name ||
-                'Champion'
-            )}</div>
-          <div class="modal-ffa-sub">${escapeHtml(festName)}${festYear ? ' · ' + escapeHtml(String(festYear)) : ''
-                }</div>
-        </div>
-        ${podiumHtml}
-        <div class="modal-breakdown-title">Final Podium</div>
-        <div class="modal-ffa-list">${listHtml}</div>
-        <div class="modal-ffa-scoring-note">Overall department standings</div>
-      </div>`;
-        } catch (err) {
-            console.error(err);
-            body.innerHTML = `<div class="empty-state" style="padding:2rem 1rem">
-      <div class="empty-title">Couldn’t load podium</div>
-      <div class="empty-sub">${escapeHtml(err.message || 'Try again')}</div>
-    </div>`;
-        }
-    };
     // ═══════════════════════════════════════════════════════════
-    // FILTERS / SPOTLIGHT / RENDER (same as before)
+    // FILTERS / SPOTLIGHT / RENDER
     // ═══════════════════════════════════════════════════════════
     window.filterByStatus = function (status, el) {
         currentStatus = status;
@@ -966,6 +867,21 @@
                 loadMatches();
                 loadChampion();
             });
+            socket.on('champion:declared', (data) => {
+                if (data?.champion) {
+                    championData = {
+                        department_id: data.champion.id,
+                        name: data.champion.name,
+                        points: data.champion.total_points,
+                        color: data.champion.color,
+                        logo_url: data.champion.logo_url,
+                    };
+                    showChampion(championData);
+                    openChampionModal();
+                } else {
+                    loadChampion();
+                }
+            });
         } catch (e) {
             console.warn('Socket failed', e);
             setWsStatus(false);
@@ -983,7 +899,7 @@
     }
 
     // ═══════════════════════════════════════════════════════════
-    // MODALS
+    // MATCH MODALS
     // ═══════════════════════════════════════════════════════════
     window.openMatchModal = async function (matchIdOrObj) {
         const body = $('#modal-body');
@@ -1018,7 +934,8 @@
             }
             if (isFFAMatch(match)) body.innerHTML = await buildFFAModal(match);
             else if (match.scoring_type === 'binary') body.innerHTML = buildBinaryModal(match);
-            else if (match.scoring_type === 'sets' || match.sets_to_win) body.innerHTML = buildSetsModal(match);
+            else if (match.scoring_type === 'sets' || match.sets_to_win)
+                body.innerHTML = buildSetsModal(match);
             else body.innerHTML = buildStandardModal(match);
         } catch (err) {
             console.error(err);
@@ -1038,7 +955,10 @@
     };
 
     document.addEventListener('keydown', (e) => {
-        if (e.key === 'Escape') closeModal();
+        if (e.key === 'Escape') {
+            if (document.querySelector('.champion-overlay')) closeChampionCelebration();
+            else closeModal();
+        }
     });
 
     function bindMatchCardClicks(containerSelector) {
@@ -1067,7 +987,8 @@
             console.warn('FFA results fetch failed', e);
         }
         const sorted = [...participants].sort((a, b) => {
-            if (a.rank_position != null && b.rank_position != null) return a.rank_position - b.rank_position;
+            if (a.rank_position != null && b.rank_position != null)
+                return a.rank_position - b.rank_position;
             const va = a.ffa_result_value != null ? Number(a.ffa_result_value) : null;
             const vb = b.ffa_result_value != null ? Number(b.ffa_result_value) : null;
             if (va == null && vb == null) return 0;
@@ -1100,7 +1021,9 @@
                         const cls = r === 1 ? 'gold' : r === 2 ? 'silver' : 'bronze';
                         const val =
                             p.ffa_result_value != null
-                                ? Number(p.ffa_result_value).toLocaleString(undefined, { maximumFractionDigits: 2 })
+                                ? Number(p.ffa_result_value).toLocaleString(undefined, {
+                                    maximumFractionDigits: 2,
+                                })
                                 : '—';
                         return `<div class="podium-slot ${cls}">
                 <div class="podium-rank">${r}</div>
@@ -1116,10 +1039,13 @@
         const listHtml = sorted
             .map((p) => {
                 const r = p._rank || '—';
-                const rankCls = r === 1 ? 'rank-1 top3' : r === 2 ? 'rank-2 top3' : r === 3 ? 'rank-3 top3' : '';
+                const rankCls =
+                    r === 1 ? 'rank-1 top3' : r === 2 ? 'rank-2 top3' : r === 3 ? 'rank-3 top3' : '';
                 const val =
                     p.ffa_result_value != null
-                        ? Number(p.ffa_result_value).toLocaleString(undefined, { maximumFractionDigits: 2 })
+                        ? Number(p.ffa_result_value).toLocaleString(undefined, {
+                            maximumFractionDigits: 2,
+                        })
                         : '—';
                 return `<div class="ffa-rank-row ${rankCls}">
           <div class="ffa-rank-num">${r}</div>
@@ -1452,7 +1378,9 @@
         if (n == null || n === '') return '0';
         const x = Number(n);
         if (Number.isNaN(x)) return '0';
-        return Number.isInteger(x) ? String(x) : x.toLocaleString(undefined, { maximumFractionDigits: 2 });
+        return Number.isInteger(x)
+            ? String(x)
+            : x.toLocaleString(undefined, { maximumFractionDigits: 2 });
     }
     function pad(n) {
         return String(n).padStart(2, '0');
@@ -1462,7 +1390,11 @@
         if (el) el.textContent = val;
     }
     function formatTime(d) {
-        return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+        return d.toLocaleTimeString([], {
+            hour: '2-digit',
+            minute: '2-digit',
+            second: '2-digit',
+        });
     }
     function sportEmoji(name) {
         const n = String(name || '').toLowerCase();
