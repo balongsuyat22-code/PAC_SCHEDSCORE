@@ -24,6 +24,7 @@
             <span class="ticker-item">Sport Fest · Live Coverage · Stay tuned</span>
         </div>
     </div>
+
     <header class="topbar">
         <div class="topbar-inner">
             <div class="logo">PAC SCHED-SCORE</div>
@@ -33,6 +34,7 @@
             </div>
         </div>
     </header>
+
     <nav class="nav-wrap">
         <div class="nav">
             <a class="tab active" href="/live" data-page="index">
@@ -79,6 +81,7 @@
             </a>
         </div>
     </nav>
+
     <section class="hero">
         <div class="hero-grid"></div>
         <div class="hero-glow"></div>
@@ -130,26 +133,18 @@
             </div>
         </div>
     </section>
-    <!-- Sport Fest Champion (hidden until declared) -->
-    <div id="champion-bar" class="champion-bar" style="display:none" role="button" tabindex="0"
-        onclick="openChampionModal()">
-        <div class="champion-bar-inner">
-            <span class="champion-bar-icon">🏆</span>
-            <div class="champion-bar-text">
-                <span class="champion-bar-label">Sport Fest Champion</span>
-                <span class="champion-bar-name" id="champion-bar-name">—</span>
-            </div>
-            <span class="champion-bar-cta">View →</span>
-        </div>
-    </div>
+
     <main class="main">
         <section id="sec-scores" class="section active">
             <div class="sec-head">
                 <h2 class="sec-title">Match <span>Board</span></h2>
-                <button type="button" class="refresh-btn" onclick="refreshScores(this)"><span
-                        class="refresh-icon">↻</span> Refresh</button>
+                <button type="button" class="refresh-btn" onclick="refreshScores(this)">
+                    <span class="refresh-icon">↻</span> Refresh
+                </button>
             </div>
-            <div class="auto-refresh-strip"><span class="arf-dot"></span><span id="refresh-ts">Connecting…</span></div>
+            <div class="auto-refresh-strip">
+                <span class="arf-dot"></span><span id="refresh-ts">Connecting…</span>
+            </div>
             <div class="sport-filters" id="sport-filters"></div>
             <div class="status-filters">
                 <button type="button" class="filter-chip active" onclick="filterByStatus('all',this)">All</button>
@@ -166,6 +161,8 @@
             </div>
         </section>
     </main>
+
+    <!-- Match detail modal -->
     <div class="modal-overlay" id="modal-overlay" onclick="closeModalOnBg(event)">
         <div class="modal-sheet" role="dialog" aria-modal="true" aria-label="Match details">
             <button type="button" class="modal-close" id="modal-close" onclick="closeModal()"
@@ -173,6 +170,14 @@
             <div class="modal-body" id="modal-body"></div>
         </div>
     </div>
+
+    <!-- Champion FAB — sits above mobile nav (same placement as before) -->
+    <button type="button" id="champion-fab" class="champion-fab" style="display:none" onclick="openChampionModal()"
+        aria-label="Sport Fest Champion">
+        <span class="champion-fab-icon">🏆</span>
+        <span class="champion-fab-label">Champion</span>
+    </button>
+
     <nav class="mobile-nav" aria-label="Main">
         <a href="/live" data-page="index">
             <span class="mnav-icon" aria-hidden="true">
@@ -228,6 +233,7 @@
             <span>Highlights</span>
         </a>
     </nav>
+
     <script src="../../js/visitor/config.js"></script>
     <script src="../../js/visitor/scores.js"></script>
 </body>
