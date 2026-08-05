@@ -129,9 +129,20 @@ function bindChampionSocket() {
         return;
     }
     socket.on('champion:declared', (data) => {
-        if (!data || !data.champion) return;
-        showChampionCelebration(data.champion, data.message);
-        loadLeaderboard(); // refresh the numbers behind the modal too
+        if (data?.champion) {
+            championData = {
+                department_id: data.champion.id,
+                name: data.champion.name,
+                points: data.champion.total_points,
+                color: data.champion.color,
+                logo_url: data.champion.logo_url,
+            };
+            showChampion(championData);
+            // Full celebration overlay when declared live
+            openChampionModal();
+        } else {
+            loadChampion();
+        }
     });
 }
 

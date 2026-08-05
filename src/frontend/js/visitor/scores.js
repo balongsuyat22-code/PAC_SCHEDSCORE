@@ -180,14 +180,12 @@
         const fab = document.getElementById('champion-fab');
         if (fab) {
             fab.style.display = 'flex';
-            fab.setAttribute('title', (c.name || 'Champion') + ' — Sport Fest Champion');
+            fab.title = (c.name || 'Champion') + ' — Sport Fest Champion';
         }
-
-        // Same session confetti pattern as before — fire once per champion
         const key = 'champ_confetti_' + (c.department_id || c.name);
         if (!sessionStorage.getItem(key) && typeof confetti === 'function') {
             sessionStorage.setItem(key, '1');
-            fireChampionConfetti();
+            fireChampionConfetti(c.color || '#f59e0b');
         }
     }
 
@@ -198,28 +196,186 @@
     }
 
     /** Original-style side cannons (canvas-confetti) */
-    function fireChampionConfetti() {
+    /** Same confetti burst as standings page */
+    function fireChampionConfetti(color) {
         if (typeof confetti !== 'function') return;
-        const end = Date.now() + 2500;
-        const colors = ['#f59e0b', '#fbbf24', '#ffffff', '#ffb020'];
-        (function frame() {
-            confetti({
-                particleCount: 3,
-                angle: 60,
-                spread: 55,
-                origin: { x: 0 },
-                colors,
-            });
-            confetti({
-                particleCount: 3,
-                angle: 120,
-                spread: 55,
-                origin: { x: 1 },
-                colors,
-            });
-            if (Date.now() < end) requestAnimationFrame(frame);
-        })();
+        const col = color || '#f59e0b';
+        const base = {
+            particleCount: 160,
+            spread: 110,
+            startVelocity: 60,
+            colors: [col, '#ffffff', '#f59e0b'],
+        };
+        confetti({ ...base, angle: 60, origin: { x: 0, y: 0.65 } });
+        confetti({ ...base, angle: 120, origin: { x: 1, y: 0.65 } });
+        setTimeout(
+            () => confetti({ ...base, particleCount: 100, angle: 90, origin: { x: 0.5, y: 0.3 } }),
+            350
+        );
+        setTimeout(
+            () => confetti({ ...base, particleCount: 80, spread: 140, origin: { x: 0.5, y: 0.5 } }),
+            700
+        );
     }
+
+    function injectChampionStyles() {
+        if (document.getElementById('champion-celebration-styles')) return;
+        const style = document.createElement('style');
+        style.id = 'champion-celebration-styles';
+        style.textContent = `
+    .champion-overlay{position:fixed;inset:0;z-index:1000;background:rgba(5,6,7,.88);backdrop-filter:blur(10px);
+      display:flex;align-items:center;justify-content:center;opacity:0;visibility:hidden;
+      transition:opacity .35s ease,visibility .35s ease;padding:1.25rem}
+    .champion-overlay.open{opacity:1;visibility:visible}
+    .champion-modal{position:relative;max-width:420px;width:100%;text-align:center;
+      background:radial-gradient(circle at 50% 0%, color-mix(in srgb, var(--cc-color) 22%, #111417), #0a0c0e 70%);
+      border:1px solid color-mix(in srgb, var(--cc-color) 55%, transparent);
+      border-radius:28px;padding:2.25rem 1.5rem 1.75rem;
+      box-shadow:0 30px 80px rgba(0,0,0,.6), 0 0 60px color-mix(in srgb, var(--cc-color) 35%, transparent);
+      transform:scale(.85) translateY(20px);transition:transform .4s cubic-bezier(.34,1.56,.64,1);
+      max-height:min(90vh,640px);overflow-y:auto}
+    .champion-overlay.open .champion-modal{transform:scale(1) translateY(0)}
+    .cc-close{position:absolute;top:14px;right:14px;width:34px;height:34px;border-radius:50%;
+      border:1px solid rgba(255,255,255,.2);background:rgba(255,255,255,.06);color:#fff;font-size:18px;
+      cursor:pointer;display:flex;align-items:center;justify-content:center;z-index:2}
+    .cc-trophy{font-size:44px;margin-bottom:.35rem;filter:drop-shadow(0 0 14px var(--cc-color))}
+    .cc-logo{width:80px;height:80px;border-radius:50%;object-fit:cover;margin:.4rem auto .85rem;
+      border:3px solid var(--cc-color);box-shadow:0 0 24px color-mix(in srgb, var(--cc-color) 50%, transparent);
+      display:flex;align-items:center;justify-content:center}
+    .cc-logo-initials{font-family:var(--font-head);font-size:26px;font-weight:800;color:#fff}
+    .cc-eyebrow{font-family:var(--font-mono);font-size:11px;letter-spacing:.14em;text-transform:uppercase;
+      color:var(--cc-color);margin-bottom:.35rem}
+    .cc-name{font-family:var(--font-head);font-size:clamp(26px,7vw,36px);font-weight:900;text-transform:uppercase;
+      color:#fff;line-height:1.05;text-shadow:0 0 20px color-mix(in srgb, var(--cc-color) 60%, transparent);
+      word-break:break-word;padding:0 .5rem}
+    .cc-sub{font-size:13px;color:var(--muted2);margin-top:.5rem}
+    .cc-podium{display:grid;grid-template-columns:1fr 1.15fr 1fr;gap:8px;align-items:end;margin:1.25rem 0 .5rem}
+    .cc-slot{background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.1);border-radius:14px;padding:.7rem .45rem;text-align:center}
+    .cc-slot.gold{background:rgba(245,158,11,.14);border-color:rgba(245,158,11,.45);padding-top:1rem;padding-bottom:.9rem}
+    .cc-slot.silver{border-color:rgba(148,163,184,.35)}
+    .cc-slot.bronze{border-color:rgba(194,98,42,.35)}
+    .cc-slot-rank{font-size:16px;margin-bottom:4px}
+    .cc-slot-av{width:36px;height:36px;border-radius:50%;margin:0 auto 5px;display:flex;align-items:center;justify-content:center;
+      font-family:var(--font-head);font-size:12px;font-weight:700;color:#fff;overflow:hidden}
+    .cc-slot.gold .cc-slot-av{width:44px;height:44px;font-size:14px;box-shadow:0 0 0 2px var(--gold)}
+    .cc-slot-av img{width:100%;height:100%;object-fit:cover}
+    .cc-slot-name{font-size:11px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    .cc-slot-pts{font-family:var(--font-mono);font-size:13px;font-weight:700;color:var(--gold);margin-top:3px}
+    .cc-slot.gold .cc-slot-pts{font-size:15px}`;
+        document.head.appendChild(style);
+    }
+
+    window.closeChampionCelebration = function () {
+        const overlay = document.querySelector('.champion-overlay');
+        if (!overlay) return;
+        overlay.classList.remove('open');
+        document.body.style.overflow = '';
+        setTimeout(() => overlay.remove(), 300);
+    };
+
+    /** Opens full-screen celebration (same UI family as standings) + top 3 */
+    window.openChampionModal = async function () {
+        injectChampionStyles();
+
+        // Confetti in FRONT of everything (z-index of canvas is high; fire after overlay mounts)
+        let champion = championData || {};
+        let top3 = [];
+
+        try {
+            // Prefer overall-champion endpoint used by standings
+            const r = await fetch(`${API_BASE}/leaderboard/overall-champion`);
+            if (r.ok) {
+                const j = await r.json();
+                if (j.data?.champion) {
+                    champion = {
+                        ...champion,
+                        ...j.data.champion,
+                        name: j.data.champion.name || j.data.champion.department_name,
+                        total_points: j.data.champion.total_points,
+                        gold_medals: j.data.champion.gold_medals,
+                        silver_medals: j.data.champion.silver_medals,
+                        bronze_medals: j.data.champion.bronze_medals,
+                        color: j.data.champion.color || champion.color,
+                        logo_url: j.data.champion.logo_url || champion.logo_url,
+                    };
+                }
+            }
+        } catch (_) { }
+
+        try {
+            const lbRes = await fetch(`${API_BASE}/leaderboard`);
+            const lb = await lbRes.json();
+            top3 = (lb.data || lb.standings || []).slice(0, 3);
+        } catch (_) { }
+
+        const col = champion.color || championData?.color || '#f59e0b';
+        const name =
+            champion.name ||
+            champion.department_name ||
+            championData?.name ||
+            'Champion';
+        const pts =
+            champion.total_points ??
+            champion.points ??
+            championData?.points ??
+            0;
+        const gold = champion.gold_medals ?? champion.gold ?? championData?.gold ?? 0;
+        const silver = champion.silver_medals ?? champion.silver ?? championData?.silver ?? 0;
+        const bronze = champion.bronze_medals ?? champion.bronze ?? championData?.bronze ?? 0;
+        const logo = champion.logo_url || championData?.logo_url;
+
+        const imgHtml = logo
+            ? `<img src="${escapeAttr(logo)}" class="cc-logo" alt="">`
+            : `<div class="cc-logo cc-logo-initials" style="background:${col}">${initials(name)}</div>`;
+
+        // Podium visual order: 2nd | 1st | 3rd
+        const order = [1, 0, 2];
+        const medal = (i) => (i === 0 ? '🥇' : i === 1 ? '🥈' : '🥉');
+        const rankCls = (i) => (i === 0 ? 'gold' : i === 1 ? 'silver' : 'bronze');
+        const podiumHtml =
+            top3.length >= 1
+                ? `<div class="cc-podium">${order
+                    .map((idx) => {
+                        const p = top3[idx];
+                        if (!p) return '<div></div>';
+                        const n = p.department_name || p.name || p.dept_name || '—';
+                        const c = p.department_color || p.color || p.dept_color || '#4b5563';
+                        const lo = p.logo_url || p.department_logo || null;
+                        const points = p.total_points ?? p.points ?? 0;
+                        return `<div class="cc-slot ${rankCls(idx)}">
+                <div class="cc-slot-rank">${medal(idx)}</div>
+                <div class="cc-slot-av" style="background:${c}">
+                  ${lo ? `<img src="${escapeAttr(lo)}" alt="">` : initials(n)}
+                </div>
+                <div class="cc-slot-name">${escapeHtml(n)}</div>
+                <div class="cc-slot-pts">${Number(points).toLocaleString()}</div>
+              </div>`;
+                    })
+                    .join('')}</div>`
+                : '';
+
+        // Remove any previous overlay
+        document.querySelector('.champion-overlay')?.remove();
+
+        const overlay = document.createElement('div');
+        overlay.className = 'champion-overlay';
+        overlay.innerHTML = `
+      <div class="champion-modal" style="--cc-color:${col}">
+        <button type="button" class="cc-close" onclick="closeChampionCelebration()" aria-label="Close">×</button>
+        <div class="cc-trophy">🏆</div>
+        ${imgHtml}
+        <div class="cc-eyebrow">Sport Fest Overall Champion</div>
+        <div class="cc-name">${escapeHtml(name)}</div>
+        <div class="cc-sub">${Number(pts).toLocaleString()} pts · ${gold} Gold · ${silver} Silver · ${bronze} Bronze</div>
+        ${podiumHtml}
+      </div>`;
+        document.body.appendChild(overlay);
+        document.body.style.overflow = 'hidden';
+        requestAnimationFrame(() => overlay.classList.add('open'));
+
+        // Fire confetti AFTER overlay is up so particles sit on top of the dim layer
+        requestAnimationFrame(() => fireChampionConfetti(col));
+    };
 
     window.openChampionModal = async function () {
         const body = document.getElementById('modal-body');
