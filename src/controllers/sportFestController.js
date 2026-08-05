@@ -174,12 +174,13 @@ const declareChampion = async (req, res, next) => {
 
         const [rows] = await pool.execute(`
             SELECT d.id, d.name,
-                   COALESCE(ds.total_points,0) as total_points
+                   COALESCE(ds.total_points,0) as total_points,
+                   COALESCE(ds.gold_medals,0) as gold_medals
             FROM departments d
             LEFT JOIN department_scores ds
                 ON d.id = ds.department_id AND ds.sport_fest_id = ?
             WHERE d.is_active = 1
-            ORDER BY total_points DESC, ds.gold_medals DESC
+            ORDER BY total_points DESC, gold_medals DESC
             LIMIT 1
         `, [festId]);
 
@@ -230,6 +231,29 @@ const declareChampion = async (req, res, next) => {
     }
 };
 
+// ---------------------------------------------------------------------------
+// GET SUMMARY
+// GET /api/sport-fest/:id/summary
+//
+// FIX: this was 500ing on every call, which is what actually broke
+// "Declare Champion" from the UI — that button only gets wired up
+// inside viewFest(), and viewFest() bails out (with just a toast) the
+// moment this endpoint fails, so the modal never opened at all.
+//
+// Two real SQL bugs here:
+//   1. `tr.rank` — `rank` became a *reserved keyword* in MySQL 8.0+.
+//      An unquoted `tr.rank` in a WHERE/ON clause is a syntax error on
+//      any MySQL 8+ server, full stop, regardless of data.
+//   2. `GROUP BY t.id` while selecting s.name / t.name / t.status /
+//      t.format / t.gender / d.name — none of those are guaranteed
+//      functionally dependent on t.id from MySQL's point of view once
+//      joins are involved, so this throws error 1055 under the default
+//      ONLY_FULL_GROUP_BY sql_mode.
+//
+// Rewritten below to avoid GROUP BY entirely (a correlated subquery
+// handles the participant count, and the rank=1 LEFT JOIN already
+// returns at most one row per tournament), and to backtick `rank`.
+// ---------------------------------------------------------------------------
 const getSummary = async (req, res, next) => {
     try {
         const [fest] = await pool.execute(`
@@ -263,18 +287,20 @@ const getSummary = async (req, res, next) => {
                 t.status,
                 t.format,
                 t.gender,
-                d.name as winner_department,
-                COUNT(DISTINCT tp.department_id) as departments_participated
+                winner.name as winner_department,
+                (
+                    SELECT COUNT(DISTINCT tp.department_id)
+                    FROM tournament_participants tp
+                    WHERE tp.tournament_id = t.id
+                ) as departments_participated
             FROM sport_fest_tournaments sft
             JOIN tournaments t ON sft.tournament_id = t.id
             JOIN sports s ON t.sport_id = s.id
-            LEFT JOIN tournament_results tr 
-                ON t.id = tr.tournament_id AND tr.rank = 1
-            LEFT JOIN departments d ON tr.department_id = d.id
-            LEFT JOIN tournament_participants tp 
-                ON t.id = tp.tournament_id
+            LEFT JOIN tournament_results tr
+                ON t.id = tr.tournament_id AND tr.\`rank\` = 1
+            LEFT JOIN departments winner ON tr.department_id = winner.id
             WHERE sft.sport_fest_id = ?
-            GROUP BY t.id
+            ORDER BY t.name
         `, [req.params.id]);
 
         res.json({

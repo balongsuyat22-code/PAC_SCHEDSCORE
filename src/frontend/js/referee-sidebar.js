@@ -1,4 +1,3 @@
-
 let refereeMobileOpen = false;
 
 /* ── SVG ICON HELPERS ── */
@@ -188,7 +187,50 @@ function toggleSidebar() {
     if (overlay) overlay.style.display = refereeMobileOpen ? 'block' : 'none';
 }
 
-/* ── NOTIFICATIONS ── */
+/* ── NOTIFICATIONS ──
+ * Each notification's id embeds the match's *current* status
+ * (`match_<id>_<status>`), so a dismissal only suppresses that
+ * exact state — the moment the match moves to a new status
+ * (scheduled -> ongoing -> completed) it's a fresh id and will
+ * resurface. This replaces the old "mark all read" behaviour,
+ * which used a single global timestamp and explicitly refused to
+ * suppress 'ongoing' / overdue notifications at all — meaning a
+ * "Match LIVE" alert could never be dismissed until the match was
+ * completed, even right after you started it and were actively
+ * scoring it. That was the persistent-notification bug.
+ */
+const DISMISS_KEY = 'sf_dismissed_notifs';
+const DISMISS_TTL = 12 * 60 * 60 * 1000; // prune anything older than 12h
+
+function getDismissedNotifs() {
+    try {
+        const raw = JSON.parse(localStorage.getItem(DISMISS_KEY) || '{}');
+        const now = Date.now();
+        // Prune stale entries so this never grows unbounded.
+        const pruned = {};
+        Object.keys(raw).forEach(id => {
+            if (now - raw[id] < DISMISS_TTL) pruned[id] = raw[id];
+        });
+        return pruned;
+    } catch {
+        return {};
+    }
+}
+
+function dismissNotif(notifId) {
+    const dismissed = getDismissedNotifs();
+    dismissed[notifId] = Date.now();
+    localStorage.setItem(DISMISS_KEY, JSON.stringify(dismissed));
+}
+
+/* Called from scoring.html when a referee opens a match — if they're
+ * actively looking at it, its "Match LIVE" / "Match Overdue" alert
+ * has served its purpose and shouldn't keep nagging them. */
+window.dismissMatchNotifications = function (matchId) {
+    ['ongoing', 'scheduled'].forEach(status => dismissNotif(`match_${matchId}_${status}`));
+    fetchNotifications();
+};
+
 async function fetchNotifications() {
     const user = Auth.getUser();
     if (!user) return;
@@ -197,15 +239,13 @@ async function fetchNotifications() {
         if (!res.success || !res.data) return;
 
         const now = new Date();
-        const clearedAt = parseInt(localStorage.getItem('sf_notifs_cleared_at') || '0', 10);
+        const dismissed = getDismissedNotifs();
         const notifications = [];
         const currentTimeStr = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 
         res.data.forEach(m => {
             const notifId = `match_${m.id}_${m.status}`;
-            if (clearedAt > 0 && Date.now() - clearedAt < 3600000) {
-                if (!['ongoing'].includes(m.status) && !(m.status === 'scheduled' && isOverdue(m, now))) return;
-            }
+            if (dismissed[notifId]) return;
 
             const nameA = m.team_a_name || m.dept_a_name || 'TBD';
             const nameB = m.team_b_name || m.dept_b_name || 'TBD';
@@ -288,6 +328,8 @@ function renderNotificationList(notifications) {
                     </div>
                     <div class="notif-item-msg">${n.message}</div>
                 </div>
+                <button class="notif-item-dismiss" title="Dismiss" aria-label="Dismiss"
+                    onclick="event.stopPropagation(); dismissNotif('${n.id}'); fetchNotifications();">${ICONS.x}</button>
             </div>`).join('');
     } else {
         badge.style.display = 'none';
@@ -304,9 +346,22 @@ window.toggleNotifDropdown = function (event) {
     dd.style.display = isOpen ? 'none' : 'flex';
 };
 
-window.markAllRead = function (event) {
+window.markAllRead = async function (event) {
     if (event) event.stopPropagation();
-    localStorage.setItem('sf_notifs_cleared_at', Date.now().toString());
+    // Dismiss exactly what's currently showing (by their status-scoped
+    // ids), including live/overdue ones — a match's alert should only
+    // come back if its status actually changes again.
+    try {
+        const user = Auth.getUser();
+        if (user) {
+            const res = await api(`/matches?referee_id=${user.id}`);
+            if (res.success && res.data) {
+                res.data.forEach(m => dismissNotif(`match_${m.id}_${m.status}`));
+            }
+        }
+    } catch (err) {
+        console.error('markAllRead error:', err);
+    }
     const badge = document.getElementById('notif-badge');
     const list = document.getElementById('notif-list');
     if (badge) badge.style.display = 'none';

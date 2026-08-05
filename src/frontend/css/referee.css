@@ -447,6 +447,30 @@ body {
     line-height: 1.45;
     word-break: break-word;
 }
+.notif-item-dismiss {
+    flex-shrink: 0;
+    align-self: flex-start;
+    width: 22px;
+    height: 22px;
+    border-radius: 6px;
+    border: none;
+    background: transparent;
+    color: var(--muted);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    opacity: 0;
+    transition: opacity 0.12s, background 0.12s, color 0.12s;
+}
+.notif-item-dismiss svg { width: 12px; height: 12px; stroke: currentColor; fill: none; stroke-width: 2.5; }
+.notif-item:hover .notif-item-dismiss { opacity: 1; }
+.notif-item-dismiss:hover { background: rgba(255, 255, 255, 0.08); color: var(--text); }
+@media (hover: none) {
+    /* Touch devices have no :hover — keep the dismiss button visible. */
+    .notif-item-dismiss { opacity: 0.55; }
+}
+
 .notif-footer {
     padding: 12px;
     text-align: center;

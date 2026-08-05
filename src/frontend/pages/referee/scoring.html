@@ -131,6 +131,30 @@
             border-color: var(--border-gold);
         }
 
+        /* Highlight the current pace-setter so the room can see who's
+           winning at a glance while scores are still being entered. */
+        .ffa-participant-item.is-leader {
+            border-color: rgba(245, 184, 0, 0.5);
+            background: linear-gradient(90deg, rgba(245, 184, 0, 0.08), var(--bg3) 60%);
+        }
+
+        .ffa-leader-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 3px;
+            font-size: 10px;
+            font-weight: 800;
+            text-transform: uppercase;
+            letter-spacing: 0.4px;
+            color: var(--gold);
+            background: rgba(245, 184, 0, 0.14);
+            border: 1px solid rgba(245, 184, 0, 0.35);
+            border-radius: 100px;
+            padding: 1px 7px;
+            margin-left: 6px;
+            vertical-align: middle;
+        }
+
         .team-display {
             display: flex;
             justify-content: space-between;
@@ -907,6 +931,13 @@
             scoringType = m.scoring_type || 'points';
             standingsOpen = false;
 
+            // The referee is now actively looking at this match — its
+            // sidebar "Match LIVE" / "Match Overdue" alert has done its
+            // job, so clear it instead of letting it nag forever.
+            if (typeof window.dismissMatchNotifications === 'function') {
+                window.dismissMatchNotifications(m.id);
+            }
+
             const isFFA = m.tournament_format === 'free_for_all' || m.tournament_format === 'team_ranking';
 
             if (isFFA) {
@@ -982,6 +1013,9 @@
                 const res = await api(`/matches/${selectedMatch.id}/start`, { method: 'PATCH' });
                 if (res.success) {
                     selectedMatch.status = 'ongoing';
+                    if (typeof window.dismissMatchNotifications === 'function') {
+                        window.dismissMatchNotifications(selectedMatch.id);
+                    }
                     await notifyPlayers(selectedMatch);
                     renderScoreboard();
                     await loadMyMatches();
@@ -1146,17 +1180,19 @@
                                 </div>`;
                     }
 
+                    const isLeader = p.rank_position === 1 && p.ffa_result_value !== null && p.ffa_result_value !== undefined;
                     return `
-                                <div class="ffa-participant-item">
+                                <div class="ffa-participant-item${isLeader ? ' is-leader' : ''}">
                                     <div style="font-family:'Barlow Condensed', sans-serif; font-weight:900; color:var(--gold); width:45px; text-align:center; font-size:18px; letter-spacing:1px;">
                                         ${formatRank(p.rank_position)}
                                     </div>
                                     <div style="width:40px; height:40px; border-radius:10px; background:${p.department_color || '#555'}; display:flex; align-items:center; justify-content:center; font-family:'Barlow Condensed',sans-serif; font-size:16px; font-weight:900; color:#fff;">${init}</div>
                                     <div class="ffa-participant-info">
-                                        <div class="ffa-participant-name">${p.team_name || p.department_name}</div>
+                                        <div class="ffa-participant-name">${p.team_name || p.department_name}${isLeader ? ` <span class="ffa-leader-badge">${scoreIcon('trophy', 'icon-sm')} Leading</span>` : ''}</div>
                                         <div class="ffa-participant-dept">${p.department_name}</div>
                                     </div>
-                                    <input type="${ffaScoringType === 'time' ? 'number' : 'text'}"
+                                    <input type="number"
+                                        inputmode="decimal"
                                         step="${ffaScoringType === 'time' ? '0.01' : '1'}"
                                         class="ffa-score-input"
                                         placeholder="${scoreLabel}"
@@ -1817,8 +1853,11 @@
 
                 const matchPlayersRes = await api(`/matches/${selectedMatch.id}/players`);
                 if (matchPlayersRes.success && matchPlayersRes.data) {
-                    playersA = matchPlayersRes.data.side_a || [];
-                    playersB = matchPlayersRes.data.side_b || [];
+                    // Defense in depth: filter to this match's team even if
+                    // the backend hasn't deployed the server-side fix yet,
+                    // so the dropdown never shows a whole department roster.
+                    playersA = filterMatchPlayers(matchPlayersRes.data.side_a || [], selectedMatch.team_a_name);
+                    playersB = filterMatchPlayers(matchPlayersRes.data.side_b || [], selectedMatch.team_b_name);
                     labelA = matchPlayersRes.data.label_a || labelA;
                     labelB = matchPlayersRes.data.label_b || labelB;
                 } else {

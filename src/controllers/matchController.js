@@ -1202,11 +1202,6 @@ const getScoreHistory = async (req, res, next) => {
     }
 };
 
-// ---------------------------------------------------------------------------
-// GET MATCH PLAYERS (for MVP selection)
-// GET /api/matches/:id/players
-// Protected: sgo_officer | sgo_president | admin
-// ---------------------------------------------------------------------------
 const getMatchPlayers = async (req, res, next) => {
     try {
         const matchId = parseInt(req.params.id);
@@ -1216,6 +1211,8 @@ const getMatchPlayers = async (req, res, next) => {
                 m.id,
                 m.participant_a_department_id,
                 m.participant_b_department_id,
+                m.team_a_name,
+                m.team_b_name,
                 da.name AS dept_a_name,
                 db.name AS dept_b_name
              FROM matches m
@@ -1231,7 +1228,7 @@ const getMatchPlayers = async (req, res, next) => {
 
         const match = matches[0];
 
-        const loadSide = async (departmentId) => {
+        const loadSide = async (departmentId, teamName) => {
             if (!departmentId) return [];
 
             const [rows] = await pool.execute(
@@ -1256,12 +1253,22 @@ const getMatchPlayers = async (req, res, next) => {
                    p.first_name ASC`,
                 [departmentId]
             );
-            return rows;
+
+            // Narrow to the specific team fielded in this match, if one
+            // is recorded. Players with no team assigned are kept either
+            // way (individual-sport rosters, free agents).
+            if (!teamName) return rows;
+            const target = String(teamName).trim().toLowerCase();
+            const filtered = rows.filter(p => {
+                const tn = (p.team_name || '').trim().toLowerCase();
+                return !tn || tn === target;
+            });
+            return filtered.length ? filtered : rows;
         };
 
         const [side_a, side_b] = await Promise.all([
-            loadSide(match.participant_a_department_id),
-            loadSide(match.participant_b_department_id),
+            loadSide(match.participant_a_department_id, match.team_a_name),
+            loadSide(match.participant_b_department_id, match.team_b_name),
         ]);
 
         return res.json({
@@ -1269,8 +1276,8 @@ const getMatchPlayers = async (req, res, next) => {
             data: {
                 side_a,
                 side_b,
-                label_a: match.dept_a_name || 'Side A',
-                label_b: match.dept_b_name || 'Side B',
+                label_a: match.team_a_name || match.dept_a_name || 'Side A',
+                label_b: match.team_b_name || match.dept_b_name || 'Side B',
             },
         });
     } catch (err) {
@@ -1278,11 +1285,7 @@ const getMatchPlayers = async (req, res, next) => {
     }
 };
 
-// ---------------------------------------------------------------------------
-// GET WATCHER COUNT FOR MATCH
-// GET /api/matches/:id/watchers
-// Protected: all roles
-// ---------------------------------------------------------------------------
+
 const getWatchers = async (req, res, next) => {
     try {
         const matchId = parseInt(req.params.id);

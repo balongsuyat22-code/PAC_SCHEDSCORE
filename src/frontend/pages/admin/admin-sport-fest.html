@@ -91,12 +91,15 @@
             text-transform: uppercase;
             margin: 2px 0 4px;
             padding-right: 90px;
+            overflow-wrap: break-word;
+            word-break: break-word;
         }
 
         .fest-theme {
             font-size: 12px;
             color: var(--muted);
             font-style: italic;
+            overflow-wrap: break-word;
         }
 
         .fest-card-body {
@@ -121,6 +124,7 @@
             border-radius: 10px;
             padding: 10px 14px;
             margin-bottom: 14px;
+            min-width: 0;
         }
 
         .fest-champion-logo {
@@ -137,6 +141,50 @@
             flex-shrink: 0;
         }
 
+        .fest-champion-info {
+            min-width: 0;
+            flex: 1;
+        }
+
+        .fest-champion-info .fest-champion-name {
+            font-weight: 700;
+            font-size: 13px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        /* CTA shown on a completed fest that has no champion declared yet —
+           previously there was zero UI signal that this step was still
+           pending, so setting status to "completed" alone looked like it
+           silently did nothing. */
+        .fest-champion-pending {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 10px;
+            background: rgba(245, 184, 0, .08);
+            border: 1px solid rgba(245, 184, 0, .3);
+            border-radius: 10px;
+            padding: 10px 14px;
+            margin-bottom: 14px;
+            flex-wrap: wrap;
+        }
+
+        .fest-champion-pending-text {
+            font-size: 12px;
+            color: var(--text);
+            min-width: 0;
+            flex: 1 1 160px;
+        }
+
+        .fest-champion-pending-text strong {
+            display: block;
+            font-size: 12.5px;
+            color: var(--gold);
+            margin-bottom: 1px;
+        }
+
         .fest-actions {
             display: flex;
             gap: 8px;
@@ -144,9 +192,10 @@
         }
 
         .fest-actions .btn {
-            flex: 1;
+            flex: 1 1 auto;
             justify-content: center;
-            min-width: 80px;
+            min-width: 0;
+            white-space: nowrap;
         }
 
         .stat-pill {
@@ -155,6 +204,7 @@
             padding: 8px;
             text-align: center;
             flex: 1;
+            min-width: 0;
         }
 
         .stat-pill .icon {
@@ -168,6 +218,9 @@
             font-size: 20px;
             font-weight: 900;
             color: var(--gold);
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
         }
 
         .stat-pill-lbl {
@@ -177,6 +230,14 @@
             letter-spacing: .5px;
         }
 
+        /* ── Linked-tournament row (used both in the Manage Tournaments
+           modal and the View/Summary modal) ──
+           FIX: the name cell used to be a bare `flex:1` div with no
+           min-width — flex items default to min-width:auto, so a long
+           tournament name refused to shrink or wrap and instead
+           overflowed straight over the delete/status button next to it.
+           Adding min-width:0 lets it shrink and wrap properly, and the
+           button gets flex-shrink:0 so it can never get squeezed. */
         .linked-tourney-row {
             display: flex;
             align-items: center;
@@ -184,7 +245,7 @@
             padding: 9px 14px;
             border-bottom: 1px solid rgba(255, 255, 255, .04);
             font-size: 13px;
-            flex-wrap: wrap;
+            flex-wrap: nowrap;
         }
 
         .linked-tourney-row:last-child {
@@ -195,6 +256,26 @@
             width: 18px;
             height: 18px;
             color: var(--gold);
+            flex-shrink: 0;
+        }
+
+        .lt-name {
+            flex: 1 1 auto;
+            min-width: 0;
+            overflow-wrap: break-word;
+            word-break: break-word;
+        }
+
+        .lt-meta {
+            font-size: 11px;
+            color: var(--muted);
+        }
+
+        .lt-side {
+            flex-shrink: 0;
+            display: flex;
+            align-items: center;
+            gap: 6px;
         }
 
         .season-warning {
@@ -321,6 +402,15 @@
             .form-row {
                 grid-template-columns: 1fr;
             }
+
+            .linked-tourney-row {
+                flex-wrap: wrap;
+            }
+
+            .lt-side {
+                width: 100%;
+                justify-content: flex-end;
+            }
         }
 
         @media (max-width: 480px) {
@@ -336,9 +426,14 @@
                 font-size: 17px;
             }
 
-            .linked-tourney-row {
+            .fest-champion-pending {
                 flex-direction: column;
-                text-align: center;
+                align-items: stretch;
+            }
+
+            .fest-champion-pending .btn {
+                width: 100%;
+                justify-content: center;
             }
         }
     </style>
@@ -673,9 +768,7 @@
             el.innerHTML = allFests.map(f => {
                 const init = (f.champion_department_name || '').split(' ').map(w => w[0]).slice(0, 2).join('').toUpperCase();
                 const isCurrent = !!f.is_current;
-                const statusIcon = f.status === 'ongoing' ?
-                    `<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line></svg>` :
-                    `<svg viewBox="0 0 24 24"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>`;
+                const needsChampion = f.status === 'completed' && !f.champion_department_name;
                 return `
                 <div class="fest-card ${isCurrent ? 'is-current' : 'is-archived'}">
                     <div class="fest-card-banner">
@@ -695,7 +788,17 @@
                         ${f.champion_department_name ? `
                         <div class="fest-champion">
                             <div class="fest-champion-logo" style="background:${f.champion_color || '#555'}">${init}</div>
-                            <div><div style="font-size:11px;color:var(--muted);text-transform:uppercase">Champion</div><div style="font-weight:700;font-size:13px">${f.champion_department_name}</div></div>
+                            <div class="fest-champion-info"><div style="font-size:11px;color:var(--muted);text-transform:uppercase">Champion</div><div class="fest-champion-name">${f.champion_department_name}</div></div>
+                        </div>` : needsChampion ? `
+                        <div class="fest-champion-pending">
+                            <div class="fest-champion-pending-text">
+                                <strong>Champion not yet declared</strong>
+                                This event is marked completed — declare a champion to finalize it.
+                            </div>
+                            <button class="btn btn-primary btn-sm" style="background:var(--green);color:#000;flex-shrink:0" onclick="confirmDeclareChampion(${f.id})">
+                                <span class="icon" style="width:14px;height:14px;"><svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="7"></circle><polyline points="8.21 13.89 7 23 12 20 17 23 15.79 13.88"></polyline></svg></span>
+                                Declare
+                            </button>
                         </div>` : `<div style="font-size:12px;color:var(--muted);margin-bottom:14px">No champion declared yet.</div>`}
                         <div class="fest-actions">
                             <button class="btn btn-secondary btn-sm" onclick="viewFest(${f.id})">
@@ -749,6 +852,10 @@
             const name = document.getElementById('fst-name').value.trim();
             const year = parseInt(document.getElementById('fst-year').value);
             if (!name || !year) { Toast.show('Name and year are required', 'error'); return; }
+            const wasCompletedNoChampion = (() => {
+                const f = allFests.find(x => x.id === parseInt(id));
+                return f && f.status !== 'completed' && document.getElementById('fst-status').value === 'completed' && !f.champion_department_name;
+            })();
             const body = {
                 name,
                 year,
@@ -762,7 +869,16 @@
                 await api(`/sport-fest/${id}`, { method: 'PUT', body: JSON.stringify(body) }) :
                 await api('/sport-fest', { method: 'POST', body: JSON.stringify(body) });
             Toast.show(res.message || (res.success ? 'Saved!' : 'Error'), res.success ? 'success' : 'error');
-            if (res.success) { Modal.close('modal-fest'); await loadPage(); }
+            if (res.success) {
+                Modal.close('modal-fest');
+                await loadPage();
+                // Marking it completed doesn't auto-pick a champion — make
+                // that obvious immediately instead of leaving it to be
+                // discovered later on the card.
+                if (wasCompletedNoChampion) {
+                    Toast.show('Marked as completed. Don\u2019t forget to declare a champion below.', 'info');
+                }
+            }
         }
 
         function openNewSeason() {
@@ -807,7 +923,7 @@
         async function viewFest(id) {
             activeFestId = id;
             const res = await api(`/sport-fest/${id}/summary`);
-            if (!res.success) { Toast.show('Failed to load summary', 'error'); return; }
+            if (!res.success) { Toast.show(res.message || 'Failed to load summary', 'error'); return; }
             const { event, leaderboard, tournaments } = res.data;
             document.getElementById('fest-detail-title').innerHTML =
                 `<span class="icon" style="width:18px;height:18px;color:var(--gold);"><svg viewBox="0 0 24 24"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg></span> ${event.name}`;
@@ -823,9 +939,9 @@
                     ${leaderboard.slice(0, 6).map((d, i) => `
                     <div style="display:flex;align-items:center;gap:10px;padding:9px 14px;border-bottom:1px solid rgba(255,255,255,.04)">
                         <div style="width:22px;font-family:'Barlow Condensed',sans-serif;font-weight:900;color:${i === 0 ? '#FFD700' : i === 1 ? '#C0C0C0' : i === 2 ? '#CD7F32' : 'var(--muted)'}">${i + 1}</div>
-                        <div style="width:10px;height:10px;border-radius:50%;background:${d.color}"></div>
-                        <div style="flex:1;font-size:13px;font-weight:600">${d.name}</div>
-                        <div style="font-family:'Barlow Condensed',sans-serif;font-size:18px;font-weight:900;color:var(--gold)">${d.total_points}</div>
+                        <div style="width:10px;height:10px;border-radius:50%;background:${d.color};flex-shrink:0"></div>
+                        <div style="flex:1;min-width:0;font-size:13px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${d.name}</div>
+                        <div style="font-family:'Barlow Condensed',sans-serif;font-size:18px;font-weight:900;color:var(--gold);flex-shrink:0">${d.total_points}</div>
                     </div>`).join('') || '<div style="padding:14px;color:var(--muted);font-size:13px">No scores yet.</div>'}
                 </div>
                 <div style="font-family:'Barlow Condensed',sans-serif;font-size:14px;font-weight:800;color:var(--muted);margin-bottom:8px">Tournaments</div>
@@ -833,8 +949,8 @@
                     ${tournaments.map(t => `
                     <div class="linked-tourney-row">
                         <span class="icon">${sportIconSVG(t.sport_name)}</span>
-                        <div style="flex:1"><div style="font-weight:600">${t.tournament_name}</div><div style="font-size:11px;color:var(--muted)">${t.sport_name} · ${t.departments_participated || 0} depts</div></div>
-                        ${t.winner_department ? `<span style="font-size:11px;color:var(--gold)">${t.winner_department}</span>` : statusBadge(t.status)}
+                        <div class="lt-name"><div style="font-weight:600">${t.tournament_name}</div><div class="lt-meta">${t.sport_name} · ${t.departments_participated || 0} depts</div></div>
+                        <div class="lt-side">${t.winner_department ? `<span style="font-size:11px;color:var(--gold)">${t.winner_department}</span>` : statusBadge(t.status)}</div>
                     </div>`).join('') || '<div style="padding:14px;color:var(--muted);font-size:13px">No tournaments linked.</div>'}
                 </div>`;
             document.getElementById('fest-detail-edit-btn').onclick = () => {
@@ -873,7 +989,15 @@
             const linked = res.data.tournaments || [];
             document.getElementById('ft-linked-list').innerHTML = linked.length ?
                 linked.map(t =>
-                    `<div class="linked-tourney-row"><span class="icon">${sportIconSVG(t.sport_name)}</span><div style="flex:1">${t.name}</div><button class="btn btn-secondary btn-sm" onclick="removeLinkedTourney(${t.id})"><span class="icon" style="width:14px;height:14px;"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"></circle><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"></line></svg></span></button></div>`
+                    `<div class="linked-tourney-row">
+                        <span class="icon">${sportIconSVG(t.sport_name)}</span>
+                        <div class="lt-name">${t.name}</div>
+                        <div class="lt-side">
+                            <button class="btn btn-secondary btn-sm" onclick="removeLinkedTourney(${t.id})" title="Remove">
+                                <span class="icon" style="width:14px;height:14px;"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"></circle><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"></line></svg></span>
+                            </button>
+                        </div>
+                    </div>`
                 ).join('') :
                 `<div style="padding:14px;color:var(--muted);font-size:13px">No tournaments linked yet.</div>`;
         }
