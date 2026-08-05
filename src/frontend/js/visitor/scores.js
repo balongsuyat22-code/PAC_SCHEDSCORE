@@ -116,35 +116,59 @@
     // ═══════════════════════════════════════════════════════════
     async function loadChampion() {
         try {
-            const res = await fetch(`${API_BASE}/leaderboard`);
+            const res = await fetch(`${API_BASE}/sport-fest/active`);
             const json = await res.json();
-            if (!json.success) return hideChampion();
+            if (!json.success || !json.data) return hideChampion();
 
-            const rows = json.data || json.standings || [];
-            const meta = json.meta || {};
+            const fest = json.data;
 
-            const declared =
-                meta.champion_declared === true ||
-                meta.status === 'completed' ||
-                meta.sport_fest_status === 'completed' ||
-                json.champion_declared === true;
-
-            if (!declared || !rows.length) {
+            // Champion is declared when this is set on the fest
+            if (!fest.champion_department_id) {
                 hideChampion();
                 return;
             }
 
-            const top = rows[0];
+            let points = null;
+            let gold = null;
+            let silver = null;
+            let bronze = null;
+            let color = fest.champion_color || null;
+            let logo_url = null;
+
+            // Optional: pull points/medals from leaderboard
+            try {
+                const lbRes = await fetch(`${API_BASE}/leaderboard`);
+                const lb = await lbRes.json();
+                const rows = lb.data || lb.standings || [];
+                const top =
+                    rows.find(
+                        (r) =>
+                            String(r.department_id || r.id) ===
+                            String(fest.champion_department_id)
+                    ) || rows[0];
+                if (top) {
+                    points = top.total_points ?? top.points ?? top.pts ?? null;
+                    gold = top.gold ?? top.medals_gold ?? top.gold_medals ?? null;
+                    silver = top.silver ?? top.medals_silver ?? top.silver_medals ?? null;
+                    bronze = top.bronze ?? top.medals_bronze ?? top.bronze_medals ?? null;
+                    color = color || top.department_color || top.color || top.dept_color;
+                    logo_url = top.logo_url || top.department_logo || top.dept_logo || null;
+                }
+            } catch (_) { }
+
             championData = {
-                department_id: top.department_id || top.id,
-                name: top.department_name || top.name || top.dept_name,
-                color: top.department_color || top.color || top.dept_color,
-                logo_url: top.logo_url || top.department_logo || top.dept_logo,
-                points: top.total_points ?? top.points ?? top.pts,
-                gold: top.gold ?? top.medals_gold,
-                silver: top.silver ?? top.medals_silver,
-                bronze: top.bronze ?? top.medals_bronze,
+                department_id: fest.champion_department_id,
+                name: fest.champion_name || fest.champion_department_name || 'Champion',
+                color,
+                logo_url,
+                points,
+                gold,
+                silver,
+                bronze,
+                fest_name: fest.name,
+                fest_year: fest.year,
             };
+
             showChampion(championData);
         } catch (e) {
             console.warn('Champion load failed', e);
