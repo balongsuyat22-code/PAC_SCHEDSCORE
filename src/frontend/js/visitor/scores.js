@@ -221,50 +221,138 @@
         })();
     }
 
-    window.openChampionModal = function () {
-        if (!championData) return;
+    window.openChampionModal = async function () {
         const body = document.getElementById('modal-body');
         const overlay = document.getElementById('modal-overlay');
         if (!body || !overlay) return;
 
-        const c = championData;
-        const bg = c.color || '#f59e0b';
+        // Confetti every time the champion button is pressed
+        fireChampionConfetti();
 
-        body.innerHTML = `
-      <div class="modal-header" style="text-align:center">
-        <div style="font-size:40px;margin-bottom:8px">🏆</div>
-        <div class="modal-final-badge" style="margin:0 auto 10px;background:rgba(245,158,11,.15);border-color:rgba(245,158,11,.4);color:var(--gold)">
-          Sport Fest Champion
-        </div>
-        <div class="modal-title" style="color:var(--gold)">${escapeHtml(c.name || '—')}</div>
-      </div>
-      <div style="display:flex;justify-content:center;margin:1.25rem 0">
-        <div class="modal-dept-avatar is-winner" style="width:72px;height:72px;font-size:22px;background:${bg}">
-          ${c.logo_url ? `<img src="${escapeAttr(c.logo_url)}" alt="">` : initials(c.name)}
-        </div>
-      </div>
-      <div style="text-align:center;margin-bottom:1.25rem">
-        <div style="font-family:var(--font-mono);font-size:28px;font-weight:700;color:var(--accent)">
-          ${c.points != null ? Number(c.points).toLocaleString() : '—'}
-        </div>
-        <div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.06em">Total points</div>
-      </div>
-      ${c.gold != null || c.silver != null || c.bronze != null
-                ? `<div style="display:flex;justify-content:center;gap:16px;margin-bottom:1rem">
-               <div style="text-align:center"><div style="font-size:18px">🥇</div><div style="font-family:var(--font-mono);font-weight:700">${c.gold ?? 0}</div></div>
-               <div style="text-align:center"><div style="font-size:18px">🥈</div><div style="font-family:var(--font-mono);font-weight:700">${c.silver ?? 0}</div></div>
-               <div style="text-align:center"><div style="font-size:18px">🥉</div><div style="font-family:var(--font-mono);font-weight:700">${c.bronze ?? 0}</div></div>
-             </div>`
-                : ''
-            }
-      <div class="modal-meta" style="justify-content:center">
-        <div class="modal-meta-item">Overall Sport Fest champion</div>
-      </div>`;
-
+        body.innerHTML = `<div class="empty-state" style="padding:2rem 1rem">
+    <div class="live-dot" style="margin:0 auto 12px"></div>
+    <div class="empty-sub">Loading podium…</div>
+  </div>`;
         overlay.classList.add('open');
         document.body.style.overflow = 'hidden';
-    };
 
+        try {
+            // Top 3 from leaderboard
+            const lbRes = await fetch(`${API_BASE}/leaderboard`);
+            const lb = await lbRes.json();
+            const rows = (lb.data || lb.standings || []).slice(0, 3);
+
+            // Active fest name (optional)
+            let festName = championData?.fest_name || 'Sport Fest';
+            let festYear = championData?.fest_year || '';
+            try {
+                const festRes = await fetch(`${API_BASE}/sport-fest/active`);
+                const festJson = await festRes.json();
+                if (festJson.success && festJson.data) {
+                    festName = festJson.data.name || festName;
+                    festYear = festJson.data.year || festYear;
+                }
+            } catch (_) { }
+
+            if (!rows.length) {
+                body.innerHTML = `<div class="empty-state" style="padding:2rem 1rem">
+        <div class="empty-title">No standings yet</div>
+        <div class="empty-sub">Leaderboard is empty.</div>
+      </div>`;
+                return;
+            }
+
+            const medal = (i) => (i === 0 ? '🥇' : i === 1 ? '🥈' : '🥉');
+            const rankClass = (i) => (i === 0 ? 'gold' : i === 1 ? 'silver' : 'bronze');
+
+            // Podium order: 2nd | 1st | 3rd (visual)
+            const order = [1, 0, 2];
+            const podiumHtml = `
+      <div class="modal-ffa-podium champion-podium">
+        ${order
+                    .map((idx) => {
+                        const p = rows[idx];
+                        if (!p) return '<div></div>';
+                        const name =
+                            p.department_name || p.name || p.dept_name || '—';
+                        const color =
+                            p.department_color || p.color || p.dept_color || '#4b5563';
+                        const logo =
+                            p.logo_url || p.department_logo || p.dept_logo || null;
+                        const pts = p.total_points ?? p.points ?? p.pts ?? 0;
+                        const cls = rankClass(idx);
+                        return `
+              <div class="podium-slot ${cls}">
+                <div class="podium-rank">${medal(idx)}</div>
+                <div class="podium-avatar" style="background:${color}">
+                  ${logo
+                                ? `<img src="${escapeAttr(logo)}" alt="">`
+                                : initials(name)
+                            }
+                </div>
+                <div class="podium-name">${escapeHtml(name)}</div>
+                <div class="podium-score">${Number(pts).toLocaleString()} pts</div>
+              </div>`;
+                    })
+                    .join('')}
+      </div>`;
+
+            const listHtml = rows
+                .map((p, i) => {
+                    const name = p.department_name || p.name || p.dept_name || '—';
+                    const color = p.department_color || p.color || p.dept_color || '#4b5563';
+                    const logo = p.logo_url || p.department_logo || p.dept_logo || null;
+                    const pts = p.total_points ?? p.points ?? p.pts ?? 0;
+                    const gold = p.gold ?? p.medals_gold ?? p.gold_medals ?? 0;
+                    const silver = p.silver ?? p.medals_silver ?? p.silver_medals ?? 0;
+                    const bronze = p.bronze ?? p.medals_bronze ?? p.bronze_medals ?? 0;
+                    const rankCls =
+                        i === 0 ? 'rank-1 top3' : i === 1 ? 'rank-2 top3' : 'rank-3 top3';
+                    return `
+          <div class="ffa-rank-row ${rankCls}">
+            <div class="ffa-rank-num">${i + 1}</div>
+            <div class="ffa-rank-avatar" style="background:${color}">
+              ${logo
+                            ? `<img src="${escapeAttr(logo)}" alt="">`
+                            : initials(name)
+                        }
+            </div>
+            <div class="ffa-rank-info">
+              <div class="ffa-rank-name">${escapeHtml(name)}</div>
+              <div class="ffa-rank-dept">🥇 ${gold} · 🥈 ${silver} · 🥉 ${bronze}</div>
+            </div>
+            <div class="ffa-rank-value">${Number(pts).toLocaleString()}</div>
+          </div>`;
+                })
+                .join('');
+
+            body.innerHTML = `
+      <div class="modal-ffa modal-champion">
+        <div class="modal-header" style="text-align:center">
+          <div style="font-size:36px;margin-bottom:6px">🏆</div>
+          <div class="modal-ffa-badge">Sport Fest Champion</div>
+          <div class="modal-ffa-title">${escapeHtml(
+                rows[0]?.department_name ||
+                rows[0]?.name ||
+                championData?.name ||
+                'Champion'
+            )}</div>
+          <div class="modal-ffa-sub">${escapeHtml(festName)}${festYear ? ' · ' + escapeHtml(String(festYear)) : ''
+                }</div>
+        </div>
+        ${podiumHtml}
+        <div class="modal-breakdown-title">Final Podium</div>
+        <div class="modal-ffa-list">${listHtml}</div>
+        <div class="modal-ffa-scoring-note">Overall department standings</div>
+      </div>`;
+        } catch (err) {
+            console.error(err);
+            body.innerHTML = `<div class="empty-state" style="padding:2rem 1rem">
+      <div class="empty-title">Couldn’t load podium</div>
+      <div class="empty-sub">${escapeHtml(err.message || 'Try again')}</div>
+    </div>`;
+        }
+    };
     // ═══════════════════════════════════════════════════════════
     // FILTERS / SPOTLIGHT / RENDER (same as before)
     // ═══════════════════════════════════════════════════════════
