@@ -15,5 +15,7 @@ router.put('/:id', authorize('admin'), sfc.update);
 router.post('/:id/tournaments', authorize('admin'), sfc.addTournament);
 router.delete('/:id/tournaments/:tournamentId', authorize('admin'), sfc.removeTournament);
 router.post('/:id/declare-champion', authorize('admin'), sfc.declareChampion);
+router.delete('/:id', auth, authorize('admin'), sportFestController.remove);
+
 
 module.exports = router;

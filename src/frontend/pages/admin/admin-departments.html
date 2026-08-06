@@ -138,6 +138,18 @@
             flex-wrap: wrap
         }
 
+        .btn-danger-outline {
+            background: transparent;
+            border: 1px solid rgba(255, 80, 80, .45);
+            color: #ff6b6b;
+        }
+
+        .btn-danger-outline:hover {
+            background: rgba(255, 80, 80, .12);
+            border-color: #ff6b6b;
+            color: #ff8a8a;
+        }
+
         .vs-section {
             background: var(--bg2);
             border: 1px solid var(--border);
@@ -300,6 +312,15 @@
                 gap: 8px;
                 padding: 12px 16px
             }
+
+            .dept-actions {
+                flex-direction: column
+            }
+
+            .dept-actions .btn {
+                width: 100%;
+                justify-content: center
+            }
         }
     </style>
 </head>
@@ -354,6 +375,7 @@
         </div>
     </main>
 
+    <!-- Create / Edit Modal -->
     <div class="modal-overlay" id="modal-dept" onclick="if(event.target===this)Modal.close('modal-dept')">
         <div class="modal" style="max-width:520px">
             <div class="modal-header">
@@ -397,6 +419,7 @@
         </div>
     </div>
 
+    <!-- Detail Modal -->
     <div class="modal-overlay" id="modal-detail" onclick="if(event.target===this)Modal.close('modal-detail')">
         <div class="modal" style="max-width:580px">
             <div class="modal-header">
@@ -406,6 +429,7 @@
             <div class="modal-body" id="detail-body"></div>
             <div class="modal-footer">
                 <button class="btn btn-secondary" onclick="Modal.close('modal-detail')">Close</button>
+                <button class="btn btn-danger-outline btn-sm" id="detail-delete-btn">Delete</button>
                 <button class="btn btn-primary" id="detail-edit-btn">Edit</button>
             </div>
         </div>
@@ -415,19 +439,257 @@
     <script src="../../js/admin-sidebar.js"></script>
     <script>
         let allDepts = [];
-        document.addEventListener('DOMContentLoaded', async () => { Auth.requireAuth('admin'); renderSidebar('departments'); await loadPage() });
-        async function loadPage() { const res = await api('/departments'); if (!res.success) return; allDepts = res.data || []; renderGrid(allDepts); populateVS() }
-        function applyFilter() { const q = document.getElementById('f-search').value.toLowerCase(); renderGrid(allDepts.filter(d => (d.name + d.code + (d.short_name || '')).toLowerCase().includes(q))) }
-        function renderGrid(depts) { const el = document.getElementById('dept-grid'); if (!depts.length) { el.innerHTML = `<div class="empty-state" style="grid-column:1/-1"><div class="empty-text">No grades/strands found.</div></div>`; return } el.innerHTML = depts.map(d => { const init = (d.short_name || d.name).split(' ').map(w => w[0]).slice(0, 2).join('').toUpperCase(); const logo = d.logo_url ? `<img src="${d.logo_url}" alt="" onerror="this.style.display='none'"><span style="display:none">${init}</span>` : `<span>${init}</span>`; return `<div class="dept-card"><div class="dept-card-accent" style="background:${d.color}"></div><div class="dept-card-body"><div class="dept-logo" style="background:${d.logo_url ? d.color + '20' : d.color};border:${d.logo_url ? '2px solid ' + d.color + '40' : 'none'}" onclick="openEdit(${d.id})">${logo}<div class="dept-logo-overlay">Edit</div></div><div class="dept-name">${d.name}</div><div class="dept-code">${d.short_name || d.code}</div></div><div class="dept-stats"><div class="dept-stat"><div class="dept-stat-val" style="color:var(--gold)">${d.total_points || 0}</div><div class="dept-stat-lbl">Points</div></div><div class="dept-stat"><div class="dept-stat-val" style="color:#FFD700">${d.gold_medals || 0}</div><div class="dept-stat-lbl">Gold</div></div><div class="dept-stat"><div class="dept-stat-val" style="color:var(--muted)">${d.total_members || 0}</div><div class="dept-stat-lbl">Members</div></div></div><div class="dept-actions"><button class="btn btn-secondary btn-sm" style="flex:1" onclick="viewDetail(${d.id})">View</button><button class="btn btn-primary btn-sm" style="flex:1" onclick="openEdit(${d.id})">Edit</button></div></div>` }).join('') }
-        function populateVS() { const opts = allDepts.map(d => `<option value="${d.id}">${d.name}</option>`).join('');['vs-a', 'vs-b'].forEach(id => { document.getElementById(id).innerHTML = '<option value="">Select...</option>' + opts }) }
-        function updateVS() { const aId = parseInt(document.getElementById('vs-a').value), bId = parseInt(document.getElementById('vs-b').value); const disp = document.getElementById('vs-display'); if (!aId || !bId || aId === bId) { disp.classList.remove('visible'); return } const a = allDepts.find(d => d.id === aId), b = allDepts.find(d => d.id === bId); disp.classList.add('visible'); document.getElementById('vs-side-a').innerHTML = renderVSSide(a); document.getElementById('vs-side-b').innerHTML = renderVSSide(b); document.getElementById('vs-h2h').innerHTML = `Gold ${a.gold_medals || 0} vs ${b.gold_medals || 0}` }
-        function renderVSSide(d) { const init = (d.short_name || d.name).split(' ').map(w => w[0]).slice(0, 2).join('').toUpperCase(); const logo = d.logo_url ? `<img src="${d.logo_url}" alt="">` : `<span>${init}</span>`; return `<div class="vs-logo" style="background:${d.color || '#555'}">${logo}</div><div class="vs-dept-name" style="color:${d.color}">${d.name}</div><div class="vs-pts">${d.total_points || 0}</div><div style="font-size:11px;color:var(--muted)">points</div><div style="font-size:14px">G ${d.gold_medals || 0} · S ${d.silver_medals || 0} · B ${d.bronze_medals || 0}</div>` }
-        async function viewDetail(id) { const d = allDepts.find(x => x.id === id); if (!d) return; document.getElementById('detail-title').textContent = d.name; document.getElementById('detail-edit-btn').onclick = () => { Modal.close('modal-detail'); openEdit(id) }; const scoresRes = await api(`/departments/${id}/scores`); const init = (d.short_name || d.name).split(' ').map(w => w[0]).slice(0, 2).join('').toUpperCase(); const logoHtml = d.logo_url ? `<img src="${d.logo_url}" alt="" style="width:100%;height:100%;object-fit:cover;border-radius:14px">` : `<span style="font-size:32px;font-weight:900;color:#fff">${init}</span>`; document.getElementById('detail-body').innerHTML = `<div style="display:flex;align-items:center;gap:20px;margin-bottom:24px;flex-wrap:wrap"><div style="width:80px;height:80px;border-radius:16px;background:${d.logo_url ? d.color + '20' : d.color};border:${d.logo_url ? '2px solid ' + d.color + '40' : 'none'};display:flex;align-items:center;justify-content:center;overflow:hidden">${logoHtml}</div><div><div style="font-family:'Barlow Condensed',sans-serif;font-size:26px;font-weight:900">${d.name}</div><div style="font-size:13px;color:var(--muted)">${d.short_name || d.code} · ${d.description || 'No description'}</div></div></div><div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(80px,1fr));gap:10px;margin-bottom:20px">${[['Points', d.total_points || 0, 'var(--gold)'], ['Gold', d.gold_medals || 0, '#FFD700'], ['Silver', d.silver_medals || 0, '#C0C0C0'], ['Members', d.total_members || 0, 'var(--text)']].map(([l, v, c]) => `<div style="background:var(--bg3);border-radius:8px;padding:12px;text-align:center"><div style="font-family:'Barlow Condensed',sans-serif;font-size:24px;font-weight:900;color:${c}">${v}</div><div style="font-size:11px;color:var(--muted);text-transform:uppercase">${l}</div></div>`).join('')}</div><div style="font-family:'Barlow Condensed',sans-serif;font-size:13px;font-weight:800;color:var(--muted);margin-bottom:10px">RECENT RESULTS</div>${(scoresRes.data || []).slice(0, 5).map(s => `<div style="display:flex;align-items:center;gap:12px;padding:8px 0;border-bottom:1px solid rgba(255,255,255,.05)"><span style="font-size:12px;font-weight:700;color:var(--muted);text-transform:uppercase;min-width:56px">${s.medal || '—'}</span><div style="flex:1"><div style="font-size:13px;font-weight:600">${s.tournament_name}</div><div style="font-size:11px;color:var(--muted)">${s.sport_name}</div></div><div style="font-family:'Barlow Condensed',sans-serif;font-size:18px;font-weight:900;color:var(--gold)">+${s.sport_fest_points}</div></div>`).join('') || '<div style="color:var(--muted);font-size:13px;padding:12px 0">No results yet</div>'}`; Modal.open('modal-detail') }
-        function openCreate() { document.getElementById('dept-modal-title').textContent = 'New Grade / Strand'; document.getElementById('dept-save-btn').textContent = 'Create'; document.getElementById('dept-edit-id').value = '';['dept-name', 'dept-short', 'dept-code', 'dept-desc', 'dept-logo-url'].forEach(id => document.getElementById(id).value = ''); document.getElementById('dept-color').value = '#3B82F6'; document.getElementById('logo-preview').innerHTML = 'Click to upload'; document.getElementById('logo-file').value = ''; Modal.open('modal-dept') }
-        function openEdit(id) { const d = allDepts.find(x => x.id === id); if (!d) return; document.getElementById('dept-modal-title').textContent = d.name; document.getElementById('dept-save-btn').textContent = 'Save Changes'; document.getElementById('dept-edit-id').value = id; document.getElementById('dept-name').value = d.name; document.getElementById('dept-short').value = d.short_name || ''; document.getElementById('dept-code').value = d.code; document.getElementById('dept-color').value = d.color || '#3B82F6'; document.getElementById('dept-desc').value = d.description || ''; document.getElementById('dept-logo-url').value = d.logo_url || ''; document.getElementById('logo-file').value = ''; const prev = document.getElementById('logo-preview'); if (d.logo_url) prev.innerHTML = `<img src="${d.logo_url}" alt="" style="width:100%;height:100%;object-fit:cover;border-radius:14px">`; else { const init = (d.short_name || d.name).split(' ').map(w => w[0]).slice(0, 2).join('').toUpperCase(); prev.innerHTML = `<div style="width:100%;height:100%;border-radius:14px;background:${d.color};display:flex;align-items:center;justify-content:center;font-family:'Barlow Condensed',sans-serif;font-size:28px;font-weight:900;color:#fff">${init}</div>` } Modal.open('modal-dept') }
-        function previewLogo(input) { const file = input.files[0]; if (!file) return; const reader = new FileReader(); reader.onload = e => { document.getElementById('logo-preview').innerHTML = `<img src="${e.target.result}" alt="" style="width:100%;height:100%;object-fit:cover;border-radius:14px">` }; reader.readAsDataURL(file) }
-        function applyLogoUrl() { const url = document.getElementById('dept-logo-url').value.trim(); if (!url) return; document.getElementById('logo-preview').innerHTML = `<img src="${url}" alt="" onerror="this.parentElement.textContent='Invalid URL'" style="width:100%;height:100%;object-fit:cover;border-radius:14px">` }
-        async function saveDept() { const id = document.getElementById('dept-edit-id').value; const name = document.getElementById('dept-name').value.trim(); const code = document.getElementById('dept-code').value.trim(); if (!name || !code) { Toast.show('Name and code are required', 'error'); return } const formData = new FormData(); formData.append('name', name); formData.append('code', code); formData.append('short_name', document.getElementById('dept-short').value.trim()); formData.append('color', document.getElementById('dept-color').value); formData.append('description', document.getElementById('dept-desc').value.trim()); formData.append('logo_url', document.getElementById('dept-logo-url').value.trim()); const file = document.getElementById('logo-file').files[0]; if (file) formData.append('logo', file); const res = id ? await api(`/departments/${id}`, { method: 'PUT', body: formData }) : await api('/departments', { method: 'POST', body: formData }); Toast.show(res.message || (res.success ? 'Saved!' : 'Error'), res.success ? 'success' : 'error'); if (res.success) { Modal.close('modal-dept'); await loadPage() } }
+
+        document.addEventListener('DOMContentLoaded', async () => {
+            Auth.requireAuth('admin');
+            renderSidebar('departments');
+            await loadPage();
+        });
+
+        async function loadPage() {
+            const res = await api('/departments');
+            if (!res.success) return;
+            allDepts = res.data || [];
+            renderGrid(allDepts);
+            populateVS();
+        }
+
+        function applyFilter() {
+            const q = document.getElementById('f-search').value.toLowerCase();
+            renderGrid(allDepts.filter(d =>
+                (d.name + d.code + (d.short_name || '')).toLowerCase().includes(q)
+            ));
+        }
+
+        function renderGrid(depts) {
+            const el = document.getElementById('dept-grid');
+            if (!depts.length) {
+                el.innerHTML = `<div class="empty-state" style="grid-column:1/-1"><div class="empty-text">No grades/strands found.</div></div>`;
+                return;
+            }
+            el.innerHTML = depts.map(d => {
+                const init = (d.short_name || d.name).split(' ').map(w => w[0]).slice(0, 2).join('').toUpperCase();
+                const logo = d.logo_url
+                    ? `<img src="${d.logo_url}" alt="" onerror="this.style.display='none'"><span style="display:none">${init}</span>`
+                    : `<span>${init}</span>`;
+                return `
+                <div class="dept-card">
+                    <div class="dept-card-accent" style="background:${d.color}"></div>
+                    <div class="dept-card-body">
+                        <div class="dept-logo" style="background:${d.logo_url ? d.color + '20' : d.color};border:${d.logo_url ? '2px solid ' + d.color + '40' : 'none'}" onclick="openEdit(${d.id})">
+                            ${logo}
+                            <div class="dept-logo-overlay">Edit</div>
+                        </div>
+                        <div class="dept-name">${d.name}</div>
+                        <div class="dept-code">${d.short_name || d.code}</div>
+                    </div>
+                    <div class="dept-stats">
+                        <div class="dept-stat">
+                            <div class="dept-stat-val" style="color:var(--gold)">${d.total_points || 0}</div>
+                            <div class="dept-stat-lbl">Points</div>
+                        </div>
+                        <div class="dept-stat">
+                            <div class="dept-stat-val" style="color:#FFD700">${d.gold_medals || 0}</div>
+                            <div class="dept-stat-lbl">Gold</div>
+                        </div>
+                        <div class="dept-stat">
+                            <div class="dept-stat-val" style="color:var(--muted)">${d.total_members || 0}</div>
+                            <div class="dept-stat-lbl">Members</div>
+                        </div>
+                    </div>
+                    <div class="dept-actions">
+                        <button class="btn btn-secondary btn-sm" style="flex:1" onclick="viewDetail(${d.id})">View</button>
+                        <button class="btn btn-primary btn-sm" style="flex:1" onclick="openEdit(${d.id})">Edit</button>
+                        <button class="btn btn-danger-outline btn-sm" style="flex:1" onclick="deleteDept(${d.id})">Delete</button>
+                    </div>
+                </div>`;
+            }).join('');
+        }
+
+        function populateVS() {
+            const opts = allDepts.map(d => `<option value="${d.id}">${d.name}</option>`).join('');
+            ['vs-a', 'vs-b'].forEach(id => {
+                document.getElementById(id).innerHTML = '<option value="">Select...</option>' + opts;
+            });
+        }
+
+        function updateVS() {
+            const aId = parseInt(document.getElementById('vs-a').value);
+            const bId = parseInt(document.getElementById('vs-b').value);
+            const disp = document.getElementById('vs-display');
+            if (!aId || !bId || aId === bId) {
+                disp.classList.remove('visible');
+                return;
+            }
+            const a = allDepts.find(d => d.id === aId);
+            const b = allDepts.find(d => d.id === bId);
+            disp.classList.add('visible');
+            document.getElementById('vs-side-a').innerHTML = renderVSSide(a);
+            document.getElementById('vs-side-b').innerHTML = renderVSSide(b);
+            document.getElementById('vs-h2h').innerHTML = `Gold ${a.gold_medals || 0} vs ${b.gold_medals || 0}`;
+        }
+
+        function renderVSSide(d) {
+            const init = (d.short_name || d.name).split(' ').map(w => w[0]).slice(0, 2).join('').toUpperCase();
+            const logo = d.logo_url ? `<img src="${d.logo_url}" alt="">` : `<span>${init}</span>`;
+            return `
+                <div class="vs-logo" style="background:${d.color || '#555'}">${logo}</div>
+                <div class="vs-dept-name" style="color:${d.color}">${d.name}</div>
+                <div class="vs-pts">${d.total_points || 0}</div>
+                <div style="font-size:11px;color:var(--muted)">points</div>
+                <div style="font-size:14px">G ${d.gold_medals || 0} · S ${d.silver_medals || 0} · B ${d.bronze_medals || 0}</div>`;
+        }
+
+        async function viewDetail(id) {
+            const d = allDepts.find(x => x.id === id);
+            if (!d) return;
+            document.getElementById('detail-title').textContent = d.name;
+            document.getElementById('detail-edit-btn').onclick = () => {
+                Modal.close('modal-detail');
+                openEdit(id);
+            };
+            document.getElementById('detail-delete-btn').onclick = () => {
+                Modal.close('modal-detail');
+                deleteDept(id);
+            };
+
+            const scoresRes = await api(`/departments/${id}/scores`);
+            const init = (d.short_name || d.name).split(' ').map(w => w[0]).slice(0, 2).join('').toUpperCase();
+            const logoHtml = d.logo_url
+                ? `<img src="${d.logo_url}" alt="" style="width:100%;height:100%;object-fit:cover;border-radius:14px">`
+                : `<span style="font-size:32px;font-weight:900;color:#fff">${init}</span>`;
+
+            document.getElementById('detail-body').innerHTML = `
+                <div style="display:flex;align-items:center;gap:20px;margin-bottom:24px;flex-wrap:wrap">
+                    <div style="width:80px;height:80px;border-radius:16px;background:${d.logo_url ? d.color + '20' : d.color};border:${d.logo_url ? '2px solid ' + d.color + '40' : 'none'};display:flex;align-items:center;justify-content:center;overflow:hidden">${logoHtml}</div>
+                    <div>
+                        <div style="font-family:'Barlow Condensed',sans-serif;font-size:26px;font-weight:900">${d.name}</div>
+                        <div style="font-size:13px;color:var(--muted)">${d.short_name || d.code} · ${d.description || 'No description'}</div>
+                    </div>
+                </div>
+                <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(80px,1fr));gap:10px;margin-bottom:20px">
+                    ${[['Points', d.total_points || 0, 'var(--gold)'], ['Gold', d.gold_medals || 0, '#FFD700'], ['Silver', d.silver_medals || 0, '#C0C0C0'], ['Members', d.total_members || 0, 'var(--text)']].map(([l, v, c]) =>
+                `<div style="background:var(--bg3);border-radius:8px;padding:12px;text-align:center"><div style="font-family:'Barlow Condensed',sans-serif;font-size:24px;font-weight:900;color:${c}">${v}</div><div style="font-size:11px;color:var(--muted);text-transform:uppercase">${l}</div></div>`
+            ).join('')}
+                </div>
+                <div style="font-family:'Barlow Condensed',sans-serif;font-size:13px;font-weight:800;color:var(--muted);margin-bottom:10px">RECENT RESULTS</div>
+                ${(scoresRes.data || []).slice(0, 5).map(s => `
+                    <div style="display:flex;align-items:center;gap:12px;padding:8px 0;border-bottom:1px solid rgba(255,255,255,.05)">
+                        <span style="font-size:12px;font-weight:700;color:var(--muted);text-transform:uppercase;min-width:56px">${s.medal || '—'}</span>
+                        <div style="flex:1">
+                            <div style="font-size:13px;font-weight:600">${s.tournament_name}</div>
+                            <div style="font-size:11px;color:var(--muted)">${s.sport_name}</div>
+                        </div>
+                        <div style="font-family:'Barlow Condensed',sans-serif;font-size:18px;font-weight:900;color:var(--gold)">+${s.sport_fest_points}</div>
+                    </div>
+                `).join('') || '<div style="color:var(--muted);font-size:13px;padding:12px 0">No results yet</div>'}`;
+            Modal.open('modal-detail');
+        }
+
+        function openCreate() {
+            document.getElementById('dept-modal-title').textContent = 'New Grade / Strand';
+            document.getElementById('dept-save-btn').textContent = 'Create';
+            document.getElementById('dept-edit-id').value = '';
+            ['dept-name', 'dept-short', 'dept-code', 'dept-desc', 'dept-logo-url'].forEach(id => document.getElementById(id).value = '');
+            document.getElementById('dept-color').value = '#3B82F6';
+            document.getElementById('logo-preview').innerHTML = 'Click to upload';
+            document.getElementById('logo-file').value = '';
+            Modal.open('modal-dept');
+        }
+
+        function openEdit(id) {
+            const d = allDepts.find(x => x.id === id);
+            if (!d) return;
+            document.getElementById('dept-modal-title').textContent = d.name;
+            document.getElementById('dept-save-btn').textContent = 'Save Changes';
+            document.getElementById('dept-edit-id').value = id;
+            document.getElementById('dept-name').value = d.name;
+            document.getElementById('dept-short').value = d.short_name || '';
+            document.getElementById('dept-code').value = d.code;
+            document.getElementById('dept-color').value = d.color || '#3B82F6';
+            document.getElementById('dept-desc').value = d.description || '';
+            document.getElementById('dept-logo-url').value = d.logo_url || '';
+            document.getElementById('logo-file').value = '';
+            const prev = document.getElementById('logo-preview');
+            if (d.logo_url) {
+                prev.innerHTML = `<img src="${d.logo_url}" alt="" style="width:100%;height:100%;object-fit:cover;border-radius:14px">`;
+            } else {
+                const init = (d.short_name || d.name).split(' ').map(w => w[0]).slice(0, 2).join('').toUpperCase();
+                prev.innerHTML = `<div style="width:100%;height:100%;border-radius:14px;background:${d.color};display:flex;align-items:center;justify-content:center;font-family:'Barlow Condensed',sans-serif;font-size:28px;font-weight:900;color:#fff">${init}</div>`;
+            }
+            Modal.open('modal-dept');
+        }
+
+        function previewLogo(input) {
+            const file = input.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = e => {
+                document.getElementById('logo-preview').innerHTML =
+                    `<img src="${e.target.result}" alt="" style="width:100%;height:100%;object-fit:cover;border-radius:14px">`;
+            };
+            reader.readAsDataURL(file);
+        }
+
+        function applyLogoUrl() {
+            const url = document.getElementById('dept-logo-url').value.trim();
+            if (!url) return;
+            document.getElementById('logo-preview').innerHTML =
+                `<img src="${url}" alt="" onerror="this.parentElement.textContent='Invalid URL'" style="width:100%;height:100%;object-fit:cover;border-radius:14px">`;
+        }
+
+        async function saveDept() {
+            const id = document.getElementById('dept-edit-id').value;
+            const name = document.getElementById('dept-name').value.trim();
+            const code = document.getElementById('dept-code').value.trim();
+            if (!name || !code) {
+                Toast.show('Name and code are required', 'error');
+                return;
+            }
+            const formData = new FormData();
+            formData.append('name', name);
+            formData.append('code', code);
+            formData.append('short_name', document.getElementById('dept-short').value.trim());
+            formData.append('color', document.getElementById('dept-color').value);
+            formData.append('description', document.getElementById('dept-desc').value.trim());
+            formData.append('logo_url', document.getElementById('dept-logo-url').value.trim());
+            const file = document.getElementById('logo-file').files[0];
+            if (file) formData.append('logo', file);
+
+            const res = id
+                ? await api(`/departments/${id}`, { method: 'PUT', body: formData })
+                : await api('/departments', { method: 'POST', body: formData });
+
+            Toast.show(res.message || (res.success ? 'Saved!' : 'Error'), res.success ? 'success' : 'error');
+            if (res.success) {
+                Modal.close('modal-dept');
+                await loadPage();
+            }
+        }
+
+        /**
+         * Soft-deactivate a grade/strand.
+         * Backend blocks if still in draft/registration/ongoing tournaments
+         * or has pending/scheduled/ongoing matches.
+         */
+        async function deleteDept(id) {
+            const d = allDepts.find(x => x.id === id);
+            if (!d) return;
+
+            const ok = confirm(
+                `Deactivate "${d.name}"?\n\n` +
+                `This is blocked if they are still in a tournament or have pending/scheduled/ongoing matches.\n` +
+                `Past results and scores are kept.`
+            );
+            if (!ok) return;
+
+            const res = await api(`/departments/${id}`, { method: 'DELETE' });
+            Toast.show(
+                res.message || (res.success ? 'Deactivated' : 'Error'),
+                res.success ? 'success' : 'error'
+            );
+            if (res.success) await loadPage();
+        }
     </script>
 </body>
 

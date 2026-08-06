@@ -154,10 +154,6 @@
             text-overflow: ellipsis;
         }
 
-        /* CTA shown on a completed fest that has no champion declared yet —
-           previously there was zero UI signal that this step was still
-           pending, so setting status to "completed" alone looked like it
-           silently did nothing. */
         .fest-champion-pending {
             display: flex;
             align-items: center;
@@ -198,6 +194,23 @@
             white-space: nowrap;
         }
 
+        .btn-danger-outline {
+            background: transparent;
+            border: 1px solid rgba(255, 80, 80, .45);
+            color: #ff6b6b;
+        }
+
+        .btn-danger-outline:hover:not(:disabled) {
+            background: rgba(255, 80, 80, .12);
+            border-color: #ff6b6b;
+            color: #ff8a8a;
+        }
+
+        .btn-danger-outline:disabled {
+            opacity: .45;
+            cursor: not-allowed;
+        }
+
         .stat-pill {
             background: var(--bg3);
             border-radius: 8px;
@@ -230,14 +243,6 @@
             letter-spacing: .5px;
         }
 
-        /* ── Linked-tournament row (used both in the Manage Tournaments
-           modal and the View/Summary modal) ──
-           FIX: the name cell used to be a bare `flex:1` div with no
-           min-width — flex items default to min-width:auto, so a long
-           tournament name refused to shrink or wrap and instead
-           overflowed straight over the delete/status button next to it.
-           Adding min-width:0 lets it shrink and wrap properly, and the
-           button gets flex-shrink:0 so it can never get squeezed. */
         .linked-tourney-row {
             display: flex;
             align-items: center;
@@ -295,7 +300,6 @@
             color: var(--gold);
         }
 
-        /* Confirmation Modal */
         #modal-confirm .modal {
             max-width: 420px;
         }
@@ -440,7 +444,6 @@
 </head>
 
 <body>
-    <!-- Sidebar injected by renderSidebar -->
     <main class="main">
         <div class="topbar">
             <button class="burger-menu" id="burger-menu" aria-label="Toggle navigation menu" type="button">
@@ -501,7 +504,7 @@
         </div>
     </main>
 
-    <!-- ── CONFIRMATION MODAL ── -->
+    <!-- Confirmation Modal -->
     <div class="modal-overlay" id="modal-confirm" onclick="if(event.target===this)closeConfirm()">
         <div class="modal">
             <div class="modal-header">
@@ -813,6 +816,11 @@
                                 <span class="icon" style="width:14px;height:14px;"><svg viewBox="0 0 24 24"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg></span>
                                 Edit
                             </button>
+                            <button class="btn btn-danger-outline btn-sm"
+                                onclick="confirmDeleteFest(${f.id})"
+                                ${isCurrent ? 'disabled title="Archive via Start New Season first"' : ''}>
+                                Delete
+                            </button>
                         </div>
                     </div>
                 </div>`;
@@ -872,9 +880,6 @@
             if (res.success) {
                 Modal.close('modal-fest');
                 await loadPage();
-                // Marking it completed doesn't auto-pick a champion — make
-                // that obvious immediately instead of leaving it to be
-                // discovered later on the card.
                 if (wasCompletedNoChampion) {
                     Toast.show('Marked as completed. Don\u2019t forget to declare a champion below.', 'info');
                 }
@@ -915,6 +920,34 @@
                     const res = await api('/sport-fest/start-new-season', { method: 'POST', body: JSON.stringify(body) });
                     Toast.show(res.message || (res.success ? 'New season started!' : 'Error'), res.success ? 'success' : 'error');
                     if (res.success) { Modal.close('modal-new-season'); await loadPage(); }
+                },
+                'danger'
+            );
+        }
+
+        /**
+         * Delete an archived Sport Fest.
+         * Backend blocks if: is_current, open tournaments, or active matches.
+         */
+        function confirmDeleteFest(id) {
+            const f = allFests.find(x => x.id === id);
+            if (!f) return;
+
+            if (f.is_current) {
+                Toast.show('Cannot delete the current season. Use "Start New Season" to archive it first.', 'error');
+                return;
+            }
+
+            openConfirm(
+                'Delete Sport Fest?',
+                `Permanently delete "${f.name}"? This is blocked if it still has open tournaments or active matches. This cannot be undone.`,
+                async function () {
+                    const res = await api(`/sport-fest/${id}`, { method: 'DELETE' });
+                    Toast.show(
+                        res.message || (res.success ? 'Deleted' : 'Error'),
+                        res.success ? 'success' : 'error'
+                    );
+                    if (res.success) await loadPage();
                 },
                 'danger'
             );
@@ -976,7 +1009,6 @@
 
         function openTourneyManager(id) {
             activeFestId = id;
-            const f = allFests.find(x => x.id === id);
             document.getElementById('ft-add-select').innerHTML = '<option value="">Select tournament...</option>' +
                 allTournaments.map(t => `<option value="${t.id}">${t.name} (${t.sport_name || '—'})</option>`).join('');
             renderLinkedTourneys();
@@ -1005,15 +1037,28 @@
         async function addLinkedTourney() {
             const tid = document.getElementById('ft-add-select').value;
             if (!tid) { Toast.show('Select a tournament first', 'error'); return; }
-            const res = await api(`/sport-fest/${activeFestId}/tournaments`, { method: 'POST', body: JSON.stringify({ tournament_id: parseInt(tid) }) });
-            if (res.success) { Toast.show('Tournament linked', 'success'); await renderLinkedTourneys(); await loadPage(); } else Toast.show(res.message ||
-                'Error', 'error');
+            const res = await api(`/sport-fest/${activeFestId}/tournaments`, {
+                method: 'POST',
+                body: JSON.stringify({ tournament_id: parseInt(tid) })
+            });
+            if (res.success) {
+                Toast.show('Tournament linked', 'success');
+                await renderLinkedTourneys();
+                await loadPage();
+            } else {
+                Toast.show(res.message || 'Error', 'error');
+            }
         }
 
         async function removeLinkedTourney(tid) {
             const res = await api(`/sport-fest/${activeFestId}/tournaments/${tid}`, { method: 'DELETE' });
-            if (res.success) { Toast.show('Removed', 'success'); await renderLinkedTourneys(); await loadPage(); } else Toast.show(res.message ||
-                'Error', 'error');
+            if (res.success) {
+                Toast.show('Removed', 'success');
+                await renderLinkedTourneys();
+                await loadPage();
+            } else {
+                Toast.show(res.message || 'Error', 'error');
+            }
         }
 
         function sportIconSVG(name) {

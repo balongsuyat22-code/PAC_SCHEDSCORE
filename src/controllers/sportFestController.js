@@ -231,29 +231,6 @@ const declareChampion = async (req, res, next) => {
     }
 };
 
-// ---------------------------------------------------------------------------
-// GET SUMMARY
-// GET /api/sport-fest/:id/summary
-//
-// FIX: this was 500ing on every call, which is what actually broke
-// "Declare Champion" from the UI — that button only gets wired up
-// inside viewFest(), and viewFest() bails out (with just a toast) the
-// moment this endpoint fails, so the modal never opened at all.
-//
-// Two real SQL bugs here:
-//   1. `tr.rank` — `rank` became a *reserved keyword* in MySQL 8.0+.
-//      An unquoted `tr.rank` in a WHERE/ON clause is a syntax error on
-//      any MySQL 8+ server, full stop, regardless of data.
-//   2. `GROUP BY t.id` while selecting s.name / t.name / t.status /
-//      t.format / t.gender / d.name — none of those are guaranteed
-//      functionally dependent on t.id from MySQL's point of view once
-//      joins are involved, so this throws error 1055 under the default
-//      ONLY_FULL_GROUP_BY sql_mode.
-//
-// Rewritten below to avoid GROUP BY entirely (a correlated subquery
-// handles the participant count, and the rank=1 LEFT JOIN already
-// returns at most one row per tournament), and to backtick `rank`.
-// ---------------------------------------------------------------------------
 const getSummary = async (req, res, next) => {
     try {
         const [fest] = await pool.execute(`
@@ -382,6 +359,87 @@ const startNewSeason = async (req, res, next) => {
 };
 
 
+const remove = async (req, res, next) => {
+    try {
+        const festId = parseInt(req.params.id, 10);
+
+        const [rows] = await pool.execute(
+            'SELECT id, name, is_current, status FROM sport_fest_events WHERE id = ?',
+            [festId]
+        );
+        if (!rows.length) {
+            return res.status(404).json({ success: false, message: 'Sport Fest event not found.' });
+        }
+
+        const fest = rows[0];
+
+        if (Number(fest.is_current) === 1) {
+            return res.status(400).json({
+                success: false,
+                message:
+                    'Cannot delete the current season. Use "Start New Season" to archive it first, then delete the archived event if needed.',
+            });
+        }
+
+        // 2) Linked tournaments still open
+        const [openTourneys] = await pool.execute(
+            `SELECT COUNT(*) AS count
+             FROM sport_fest_tournaments sft
+             JOIN tournaments t ON t.id = sft.tournament_id
+             WHERE sft.sport_fest_id = ?
+               AND t.status IN ('draft', 'registration', 'ongoing')`,
+            [festId]
+        );
+        if (Number(openTourneys[0].count) > 0) {
+            return res.status(400).json({
+                success: false,
+                message:
+                    'Cannot delete this Sport Fest — it still has draft, registration, or ongoing tournaments. Finalize or cancel them first.',
+            });
+        }
+
+        const [openMatches] = await pool.execute(
+            `SELECT COUNT(*) AS count
+             FROM matches m
+             JOIN sport_fest_tournaments sft ON sft.tournament_id = m.tournament_id
+             WHERE sft.sport_fest_id = ?
+               AND m.status IN ('pending', 'scheduled', 'ongoing')`,
+            [festId]
+        );
+        if (Number(openMatches[0].count) > 0) {
+            return res.status(400).json({
+                success: false,
+                message:
+                    'Cannot delete this Sport Fest — linked tournaments still have pending, scheduled, or ongoing matches. Complete or cancel those matches first.',
+            });
+        }
+
+        await pool.execute(
+            'DELETE FROM sport_fest_tournaments WHERE sport_fest_id = ?',
+            [festId]
+        );
+        await pool.execute(
+            'DELETE FROM sport_fest_events WHERE id = ?',
+            [festId]
+        );
+
+        await logActivity(
+            req.user.id,
+            'SPORTFEST_DELETED',
+            'sport_fest',
+            festId,
+            `Sport Fest deleted: ${fest.name}`
+        );
+
+        return res.json({
+            success: true,
+            message: `Sport Fest "${fest.name}" deleted.`,
+        });
+    } catch (err) {
+        next(err);
+    }
+};
+
 module.exports = {
     getAll,
     getActive,
@@ -392,5 +450,6 @@ module.exports = {
     removeTournament,
     declareChampion,
     getSummary,
-    startNewSeason
+    startNewSeason,
+    remove,
 };
