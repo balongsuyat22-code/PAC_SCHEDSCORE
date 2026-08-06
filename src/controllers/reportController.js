@@ -21,26 +21,60 @@ const getDashboard = async (req, res, next) => {
 };
 
 const buildDashboard = async (sportFestId) => {
+    // Season-scope helper: tournaments/matches belong to a fest via the
+    // sport_fest_tournaments junction. Players/teams carry sport_fest_id
+    // directly. `<=>` is NULL-safe so a missing active season returns zeros
+    // instead of every historical row.
+    const inActiveFest = `
+        EXISTS (
+            SELECT 1 FROM sport_fest_tournaments sft
+            WHERE sft.tournament_id = t.id AND sft.sport_fest_id <=> ?
+        )
+    `;
+    const festParams = [sportFestId];
+
     const [[totals]] = await pool.execute(
         `
             SELECT
                 (SELECT COUNT(*) FROM departments WHERE is_active=1) as total_departments,
                 (SELECT COUNT(*) FROM sports WHERE is_active=1) as total_sports,
-                (SELECT COUNT(*) FROM tournaments) as total_tournaments,
-                (SELECT COUNT(*) FROM tournaments WHERE status='ongoing') as ongoing_tournaments,
-                (SELECT COUNT(*) FROM tournaments WHERE status='completed') as completed_tournaments,
-                (SELECT COUNT(*) FROM matches) as total_matches,
-                (SELECT COUNT(*) FROM matches WHERE status='ongoing') as live_matches,
-                (SELECT COUNT(*) FROM matches WHERE status='completed') as completed_matches,
-                (SELECT COUNT(*) FROM matches WHERE scheduled_date=CURDATE()) as todays_matches,
-                (SELECT COUNT(*) FROM players WHERE status = 'approved') as total_players,
+
+                (SELECT COUNT(*) FROM tournaments t WHERE ${inActiveFest}) as total_tournaments,
+                (SELECT COUNT(*) FROM tournaments t WHERE t.status='ongoing' AND ${inActiveFest}) as ongoing_tournaments,
+                (SELECT COUNT(*) FROM tournaments t WHERE t.status='completed' AND ${inActiveFest}) as completed_tournaments,
+
+                (SELECT COUNT(*) FROM matches m
+                 JOIN tournaments t ON m.tournament_id = t.id
+                 WHERE ${inActiveFest}) as total_matches,
+                (SELECT COUNT(*) FROM matches m
+                 JOIN tournaments t ON m.tournament_id = t.id
+                 WHERE m.status='ongoing' AND ${inActiveFest}) as live_matches,
+                (SELECT COUNT(*) FROM matches m
+                 JOIN tournaments t ON m.tournament_id = t.id
+                 WHERE m.status='completed' AND ${inActiveFest}) as completed_matches,
+                (SELECT COUNT(*) FROM matches m
+                 JOIN tournaments t ON m.tournament_id = t.id
+                 WHERE m.scheduled_date=CURDATE() AND ${inActiveFest}) as todays_matches,
+
+                (SELECT COUNT(*) FROM players WHERE status = 'approved' AND sport_fest_id <=> ?) as total_players,
+                (SELECT COUNT(*) FROM players WHERE status = 'pending'  AND sport_fest_id <=> ?) as total_pending_players,
                 (SELECT COUNT(*) FROM users WHERE role = 'sgo_officer' AND is_active = 1) as total_referees,
                 (SELECT COUNT(*) FROM teams WHERE sport_fest_id <=> ?) as total_teams
         `,
-        [sportFestId]
+        // 7× fest for the tournament/match EXISTS clauses, then players×2, teams×1
+        [
+            ...festParams, ...festParams, ...festParams, // total / ongoing / completed tournaments
+            ...festParams, ...festParams, ...festParams, ...festParams, // total / live / completed / today matches
+            sportFestId, sportFestId, sportFestId, // approved players, pending players, teams
+        ]
     );
 
-    const [upcomingMatches] = await pool.execute(`
+    // Aliases the admin dashboard HTML already reads
+    totals.total_approved_players = totals.total_players;
+    totals.total_pending_players = totals.total_pending_players || 0;
+
+    const [upcomingMatches] = await pool.execute(
+        `
             SELECT m.id, m.scheduled_date, m.scheduled_time, s.name as sport_name,
                    t.name as tournament_name,
                    da.name as dept_a, db.name as dept_b,
@@ -51,28 +85,41 @@ const buildDashboard = async (sportFestId) => {
             LEFT JOIN departments da ON m.participant_a_department_id = da.id
             LEFT JOIN departments db ON m.participant_b_department_id = db.id
             LEFT JOIN venues v ON m.venue_id = v.id
-            WHERE m.status = 'scheduled' AND m.scheduled_date >= CURDATE()
+            WHERE m.status IN ('scheduled', 'pending')
+              AND (m.scheduled_date IS NULL OR m.scheduled_date >= CURDATE())
               AND m.participant_a_department_id IS NOT NULL
+              AND ${inActiveFest}
             ORDER BY m.scheduled_date, m.scheduled_time
             LIMIT 10
-        `);
+        `,
+        festParams
+    );
 
-    const [recentResults] = await pool.execute(`
+    const [recentResults] = await pool.execute(
+        `
             SELECT m.id, m.completed_at, s.name as sport_name,
                    da.name as dept_a, da.color as color_a,
                    db.name as dept_b, db.color as color_b,
                    dw.name as winner,
-                   mr.final_score_display
+                   mr.final_score_display,
+                   v.name as venue_name,
+                   DATE_FORMAT(m.completed_at, '%Y-%m-%d') AS completed_date,
+                   DATE_FORMAT(m.completed_at, '%H:%i')    AS completed_time
             FROM matches m
             JOIN sports s ON m.sport_id = s.id
+            JOIN tournaments t ON m.tournament_id = t.id
             LEFT JOIN departments da ON m.participant_a_department_id = da.id
             LEFT JOIN departments db ON m.participant_b_department_id = db.id
             LEFT JOIN departments dw ON m.winner_department_id = dw.id
             LEFT JOIN match_results mr ON m.id = mr.match_id
+            LEFT JOIN venues v ON m.venue_id = v.id
             WHERE m.status = 'completed'
+              AND ${inActiveFest}
             ORDER BY m.completed_at DESC
             LIMIT 10
-        `);
+        `,
+        festParams
+    );
 
     const [leaderboard] = await pool.execute(
         `
