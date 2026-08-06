@@ -1,13 +1,64 @@
 /**
  * DEPARTMENT CONTROLLER
+ *
+ * Season scoping:
+ *   - Prefer ?season_id= query (or "all" for unscoped history)
+ *   - Else the active sport fest (is_current = 1)
+ *   - Else the most recent sport_fest_events row (year DESC, id DESC)
+ *     so a missing/stale is_current flag still shows the latest fest
+ *     instead of legacy NULL rows or an older season.
  */
 const { pool } = require('../config/database');
 const { logActivity } = require('../utils/logger');
 const { getActiveSportFestId } = require('../utils/season');
 
+/**
+ * Resolve which sport_fest_id to use for scores/teams/members.
+ * @param {string|undefined} seasonIdQuery  req.query.season_id
+ * @returns {Promise<{ sportFestId: number|null, unscoped: boolean }>}
+ */
+async function resolveSportFestId(seasonIdQuery) {
+    if (seasonIdQuery === 'all') {
+        return { sportFestId: null, unscoped: true };
+    }
+    if (seasonIdQuery) {
+        const id = parseInt(seasonIdQuery, 10);
+        if (Number.isInteger(id) && id > 0) {
+            return { sportFestId: id, unscoped: false };
+        }
+    }
+
+    const activeId = await getActiveSportFestId();
+    if (activeId != null) {
+        return { sportFestId: activeId, unscoped: false };
+    }
+
+    // No is_current season — fall back to the newest event so the admin
+    // grades/strands page shows the most recent fest instead of previous/
+    // legacy NULL-scored rows.
+    const [latest] = await pool.execute(
+        `SELECT id FROM sport_fest_events
+         ORDER BY year DESC, id DESC
+         LIMIT 1`
+    );
+    return {
+        sportFestId: latest[0]?.id ?? null,
+        unscoped: false,
+    };
+}
+
 const getAll = async (req, res, next) => {
     try {
-        const sportFestId = (await getActiveSportFestId()) ?? null;
+        const { sportFestId, unscoped } = await resolveSportFestId(req.query.season_id);
+
+        const scoreJoin = unscoped
+            ? 'LEFT JOIN department_scores ds ON d.id = ds.department_id'
+            : 'LEFT JOIN department_scores ds ON d.id = ds.department_id AND ds.sport_fest_id <=> ?';
+        const teamJoin = unscoped
+            ? 'LEFT JOIN teams t ON d.id = t.department_id'
+            : 'LEFT JOIN teams t ON d.id = t.department_id AND t.sport_fest_id <=> ?';
+
+        const params = unscoped ? [] : [sportFestId, sportFestId];
 
         const [rows] = await pool.query(
             `
@@ -31,10 +82,8 @@ const getAll = async (req, res, next) => {
     COUNT(DISTINCT t.id) AS total_teams,
     COUNT(DISTINCT p.id) AS total_members
   FROM departments d
-  LEFT JOIN department_scores ds
-    ON d.id = ds.department_id AND ds.sport_fest_id <=> ?
-  LEFT JOIN teams t
-    ON d.id = t.department_id AND t.sport_fest_id <=> ?
+  ${scoreJoin}
+  ${teamJoin}
   LEFT JOIN players p
     ON t.id = p.team_id AND p.status = 'approved'
   WHERE d.is_active = 1
@@ -43,9 +92,13 @@ const getAll = async (req, res, next) => {
     d.logo_url, d.short_name, d.is_active, d.created_at, d.updated_at
   ORDER BY total_points DESC, d.name ASC
   `,
-            [sportFestId, sportFestId]
+            params
         );
-        return res.json({ success: true, data: rows });
+        return res.json({
+            success: true,
+            data: rows,
+            meta: { sport_fest_id: sportFestId, unscoped },
+        });
     } catch (err) {
         next(err);
     }
@@ -53,7 +106,18 @@ const getAll = async (req, res, next) => {
 
 const getOne = async (req, res, next) => {
     try {
-        const sportFestId = (await getActiveSportFestId()) ?? null;
+        const { sportFestId, unscoped } = await resolveSportFestId(req.query.season_id);
+
+        const scoreJoin = unscoped
+            ? 'LEFT JOIN department_scores ds ON d.id = ds.department_id'
+            : 'LEFT JOIN department_scores ds ON d.id = ds.department_id AND ds.sport_fest_id <=> ?';
+        const teamJoin = unscoped
+            ? 'LEFT JOIN teams t ON d.id = t.department_id'
+            : 'LEFT JOIN teams t ON d.id = t.department_id AND t.sport_fest_id <=> ?';
+
+        const params = unscoped
+            ? [req.params.id]
+            : [sportFestId, sportFestId, req.params.id];
 
         const [rows] = await pool.execute(
             `SELECT
@@ -76,21 +140,25 @@ const getOne = async (req, res, next) => {
                 COUNT(DISTINCT t.id) AS total_teams,
                 COUNT(DISTINCT p.id) AS total_members
              FROM departments d
-             LEFT JOIN department_scores ds ON d.id = ds.department_id AND ds.sport_fest_id <=> ?
-             LEFT JOIN teams  t ON d.id = t.department_id AND t.sport_fest_id <=> ?
+             ${scoreJoin}
+             ${teamJoin}
              LEFT JOIN players p ON t.id = p.team_id AND p.status = 'approved'
              WHERE d.id = ?
              GROUP BY
                 d.id, d.name, d.code, d.description, d.color,
                 d.logo_url, d.short_name, d.is_active, d.created_at, d.updated_at`,
-            [sportFestId, sportFestId, req.params.id]
+            params
         );
 
         if (!rows.length) {
             return res.status(404).json({ success: false, message: 'Department not found.' });
         }
 
-        return res.json({ success: true, data: rows[0] });
+        return res.json({
+            success: true,
+            data: rows[0],
+            meta: { sport_fest_id: sportFestId, unscoped },
+        });
     } catch (err) {
         next(err);
     }
@@ -98,20 +166,39 @@ const getOne = async (req, res, next) => {
 
 const getScores = async (req, res, next) => {
     try {
-        const [scores] = await pool.execute(
-            `SELECT
-                tr.rank, tr.medal, tr.sport_fest_points,
+        // Default: only results from the active / most-recent sport fest.
+        // Pass ?season_id=all for full history.
+        const { season_id } = req.query;
+        const { sportFestId, unscoped } = await resolveSportFestId(season_id);
+
+        let query = `
+            SELECT
+                tr.\`rank\`, tr.medal, tr.sport_fest_points,
                 t.name   AS tournament_name,
                 s.name   AS sport_name,
-                tr.finalized_at
+                tr.finalized_at,
+                sft.sport_fest_id
              FROM tournament_results tr
              JOIN tournaments t ON tr.tournament_id = t.id
              JOIN sports      s ON t.sport_id       = s.id
+             LEFT JOIN sport_fest_tournaments sft ON t.id = sft.tournament_id
              WHERE tr.department_id = ?
-             ORDER BY tr.finalized_at DESC`,
-            [req.params.id]
-        );
-        return res.json({ success: true, data: scores });
+        `;
+        const params = [req.params.id];
+
+        if (!unscoped && sportFestId != null) {
+            query += ' AND sft.sport_fest_id <=> ?';
+            params.push(sportFestId);
+        }
+
+        query += ' ORDER BY tr.finalized_at DESC';
+
+        const [scores] = await pool.execute(query, params);
+        return res.json({
+            success: true,
+            data: scores,
+            meta: { sport_fest_id: sportFestId, unscoped },
+        });
     } catch (err) {
         next(err);
     }
@@ -144,10 +231,10 @@ const getPlayers = async (req, res, next) => {
             query += ' AND p.sport_fest_id = ?';
             params.push(season_id);
         } else {
-            const activeId = (await getActiveSportFestId()) ?? null;
-            if (activeId != null) {
+            const { sportFestId } = await resolveSportFestId(undefined);
+            if (sportFestId != null) {
                 query += ' AND p.sport_fest_id = ?';
-                params.push(activeId);
+                params.push(sportFestId);
             }
         }
 
@@ -196,7 +283,7 @@ const create = async (req, res, next) => {
             ]
         );
 
-        const sportFestId = (await getActiveSportFestId()) ?? null;
+        const { sportFestId } = await resolveSportFestId(undefined);
         if (sportFestId != null) {
             await pool.execute(
                 'INSERT INTO department_scores (department_id, sport_fest_id, total_points) VALUES (?, ?, 0)',

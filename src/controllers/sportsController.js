@@ -1,22 +1,96 @@
+/**
+ * SPORTS CONTROLLER
+ *
+ * Season scoping for tournament counts / lists:
+ *   - Prefer ?season_id= query (or "all" for every season)
+ *   - Else the active sport fest (is_current = 1)
+ *   - Else the most recent sport_fest_events row (year DESC, id DESC)
+ *     so the Sports admin view shows this fest's tournaments only,
+ *     not archived seasons.
+ */
 const { pool } = require('../config/database');
 const { logActivity } = require('../utils/logger');
+const { getActiveSportFestId } = require('../utils/season');
 
 const VALID_SCORING = ['points', 'time', 'sets', 'binary', 'custom'];
 const VALID_CATEGORY = ['individual', 'team'];
 
+/**
+ * Resolve which sport_fest_id to use when counting/listing tournaments.
+ * @param {string|undefined} seasonIdQuery  req.query.season_id
+ * @returns {Promise<{ sportFestId: number|null, unscoped: boolean }>}
+ */
+async function resolveSportFestId(seasonIdQuery) {
+    if (seasonIdQuery === 'all') {
+        return { sportFestId: null, unscoped: true };
+    }
+    if (seasonIdQuery) {
+        const id = parseInt(seasonIdQuery, 10);
+        if (Number.isInteger(id) && id > 0) {
+            return { sportFestId: id, unscoped: false };
+        }
+    }
+
+    const activeId = await getActiveSportFestId();
+    if (activeId != null) {
+        return { sportFestId: activeId, unscoped: false };
+    }
+
+    // No is_current season — fall back to newest event so the Sports page
+    // shows the latest fest's tournaments instead of every past season.
+    const [latest] = await pool.execute(
+        `SELECT id FROM sport_fest_events
+         ORDER BY year DESC, id DESC
+         LIMIT 1`
+    );
+    return {
+        sportFestId: latest[0]?.id ?? null,
+        unscoped: false,
+    };
+}
+
 const getAll = async (req, res, next) => {
     try {
-        const [rows] = await pool.execute(`
+        const { sportFestId, unscoped } = await resolveSportFestId(req.query.season_id);
+
+        let tournamentJoin;
+        let params;
+        if (unscoped) {
+            tournamentJoin = 'LEFT JOIN tournaments t ON s.id = t.sport_id';
+            params = [];
+        } else if (sportFestId != null) {
+            tournamentJoin = `
+                LEFT JOIN tournaments t
+                  ON s.id = t.sport_id
+                 AND EXISTS (
+                     SELECT 1 FROM sport_fest_tournaments sft
+                     WHERE sft.tournament_id = t.id AND sft.sport_fest_id = ?
+                 )`;
+            params = [sportFestId];
+        } else {
+            // No fest at all — count nothing (avoid dumping all history)
+            tournamentJoin = 'LEFT JOIN tournaments t ON 1 = 0';
+            params = [];
+        }
+
+        const [rows] = await pool.execute(
+            `
             SELECT s.*,
                    COUNT(DISTINCT t.id) as total_tournaments,
                    (s.max_entries IS NULL OR s.current_entries < s.max_entries) AS is_available
             FROM sports s
-            LEFT JOIN tournaments t ON s.id = t.sport_id
+            ${tournamentJoin}
             WHERE s.is_active = 1
             GROUP BY s.id
             ORDER BY s.name
-        `);
-        res.json({ success: true, data: rows });
+            `,
+            params
+        );
+        res.json({
+            success: true,
+            data: rows,
+            meta: { sport_fest_id: sportFestId, unscoped },
+        });
     } catch (err) {
         next(err);
     }
@@ -36,16 +110,39 @@ const getOne = async (req, res, next) => {
 
 const getTournaments = async (req, res, next) => {
     try {
-        const [rows] = await pool.execute(`
+        const { sportFestId, unscoped } = await resolveSportFestId(req.query.season_id);
+
+        let query = `
             SELECT t.*,
                    COUNT(DISTINCT tp.department_id) as participant_count
             FROM tournaments t
             LEFT JOIN tournament_participants tp ON t.id = tp.tournament_id
             WHERE t.sport_id = ?
+        `;
+        const params = [req.params.id];
+
+        if (!unscoped && sportFestId != null) {
+            query += ` AND EXISTS (
+                SELECT 1 FROM sport_fest_tournaments sft
+                WHERE sft.tournament_id = t.id AND sft.sport_fest_id = ?
+            )`;
+            params.push(sportFestId);
+        } else if (!unscoped && sportFestId == null) {
+            // No fest resolved — return empty rather than every historical tournament
+            query += ' AND 1 = 0';
+        }
+
+        query += `
             GROUP BY t.id
             ORDER BY t.created_at DESC
-        `, [req.params.id]);
-        res.json({ success: true, data: rows });
+        `;
+
+        const [rows] = await pool.execute(query, params);
+        res.json({
+            success: true,
+            data: rows,
+            meta: { sport_fest_id: sportFestId, unscoped },
+        });
     } catch (err) {
         next(err);
     }
@@ -156,9 +253,6 @@ const update = async (req, res, next) => {
 
 const remove = async (req, res, next) => {
     try {
-        // Same guard pattern as departmentController/venueController — a
-        // sport with tournaments still open shouldn't be able to vanish
-        // out from under registration/bracket/scoring flows.
         const [active] = await pool.execute(
             `SELECT COUNT(*) AS count FROM tournaments
              WHERE sport_id = ? AND status IN ('draft', 'registration', 'ongoing')`,
