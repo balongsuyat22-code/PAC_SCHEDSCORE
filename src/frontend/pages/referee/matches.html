@@ -64,11 +64,108 @@
             margin-left: 6px;
         }
 
+        .match-cards {
+            display: none;
+        }
+
+        .match-card {
+            background: var(--bg2);
+            border: 1px solid var(--border);
+            border-radius: 14px;
+            padding: 14px 16px;
+            margin-bottom: 10px;
+            transition: border-color .15s;
+        }
+
+        .match-card:active {
+            border-color: var(--border-gold);
+        }
+
+        .mc-sport {
+            font-size: 11px;
+            font-weight: 700;
+            letter-spacing: 0.5px;
+            text-transform: uppercase;
+            color: var(--muted);
+            margin-bottom: 4px;
+        }
+
+        .mc-matchup {
+            font-family: 'Barlow Condensed', sans-serif;
+            font-size: 18px;
+            font-weight: 800;
+            color: var(--text);
+            margin-bottom: 6px;
+            line-height: 1.25;
+        }
+
+        .mc-meta {
+            font-size: 12px;
+            color: var(--muted);
+            margin-bottom: 12px;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px 12px;
+        }
+
+        .mc-footer {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 10px;
+        }
+
+        .mc-footer .btn {
+            min-height: 40px;
+            padding: 8px 16px;
+        }
+
         @media (max-width: 720px) {
 
             thead th:nth-child(4),
             tbody td:nth-child(4) {
                 display: none;
+            }
+
+            .table-wrap {
+                display: none;
+            }
+
+            .match-cards {
+                display: block;
+            }
+
+            .stats-row {
+                display: grid !important;
+                grid-template-columns: 1fr 1fr !important;
+                gap: 10px !important;
+            }
+
+            .stat-card {
+                padding: 12px !important;
+            }
+
+            .stat-card-value {
+                font-size: 22px !important;
+            }
+
+            .tab-nav {
+                gap: 6px;
+                margin-bottom: 14px;
+            }
+
+            .tab-btn {
+                padding: 10px 14px;
+                font-size: 13px;
+                min-height: 40px;
+                flex: 1;
+                text-align: center;
+            }
+
+            .page-header {
+                flex-direction: column;
+                align-items: flex-start !important;
+                gap: 10px;
             }
         }
     </style>
@@ -160,6 +257,7 @@
                     </table>
                 </div>
             </div>
+            <div class="match-cards" id="match-cards"></div>
         </div>
     </main>
 
@@ -170,6 +268,7 @@
         let currentTab = 'active';
 
         document.addEventListener('DOMContentLoaded', async () => {
+            if (typeof Auth !== 'undefined' && Auth.requireAuth && !Auth.requireAuth('sgo_officer')) return;
             renderRefereeSidebar('matches');
             renderRefereeTopbar();
             await loadMatches();
@@ -214,15 +313,18 @@
 
         function renderMatchTable() {
             const tbody = document.getElementById('matches-body');
+            const cards = document.getElementById('match-cards');
             const filtered = allAssignedMatches.filter(m =>
                 currentTab === 'active' ? m.status !== 'completed' : m.status === 'completed'
             );
 
             if (!filtered.length) {
-                tbody.innerHTML = `<tr><td colspan="6"><div class="empty-state">
+                const empty = `<div class="empty-state">
                     <div class="empty-icon"><svg viewBox="0 0 24 24"><rect width="8" height="4" x="8" y="2" rx="1" ry="1"/><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/></svg></div>
                     <div class="empty-text">No matches found.</div>
-                </div></td></tr>`;
+                </div>`;
+                tbody.innerHTML = `<tr><td colspan="6">${empty}</td></tr>`;
+                if (cards) cards.innerHTML = empty;
                 return;
             }
 
@@ -252,6 +354,33 @@
                         <td>${actionBtn}</td>
                     </tr>`;
             }).join('');
+
+            if (cards) {
+                cards.innerHTML = filtered.map(m => {
+                    const isFFA = (m.tournament_format || '').toLowerCase() === 'free_for_all' ||
+                        (m.tournament_format || '').toLowerCase() === 'team_ranking';
+                    const teamA = m.team_a_name || m.dept_a_name || 'TBD';
+                    const teamB = m.team_b_name || m.dept_b_name || 'TBD';
+                    const matchup = isFFA ? (m.tournament_name || 'FFA Event') : `${teamA} vs ${teamB}`;
+                    const actionBtn = ['scheduled', 'ongoing'].includes(m.status)
+                        ? `<a href="scoring.html?id=${m.id}" class="btn btn-primary btn-sm">Score</a>`
+                        : `<a href="scoring.html?id=${m.id}" class="btn btn-secondary btn-sm">Review</a>`;
+                    const when = `${typeof formatDate === 'function' ? formatDate(m.scheduled_date) : (m.scheduled_date || 'TBD')} · ${typeof formatTime === 'function' ? formatTime(m.scheduled_time) : (m.scheduled_time || '')}`;
+                    return `
+                    <div class="match-card">
+                        <div class="mc-sport">${m.sport_name || 'Sport'}${formatHint(m)}</div>
+                        <div class="mc-matchup">${matchup}</div>
+                        <div class="mc-meta">
+                            <span>${when}</span>
+                            <span>${m.venue_name || 'TBD'}</span>
+                        </div>
+                        <div class="mc-footer">
+                            ${typeof statusBadge === 'function' ? statusBadge(m.status) : m.status}
+                            ${actionBtn}
+                        </div>
+                    </div>`;
+                }).join('');
+            }
         }
     </script>
 </body>

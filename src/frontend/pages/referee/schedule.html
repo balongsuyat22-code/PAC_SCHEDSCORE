@@ -185,6 +185,62 @@
             flex-wrap: wrap;
             gap: 8px;
         }
+
+        .timeline-footer .btn {
+            min-height: 40px;
+            padding: 8px 16px;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        @media (max-width: 640px) {
+            .timeline {
+                padding-left: 32px;
+            }
+
+            .timeline::before {
+                left: 10px;
+            }
+
+            .timeline-dot {
+                left: -28px;
+                width: 14px;
+                height: 14px;
+                top: 18px;
+            }
+
+            .timeline-card {
+                padding: 14px;
+                border-radius: 12px;
+            }
+
+            .timeline-time {
+                font-size: 20px;
+            }
+
+            .timeline-matchup {
+                font-size: 16px;
+            }
+
+            .date-banner {
+                padding: 14px 16px;
+                flex-direction: column;
+                align-items: flex-start;
+            }
+
+            .date-banner-day {
+                font-size: 22px;
+            }
+
+            .date-banner-clock {
+                font-size: 18px;
+            }
+
+            .page-header {
+                flex-direction: column;
+                align-items: flex-start !important;
+                gap: 10px;
+            }
+        }
     </style>
 </head>
 
@@ -243,6 +299,7 @@
     <script src="../../js/referee-sidebar.js"></script>
     <script>
         document.addEventListener('DOMContentLoaded', async () => {
+            if (typeof Auth !== 'undefined' && Auth.requireAuth && !Auth.requireAuth('sgo_officer')) return;
             renderRefereeSidebar('schedule');
             renderRefereeTopbar();
             startClock();

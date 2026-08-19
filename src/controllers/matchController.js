@@ -1221,14 +1221,14 @@ const getMatchPlayers = async (req, res, next) => {
     try {
         const matchId = parseInt(req.params.id);
 
+        // matches has no team_a_name / team_b_name columns — selecting them
+        // caused 500: Unknown column 'm.team_a_name' in 'field list'.
         const [matches] = await pool.execute(
             `SELECT
                 m.id,
                 m.sport_id,
                 m.participant_a_department_id,
                 m.participant_b_department_id,
-                m.team_a_name,
-                m.team_b_name,
                 da.name AS dept_a_name,
                 db.name AS dept_b_name
              FROM matches m
@@ -1244,17 +1244,9 @@ const getMatchPlayers = async (req, res, next) => {
 
         const match = matches[0];
 
-        const loadSide = async (departmentId, teamName) => {
+        const loadSide = async (departmentId) => {
             if (!departmentId) return [];
 
-            // BUG FIX: this query had no sport filter — it pulled every
-            // approved player in the department regardless of what sport
-            // they play, so the MVP dropdown for e.g. a Chess match could
-            // include Basketball/Volleyball/etc. players from the same
-            // department. The team_name narrowing below only helps for
-            // team sports with a recorded roster; for individual/no-team
-            // sports (team_id IS NULL) it did nothing at all, which is
-            // exactly the "showing the whole department" complaint.
             const [rows] = await pool.execute(
                 `SELECT
                     p.id,
@@ -1279,24 +1271,12 @@ const getMatchPlayers = async (req, res, next) => {
                 [departmentId, match.sport_id]
             );
 
-            // Narrow to the specific team fielded in this match, if one
-            // is recorded. Players with no team assigned are kept either
-            // way (individual-sport rosters, free agents). The fallback to
-            // the unfiltered `rows` here is now safe — "unfiltered" means
-            // "this department's roster for this sport", never the whole
-            // department across every sport like before.
-            if (!teamName) return rows;
-            const target = String(teamName).trim().toLowerCase();
-            const filtered = rows.filter(p => {
-                const tn = (p.team_name || '').trim().toLowerCase();
-                return !tn || tn === target;
-            });
-            return filtered.length ? filtered : rows;
+            return rows;
         };
 
         const [side_a, side_b] = await Promise.all([
-            loadSide(match.participant_a_department_id, match.team_a_name),
-            loadSide(match.participant_b_department_id, match.team_b_name),
+            loadSide(match.participant_a_department_id),
+            loadSide(match.participant_b_department_id),
         ]);
 
         return res.json({
@@ -1304,8 +1284,8 @@ const getMatchPlayers = async (req, res, next) => {
             data: {
                 side_a,
                 side_b,
-                label_a: match.team_a_name || match.dept_a_name || 'Side A',
-                label_b: match.team_b_name || match.dept_b_name || 'Side B',
+                label_a: match.dept_a_name || 'Side A',
+                label_b: match.dept_b_name || 'Side B',
             },
         });
     } catch (err) {

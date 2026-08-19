@@ -182,6 +182,7 @@
         @media (max-width: 640px) {
             .card-grid {
                 grid-template-columns: 1fr;
+                gap: 12px;
             }
 
             .filter-spacer {
@@ -190,6 +191,53 @@
 
             .view-toggle {
                 margin-left: auto;
+            }
+
+            .filter-bar {
+                gap: 6px;
+                margin-bottom: 14px;
+            }
+
+            .filter-pill {
+                padding: 8px 12px;
+                font-size: 11px;
+                min-height: 36px;
+            }
+
+            .stats-row {
+                display: grid !important;
+                grid-template-columns: 1fr 1fr !important;
+                gap: 10px !important;
+            }
+
+            .stat-card {
+                padding: 12px !important;
+            }
+
+            .stat-card-value {
+                font-size: 22px !important;
+            }
+
+            .page-header {
+                flex-direction: column;
+                align-items: flex-start !important;
+                gap: 10px;
+            }
+
+            .tourney-card {
+                border-radius: 12px;
+            }
+
+            .tc-name {
+                font-size: 18px;
+            }
+
+            #view-table-el {
+                display: none !important;
+            }
+
+            #view-grid-el {
+                display: block !important;
             }
         }
     </style>

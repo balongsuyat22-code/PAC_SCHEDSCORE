@@ -148,11 +148,90 @@
             white-space: nowrap;
         }
 
+        .hist-cards {
+            display: none;
+        }
+
+        .hist-card {
+            background: var(--bg2);
+            border: 1px solid var(--border);
+            border-radius: 14px;
+            padding: 14px 16px;
+            margin-bottom: 10px;
+        }
+
+        .hist-card.ffa {
+            border-left: 3px solid var(--gold);
+        }
+
+        .hc-date {
+            font-size: 11px;
+            color: var(--muted);
+            margin-bottom: 4px;
+        }
+
+        .hc-sport {
+            font-size: 11px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.4px;
+            color: var(--muted);
+            margin-bottom: 4px;
+        }
+
+        .hc-matchup {
+            font-family: 'Barlow Condensed', sans-serif;
+            font-size: 17px;
+            font-weight: 800;
+            margin-bottom: 8px;
+            line-height: 1.25;
+        }
+
+        .hc-score {
+            margin-bottom: 8px;
+        }
+
+        .hc-footer {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+
         @media (max-width: 720px) {
 
             thead th:nth-child(2),
             tbody td:nth-child(2) {
                 display: none;
+            }
+
+            .table-wrap {
+                display: none;
+            }
+
+            .hist-cards {
+                display: block;
+            }
+
+            .stats-row {
+                display: grid !important;
+                grid-template-columns: 1fr 1fr 1fr !important;
+                gap: 8px !important;
+            }
+
+            .stat-card {
+                padding: 10px !important;
+            }
+
+            .stat-card-value {
+                font-size: 20px !important;
+            }
+
+            .page-header {
+                flex-direction: column;
+                align-items: flex-start !important;
+                gap: 10px;
             }
         }
     </style>
@@ -234,6 +313,7 @@
                     </table>
                 </div>
             </div>
+            <div class="hist-cards" id="hist-cards"></div>
         </div>
     </main>
 
