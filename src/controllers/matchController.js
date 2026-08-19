@@ -150,6 +150,20 @@ const getAll = async (req, res, next) => {
 const getPlayersByDepartment = async (req, res, next) => {
     try {
         const departmentId = parseInt(req.params.departmentId);
+        // BUG FIX: this previously had no sport filter at all, so it
+        // returned every approved player in the department — basketball
+        // players showing up as MVP candidates for a chess match, etc.
+        // sport_id is optional (older callers may not send it) but any
+        // caller building an MVP/roster picker for a specific match should
+        // always pass the match's sport_id now.
+        const sportId = parseInt(req.query.sport_id);
+
+        const params = [departmentId];
+        let sportFilter = '';
+        if (Number.isInteger(sportId) && sportId > 0) {
+            sportFilter = 'AND p.sport_id = ?';
+            params.push(sportId);
+        }
 
         const [rows] = await pool.execute(
             `SELECT 
@@ -165,8 +179,9 @@ const getPlayersByDepartment = async (req, res, next) => {
              LEFT JOIN teams t ON p.team_id = t.id
              WHERE p.department_id = ? 
                AND p.status = 'approved'
+               ${sportFilter}
              ORDER BY p.last_name ASC, p.first_name ASC`,
-            [departmentId]
+            params
         );
 
         return res.json({ success: true, data: rows });
@@ -1209,6 +1224,7 @@ const getMatchPlayers = async (req, res, next) => {
         const [matches] = await pool.execute(
             `SELECT
                 m.id,
+                m.sport_id,
                 m.participant_a_department_id,
                 m.participant_b_department_id,
                 m.team_a_name,
@@ -1231,6 +1247,14 @@ const getMatchPlayers = async (req, res, next) => {
         const loadSide = async (departmentId, teamName) => {
             if (!departmentId) return [];
 
+            // BUG FIX: this query had no sport filter — it pulled every
+            // approved player in the department regardless of what sport
+            // they play, so the MVP dropdown for e.g. a Chess match could
+            // include Basketball/Volleyball/etc. players from the same
+            // department. The team_name narrowing below only helps for
+            // team sports with a recorded roster; for individual/no-team
+            // sports (team_id IS NULL) it did nothing at all, which is
+            // exactly the "showing the whole department" complaint.
             const [rows] = await pool.execute(
                 `SELECT
                     p.id,
@@ -1245,18 +1269,22 @@ const getMatchPlayers = async (req, res, next) => {
                  FROM players p
                  LEFT JOIN teams t ON p.team_id = t.id
                  WHERE p.department_id = ?
+                   AND p.sport_id = ?
                    AND p.status = 'approved'
                  ORDER BY
                    (p.team_id IS NULL) ASC,
                    t.name ASC,
                    p.last_name ASC,
                    p.first_name ASC`,
-                [departmentId]
+                [departmentId, match.sport_id]
             );
 
             // Narrow to the specific team fielded in this match, if one
             // is recorded. Players with no team assigned are kept either
-            // way (individual-sport rosters, free agents).
+            // way (individual-sport rosters, free agents). The fallback to
+            // the unfiltered `rows` here is now safe — "unfiltered" means
+            // "this department's roster for this sport", never the whole
+            // department across every sport like before.
             if (!teamName) return rows;
             const target = String(teamName).trim().toLowerCase();
             const filtered = rows.filter(p => {

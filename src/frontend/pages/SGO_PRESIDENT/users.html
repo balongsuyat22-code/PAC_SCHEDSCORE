@@ -1,0 +1,807 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PAC SCHED-SCORE — Users</title>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;600;700;800;900&family=Barlow:wght@300;400;500;600&display=swap"
+        rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <link rel="stylesheet" href="../../css/sgo_president.css">
+    <style>
+        .user-avatar-sm {
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            background: var(--gold);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-family: 'Barlow Condensed', sans-serif;
+            font-size: 15px;
+            font-weight: 800;
+            color: #000;
+            flex-shrink: 0;
+        }
+
+        .user-cell {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .user-cell-info {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .user-cell-name {
+            font-weight: 600;
+            font-size: 14px;
+        }
+
+        .user-cell-sub {
+            font-size: 11px;
+            color: var(--muted);
+        }
+
+        .role-pill {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            padding: 3px 10px;
+            border-radius: 20px;
+            font-size: 11px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: .5px;
+        }
+
+        .role-dean_adviser {
+            background: rgba(59, 130, 246, .15);
+            color: #60A5FA;
+        }
+
+        .role-sgo_officer {
+            background: rgba(232, 50, 59, .15);
+            color: var(--red);
+        }
+
+        .stat-block {
+            background: var(--bg2);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 16px 18px;
+            display: flex;
+            align-items: center;
+            gap: 14px;
+        }
+
+        .stat-block-icon {
+            width: 42px;
+            height: 42px;
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+        }
+
+        .stat-block-val {
+            font-family: 'Barlow Condensed', sans-serif;
+            font-size: 28px;
+            font-weight: 900;
+            line-height: 1;
+        }
+
+        .stat-block-lbl {
+            font-size: 11px;
+            color: var(--muted);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-top: 2px;
+        }
+
+        .filter-row {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            margin-bottom: 18px;
+            align-items: center;
+        }
+
+        .filter-row select,
+        .filter-row input {
+            background: var(--bg3);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 9px 14px;
+            color: var(--text);
+            font-family: 'Barlow', sans-serif;
+            font-size: 13px;
+            outline: none;
+        }
+
+        .detail-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 11px 0;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .detail-row:last-child {
+            border-bottom: none;
+        }
+
+        .detail-label {
+            font-size: 13px;
+            color: var(--muted);
+        }
+
+        .detail-value {
+            font-size: 13px;
+            font-weight: 600;
+        }
+
+        .role-hint {
+            background: var(--bg3);
+            border: 1px solid var(--border-gold);
+            border-radius: 8px;
+            padding: 10px 14px;
+            font-size: 12px;
+            color: var(--muted);
+            margin-top: 4px;
+            line-height: 1.5;
+        }
+
+        .scope-note {
+            background: var(--gold-bg);
+            border: 1px solid var(--border-gold);
+            border-radius: 10px;
+            padding: 12px 16px;
+            font-size: 12.5px;
+            color: var(--text2);
+            margin-bottom: 18px;
+            display: flex;
+            align-items: flex-start;
+            gap: 10px;
+        }
+
+        .scope-note i {
+            color: var(--gold);
+            margin-top: 2px;
+        }
+
+        #modal-confirm .modal {
+            max-width: 420px;
+        }
+
+        #modal-confirm .modal-body {
+            text-align: center;
+            padding: 30px 24px;
+        }
+
+        #modal-confirm .confirm-icon {
+            width: 56px;
+            height: 56px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 16px;
+            font-size: 28px;
+        }
+
+        .confirm-icon-warning {
+            background: rgba(245, 184, 0, 0.15);
+            color: var(--gold);
+        }
+
+        .confirm-icon-danger {
+            background: rgba(232, 50, 59, 0.15);
+            color: var(--red);
+        }
+
+        #modal-confirm .confirm-title {
+            font-family: 'Barlow Condensed', sans-serif;
+            font-size: 20px;
+            font-weight: 800;
+            margin-bottom: 8px;
+        }
+
+        #modal-confirm .confirm-message {
+            color: var(--text2);
+            font-size: 14px;
+            line-height: 1.6;
+        }
+
+        @media (max-width: 768px) {
+            .filter-row {
+                flex-direction: column;
+            }
+
+            .filter-row select,
+            .filter-row input {
+                width: 100% !important;
+            }
+
+            #user-stats {
+                grid-template-columns: repeat(2, 1fr) !important;
+            }
+
+            .table-wrap {
+                overflow-x: auto;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <main class="main">
+        <div class="topbar">
+            <div style="display:flex;align-items:center">
+                <button class="burger-menu" onclick="toggleSidebar()" aria-label="Open menu">
+                    <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2"
+                        stroke-linecap="round" stroke-linejoin="round">
+                        <line x1="4" x2="20" y1="12" y2="12" />
+                        <line x1="4" x2="20" y1="6" y2="6" />
+                        <line x1="4" x2="20" y1="18" y2="18" />
+                    </svg>
+                </button>
+                <div class="topbar-title">Users</div>
+            </div>
+            <div class="topbar-right">
+                <button class="btn btn-secondary btn-sm" onclick="loadPage()">Refresh</button>
+                <button class="btn btn-primary btn-sm" onclick="openNew()">+ Add User</button>
+            </div>
+        </div>
+
+        <div class="content">
+            <div class="page-header">
+                <div class="page-title">Users</div>
+                <div class="page-sub">Register and manage Dean/Adviser and SGO Officer accounts</div>
+            </div>
+
+            <div class="scope-note">
+                <i class="fa-solid fa-circle-info"></i>
+                <span>As SGO President you can only register or edit <strong>Dean/Adviser</strong> and
+                    <strong>SGO Officer</strong> accounts. Admin accounts aren't shown here and aren't editable
+                    from this page.</span>
+            </div>
+
+            <div id="user-stats"
+                style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-bottom:24px">
+            </div>
+
+            <div class="filter-row">
+                <select id="f-role" onchange="loadPage()" style="width:180px">
+                    <option value="">All Roles</option>
+                    <option value="dean_adviser">Dean / Adviser</option>
+                    <option value="sgo_officer">SGO Officer</option>
+                </select>
+                <select id="f-dept" onchange="loadPage()" style="width:200px">
+                    <option value="">All Departments</option>
+                </select>
+                <select id="f-status" onchange="applyFilter()" style="width:140px">
+                    <option value="">All Status</option>
+                    <option value="1">Active</option>
+                    <option value="0">Inactive</option>
+                </select>
+                <input id="f-search" placeholder="Search name, email, username..." oninput="applyFilter()"
+                    style="flex:1;min-width:200px">
+                <button class="btn btn-secondary btn-sm" onclick="clearFilters()">Clear</button>
+            </div>
+
+            <div class="card">
+                <div class="table-wrap">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>User</th>
+                                <th>Username</th>
+                                <th>Role</th>
+                                <th>Department</th>
+                                <th>Status</th>
+                                <th>Last Login</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="users-body">
+                            <tr>
+                                <td colspan="7">
+                                    <div class="empty-state">
+                                        <div class="empty-text">Loading...</div>
+                                    </div>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- CONFIRMATION MODAL -->
+    <div class="modal-overlay" id="modal-confirm" onclick="if(event.target===this)closeConfirm()">
+        <div class="modal">
+            <div class="modal-header">
+                <div class="modal-title" id="confirm-title">Confirm</div>
+                <button class="modal-close" onclick="closeConfirm()">✕</button>
+            </div>
+            <div class="modal-body">
+                <div class="confirm-icon confirm-icon-warning" id="confirm-icon">
+                    <i class="fa-solid fa-circle-exclamation"></i>
+                </div>
+                <div class="confirm-title" id="confirm-title-text">Are you sure?</div>
+                <div class="confirm-message" id="confirm-message-text">This action cannot be undone.</div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="closeConfirm()">Cancel</button>
+                <button class="btn btn-primary" id="confirm-btn" onclick="executeConfirm()">Confirm</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- CREATE / EDIT MODAL -->
+    <div class="modal-overlay" id="modal-user" onclick="if(event.target===this)Modal.close('modal-user')">
+        <div class="modal" style="max-width:580px">
+            <div class="modal-header">
+                <div class="modal-title" id="user-modal-title">Add User</div>
+                <button class="modal-close" onclick="Modal.close('modal-user')">✕</button>
+            </div>
+            <div class="modal-body">
+                <input type="hidden" id="u-id">
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label class="form-label">First Name *</label>
+                        <input type="text" id="u-first" class="form-input" placeholder="e.g. Juan">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Last Name *</label>
+                        <input type="text" id="u-last" class="form-input" placeholder="e.g. Dela Cruz">
+                    </div>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label class="form-label">Username *</label>
+                        <input type="text" id="u-username" class="form-input" placeholder="e.g. jdelacruz"
+                            autocomplete="off">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Email *</label>
+                        <input type="email" id="u-email" class="form-input" placeholder="e.g. juan@school.edu">
+                    </div>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label class="form-label">Password <span id="pass-hint"
+                                style="color:var(--muted);font-weight:400;text-transform:none;letter-spacing:0">(required
+                                for new users)</span></label>
+                        <input type="password" id="u-pass" class="form-input" placeholder="Leave blank to keep current"
+                            autocomplete="new-password">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Phone <span
+                                style="color:var(--muted);font-weight:400;text-transform:none;letter-spacing:0">optional</span></label>
+                        <input type="tel" id="u-phone" class="form-input" placeholder="e.g. 09171234567">
+                    </div>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label class="form-label">Role *</label>
+                        <select id="u-role" class="form-select" onchange="onRoleChange()">
+                            <option value="dean_adviser">Dean / Adviser</option>
+                            <option value="sgo_officer">SGO Officer</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Department</label>
+                        <select id="u-dept" class="form-select">
+                            <option value="">None</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div id="u-role-hint" class="role-hint"></div>
+
+                <div class="form-group" id="u-status-group" style="display:none;margin-top:8px">
+                    <label class="form-label">Status</label>
+                    <select id="u-status" class="form-select">
+                        <option value="1">Active</option>
+                        <option value="0">Inactive</option>
+                    </select>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="Modal.close('modal-user')">Cancel</button>
+                <button class="btn btn-danger btn-sm" id="u-deactivate-btn" style="display:none"
+                    onclick="confirmDeactivateUser()">Deactivate</button>
+                <button class="btn btn-secondary btn-sm" id="u-activate-btn" style="display:none"
+                    onclick="confirmActivateUser()">Re-activate</button>
+                <button class="btn btn-primary" onclick="saveUser()">Save</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- VIEW DETAIL MODAL -->
+    <div class="modal-overlay" id="modal-detail" onclick="if(event.target===this)Modal.close('modal-detail')">
+        <div class="modal" style="max-width:480px">
+            <div class="modal-header">
+                <div class="modal-title" id="detail-title">User Details</div>
+                <button class="modal-close" onclick="Modal.close('modal-detail')">✕</button>
+            </div>
+            <div class="modal-body" id="detail-body"></div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="Modal.close('modal-detail')">Close</button>
+                <button class="btn btn-primary" id="detail-edit-btn">Edit</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- RESET PASSWORD MODAL -->
+    <div class="modal-overlay" id="modal-reset-pw" onclick="if(event.target===this)Modal.close('modal-reset-pw')">
+        <div class="modal" style="max-width:400px">
+            <div class="modal-header">
+                <div class="modal-title">Reset Password</div>
+                <button class="modal-close" onclick="Modal.close('modal-reset-pw')">✕</button>
+            </div>
+            <div class="modal-body">
+                <input type="hidden" id="rp-user-id">
+                <div id="rp-user-name" style="font-size:14px;font-weight:600;margin-bottom:16px;color:var(--gold)">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">New Password *</label>
+                    <input type="password" id="rp-pass" class="form-input" placeholder="Min 6 characters">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Confirm Password *</label>
+                    <input type="password" id="rp-confirm" class="form-input" placeholder="Repeat password">
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="Modal.close('modal-reset-pw')">Cancel</button>
+                <button class="btn btn-primary" onclick="submitResetPassword()">Reset Password</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="../../js/api.js"></script>
+    <script src="../../js/sgo_president.js"></script>
+    <script>
+        // Roles this page is allowed to create/edit. Mirrors
+        // PRESIDENT_MANAGEABLE_ROLES enforced server-side in
+        // userController.js — kept in sync so the UI never offers an
+        // option the API would reject anyway.
+        const MANAGEABLE_ROLES = ['dean_adviser', 'sgo_officer'];
+
+        let allUsers = [], filteredUsers = [];
+        let confirmCallback = null;
+
+        const ROLE_META = {
+            dean_adviser: { label: 'Dean / Adviser', hint: 'Manages players and teams for their own department. Department is required.', color: 'role-dean_adviser' },
+            sgo_officer: { label: 'SGO Officer', hint: 'Assigned as match referee. Inputs live scores and completes matches.', color: 'role-sgo_officer' },
+        };
+
+        function openConfirm(title, message, callback, type = 'warning') {
+            document.getElementById('confirm-title-text').textContent = title;
+            document.getElementById('confirm-message-text').textContent = message;
+            const iconEl = document.getElementById('confirm-icon');
+            iconEl.className = `confirm-icon confirm-icon-${type}`;
+            confirmCallback = callback;
+            const btn = document.getElementById('confirm-btn');
+            btn.className = type === 'danger' ? 'btn btn-danger' : 'btn btn-primary';
+            Modal.open('modal-confirm');
+        }
+        function closeConfirm() { Modal.close('modal-confirm'); confirmCallback = null; }
+        function executeConfirm() { if (typeof confirmCallback === 'function') confirmCallback(); closeConfirm(); }
+
+        document.addEventListener('DOMContentLoaded', async () => {
+            const user = Auth.requireAuth('sgo_president');
+            if (!user) return;
+            renderSidebar('users');
+
+            // Department list for filters & form — presidents can see all
+            // departments (read-only context, not a user-role concern).
+            const dRes = await api('/departments');
+            const dOpts = (dRes.data || []).map(d => `<option value="${d.id}">${d.name}</option>`).join('');
+            document.getElementById('f-dept').innerHTML += dOpts;
+            document.getElementById('u-dept').innerHTML += dOpts;
+
+            await loadPage();
+        });
+
+        async function loadPage() {
+            const role = document.getElementById('f-role').value;
+            const dept = document.getElementById('f-dept').value;
+            let url = '/users?';
+            if (role) url += `role=${role}&`;
+            if (dept) url += `department_id=${dept}&`;
+
+            const res = await api(url);
+            if (!res.success) { Toast.show(res.message || 'Failed to load users', 'error'); return; }
+            // Backend already scopes sgo_president to dean_adviser + sgo_officer
+            // (see PRESIDENT_MANAGEABLE_ROLES in userController.js), but filter
+            // again client-side as a belt-and-braces guard.
+            allUsers = (res.data || []).filter(u => MANAGEABLE_ROLES.includes(u.role));
+            renderStats();
+            applyFilter();
+        }
+
+        function clearFilters() {
+            ['f-role', 'f-dept', 'f-status', 'f-search'].forEach(id => document.getElementById(id).value = '');
+            loadPage();
+        }
+
+        function applyFilter() {
+            const q = document.getElementById('f-search').value.toLowerCase();
+            const status = document.getElementById('f-status').value;
+
+            filteredUsers = allUsers.filter(u => {
+                if (status !== '' && String(u.is_active ? 1 : 0) !== status) return false;
+                if (q && !(`${u.first_name} ${u.last_name} ${u.email} ${u.username} ${u.department_name || ''}`).toLowerCase().includes(q)) return false;
+                return true;
+            });
+
+            renderTable();
+        }
+
+        function renderStats() {
+            const counts = {
+                total: allUsers.length,
+                dean: allUsers.filter(u => u.role === 'dean_adviser').length,
+                sgo_off: allUsers.filter(u => u.role === 'sgo_officer').length,
+                active: allUsers.filter(u => u.is_active).length,
+            };
+
+            document.getElementById('user-stats').innerHTML = [
+                { key: 'total', val: counts.total, lbl: 'Total Users', bg: 'rgba(139,92,246,.12)', color: 'var(--gold)', icon: 'fa-users' },
+                { key: 'dean', val: counts.dean, lbl: 'Dean / Advisers', bg: 'rgba(59,130,246,.12)', color: '#60A5FA', icon: 'fa-people-roof' },
+                { key: 'sgo_off', val: counts.sgo_off, lbl: 'SGO Officers', bg: 'rgba(232,50,59,.12)', color: 'var(--red)', icon: 'fa-whistle' },
+                { key: 'active', val: counts.active, lbl: 'Active', bg: 'rgba(34,197,94,.12)', color: 'var(--green)', icon: 'fa-check' },
+            ].map(s => `
+            <div class="stat-block">
+                <div class="stat-block-icon" style="background:${s.bg}">
+                    <i class="fa-solid ${s.icon}" style="color:${s.color}"></i>
+                </div>
+                <div>
+                    <div class="stat-block-val">${s.val}</div>
+                    <div class="stat-block-lbl">${s.lbl}</div>
+                </div>
+            </div>`).join('');
+        }
+
+        function renderTable() {
+            const tbody = document.getElementById('users-body');
+            if (!filteredUsers.length) {
+                tbody.innerHTML = `<tr><td colspan="7">
+                    <div class="empty-state"><div class="empty-text">No users found.</div></div>
+                </td></tr>`;
+                return;
+            }
+
+            tbody.innerHTML = filteredUsers.map(u => {
+                const meta = ROLE_META[u.role] || { label: u.role, color: 'role-visitor' };
+                const init = (u.first_name?.[0] || u.username?.[0] || '?').toUpperCase();
+                const avatarColors = { dean_adviser: '#3B82F6', sgo_officer: '#E8323B' };
+                const bg = avatarColors[u.role] || '#6B7494';
+
+                return `<tr>
+                    <td>
+                        <div class="user-cell">
+                            <div class="user-avatar-sm" style="background:${bg};color:#fff">${init}</div>
+                            <div class="user-cell-info">
+                                <div class="user-cell-name">${esc(u.first_name)} ${esc(u.last_name)}</div>
+                                <div class="user-cell-sub">${esc(u.email)}</div>
+                            </div>
+                        </div>
+                    </td>
+                    <td style="color:var(--muted);font-size:13px">@${esc(u.username)}</td>
+                    <td><span class="role-pill ${meta.color}">${meta.label}</span></td>
+                    <td style="font-size:13px;color:var(--muted)">${esc(u.department_name || '—')}</td>
+                    <td>${statusBadge(u.is_active ? 'active' : 'inactive')}</td>
+                    <td style="font-size:12px;color:var(--muted)">${u.last_login ? formatDate(u.last_login) : 'Never'}</td>
+                    <td>
+                        <div style="display:flex;gap:6px;flex-wrap:wrap">
+                            <button class="btn btn-secondary btn-sm" onclick="viewDetail(${u.id})">View</button>
+                            <button class="btn btn-primary btn-sm" onclick="openEdit(${u.id})">Edit</button>
+                            <button class="btn btn-secondary btn-sm" onclick="openResetPassword(${u.id},'${esc(u.first_name)} ${esc(u.last_name)}')">
+                                <i class="fa-solid fa-key"></i>
+                            </button>
+                        </div>
+                    </td>
+                </tr>`;
+            }).join('');
+        }
+
+        async function viewDetail(id) {
+            const res = await api(`/users/${id}`);
+            if (!res.success) { Toast.show(res.message || 'Failed to load user', 'error'); return; }
+            const u = res.data;
+            const meta = ROLE_META[u.role] || { label: u.role, color: 'role-visitor' };
+
+            document.getElementById('detail-title').textContent = `${u.first_name} ${u.last_name}`;
+            document.getElementById('detail-edit-btn').onclick = () => {
+                Modal.close('modal-detail');
+                openEdit(id);
+            };
+
+            document.getElementById('detail-body').innerHTML = `
+            <div style="display:flex;align-items:center;gap:16px;margin-bottom:24px;padding-bottom:20px;border-bottom:1px solid var(--border)">
+                <div style="width:56px;height:56px;border-radius:50%;background:var(--gold);display:flex;align-items:center;justify-content:center;font-family:'Barlow Condensed',sans-serif;font-size:22px;font-weight:900;color:#000;flex-shrink:0">
+                    ${(u.first_name?.[0] || '?').toUpperCase()}
+                </div>
+                <div>
+                    <div style="font-family:'Barlow Condensed',sans-serif;font-size:22px;font-weight:900">${esc(u.first_name)} ${esc(u.last_name)}</div>
+                    <span class="role-pill ${meta.color}">${meta.label}</span>
+                </div>
+            </div>
+            ${[
+                    ['Username', '@' + u.username],
+                    ['Email', u.email],
+                    ['Phone', u.phone || '—'],
+                    ['Department', u.department_name || '—'],
+                    ['Status', u.is_active ? 'Active' : 'Inactive'],
+                    ['Last Login', u.last_login ? new Date(u.last_login).toLocaleString('en-PH') : 'Never'],
+                    ['Created', u.created_at ? formatDate(u.created_at) : '—'],
+                ].map(([l, v]) => `
+            <div class="detail-row">
+                <span class="detail-label">${l}</span>
+                <span class="detail-value">${esc(String(v))}</span>
+            </div>`).join('')}`;
+
+            Modal.open('modal-detail');
+        }
+
+        function onRoleChange() {
+            const role = document.getElementById('u-role').value;
+            const meta = ROLE_META[role] || {};
+            document.getElementById('u-role-hint').textContent = meta.hint || '';
+        }
+
+        function openNew() {
+            document.getElementById('user-modal-title').textContent = 'Add User';
+            document.getElementById('u-id').value = '';
+            document.getElementById('pass-hint').textContent = '(required for new users)';
+            ['u-first', 'u-last', 'u-username', 'u-email', 'u-pass', 'u-phone'].forEach(id => document.getElementById(id).value = '');
+            document.getElementById('u-role').value = 'sgo_officer';
+            document.getElementById('u-dept').value = '';
+            document.getElementById('u-status-group').style.display = 'none';
+            document.getElementById('u-deactivate-btn').style.display = 'none';
+            document.getElementById('u-activate-btn').style.display = 'none';
+            onRoleChange();
+            Modal.open('modal-user');
+        }
+
+        function openEdit(id) {
+            const u = allUsers.find(x => x.id === id);
+            if (!u || !MANAGEABLE_ROLES.includes(u.role)) {
+                Toast.show('You are not allowed to edit this account.', 'error');
+                return;
+            }
+
+            document.getElementById('user-modal-title').textContent = `${u.first_name} ${u.last_name}`;
+            document.getElementById('u-id').value = id;
+            document.getElementById('pass-hint').textContent = '(leave blank to keep current)';
+            document.getElementById('u-first').value = u.first_name || '';
+            document.getElementById('u-last').value = u.last_name || '';
+            document.getElementById('u-username').value = u.username || '';
+            document.getElementById('u-email').value = u.email || '';
+            document.getElementById('u-pass').value = '';
+            document.getElementById('u-phone').value = u.phone || '';
+            document.getElementById('u-role').value = u.role || 'sgo_officer';
+            document.getElementById('u-dept').value = u.department_id || '';
+            document.getElementById('u-status').value = u.is_active ? '1' : '0';
+            document.getElementById('u-status-group').style.display = '';
+            document.getElementById('u-deactivate-btn').style.display = u.is_active ? '' : 'none';
+            document.getElementById('u-activate-btn').style.display = !u.is_active ? '' : 'none';
+            onRoleChange();
+            Modal.open('modal-user');
+        }
+
+        async function saveUser() {
+            const id = document.getElementById('u-id').value;
+            const first_name = document.getElementById('u-first').value.trim();
+            const last_name = document.getElementById('u-last').value.trim();
+            const username = document.getElementById('u-username').value.trim();
+            const email = document.getElementById('u-email').value.trim();
+            const password = document.getElementById('u-pass').value;
+            const role = document.getElementById('u-role').value;
+            const department_id = parseInt(document.getElementById('u-dept').value) || null;
+            const phone = document.getElementById('u-phone').value.trim() || null;
+            const is_active = id ? parseInt(document.getElementById('u-status').value) : 1;
+
+            if (!MANAGEABLE_ROLES.includes(role)) {
+                Toast.show('You can only save Dean/Adviser or SGO Officer accounts.', 'error');
+                return;
+            }
+            if (!first_name) { Toast.show('First name is required', 'error'); return; }
+            if (!last_name) { Toast.show('Last name is required', 'error'); return; }
+            if (!username) { Toast.show('Username is required', 'error'); return; }
+            if (!email) { Toast.show('Email is required', 'error'); return; }
+            if (!id && !password) { Toast.show('Password is required for new users', 'error'); return; }
+            if (role === 'dean_adviser' && !department_id) {
+                Toast.show('Dean/Adviser must have a department assigned', 'error'); return;
+            }
+
+            const body = { first_name, last_name, username, email, role, department_id, phone, is_active };
+            if (password) body.password = password;
+
+            const res = id
+                ? await api(`/users/${id}`, { method: 'PUT', body: JSON.stringify(body) })
+                : await api('/users', { method: 'POST', body: JSON.stringify(body) });
+
+            Toast.show(res.message || (res.success ? 'Saved!' : 'Error'), res.success ? 'success' : 'error');
+            if (res.success) { Modal.close('modal-user'); await loadPage(); }
+        }
+
+        function confirmDeactivateUser() {
+            const id = document.getElementById('u-id').value;
+            const u = allUsers.find(x => x.id == id);
+            openConfirm(
+                'Deactivate User?',
+                `Are you sure you want to deactivate ${u?.first_name || 'this user'}? They will be logged out immediately.`,
+                async function () {
+                    const res = await api(`/users/${id}/deactivate`, { method: 'PATCH' });
+                    Toast.show(res.message || (res.success ? 'User deactivated' : 'Error'), res.success ? 'success' : 'error');
+                    if (res.success) { Modal.close('modal-user'); await loadPage(); }
+                },
+                'danger'
+            );
+        }
+
+        function confirmActivateUser() {
+            const id = document.getElementById('u-id').value;
+            const u = allUsers.find(x => x.id == id);
+            openConfirm(
+                'Re-activate User?',
+                `Are you sure you want to re-activate ${u?.first_name || 'this user'}?`,
+                async function () {
+                    const res = await api(`/users/${id}/activate`, { method: 'PATCH' });
+                    Toast.show(res.message || (res.success ? 'User re-activated' : 'Error'), res.success ? 'success' : 'error');
+                    if (res.success) { Modal.close('modal-user'); await loadPage(); }
+                },
+                'warning'
+            );
+        }
+
+        function openResetPassword(id, name) {
+            document.getElementById('rp-user-id').value = id;
+            document.getElementById('rp-user-name').textContent = `Resetting password for: ${name}`;
+            document.getElementById('rp-pass').value = '';
+            document.getElementById('rp-confirm').value = '';
+            Modal.open('modal-reset-pw');
+        }
+
+        async function submitResetPassword() {
+            const id = document.getElementById('rp-user-id').value;
+            const pw = document.getElementById('rp-pass').value;
+            const confirm = document.getElementById('rp-confirm').value;
+
+            if (!pw || pw.length < 6) { Toast.show('Password must be at least 6 characters', 'error'); return; }
+            if (pw !== confirm) { Toast.show('Passwords do not match', 'error'); return; }
+
+            const res = await api(`/auth/reset-password/${id}`, {
+                method: 'PUT',
+                body: JSON.stringify({ new_password: pw }),
+            });
+            Toast.show(res.message || (res.success ? 'Password reset!' : 'Error'), res.success ? 'success' : 'error');
+            if (res.success) Modal.close('modal-reset-pw');
+        }
+
+        function esc(str) {
+            if (!str) return '';
+            return String(str).replace(/[&<>"']/g, m =>
+                ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[m])
+            );
+        }
+    </script>
+</body>
+
+</html>

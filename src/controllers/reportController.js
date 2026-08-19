@@ -572,6 +572,112 @@ const getTournamentReport = async (req, res, next) => {
     }
 };
 
+// ---------------------------------------------------------------------------
+// EXPORT / PRINT A FINALIZED TOURNAMENT
+// GET /api/reports/tournaments/:id/export
+// Protected: admin | sgo_president
+//
+// Returns everything needed to print a "results sheet" once a tournament
+// is done: every match played (with final score + winner) and the locked-in
+// standings/medals from tournament_results. Intended for the Reports /
+// Game Setup "Export" button that appears after finalizeTournament() sets
+// tournaments.status = 'completed'.
+//
+// Unlike getTournamentReport (a lighter dashboard summary), this pulls the
+// full match list so the printed sheet shows every game, not just totals.
+// ---------------------------------------------------------------------------
+const getTournamentExport = async (req, res, next) => {
+    try {
+        const tid = req.params.id;
+
+        const [tourney] = await pool.execute(
+            `SELECT t.*, s.name AS sport_name, s.category, s.scoring_type
+             FROM tournaments t
+             JOIN sports s ON t.sport_id = s.id
+             WHERE t.id = ?`,
+            [tid]
+        );
+        if (!tourney.length) {
+            return res.status(404).json({ success: false, message: 'Tournament not found.' });
+        }
+
+        // Exporting/printing only makes sense once results are locked in —
+        // otherwise "the winner" printed on the sheet could still change.
+        if (tourney[0].status !== 'completed') {
+            return res.status(400).json({
+                success: false,
+                message: 'This tournament has not been finalized yet. Finalize it first, then export.',
+            });
+        }
+
+        const [matches] = await pool.execute(
+            `SELECT m.id, m.round_number, m.match_number, m.bracket_position,
+                    m.status, m.scheduled_date, m.scheduled_time,
+                    m.started_at, m.completed_at,
+                    da.name AS dept_a_name, da.color AS dept_a_color,
+                    db.name AS dept_b_name, db.color AS dept_b_color,
+                    m.winner_department_id,
+                    dw.name AS winner_name,
+                    v.name AS venue_name,
+                    CONCAT(ru.first_name, ' ', ru.last_name) AS referee_name,
+                    mr.total_score_a, mr.total_score_b, mr.final_score_display
+             FROM matches m
+             LEFT JOIN departments da ON da.id = m.participant_a_department_id
+             LEFT JOIN departments db ON db.id = m.participant_b_department_id
+             LEFT JOIN departments dw ON dw.id = m.winner_department_id
+             LEFT JOIN venues v ON v.id = m.venue_id
+             LEFT JOIN users ru ON ru.id = m.referee_id
+             LEFT JOIN match_results mr ON mr.match_id = m.id
+             WHERE m.tournament_id = ?
+             ORDER BY m.round_number ASC, m.match_number ASC, m.id ASC`,
+            [tid]
+        );
+
+        const [standings] = await pool.execute(
+            `SELECT tr.\`rank\`, tr.medal, tr.sport_fest_points,
+                    d.name AS department_name, d.color,
+                    te.name AS team_name
+             FROM tournament_results tr
+             JOIN departments d ON tr.department_id = d.id
+             LEFT JOIN teams te ON tr.team_id = te.id
+             WHERE tr.tournament_id = ?
+             ORDER BY tr.\`rank\` ASC`,
+            [tid]
+        );
+
+        const [[matchTotals]] = await pool.query(
+            `SELECT COUNT(*) AS total_matches,
+                    SUM(CASE WHEN status = 'completed' THEN 1 ELSE 0 END) AS completed_matches
+             FROM matches WHERE tournament_id = ?`,
+            [tid]
+        );
+
+        res.json({
+            success: true,
+            data: {
+                tournament: tourney[0],
+                matches,
+                standings,
+                totals: matchTotals,
+                exported_at: new Date().toISOString(),
+                // req.user is the decoded JWT payload ({ id, uuid, role }) — no
+                // name on it, so resolve the printable "Exported by" name here.
+                exported_by: await (async () => {
+                    if (!req.user) return null;
+                    const [[u]] = await pool.query(
+                        'SELECT first_name, last_name, username FROM users WHERE id = ?',
+                        [req.user.id]
+                    );
+                    if (!u) return null;
+                    return `${u.first_name || ''} ${u.last_name || ''}`.trim() || u.username;
+                })(),
+            },
+        });
+    } catch (err) {
+        next(err);
+    }
+};
+
 const getActivityLog = async (req, res, next) => {
     try {
         const limitNum = Math.max(1, parseInt(req.query.limit, 10) || 50);
@@ -606,5 +712,6 @@ module.exports = {
     getMatchHistory,
     getDepartmentReport,
     getTournamentReport,
+    getTournamentExport,
     getActivityLog,
 };

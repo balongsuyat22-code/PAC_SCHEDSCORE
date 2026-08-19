@@ -1024,6 +1024,10 @@
                     <button class="btn btn-success btn-sm" id="btn-finalize-top" onclick="openFinalizeModal()">
                         <i class="fa-solid fa-flag-checkered"></i> Finalize
                     </button>
+                    <button class="btn btn-secondary btn-sm" id="btn-export-top" style="display:none"
+                        onclick="exportCurrentTournament()">
+                        <i class="fa-solid fa-print"></i> Print / Export
+                    </button>
                 </div>
 
                 <div id="ws-hero"></div>
@@ -1032,6 +1036,9 @@
                     <div class="ffa-lock-note" style="justify-content:center">
                         <i class="fa-solid fa-circle-check" style="color:var(--green)"></i>
                         <span>This tournament is finalized — medals and points are locked in.</span>
+                        <a href="#" onclick="exportCurrentTournament();return false;"
+                            style="margin-left:10px;color:var(--gold);font-weight:700;text-decoration:underline">Print
+                            results sheet →</a>
                     </div>
                 </div>
                 <div class="page-tabs" id="ws-tabs"></div>
@@ -1075,10 +1082,6 @@
                             <option value="double_elimination">Double Elimination</option>
                             <option value="round_robin">Round Robin</option>
                             <option value="free_for_all">Free-For-All (individual event)</option>
-                            <option value="team_ranking">Team Ranking (event)</option>
-                            <option value="group_stage_se">Group Stage → Single Elim</option>
-                            <option value="group_stage_de">Group Stage → Double Elim</option>
-                            <option value="group_stage_ffa">Group Stage → FFA</option>
                         </select>
                     </div>
                 </div>
@@ -1682,6 +1685,9 @@
             if (btnAuto) btnAuto.style.display = (fmt === 'round_robin' && !isFinalized) ? '' : 'none';
             if (btnPromo) btnPromo.style.display = (fmt.startsWith('group_stage_') && !isFinalized) ? '' : 'none';
             if (btnFin) btnFin.style.display = isFinalized ? 'none' : '';
+
+            const btnExport = document.getElementById('btn-export-top');
+            if (btnExport) btnExport.style.display = isFinalized ? '' : 'none';
 
             const finalizedNote = document.getElementById('finalized-note');
             if (finalizedNote) finalizedNote.style.display = isFinalized ? '' : 'none';
@@ -2557,6 +2563,10 @@
             });
             Toast.show(res.message || (res.success ? 'Tournament finalized!' : 'Error'), res.success ? 'success' : 'error');
             if (res.success) { Modal.close('modal-finalize'); refreshAll(); }
+        }
+        function exportCurrentTournament() {
+            if (!currentTournamentId) return;
+            window.open(`/president/tournament-export?tournament_id=${currentTournamentId}`, '_blank');
         }
     </script>
 </body>

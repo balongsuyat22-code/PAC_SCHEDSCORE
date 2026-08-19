@@ -5,7 +5,11 @@
  * Role map:
  *   admin        → full CRUD on all users
  *   dean_adviser → read-only on their own department users; update own profile via authController
- *   sgo_president→ read-only list (to assign referees/officers)
+ *   sgo_president→ CRUD limited to dean_adviser + sgo_officer accounts only
+ *                   (register, edit, deactivate/reactivate). Cannot create,
+ *                   view, edit, or touch admin / sgo_president accounts, and
+ *                   cannot hard-delete anyone — see PRESIDENT_MANAGEABLE_ROLES
+ *                   and presidentRoleGuard() below.
  *   sgo_officer  → read-only own record
  *
  * Roles allowed as user accounts: admin | dean_adviser | sgo_president | sgo_officer
@@ -30,8 +34,29 @@ const { logActivity } = require('../utils/logger');
 
 const ALLOWED_ROLES = ['admin', 'dean_adviser', 'sgo_president', 'sgo_officer'];
 
+// Roles an sgo_president is allowed to register/edit/deactivate.
+// Presidents run day-to-day tournament ops and need to be able to onboard
+// their own officers (referees) and coordinate with dean/advisers, but must
+// never be able to create/promote/touch admin or sgo_president accounts.
+const PRESIDENT_MANAGEABLE_ROLES = ['dean_adviser', 'sgo_officer'];
+
 // Helper — convert empty string / undefined → null
 const n = (v) => (v === undefined || v === '' ? null : v);
+
+// Throws a 403-shaped error object if an sgo_president caller is trying to
+// touch a role outside PRESIDENT_MANAGEABLE_ROLES. Admins are unrestricted.
+// `targetRole` may be null when the target doesn't exist yet (create flow).
+function presidentRoleGuard(callerRole, ...roles) {
+    if (callerRole !== 'sgo_president') return null; // only presidents are restricted here
+    const offender = roles.find((r) => r && !PRESIDENT_MANAGEABLE_ROLES.includes(r));
+    if (offender) {
+        return {
+            success: false,
+            message: `As SGO President you can only register or edit Dean/Adviser and SGO Officer accounts.`,
+        };
+    }
+    return null;
+}
 
 // ---------------------------------------------------------------------------
 // GET ALL USERS
@@ -57,20 +82,28 @@ const getAll = async (req, res, next) => {
         `;
         const params = [];
 
-        // SGO president can only see sgo_officer accounts (for assignment purposes)
+        // SGO president can see (and manage) dean/adviser + sgo_officer accounts —
+        // dean/advisers for coordination/notifications, officers for match
+        // assignment. Never admin or fellow sgo_president accounts.
         if (callerRole === 'sgo_president') {
-            query += ' AND u.role = ?';
-            params.push('sgo_officer');
+            if (role && PRESIDENT_MANAGEABLE_ROLES.includes(role)) {
+                query += ' AND u.role = ?';
+                params.push(role);
+            } else {
+                query += ' AND u.role IN (?, ?)';
+                params.push(...PRESIDENT_MANAGEABLE_ROLES);
+            }
         } else {
             // Admin: respect optional filters
             if (role) {
                 query += ' AND u.role = ?';
                 params.push(role);
             }
-            if (is_active !== undefined) {
-                query += ' AND u.is_active = ?';
-                params.push(is_active === 'true' || is_active === '1' ? 1 : 0);
-            }
+        }
+
+        if (is_active !== undefined) {
+            query += ' AND u.is_active = ?';
+            params.push(is_active === 'true' || is_active === '1' ? 1 : 0);
         }
 
         if (department_id) {
@@ -102,9 +135,11 @@ const getAll = async (req, res, next) => {
 const getOne = async (req, res, next) => {
     try {
         const targetId = parseInt(req.params.id);
+        const callerRole = req.user.role;
 
-        // Non-admins can only view their own record
-        if (req.user.role !== 'admin' && req.user.id !== targetId) {
+        // Non-admins can view their own record; sgo_president can also view
+        // any dean_adviser / sgo_officer record it's allowed to manage.
+        if (callerRole !== 'admin' && req.user.id !== targetId && callerRole !== 'sgo_president') {
             return res.status(403).json({ success: false, message: 'Access denied.' });
         }
 
@@ -124,6 +159,14 @@ const getOne = async (req, res, next) => {
 
         if (!rows.length) {
             return res.status(404).json({ success: false, message: 'User not found.' });
+        }
+
+        if (
+            callerRole === 'sgo_president' &&
+            req.user.id !== targetId &&
+            !PRESIDENT_MANAGEABLE_ROLES.includes(rows[0].role)
+        ) {
+            return res.status(403).json({ success: false, message: 'Access denied.' });
         }
 
         return res.json({ success: true, data: rows[0] });
@@ -166,6 +209,9 @@ const create = async (req, res, next) => {
                 message: `Invalid role. Allowed roles: ${ALLOWED_ROLES.join(', ')}`,
             });
         }
+
+        const presidentDenied = presidentRoleGuard(req.user.role, role);
+        if (presidentDenied) return res.status(403).json(presidentDenied);
 
         // dean_adviser must be tied to a department
         if (role === 'dean_adviser' && !department_id) {
@@ -239,6 +285,18 @@ const update = async (req, res, next) => {
             });
         }
 
+        if (req.user.role === 'sgo_president') {
+            const [targetRows] = await pool.execute('SELECT role FROM users WHERE id = ?', [targetId]);
+            if (!targetRows.length) {
+                return res.status(404).json({ success: false, message: 'User not found.' });
+            }
+            // Guard against both the account's existing role and whatever
+            // role it's being changed to (if any) — a president can't edit
+            // an admin's profile, nor turn a dean/officer INTO an admin.
+            const presidentDenied = presidentRoleGuard(req.user.role, targetRows[0].role, role);
+            if (presidentDenied) return res.status(403).json(presidentDenied);
+        }
+
         // Prevent admin from accidentally removing the last admin
         if (role && role !== 'admin') {
             const [admins] = await pool.execute(
@@ -302,6 +360,10 @@ const deactivate = async (req, res, next) => {
         if (!rows.length) {
             return res.status(404).json({ success: false, message: 'User not found.' });
         }
+
+        const presidentDenied = presidentRoleGuard(req.user.role, rows[0].role);
+        if (presidentDenied) return res.status(403).json(presidentDenied);
+
         if (rows[0].role === 'admin') {
             const [admins] = await pool.execute(
                 "SELECT COUNT(*) AS count FROM users WHERE role = 'admin' AND is_active = 1"
@@ -333,10 +395,13 @@ const activate = async (req, res, next) => {
     try {
         const targetId = parseInt(req.params.id);
 
-        const [rows] = await pool.execute('SELECT id FROM users WHERE id = ?', [targetId]);
+        const [rows] = await pool.execute('SELECT id, role FROM users WHERE id = ?', [targetId]);
         if (!rows.length) {
             return res.status(404).json({ success: false, message: 'User not found.' });
         }
+
+        const presidentDenied = presidentRoleGuard(req.user.role, rows[0].role);
+        if (presidentDenied) return res.status(403).json(presidentDenied);
 
         await pool.execute('UPDATE users SET is_active = 1, updated_at = NOW() WHERE id = ?', [targetId]);
 
@@ -356,6 +421,14 @@ const activate = async (req, res, next) => {
 const remove = async (req, res, next) => {
     try {
         const targetId = parseInt(req.params.id);
+
+        // Hard delete stays admin-only regardless of route wiring — an
+        // sgo_president can register/edit/deactivate dean/officer accounts,
+        // but permanent deletion (including of its own scope) is reserved
+        // for admin so there's always an audit trail via deactivate instead.
+        if (req.user.role !== 'admin') {
+            return res.status(403).json({ success: false, message: 'Only an admin can permanently delete a user. Use Deactivate instead.' });
+        }
 
         if (req.user.id === targetId) {
             return res.status(400).json({ success: false, message: 'You cannot delete your own account.' });

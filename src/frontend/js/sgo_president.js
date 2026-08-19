@@ -15,8 +15,12 @@
         { key: 'game-setup', icon: 'fa-solid fa-trophy', label: 'Tournaments', href: '/president/game-setup' },
         { key: 'schedule', icon: 'fa-solid fa-calendar-days', label: 'Schedule & Officers', href: '/president/schedule' },
         { key: 'venues', icon: 'fa-solid fa-location-dot', label: 'Venue Management', href: '/president/venues' },
+        { section: 'People' },
+        { key: 'departments', icon: 'fa-solid fa-building-columns', label: 'Departments', href: '/president/departments' },
+        { key: 'users', icon: 'fa-solid fa-users', label: 'Users', href: '/president/users' },
         { section: 'Comms & Reports' },
         { key: 'reports', icon: 'fa-solid fa-file-lines', label: 'Reports', href: '/president/reports' },
+        { key: 'tournament-export', icon: 'fa-solid fa-print', label: 'Export Results', href: '/president/tournament-export' },
         { key: 'notifications', icon: 'fa-solid fa-bell', label: 'Announcements', href: '/president/notifications' },
     ];
 
@@ -357,6 +361,8 @@
                 dashboard: 'dashboard', sports: 'sports', bracketing: 'bracketing',
                 'game-setup': 'game-setup', schedule: 'schedule', venues: 'venues',
                 assignment: 'schedule', live: 'live', 'live-scores': 'live',
+                departments: 'departments', users: 'users',
+                'tournament-export': 'tournament-export',
                 reports: 'reports', notifications: 'notifications'
             };
             renderSidebar(pageMap[cleanPage] || 'dashboard');

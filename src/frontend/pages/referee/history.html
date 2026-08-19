@@ -473,9 +473,14 @@
         }
 
         async function loadHistory() {
+            // The DOMContentLoaded handler already ran Auth.requireAuth('sgo_officer')
+            // before calling this, but loadHistory() can also be invoked directly
+            // (e.g. from the Refresh button), so keep a defensive check here too —
+            // fixed to use the real absolute /login path instead of the broken
+            // relative 'login.html'.
             const user = Auth.getUser();
             if (!user) {
-                window.location.href = 'login.html';
+                window.location.href = '/login';
                 return;
             }
 
@@ -545,14 +550,17 @@
         }
 
         document.addEventListener('DOMContentLoaded', async () => {
+            // BUG FIX: this page never actually verified the visitor was a
+            // logged-in sgo_officer — the two checks further down only
+            // tested "is *someone* logged in" (any role) and, on failure,
+            // redirected to the relative 'login.html', which resolves to
+            // /referee/login.html (not a real route) instead of /login.
+            // Auth.requireAuth() is the pattern every other role's pages
+            // use; it checks the role too and redirects correctly.
+            if (!Auth.requireAuth('sgo_officer')) return;
+
             if (typeof renderRefereeSidebar === 'function') renderRefereeSidebar('history');
             if (typeof renderRefereeTopbar === 'function') await renderRefereeTopbar();
-
-            const user = Auth.getUser();
-            if (!user) {
-                window.location.href = 'login.html';
-                return;
-            }
             await loadHistory();
         });
     </script>

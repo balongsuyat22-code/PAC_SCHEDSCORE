@@ -1,4 +1,12 @@
 let refereeMobileOpen = false;
+// BUG FIX: this was read/written in toggleRefereeCollapse() below but never
+// declared anywhere, so calling the collapse button threw
+// "ReferenceError: refereeSidebarCollapsed is not defined" the first time
+// it ran (reading an undeclared identifier throws even in non-strict mode).
+// Restoring it from localStorage also means the collapsed state now
+// actually persists across page loads, which the localStorage.setItem call
+// below was already trying to do but nothing ever read back.
+let refereeSidebarCollapsed = localStorage.getItem('sf_sidebar_collapsed') === '1';
 
 /* ── SVG ICON HELPERS ── */
 const ICONS = {
@@ -97,6 +105,14 @@ function renderRefereeSidebar(currentPage = '') {
 
     document.getElementById('logout-btn')?.addEventListener('click', confirmRefereeLogout);
 
+    // Re-apply persisted collapsed state — previously only ever set on
+    // click, so a collapsed sidebar would flash back open on every page
+    // navigation until the button was clicked again.
+    if (refereeSidebarCollapsed) {
+        sidebar.classList.add('collapsed');
+        document.querySelector('.main')?.classList.add('sidebar-collapsed');
+    }
+
 }
 
 /* ── LOGOUT CONFIRMATION (Referee only) ── */
@@ -149,7 +165,7 @@ async function renderRefereeTopbar() {
                     </div>
                     <div id="notif-list"></div>
                     <div class="notif-footer">
-                        <a href="profile.html">View all alerts</a>
+                        <a href="/referee/matches">View all alerts</a>
                     </div>
                 </div>
             </div>
@@ -188,6 +204,19 @@ function toggleSidebar() {
 }
 
 /* ── NOTIFICATIONS ──
+ * BUG FIX: notification links used to be bare relative filenames
+ * ('matches.html', 'scoring.html?id=...', 'profile.html'). server.js
+ * registers referee pages as clean routes with no .html
+ * (app.get('/referee/matches', ...), etc.) and mounts referee static
+ * assets at '/', not '/referee' — so a relative href like 'matches.html'
+ * clicked from e.g. /referee/schedule resolved to /referee/matches.html,
+ * which matches no route and no static file, and fell through to the
+ * catch-all that serves login.html for any non-asset extension. In
+ * practice: clicking a notification silently bounced the referee back to
+ * the login screen instead of opening the match. Also 'profile.html' had
+ * no route at all — repointed to /referee/matches, the closest existing
+ * "everything" view.
+ *
  * Each notification's id embeds the match's *current* status
  * (`match_<id>_<status>`), so a dismissal only suppresses that
  * exact state — the moment the match moves to a new status
@@ -257,19 +286,19 @@ async function fetchNotifications() {
                 notifications.push({
                     id: notifId, icon: 'x', title: 'Match Cancelled',
                     message: `${matchup} was cancelled.`,
-                    link: 'matches.html', weight: 4, color: '#E8323B', cls: 'ni-red', time: currentTimeStr
+                    link: '/referee/matches', weight: 4, color: '#E8323B', cls: 'ni-red', time: currentTimeStr
                 });
             } else if (m.status === 'completed') {
                 notifications.push({
                     id: notifId, icon: 'check', title: 'Scores Finalised',
                     message: `${matchup} is complete.`,
-                    link: 'history.html', weight: 1, color: '#22C55E', cls: 'ni-green', time: currentTimeStr
+                    link: '/referee/history', weight: 1, color: '#22C55E', cls: 'ni-green', time: currentTimeStr
                 });
             } else if (m.status === 'ongoing') {
                 notifications.push({
                     id: notifId, icon: 'activity', title: 'Match LIVE',
                     message: `Active: ${matchup}.`,
-                    link: `scoring.html?id=${m.id}`, weight: 6, color: '#22C55E', cls: 'ni-green pulse', time: currentTimeStr
+                    link: `/referee/scoring?id=${m.id}`, weight: 6, color: '#22C55E', cls: 'ni-green pulse', time: currentTimeStr
                 });
             } else if (m.status === 'scheduled' && m.scheduled_date) {
                 const matchTime = new Date(`${m.scheduled_date}T${m.scheduled_time || '00:00'}`);
@@ -278,19 +307,19 @@ async function fetchNotifications() {
                     notifications.push({
                         id: notifId, icon: 'alert', title: 'Match Overdue',
                         message: `${matchup} was scheduled for ${m.scheduled_time || 'TBD'}. Start the match.`,
-                        link: `scoring.html?id=${m.id}`, weight: 7, color: '#E8323B', cls: 'ni-red pulse', time: currentTimeStr
+                        link: `/referee/scoring?id=${m.id}`, weight: 7, color: '#E8323B', cls: 'ni-red pulse', time: currentTimeStr
                     });
                 } else if (diff <= 30) {
                     notifications.push({
                         id: notifId, icon: 'clock', title: 'Starting Soon',
                         message: `${matchup} in ${Math.max(1, Math.round(diff))} min.`,
-                        link: `scoring.html?id=${m.id}`, weight: 5, color: '#F5B800', cls: 'ni-gold', time: currentTimeStr
+                        link: `/referee/scoring?id=${m.id}`, weight: 5, color: '#F5B800', cls: 'ni-gold', time: currentTimeStr
                     });
                 } else {
                     notifications.push({
                         id: notifId, icon: 'calendar', title: 'Upcoming Match',
                         message: `Assigned: ${matchup}.`,
-                        link: 'matches.html', weight: 2, color: '#F5B800', cls: 'ni-gold', time: currentTimeStr
+                        link: '/referee/matches', weight: 2, color: '#F5B800', cls: 'ni-gold', time: currentTimeStr
                     });
                 }
             }

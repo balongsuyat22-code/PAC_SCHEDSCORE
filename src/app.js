@@ -177,6 +177,10 @@ app.get('/admin/schedule', sendPageFrom(frontendAdmin, 'admin-schedule.html'));
 app.get('/admin/departments', sendPageFrom(frontendAdmin, 'admin-departments.html'));
 app.get('/admin/sport-fest', sendPageFrom(frontendAdmin, 'admin-sport-fest.html'));
 app.get('/admin/reports', sendPageFrom(frontendAdmin, 'admin-reports.html'));
+// Admin reuses the same finalized-results print sheet as the president —
+// it's role-checked client-side for admin|sgo_president (see
+// tournament-export.html), so no separate admin copy is needed.
+app.get('/admin/tournament-export', sendPageFrom(frontendPresident, 'tournament-export.html'));
 
 // ── Dean Adviser pages ────────────────────────────────────────
 app.get('/dean', sendPageFrom(frontendDean, 'dashboard.html'));
@@ -205,12 +209,20 @@ app.get('/president/schedule.html', sendPageFrom(frontendPresident, 'schedule.ht
 app.get('/president/venues', sendPageFrom(frontendPresident, 'venues.html'));
 app.get('/president/venues.html', sendPageFrom(frontendPresident, 'venues.html'));
 
-// Game Assignment was retired and merged into Schedule Management (the
-// "Needs officer only" filter + Officer Workload panel there now cover
-// what this page used to do on its own). These now redirect server-side
-// instead of serving game-assignment.html, so the file itself can be
-// deleted — see the note at the bottom of this reply for exactly which
-// files that applies to.
+// NEW — Departments & Users (limited: sgo_president may only register/edit
+// dean_adviser + sgo_officer accounts — enforced server-side in
+// userController.js's PRESIDENT_MANAGEABLE_ROLES/presidentRoleGuard, and
+// mirrored client-side in users.html so the UI never offers a role the
+// API would reject).
+app.get('/president/departments', sendPageFrom(frontendPresident, 'departments.html'));
+app.get('/president/departments.html', sendPageFrom(frontendPresident, 'departments.html'));
+app.get('/president/users', sendPageFrom(frontendPresident, 'users.html'));
+app.get('/president/users.html', sendPageFrom(frontendPresident, 'users.html'));
+
+app.get('/president/tournament-export', sendPageFrom(frontendPresident, 'tournament-export.html'));
+app.get('/president/tournament-export.html', sendPageFrom(frontendPresident, 'tournament-export.html'));
+
+
 app.get('/president/assignment', (req, res) => res.redirect(301, '/president/schedule'));
 app.get('/president/assignment.html', (req, res) => res.redirect(301, '/president/schedule'));
 
@@ -223,7 +235,6 @@ app.get('/president/notifications.html', sendPageFrom(frontendPresident, 'notifi
 app.get('/president/sports', sendPageFrom(frontendPresident, 'sports.html'));
 app.get('/president/sports.html', sendPageFrom(frontendPresident, 'sports.html'));
 
-// SGO_PRESIDENT static assets
 app.use('/SGO_PRESIDENT', express.static(frontendPresident));
 app.use('/sgo_president', express.static(frontendPresident));
 

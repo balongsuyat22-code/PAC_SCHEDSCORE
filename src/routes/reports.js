@@ -4,18 +4,12 @@ const { authenticate, authorize } = require('../middleware/auth');
 
 router.use(authenticate);
 
-// ---------------------------------------------------------------------------
-// Dashboard (stat cards for SGO President / Admin)
-// ---------------------------------------------------------------------------
 router.get(
     '/dashboard',
     authorize('admin', 'sgo_president'),
     rc.getDashboard
 );
 
-// ---------------------------------------------------------------------------
-// Operational reports (actionable issues)
-// ---------------------------------------------------------------------------
 router.get(
     '/summary',
     authorize('admin', 'sgo_president', 'sgo_officer'),
@@ -52,9 +46,6 @@ router.get(
     rc.getPendingMatches
 );
 
-// ---------------------------------------------------------------------------
-// Legacy / detail reports
-// ---------------------------------------------------------------------------
 router.get(
     '/match-history',
     authorize('admin', 'sgo_president', 'sgo_officer', 'dean_adviser'),
@@ -71,6 +62,12 @@ router.get(
     '/tournaments/:id',
     authorize('admin', 'sgo_president'),
     rc.getTournamentReport
+);
+
+router.get(
+    '/tournaments/:id/export',
+    authorize('admin', 'sgo_president'),
+    rc.getTournamentExport
 );
 
 router.get(

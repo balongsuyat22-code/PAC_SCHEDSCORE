@@ -1,4 +1,3 @@
-
 function safeDate(val) {
     if (!val) return '';
     return String(val).split('T')[0];
@@ -20,11 +19,20 @@ let _scheduleLoaded = false;
 async function ensureScheduleDropdowns() {
     if (_scheduleLoaded) return;
     try {
-        const token = localStorage.getItem('token');
+        // BUG FIX: this used to read localStorage 'token', but every other
+        // page in the app (api.js / shared.js Auth.getToken()) stores the
+        // JWT under 'sf_token'. With the wrong key this was always sending
+        // "Authorization: Bearer null" — venues/officers loaded as silent
+        // empty arrays instead of 401'ing loudly, so it was easy to miss.
+        const token = localStorage.getItem('sf_token');
         const headers = { 'Authorization': `Bearer ${token}` };
         const [vRes, rRes] = await Promise.all([
             fetch('/api/venues', { headers }).then(r => r.json()),
-            fetch('/api/users?role=referee', { headers }).then(r => r.json()),
+            // BUG FIX: the officer role in this system is 'sgo_officer', not
+            // 'referee' (see ALLOWED_ROLES in userController.js) — this
+            // query always matched zero rows, so the Referee dropdown was
+            // silently empty.
+            fetch('/api/users?role=sgo_officer', { headers }).then(r => r.json()),
         ]);
         _scheduleVenues = vRes.data || [];
         _scheduleReferees = rRes.data || [];
@@ -119,7 +127,7 @@ async function openEditMatch(matchId) {
 
     // Fetch current match data
     try {
-        const token = localStorage.getItem('token');
+        const token = localStorage.getItem('sf_token');
         const res = await fetch(`/api/matches/${matchId}`, {
             headers: { 'Authorization': `Bearer ${token}` }
         });
@@ -187,9 +195,14 @@ async function saveSFSchedule() {
     };
 
     try {
-        const token = localStorage.getItem('token');
+        const token = localStorage.getItem('sf_token');
+        // BUG FIX: routes/matches.js registers this as
+        // router.put('/:id/schedule', ...) — PUT, not PATCH. Express doesn't
+        // fuzzy-match methods, so every save silently 404'd (caught below as
+        // a generic "Failed to schedule match" toast with no indication the
+        // endpoint itself was never actually reached).
         const res = await fetch(`/api/matches/${_scheduleMatchId}/schedule`, {
-            method: 'PATCH',
+            method: 'PUT',
             headers: {
                 'Content-Type': 'application/json',
                 'Authorization': `Bearer ${token}`,
@@ -200,7 +213,7 @@ async function saveSFSchedule() {
 
         if (data.success) {
             closeSFModal();
-            // Refresh the tournament detail page
+
             if (typeof loadPage === 'function') await loadPage();
             if (typeof Toast !== 'undefined') Toast.show(data.message || 'Match scheduled!', 'success');
         } else {

@@ -832,6 +832,11 @@
         let eliminationOrder = [];
 
         document.addEventListener('DOMContentLoaded', async () => {
+            // BUG FIX: same gap as history.html/tournaments.html — this is
+            // the live scoring page (the most sensitive referee page, since
+            // it can submit final scores) and had zero auth/role check.
+            if (!Auth.requireAuth('sgo_officer')) return;
+
             renderRefereeSidebar('scoring');
             renderRefereeTopbar();
             startClock();
@@ -1861,9 +1866,16 @@
                     labelA = matchPlayersRes.data.label_a || labelA;
                     labelB = matchPlayersRes.data.label_b || labelB;
                 } else {
+                    // BUG FIX: this fallback hits the department-wide
+                    // players endpoint, which used to return every approved
+                    // player in the department regardless of sport. Now
+                    // passing the match's sport_id (matchController.js
+                    // getPlayersByDepartment filters on it when present) so
+                    // this fallback is scoped the same way the primary
+                    // /matches/:id/players endpoint always was meant to be.
                     const [resA, resB] = await Promise.all([
-                        api(`/matches/players/department/${selectedMatch.participant_a_department_id}`),
-                        api(`/matches/players/department/${selectedMatch.participant_b_department_id}`)
+                        api(`/matches/players/department/${selectedMatch.participant_a_department_id}?sport_id=${selectedMatch.sport_id}`),
+                        api(`/matches/players/department/${selectedMatch.participant_b_department_id}?sport_id=${selectedMatch.sport_id}`)
                     ]);
                     playersA = filterMatchPlayers(
                         (resA.success && resA.data) ? resA.data : [],
