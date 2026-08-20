@@ -1,7 +1,19 @@
 const router = require('express').Router();
-const { body } = require('express-validator');
+const { body, validationResult } = require('express-validator');
 const ctrl = require('../controllers/authController');
 const { authenticate } = require('../middleware/auth');
+
+const handleValidation = (req, res, next) => {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+        return res.status(400).json({
+            success: false,
+            message: 'Validation failed.',
+            errors: errors.array().map((e) => e.msg),
+        });
+    }
+    next();
+};
 
 const validateRegister = [
     body('username').trim().isLength({ min: 3, max: 50 }).withMessage('Username must be 3-50 chars'),
@@ -12,12 +24,23 @@ const validateRegister = [
     body('role').notEmpty().withMessage('Role required'),
 ];
 
-// Controller reads req.body.login || req.body.email || req.body.username
 const validateLogin = [
     body('password').notEmpty().withMessage('Password required'),
+    body().custom((_, { req }) => {
+        const id = (req.body.login || req.body.email || req.body.username || '').trim();
+        if (!id) throw new Error('Email/Username is required.');
+        return true;
+    }),
 ];
 
-router.post('/login', validateLogin, ctrl.login);
+function authorizeAdmin(req, res, next) {
+    if (!req.user || req.user.role !== 'admin') {
+        return res.status(403).json({ success: false, message: 'Admin access required.' });
+    }
+    next();
+}
+
+router.post('/login', validateLogin, handleValidation, ctrl.login);
 router.post('/refresh', ctrl.refresh);
 router.post('/logout', authenticate, ctrl.logout);
 
@@ -27,19 +50,7 @@ router.get('/me', ctrl.getMe);
 router.put('/me', ctrl.updateProfile);
 router.put('/change-password', ctrl.changePassword);
 
-// Admin-only
-router.post('/register', authorizeAdmin, validateRegister, ctrl.register);
+router.post('/register', authorizeAdmin, validateRegister, handleValidation, ctrl.register);
 router.put('/reset-password/:userId', authorizeAdmin, ctrl.resetPassword);
-
-// NOTE: '/debug-password' route removed — authController does not export
-// a debugPassword handler, so this crashed the app at startup
-// ("Router.get() requires a callback function but got a [object Undefined]").
-
-function authorizeAdmin(req, res, next) {
-    if (req.user.role !== 'admin') {
-        return res.status(403).json({ success: false, message: 'Admin access required.' });
-    }
-    next();
-}
 
 module.exports = router;

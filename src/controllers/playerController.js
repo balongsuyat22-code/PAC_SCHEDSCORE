@@ -549,12 +549,6 @@ const updatePlayer = async (req, res, next) => {
     }
 };
 
-// ---------------------------------------------------------------------------
-// APPROVE / REJECT PLAYER  (Updates registration status)
-// PATCH /api/players/:id/status
-// Body: { status: 'approved' | 'rejected', reason? }
-// Protected: dean_adviser (own dept, for pre-check) | admin (final approval)
-// ---------------------------------------------------------------------------
 const updatePlayerStatus = async (req, res, next) => {
     try {
         const playerId = parseInt(req.params.id);
@@ -582,28 +576,21 @@ const updatePlayerStatus = async (req, res, next) => {
             return res.status(403).json({ success: false, message: 'Access denied.' });
         }
 
-        // On approval, enforce max player limit per sport atomically: the
-        // capacity check and the status flip happen in the SAME UPDATE, so
-        // two deans/admins approving different players on the same team at
-        // the same moment can't both slip past a "count < max" check that
-        // was only true at the instant it was read (the old version did
-        // SELECT COUNT then a separate UPDATE — a real race under
-        // concurrent approvals).
         if (status === 'approved') {
             if (player.team_id) {
                 const [claim] = await pool.execute(
                     `UPDATE players p
-             JOIN teams t ON p.team_id = t.id
-             JOIN sports s ON t.sport_id = s.id
-             LEFT JOIN (
-                 SELECT team_id, COUNT(*) AS approved_count
-                 FROM players
-                 WHERE status = 'approved'
-                 GROUP BY team_id
-             ) AS counts ON counts.team_id = t.id
-             SET p.status = 'approved', p.rejection_reason = NULL, p.updated_at = NOW()
-             WHERE p.id = ?
-               AND (counts.approved_count IS NULL OR counts.approved_count < s.max_players)`,
+                     JOIN teams t ON p.team_id = t.id
+                     JOIN sports s ON t.sport_id = s.id
+                     LEFT JOIN (
+                         SELECT team_id, COUNT(*) AS approved_count
+                         FROM players
+                         WHERE status = 'approved'
+                         GROUP BY team_id
+                     ) AS counts ON counts.team_id = t.id
+                     SET p.status = 'approved', p.rejection_reason = NULL, p.updated_at = NOW()
+                     WHERE p.id = ?
+                       AND (counts.approved_count IS NULL OR counts.approved_count < s.max_players)`,
                     [playerId]
                 );
                 if (claim.affectedRows === 0) {
@@ -618,9 +605,22 @@ const updatePlayerStatus = async (req, res, next) => {
                     [playerId]
                 );
             }
+        } else {
+            // rejected | pending — was missing before
+            await pool.execute(
+                `UPDATE players
+                 SET status = ?,
+                     rejection_reason = ?,
+                     updated_at = NOW()
+                 WHERE id = ?`,
+                [status, status === 'rejected' ? (reason || null) : null, playerId]
+            );
         }
 
-        const action = status === 'approved' ? 'PLAYER_APPROVED' : status === 'rejected' ? 'PLAYER_REJECTED' : 'PLAYER_PENDING';
+        const action =
+            status === 'approved' ? 'PLAYER_APPROVED' :
+                status === 'rejected' ? 'PLAYER_REJECTED' : 'PLAYER_PENDING';
+
         await logActivity(
             req.user.id,
             action,
@@ -630,7 +630,6 @@ const updatePlayerStatus = async (req, res, next) => {
         );
 
         return res.json({ success: true, message: `Player ${status} successfully.` });
-
     } catch (err) {
         next(err);
     }

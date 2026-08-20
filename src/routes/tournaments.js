@@ -3,11 +3,14 @@ const router = express.Router();
 const ctrl = require('../controllers/tournamentController');
 const { authenticate, authorize } = require('../middleware/auth');
 
+// Public bracket for visitor live board (optional but recommended)
+router.get('/:id/bracket', ctrl.getBracket);
+
 router.get('/', authenticate, ctrl.getAll);
 router.get('/:id', authenticate, ctrl.getOne);
 router.get('/:id/participants', authenticate, ctrl.getParticipants);
 router.get('/:id/eligibility', authenticate, ctrl.getEligibility);
-router.get('/:id/bracket', authenticate, ctrl.getBracket);
+router.get('/:id/points-config', authenticate, authorize('sgo_president', 'admin'), ctrl.getPointsConfig); // NEW
 
 router.post('/', authenticate, authorize('sgo_president', 'admin'), ctrl.create);
 router.put('/:id', authenticate, authorize('sgo_president', 'admin'), ctrl.update);

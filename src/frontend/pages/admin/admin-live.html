@@ -346,6 +346,10 @@
                 document.getElementById('refresh-label').textContent = `Refreshing in ${countdown}s`;
                 if (countdown <= 0) { countdown = 10; refresh(); }
             }, 1000);
+
+            ['sf:live', 'sf:score', 'sf:match'].forEach(ev =>
+                window.addEventListener(ev, () => { countdown = 10; refresh(); })
+            );
         });
 
         async function refresh() {

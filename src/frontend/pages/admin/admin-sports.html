@@ -434,10 +434,7 @@
 
         document.addEventListener('DOMContentLoaded', async () => {
             Auth.requireAuth('admin');
-            // Render sidebar - this will inject the sidebar HTML
-            if (typeof renderSidebar === 'function') {
-                renderSidebar('sports');
-            }
+            if (typeof renderSidebar === 'function') renderSidebar('sports');
             buildIconPicker();
             await loadPage();
         });

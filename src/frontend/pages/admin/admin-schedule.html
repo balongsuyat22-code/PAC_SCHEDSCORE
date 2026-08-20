@@ -285,9 +285,7 @@
     <script>
         document.addEventListener('DOMContentLoaded', async () => {
             if (typeof Auth !== 'undefined' && Auth.requireAuth) Auth.requireAuth('admin');
-            if (typeof renderSidebar === 'function') {
-                renderSidebar('matches');
-            }
+            if (typeof renderSidebar === 'function') renderSidebar('matches');
             setToday();
             const [vRes, tRes] = await Promise.all([api('/venues'), api('/tournaments')]);
             const vOpts = (vRes.data || []).map(v => `<option value="${v.id}">${v.name}</option>`).join('');
@@ -295,6 +293,10 @@
             document.getElementById('filter-venue').innerHTML += vOpts;
             document.getElementById('filter-tournament').innerHTML += tOpts;
             loadPage();
+
+            let _t = null;
+            const soft = () => { clearTimeout(_t); _t = setTimeout(() => loadPage(), 400); };
+            ['sf:match', 'sf:live'].forEach(ev => window.addEventListener(ev, soft));
         });
 
         function setToday() {

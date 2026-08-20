@@ -1,12 +1,9 @@
 /* ============================================================
    SPORTFEST — SHARED JS
-   Contains: API helper, Auth, Toast, Modal, Render helpers,
-             Sidebar init, Logo helper, Mock data,
-             AND all Admin Dashboard tab functions
+   API · Auth · Toast · Modal · Realtime (Socket.IO) · helpers
+   + Admin Dashboard tab functions + Mock data
    ============================================================ */
 
-// ── API Base URL ──────────────────────────────────────────────
-// Works from any subfolder depth — always hits the server root
 const API_BASE = window.location.origin + '/api';
 
 // ── Auth ──────────────────────────────────────────────────────
@@ -14,16 +11,28 @@ const Auth = {
     getToken: () => localStorage.getItem('sf_token'),
     getUser: () => { try { return JSON.parse(localStorage.getItem('sf_user')); } catch { return null; } },
     logout: () => {
+        try { Realtime.disconnect(); } catch (_) { }
         localStorage.removeItem('sf_token');
         localStorage.removeItem('sf_user');
         window.location.href = '/login';
     },
-    requireAuth(expectedRole = null) {
+    // expectedRoles: string OR array of allowed roles
+    requireAuth(expectedRoles = null) {
         const user = this.getUser();
         if (!user) { window.location.href = '/login'; return null; }
-        if (expectedRole && user.role !== expectedRole) {
-            window.location.href = user.role === 'admin' ? '/admin' : `/${user.role}`;
-            return null;
+        if (expectedRoles) {
+            const allowed = Array.isArray(expectedRoles) ? expectedRoles : [expectedRoles];
+            if (!allowed.includes(user.role)) {
+                const home = {
+                    admin: '/admin',
+                    dean_adviser: '/dean',
+                    sgo_president: '/president',
+                    sgo_officer: '/referee',
+                    visitor: '/login',
+                };
+                window.location.href = home[user.role] || '/login';
+                return null;
+            }
         }
         return user;
     }
@@ -33,7 +42,6 @@ const Auth = {
 const api = async (path, options = {}) => {
     const token = Auth.getToken();
 
-    // 1. Start with base headers (Auth)
     const headers = {
         ...(token ? { Authorization: `Bearer ${token}` } : {}),
         ...(options.headers || {}),
@@ -41,15 +49,9 @@ const api = async (path, options = {}) => {
 
     let body = options.body;
 
-    // 2. CRITICAL LOGIC: Handle Body Type
     if (body instanceof FormData) {
-        // IF IT IS FORMDATA:
-        // We MUST NOT set 'Content-Type'. 
-        // The browser will automatically set it to 'multipart/form-data' 
-        // and add the unique "boundary" string needed to parse files.
         delete headers['Content-Type'];
     } else {
-        // IF IT IS NOT FORMDATA (Standard JSON):
         headers['Content-Type'] = 'application/json';
         if (body && typeof body === 'object') {
             body = JSON.stringify(body);
@@ -65,22 +67,20 @@ const api = async (path, options = {}) => {
 
         const data = await res.json();
         if (!res.ok) {
-            console.error(`❌ API ${res.status}: ${path}`, data);
+            console.error(`API ${res.status}: ${path}`, data);
             if (res.status !== 404) Toast.show(data.message || `Server error (${res.status})`, 'error');
             return { success: false, message: data.message || `HTTP ${res.status}`, data: [] };
         }
         return data;
     } catch (e) {
-        // Network error — fall back to mock data silently
         const mockKey = path.split('?')[0];
-        if (MOCK_DATA[mockKey]) return MOCK_DATA[mockKey];
+        if (typeof MOCK_DATA !== 'undefined' && MOCK_DATA[mockKey]) return MOCK_DATA[mockKey];
         console.warn('[API] Network error for', path, e.message);
         return { success: false, data: [], message: 'Network error — is the server running?' };
     }
 };
 
-
-// ── Sidebar Init ──────────────────────────────────────────────
+// ── Sidebar Init (legacy pages that still call initSidebar) ───
 const initSidebar = () => {
     const user = Auth.getUser();
     if (!user) return;
@@ -93,7 +93,6 @@ const initSidebar = () => {
     if (roleEl) roleEl.textContent = user.role;
     if (avatarEl) avatarEl.textContent = (user.first_name?.[0] || user.username?.[0] || 'U').toUpperCase();
 
-    // Mark active nav item
     const currentPath = window.location.pathname;
     document.querySelectorAll('.nav-item').forEach(item => {
         const href = item.getAttribute('href');
@@ -144,6 +143,7 @@ function filterTable(tableId, query) {
     const q = query.toLowerCase();
     rows.forEach(r => r.style.display = r.textContent.toLowerCase().includes(q) ? '' : 'none');
 }
+
 // ── Toast ─────────────────────────────────────────────────────
 const Toast = {
     show(msg, type = 'success', duration = 3000) {
@@ -154,7 +154,6 @@ const Toast = {
             t.className = 'toast';
             document.body.appendChild(t);
         }
-        // No emoji — use short text labels
         const icons = { success: 'OK', error: 'ERR', info: 'i' };
         t.innerHTML = `<span style="font-weight:800;margin-right:6px">${icons[type] || '•'}</span> ${msg}`;
         t.className = `toast ${type} show`;
@@ -170,18 +169,23 @@ const Modal = {
     closeAll() { document.querySelectorAll('.modal-overlay').forEach(m => m.classList.remove('open')); }
 };
 
-// ── Render Helpers (NO EMOJI — plain text / CSS badges) ───────
+// ── Render Helpers ────────────────────────────────────────────
 const statusBadge = (status) => {
     const map = {
-        ongoing: ['badge-ongoing', 'Live'],
-        scheduled: ['badge-scheduled', 'Scheduled'],
-        completed: ['badge-completed', 'Done'],
-        cancelled: ['badge-cancelled', 'Cancelled'],
-        postponed: ['badge-muted', 'Postponed'],
+        ongoing: ['badge-pulse badge-green', 'Live'],
+        scheduled: ['badge-muted', 'Scheduled'],
+        completed: ['badge-blue', 'Done'],
+        cancelled: ['badge-red', 'Cancelled'],
+        postponed: ['badge-orange', 'Postponed'],
         walkover: ['badge-muted', 'Walkover'],
         draft: ['badge-muted', 'Draft'],
         registration: ['badge-blue', 'Registration'],
-        pending: ['badge-upcoming', 'Pending'],
+        pending: ['badge-muted', 'Pending'],
+        active: ['badge-green', 'Active'],
+        inactive: ['badge-red', 'Inactive'],
+        approved: ['badge-green', 'Approved'],
+        rejected: ['badge-red', 'Rejected'],
+        upcoming: ['badge-muted', 'Upcoming'],
     };
     const [cls, label] = map[status] || ['badge-muted', status || '—'];
     return `<span class="badge ${cls}">${label}</span>`;
@@ -200,13 +204,220 @@ const formatRank = (rank) => {
     return `${rank}th`;
 };
 
-// Returns empty string (no emoji). Pages can show sport name as text instead.
-const sportIcon = (name = '') => '';
+const sportIcon = (name = '') => {
+    const n = (name || '').toLowerCase();
+    if (n.includes('basket')) return '🏀';
+    if (n.includes('volley')) return '🏐';
+    if (n.includes('badmin')) return '🏸';
+    if (n.includes('chess')) return '♟️';
+    if (n.includes('relay') || n.includes('4x') || n.includes('track') || n.includes('sprint')) return '🏃';
+    if (n.includes('mobile') || n.includes('legend') || n.includes('valorant') || n.includes('esport')) return '🎮';
+    if (n.includes('swim')) return '🏊';
+    if (n.includes('tennis')) return '🎾';
+    if (n.includes('table')) return '🏓';
+    if (n.includes('football') || n.includes('soccer')) return '⚽';
+    return '🏅';
+};
 
 const formatDate = (d) => d
-    ? new Date(d).toLocaleDateString('en-PH', { month: 'short', day: 'numeric', year: 'numeric' })
+    ? new Date(d + (String(d).includes('T') ? '' : 'T00:00')).toLocaleDateString('en-PH', { month: 'short', day: 'numeric', year: 'numeric' })
     : '—';
 const formatTime = (t) => t ? String(t).slice(0, 5) : '—';
+
+/* ============================================================
+   REALTIME — Socket.IO client
+   Auto-loads socket.io from CDN, joins rooms, toasts + events.
+   Pages listen with:
+     window.addEventListener('sf:live', e => { ... e.detail })
+     window.addEventListener('sf:leaderboard', e => { ... })
+     window.addEventListener('sf:match', e => { ... })
+   ============================================================ */
+const Realtime = {
+    socket: null,
+    connected: false,
+    _feed: [],
+    _maxFeed: 40,
+    _ioReady: null,
+
+    _loadIo() {
+        if (window.io) return Promise.resolve(window.io);
+        if (this._ioReady) return this._ioReady;
+        this._ioReady = new Promise((resolve, reject) => {
+            const s = document.createElement('script');
+            s.src = 'https://cdn.socket.io/4.7.5/socket.io.min.js';
+            s.async = true;
+            s.onload = () => resolve(window.io);
+            s.onerror = () => reject(new Error('socket.io CDN failed'));
+            document.head.appendChild(s);
+        });
+        return this._ioReady;
+    },
+
+    async connect() {
+        if (this.socket?.connected) return this.socket;
+        try {
+            await this._loadIo();
+        } catch (e) {
+            console.warn('[Realtime] socket.io not available', e.message);
+            return null;
+        }
+        const token = Auth.getToken();
+        this.socket = window.io(window.location.origin, {
+            transports: ['websocket', 'polling'],
+            withCredentials: true,
+            auth: token ? { token } : {},
+            reconnection: true,
+            reconnectionAttempts: 20,
+            reconnectionDelay: 1500,
+        });
+
+        this.socket.on('connect', () => {
+            this.connected = true;
+            this.socket.emit('join', 'leaderboard');
+            this.socket.emit('join', 'live');
+            this.socket.emit('join:leaderboard');
+            this.socket.emit('join:live');
+            this._setConnDot(true);
+            console.info('[Realtime] connected', this.socket.id);
+        });
+        this.socket.on('disconnect', () => {
+            this.connected = false;
+            this._setConnDot(false);
+        });
+
+        const push = (type, title, body, extra = {}) => {
+            const item = {
+                id: Date.now() + Math.random(),
+                type, title, body,
+                at: new Date().toISOString(),
+                ...extra,
+            };
+            this._feed.unshift(item);
+            if (this._feed.length > this._maxFeed) this._feed.length = this._maxFeed;
+            this._renderNotifBell();
+            window.dispatchEvent(new CustomEvent('sf:notif', { detail: item }));
+            if (type === 'live' || type === 'done' || type === 'trophy' || type === 'lb') {
+                try { Toast.show(title + (body ? ' — ' + body : ''), type === 'done' || type === 'trophy' ? 'success' : 'info', 3500); } catch (_) { }
+            }
+        };
+
+        const bus = (name, detail) =>
+            window.dispatchEvent(new CustomEvent(name, { detail }));
+
+        this.socket.on('live:matchStarted', (d) => {
+            push('live', 'Match live', `${d?.dept_a || d?.team_a || 'A'} vs ${d?.dept_b || d?.team_b || 'B'}`);
+            bus('sf:live', d);
+            bus('sf:match', { action: 'started', ...d });
+            this._bumpLiveBadge(+1);
+        });
+        this.socket.on('match:started', (d) => {
+            push('live', 'Match started', d?.match_id ? `Match #${d.match_id}` : 'A match is now live');
+            bus('sf:live', d);
+            bus('sf:match', { action: 'started', ...d });
+            this._bumpLiveBadge(+1);
+        });
+        this.socket.on('live:tick', (d) => {
+            bus('sf:live', d);
+            bus('sf:score', d);
+        });
+        this.socket.on('score:update', (d) => {
+            bus('sf:score', d);
+            bus('sf:match', { action: 'score', ...d });
+        });
+        this.socket.on('match:completed', (d) => {
+            push('done', 'Match completed', d?.winner ? `Winner: ${d.winner}` : 'Result locked in');
+            bus('sf:match', { action: 'completed', ...d });
+            bus('sf:live', d);
+            this._bumpLiveBadge(-1);
+        });
+        this.socket.on('match:scheduled', (d) => {
+            push('info', 'Match scheduled', d?.scheduled_date ? `${d.scheduled_date} ${d.scheduled_time || ''}`.trim() : 'Schedule updated');
+            bus('sf:match', { action: 'scheduled', ...d });
+        });
+        this.socket.on('leaderboard:changed', (d) => {
+            push('lb', 'Leaderboard updated', d?.reason ? String(d.reason).replace(/_/g, ' ') : 'Standings changed');
+            bus('sf:leaderboard', d || {});
+        });
+        this.socket.on('bracket:updated', (d) => {
+            bus('sf:bracket', d || {});
+            bus('sf:match', { action: 'bracket', ...d });
+        });
+        this.socket.on('ffa:resultsUpdated', (d) => {
+            push('info', 'FFA results updated', d?.tournament_id ? `Tournament #${d.tournament_id}` : 'Standings refreshed');
+            bus('sf:ffa', d || {});
+            bus('sf:leaderboard', d || {});
+        });
+        this.socket.on('champion:declared', (d) => {
+            push('trophy', 'Champion declared', d?.name || d?.department_name || 'Season champion set');
+            bus('sf:champion', d || {});
+            bus('sf:leaderboard', d || {});
+        });
+
+        return this.socket;
+    },
+
+    disconnect() {
+        try { this.socket?.disconnect(); } catch (_) { }
+        this.socket = null;
+        this.connected = false;
+        this._setConnDot(false);
+    },
+
+    on(event, fn) {
+        if (!this.socket) this.connect();
+        this.socket?.on(event, fn);
+    },
+
+    getFeed() { return this._feed.slice(); },
+    clearFeed() { this._feed = []; this._renderNotifBell(); },
+
+    _bumpLiveBadge(delta) {
+        const badge = document.getElementById('sb-live-count');
+        if (!badge) return;
+        let n = parseInt(badge.textContent, 10) || 0;
+        n = Math.max(0, n + delta);
+        badge.textContent = n;
+        badge.style.display = n > 0 ? '' : 'none';
+    },
+
+    _setConnDot(on) {
+        const el = document.getElementById('sf-conn-dot');
+        if (el) {
+            el.style.background = on ? 'var(--green)' : 'var(--muted)';
+            el.title = on ? 'Live connection' : 'Reconnecting…';
+        }
+    },
+
+    _renderNotifBell() {
+        const badge = document.getElementById('sf-notif-badge');
+        const list = document.getElementById('sf-notif-list');
+        if (badge) {
+            const n = this._feed.length;
+            badge.textContent = n > 9 ? '9+' : String(n);
+            badge.style.display = n > 0 ? '' : 'none';
+        }
+        if (!list) return;
+        if (!this._feed.length) {
+            list.innerHTML = `<div class="notif-item empty">No notifications yet</div>`;
+            return;
+        }
+        list.innerHTML = this._feed.slice(0, 12).map(i => {
+            const time = new Date(i.at).toLocaleTimeString('en-PH', { hour: '2-digit', minute: '2-digit' });
+            return `<div class="notif-item">
+                <div class="notif-content">
+                    <strong>${i.title}</strong>
+                    <div>${i.body || ''}</div>
+                    <div style="font-size:11px;color:var(--muted);margin-top:4px">${time}</div>
+                </div>
+            </div>`;
+        }).join('');
+    },
+};
+
+// Auto-connect when a logged-in user is on any page that loads shared.js
+document.addEventListener('DOMContentLoaded', () => {
+    if (Auth.getToken()) Realtime.connect().catch(() => { });
+});
 
 /* ============================================================
    ADMIN DASHBOARD TAB FUNCTIONS
@@ -231,7 +442,6 @@ async function loadDashboard() {
         const liveCount = document.getElementById('live-count');
         if (liveCount) liveCount.textContent = t.live_matches;
 
-        // Upcoming matches
         const upEl = document.getElementById('upcoming-matches');
         if (upEl) {
             if (dash.data.upcomingMatches.length) {
@@ -252,7 +462,6 @@ async function loadDashboard() {
             }
         }
 
-        // Recent results
         const rr = dash.data.recentResults;
         const rrEl = document.getElementById('recent-results');
         if (rrEl) {
@@ -268,7 +477,6 @@ async function loadDashboard() {
         }
     }
 
-    // Champion banner
     if (champion.success) {
         const c = champion.data;
         const leader = c.champion || c.current_leader;
@@ -624,7 +832,6 @@ async function createTournament() {
     const format = document.getElementById('tn-format')?.value?.trim();
     const gender = document.getElementById('tn-gender')?.value || 'open';
 
-    // ── Validation ────────────────────────────────────────────
     if (!name) { Toast.show('Tournament name is required', 'error'); return; }
     if (!sport_id) { Toast.show('Please select a sport', 'error'); return; }
     if (!format) { Toast.show('Please select a format', 'error'); return; }
@@ -651,9 +858,7 @@ async function createTournament() {
         start_date: document.getElementById('tn-start')?.value || null,
         end_date: document.getElementById('tn-end')?.value || null,
         description: document.getElementById('tn-desc')?.value || null,
-        // FFA scoring type (time | distance | points)
         ffa_scoring: isFFA ? (document.getElementById('tn-ffa-scoring')?.value || 'points') : null,
-        // Group stage extras
         group_count: isGroupStage ? (parseInt(document.getElementById('tn-groups')?.value) || 2) : null,
         advance_per_group: isGroupStage ? (parseInt(document.getElementById('tn-advance')?.value) || 2) : null,
     };
@@ -662,7 +867,6 @@ async function createTournament() {
     Toast.show(res.message || (res.success ? 'Tournament created!' : 'Error'), res.success ? 'success' : 'error');
 
     if (res.success) {
-        // Save any pre-configured time slots to localStorage
         const tournamentId = res.data?.id;
         if (tournamentId && body.start_date && typeof createSlots !== 'undefined' && createSlots.length) {
             localStorage.setItem(
@@ -672,12 +876,10 @@ async function createTournament() {
             if (typeof createSlots !== 'undefined') createSlots = [];
         }
         Modal.closeAll();
-        // Reload whichever list function is available
         if (typeof initList === 'function') initList();
         else if (typeof loadTournaments === 'function') loadTournaments();
     }
 }
-
 
 async function createDepartment() {
     const body = {

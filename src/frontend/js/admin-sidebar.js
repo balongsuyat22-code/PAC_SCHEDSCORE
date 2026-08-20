@@ -2,12 +2,10 @@
    ADMIN SIDEBAR — PAC SCHED-SCORE
    Roles: admin | dean_adviser | sgo_president | sgo_officer | visitor
 
-   Single source of truth for the admin sidebar. Every admin page should:
+   Every admin page should:
      1) include ../../js/shared.js then ../../js/admin-sidebar.js
-     2) call Auth.requireAuth('admin') as the very first thing on
-        DOMContentLoaded (before touching the DOM / making API calls)
-     3) call renderSidebar('<nav-key>') to inject the sidebar + wire up
-        the mobile burger toggle
+     2) call Auth.requireAuth('admin') first on DOMContentLoaded
+     3) call renderSidebar('<nav-key>') to inject sidebar + mobile burger
    ============================================================ */
 const ADMIN_ICONS = {
     dashboard: `<svg viewBox="0 0 24 24"><line x1="18" y1="20" x2="18" y2="10"></line><line x1="12" y1="20" x2="12" y2="4"></line><line x1="6" y1="20" x2="6" y2="14"></line></svg>`,
@@ -27,6 +25,7 @@ const ADMIN_ICONS = {
     settings: `<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>`,
     logout: `<svg viewBox="0 0 24 24"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><polyline points="16 17 21 12 16 7"></polyline><line x1="21" y1="12" x2="9" y2="12"></line></svg>`,
     menu: `<svg viewBox="0 0 24 24"><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="18" x2="21" y2="18"></line></svg>`,
+    bell: `<svg viewBox="0 0 24 24"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path><path d="M13.73 21a2 2 0 0 1-3.46 0"></path></svg>`,
 };
 
 const ADMIN_NAV = [
@@ -45,17 +44,6 @@ const ADMIN_NAV = [
     { key: 'sport-fest', icon: ADMIN_ICONS.sportFest, label: 'Sport Fest', href: '/admin/sport-fest' },
     { key: 'reports', icon: ADMIN_ICONS.reports, label: 'Reports & Logs', href: '/admin/reports' },
 ];
-
-/* NOTE ON REMOVED NAV ITEMS ("Live Matches", "Schedule"):
-   Both pages still exist (admin-live.html, admin-schedule.html) and still
-   work — they were not deleted. They were removed from the PRIMARY sidebar
-   because they are read-only subsets of what /admin/matches already shows
-   (same match data, no schedule/score/complete actions of their own), and
-   having three destinations for "matches" was the confusing part, not the
-   pages themselves. They're now reachable as secondary "Calendar view" /
-   "Live board" links from the top of the Matches page instead of competing
-   for a spot in the main nav. If you want them back in the sidebar, just
-   re-add the two entries above with their old hrefs. */
 
 function renderSidebar(activePage) {
     const user = Auth.getUser();
@@ -97,7 +85,6 @@ function renderSidebar(activePage) {
     </div>
 </aside>`;
 
-    // Replace any previous render so this is always safe to call more than once.
     document.getElementById('admin-sidebar')?.remove();
 
     const mainEl = document.querySelector('main.main') || document.querySelector('main');
@@ -115,14 +102,72 @@ function renderSidebar(activePage) {
     }).catch(() => { });
 
     setupBurgerMenu();
+    injectRealtimeChrome();
+
+    if (typeof Realtime !== 'undefined') {
+        Realtime.connect().catch(() => { });
+        window.addEventListener('sf:live', () => {
+            api('/matches/live').then(r => {
+                const badge = document.getElementById('sb-live-count');
+                if (!badge) return;
+                const count = r.data?.length || 0;
+                badge.textContent = count;
+                badge.style.display = count > 0 ? '' : 'none';
+            }).catch(() => { });
+        });
+    }
 }
 
-/* ── MOBILE SIDEBAR TOGGLE ──
-   Wires up any element with id="burger-menu" (or class="burger-menu")
-   already present in the page's topbar to open/close the sidebar on
-   narrow screens, including a dimmed overlay that closes it on tap and
-   auto-close on nav-link click / resize back to desktop width. Safe to
-   call repeatedly — it removes previous listeners by cloning the node. */
+/** Inject connection dot + notification bell into the page topbar */
+function injectRealtimeChrome() {
+    const actions = document.querySelector('.topbar-actions');
+    if (!actions || document.getElementById('sf-notif-wrap')) return;
+
+    const wrap = document.createElement('div');
+    wrap.id = 'sf-notif-wrap';
+    wrap.style.cssText = 'display:flex;align-items:center;gap:10px;margin-right:4px;position:relative;';
+    wrap.innerHTML = `
+        <span id="sf-conn-dot" title="Connecting…"
+              style="width:8px;height:8px;border-radius:50%;background:var(--muted);flex-shrink:0;
+                     box-shadow:0 0 0 3px rgba(34,197,94,0.12)"></span>
+        <div class="nav-notification-container" style="position:relative">
+            <button type="button" id="sf-notif-btn" class="btn btn-secondary btn-sm"
+                    style="padding:6px 10px;position:relative" aria-label="Notifications">
+                <span class="icon" style="width:16px;height:16px">${ADMIN_ICONS.bell}</span>
+                <span id="sf-notif-badge" class="notif-badge" style="display:none">0</span>
+            </button>
+            <div id="sf-notif-dropdown" class="notif-dropdown" style="display:none">
+                <div class="notif-header" style="display:flex;justify-content:space-between;align-items:center;padding:10px 14px;border-bottom:1px solid var(--border)">
+                    <span style="font-weight:700;font-size:13px">Live updates</span>
+                    <button type="button" id="sf-notif-clear" class="btn btn-secondary btn-sm"
+                            style="padding:2px 8px;font-size:11px">Clear</button>
+                </div>
+                <div class="notif-list" id="sf-notif-list" style="max-height:320px;overflow-y:auto">
+                    <div class="notif-item empty" style="padding:16px;color:var(--muted);text-align:center;font-size:13px">No notifications yet</div>
+                </div>
+            </div>
+        </div>`;
+    actions.insertBefore(wrap, actions.firstChild);
+
+    const btn = document.getElementById('sf-notif-btn');
+    const dd = document.getElementById('sf-notif-dropdown');
+    if (dd) {
+        dd.style.cssText = 'display:none;position:absolute;right:0;top:calc(100% + 8px);width:320px;background:var(--bg2);border:1px solid var(--border);border-radius:12px;box-shadow:0 12px 40px rgba(0,0,0,.45);z-index:200;overflow:hidden';
+    }
+    btn?.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const open = dd.style.display === 'block';
+        dd.style.display = open ? 'none' : 'block';
+        if (!open && typeof Realtime !== 'undefined') Realtime._renderNotifBell();
+    });
+    document.getElementById('sf-notif-clear')?.addEventListener('click', (e) => {
+        e.stopPropagation();
+        if (typeof Realtime !== 'undefined') Realtime.clearFeed();
+    });
+    document.addEventListener('click', () => { if (dd) dd.style.display = 'none'; });
+    dd?.addEventListener('click', (e) => e.stopPropagation());
+}
+
 function setupBurgerMenu() {
     const sidebar = document.getElementById('admin-sidebar');
     if (!sidebar) return;
@@ -130,7 +175,6 @@ function setupBurgerMenu() {
     let burger = document.getElementById('burger-menu') || document.querySelector('.burger-menu');
     if (!burger) return;
 
-    // Clone-replace to avoid stacking duplicate listeners if this runs twice.
     const freshBurger = burger.cloneNode(true);
     burger.parentNode.replaceChild(freshBurger, burger);
     burger = freshBurger;
@@ -161,17 +205,12 @@ function setupBurgerMenu() {
         sidebar.classList.contains('sidebar-open') ? closeSidebar() : openSidebar();
     });
 
-    // Tapping a nav link on mobile should close the drawer, not leave it open
-    // behind the next page load.
     sidebar.querySelectorAll('.nav-item').forEach(a => a.addEventListener('click', closeSidebar));
 
-    // If the viewport grows back past the mobile breakpoint, make sure the
-    // drawer/overlay state doesn't linger.
     window.addEventListener('resize', () => {
         if (window.innerWidth > 900) closeSidebar();
     });
 
-    // Escape key closes it too.
     document.addEventListener('keydown', (e) => {
         if (e.key === 'Escape') closeSidebar();
     });

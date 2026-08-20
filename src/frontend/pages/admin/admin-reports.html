@@ -1061,9 +1061,7 @@
 
         document.addEventListener('DOMContentLoaded', async () => {
             Auth.requireAuth('admin');
-            if (typeof renderSidebar === 'function') {
-                renderSidebar('reports');
-            }
+            if (typeof renderSidebar === 'function') renderSidebar('reports');
             const [sRes, dRes, tRes] = await Promise.all([api('/sports'), api('/departments'), api('/tournaments')]);
             const sOpts = (sRes.data || []).map(s => `<option value="${s.id}">${s.name}</option>`).join('');
             const dOpts = (dRes.data || []).map(d => `<option value="${d.id}">${d.name}</option>`).join('');
@@ -1078,6 +1076,17 @@
             document.getElementById('dr-dept').innerHTML += dOpts;
             document.getElementById('tr-tourney').innerHTML += tOpts;
             await loadMatchHistory();
+
+            // Soft-refresh match history when results land
+            let _t = null;
+            const soft = () => {
+                clearTimeout(_t);
+                _t = setTimeout(() => {
+                    if (typeof loadMatchHistory === 'function') loadMatchHistory();
+                }, 600);
+            };
+            window.addEventListener('sf:match', soft);
+            window.addEventListener('sf:leaderboard', soft);
         });
 
         function switchTab(name, el) {

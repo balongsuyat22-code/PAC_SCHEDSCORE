@@ -46,7 +46,7 @@ const run = async () => {
         await conn.query(`USE \`${dbName}\``);
         console.log('✅ Connected\n');
 
-        // ── 1. Apply schema (whole file — do NOT split on ";" + filter comments) ──
+        // ── 1. Apply schema ──
         console.log('📦 Applying schema...');
         const schemaPath = path.join(__dirname, '../../sql/schema.sql');
         if (!fs.existsSync(schemaPath)) {
@@ -62,7 +62,6 @@ const run = async () => {
             throw err;
         }
 
-        // Verify tables exist before triggers
         const [tables] = await conn.query(
             `SELECT TABLE_NAME AS name
              FROM information_schema.TABLES
@@ -81,51 +80,16 @@ const run = async () => {
             throw new Error('Required tables missing (tournament_results / department_scores)');
         }
 
-        // ── 2. Triggers ───────────────────────────────────────────
-        console.log('\n⚡ Creating triggers...');
+        // ── 2. Triggers ──
+        // Old triggers updated department_scores WITHOUT sport_fest_id.
+        // Scoring is handled in-app by recordResultsAndRebuild / rebuildDepartmentScores
+        // (season-aware). Keeping those triggers would double-count or write the wrong row.
+        console.log('\n⚡ Removing legacy department_scores triggers (scoring is app-side)...');
         await conn.query('DROP TRIGGER IF EXISTS after_tournament_result_insert');
         await conn.query('DROP TRIGGER IF EXISTS after_tournament_result_update');
+        console.log('✅ Legacy triggers dropped\n');
 
-        // Note: department_scores unique key is (department_id, sport_fest_id).
-        // Inserts without sport_fest_id still work (NULL); ON DUPLICATE KEY matches that pair.
-        await conn.query(`
-            CREATE TRIGGER after_tournament_result_insert
-            AFTER INSERT ON tournament_results
-            FOR EACH ROW
-            BEGIN
-                INSERT INTO department_scores
-                    (department_id, total_points, gold_medals, silver_medals,
-                     bronze_medals, total_participations, tournaments_entered)
-                VALUES
-                    (NEW.department_id, NEW.sport_fest_points,
-                     IF(NEW.medal='gold',1,0), IF(NEW.medal='silver',1,0),
-                     IF(NEW.medal='bronze',1,0), 1, 1)
-                ON DUPLICATE KEY UPDATE
-                    total_points         = total_points         + NEW.sport_fest_points,
-                    gold_medals          = gold_medals          + IF(NEW.medal='gold',1,0),
-                    silver_medals        = silver_medals        + IF(NEW.medal='silver',1,0),
-                    bronze_medals        = bronze_medals        + IF(NEW.medal='bronze',1,0),
-                    total_participations = total_participations + 1,
-                    tournaments_entered  = tournaments_entered  + 1;
-            END
-        `);
-
-        await conn.query(`
-            CREATE TRIGGER after_tournament_result_update
-            AFTER UPDATE ON tournament_results
-            FOR EACH ROW
-            BEGIN
-                UPDATE department_scores SET
-                    total_points  = total_points  - OLD.sport_fest_points + NEW.sport_fest_points,
-                    gold_medals   = gold_medals   - IF(OLD.medal='gold',1,0)   + IF(NEW.medal='gold',1,0),
-                    silver_medals = silver_medals - IF(OLD.medal='silver',1,0) + IF(NEW.medal='silver',1,0),
-                    bronze_medals = bronze_medals - IF(OLD.medal='bronze',1,0) + IF(NEW.medal='bronze',1,0)
-                WHERE department_id = NEW.department_id;
-            END
-        `);
-        console.log('✅ Triggers created\n');
-
-        // ── 3. Seed departments ───────────────────────────────────
+        // ── 3. Seed departments ──
         console.log('🏫 Creating departments...');
         await conn.query(`
             INSERT IGNORE INTO departments (id, name, code, description) VALUES
@@ -138,7 +102,7 @@ const run = async () => {
         `);
         console.log('✅ Departments created\n');
 
-        // ── 4. Seed default users ─────────────────────────────────
+        // ── 4. Seed default users (no player role — players are data records only) ──
         console.log('👤 Creating default users...');
         const defaultUsers = [
             { username: 'admin', email: 'admin@sportfest.com', password: 'password', role: 'admin', first: 'System', last: 'Admin', dept: 1 },
@@ -174,6 +138,7 @@ const run = async () => {
         console.log('  dean@sportfest.com');
         console.log('  president@sportfest.com');
         console.log('  officer@sportfest.com');
+        console.log('  (Players are NOT user accounts — dean registers them as data.)');
         console.log('═══════════════════════════════════════════════════════════\n');
     } catch (err) {
         console.error('\n❌ Setup failed:', err.message);

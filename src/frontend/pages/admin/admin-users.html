@@ -698,19 +698,10 @@
             closeConfirm();
         }
 
-        // ── INIT ──────────────────────────────────────────────────────────────
         document.addEventListener('DOMContentLoaded', async () => {
             Auth.requireAuth('admin');
+            if (typeof renderSidebar === 'function') renderSidebar('users');
 
-            if (typeof renderSidebar === 'function') {
-                renderSidebar('users');
-            }
-
-            const user = Auth.getUser();
-            const name = user ? (`${user.first_name || ''} ${user.last_name || ''}`).trim() || user.username || 'Admin' : 'Admin';
-            // Update sidebar user if needed
-
-            // Load departments for filters & form
             const dRes = await api('/departments');
             const dOpts = (dRes.data || []).map(d => `<option value="${d.id}">${d.name}</option>`).join('');
             document.getElementById('f-dept').innerHTML += dOpts;

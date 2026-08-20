@@ -444,6 +444,11 @@
             Auth.requireAuth('admin');
             renderSidebar('departments');
             await loadPage();
+
+            let _t = null;
+            const soft = () => { clearTimeout(_t); _t = setTimeout(() => loadPage(), 500); };
+            window.addEventListener('sf:leaderboard', soft);
+            window.addEventListener('sf:champion', soft);
         });
 
         async function loadPage() {

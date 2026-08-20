@@ -747,6 +747,10 @@
             const tRes = await api('/tournaments');
             allTournaments = tRes.data || [];
             await loadPage();
+
+            let _t = null;
+            const soft = () => { clearTimeout(_t); _t = setTimeout(() => loadPage(), 500); };
+            ['sf:champion', 'sf:leaderboard'].forEach(ev => window.addEventListener(ev, soft));
         });
 
         async function loadPage() {

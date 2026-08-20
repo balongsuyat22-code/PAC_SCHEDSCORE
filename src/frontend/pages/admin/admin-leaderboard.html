@@ -388,7 +388,17 @@
     <script src="../../js/admin-sidebar.js"></script>
     <script>
         let lbData = [], bySportData = [], champData = null;
-        document.addEventListener('DOMContentLoaded', async () => { Auth.requireAuth('admin'); renderSidebar('leaderboard'); await loadPage() });
+        document.addEventListener('DOMContentLoaded', async () => {
+            Auth.requireAuth('admin');
+            renderSidebar('leaderboard');
+            await loadPage();
+
+            let t = null;
+            const soft = () => { clearTimeout(t); t = setTimeout(() => loadPage(), 500); };
+            window.addEventListener('sf:leaderboard', soft);
+            window.addEventListener('sf:champion', soft);
+            window.addEventListener('sf:match', soft);
+        });
         async function loadPage() { const [lbRes, champRes, sportRes] = await Promise.all([api('/leaderboard'), api('/leaderboard/overall-champion'), api('/leaderboard/by-sport')]); lbData = lbRes.data || []; champData = champRes.data || null; bySportData = sportRes.data || []; renderChampion(); renderOverall(); renderMedals(); renderBySport(); renderProgress() }
         function switchTab(name, el) { ['overall', 'medals', 'bysport', 'progress'].forEach(t => document.getElementById(`tab-${t}`).style.display = t === name ? '' : 'none'); document.querySelectorAll('.lb-tab').forEach(b => b.classList.remove('active')); el.classList.add('active') }
         function renderChampion() { const el = document.getElementById('champion-section'); const leader = champData?.champion || champData?.current_leader; if (!leader) { el.innerHTML = ''; return } el.innerHTML = `<div class="champion-hero"><div class="ch-label">${champData.is_final ? 'SPORT FEST OVERALL CHAMPION' : 'CURRENT LEADER'}</div><div class="ch-name">${leader.name}</div><div class="ch-pts">${leader.total_points} POINTS</div><div style="font-size:16px;position:relative;margin-top:4px">Gold ${leader.gold_medals || 0} · Silver ${leader.silver_medals || 0} · Bronze ${leader.bronze_medals || 0}</div><div style="font-size:13px;color:var(--muted);margin-top:8px;position:relative">${champData.message || ''}</div></div>` }

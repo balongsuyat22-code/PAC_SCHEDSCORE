@@ -933,6 +933,18 @@
             renderSidebar('tournaments');
             if (typeof populateIcons === 'function') populateIcons();
             PAGE_ID ? initDetail() : initList();
+
+            let _t = null;
+            const soft = () => {
+                clearTimeout(_t);
+                _t = setTimeout(() => {
+                    if (PAGE_ID && typeof initDetail === 'function') initDetail();
+                    else if (typeof initList === 'function') initList();
+                }, 400);
+            };
+            ['sf:match', 'sf:bracket', 'sf:ffa', 'sf:live'].forEach(ev =>
+                window.addEventListener(ev, soft)
+            );
         });
 
         /* ── Scoring helpers (same rules as matches page) ── */

@@ -976,6 +976,10 @@
             } catch (e) {
                 console.error('[matches] init failed:', e);
             }
+
+            let _rt = null;
+            const soft = () => { clearTimeout(_rt); _rt = setTimeout(() => refresh(), 350); };
+            ['sf:live', 'sf:score', 'sf:match'].forEach(ev => window.addEventListener(ev, soft));
         });
 
         async function refresh() {

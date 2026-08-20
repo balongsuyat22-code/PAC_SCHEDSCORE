@@ -106,8 +106,17 @@ const update = async (req, res, next) => {
     try {
         const { name, location, capacity, description, is_active } = req.body;
         await pool.execute(
-            'UPDATE venues SET name=?, location=?, capacity=?, description=?, is_active=? WHERE id=?',
-            [name, location || 0, capacity || 0, description || null, is_active !== undefined ? is_active : 1, req.params.id]
+            `UPDATE venues
+             SET name = ?, location = ?, capacity = ?, description = ?, is_active = ?
+             WHERE id = ?`,
+            [
+                name,
+                location || null,                    // was: location || 0
+                capacity != null ? capacity : 0,
+                description || null,
+                is_active !== undefined ? is_active : 1,
+                req.params.id,
+            ]
         );
         await logActivity(req.user.id, 'VENUE_UPDATED', 'venue', req.params.id, `Venue updated: ${name}`);
         res.json({ success: true, message: 'Venue updated' });

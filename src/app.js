@@ -26,6 +26,7 @@ const leaderboardRoutes = require('./routes/leaderboard');
 const sportFestRoutes = require('./routes/sportFest');
 const reportRoutes = require('./routes/reports');
 const playerRoutes = require('./routes/player');
+const visitorRoutes = require('./routes/visitor'); // NEW
 
 // Import socket utilities
 const { initSocket } = require('./utils/socketEmit');
@@ -46,11 +47,9 @@ const io = socketIo(server, {
     pingInterval: 25000,
 });
 
-// Initialize socket handlers and get helpers
 const socketHelpers = require('./socket')(io);
 initSocket(socketHelpers);
 
-// Make io available to routes
 app.set('io', io);
 
 // ── Frontend directories ────────────────────────────────────────
@@ -61,7 +60,6 @@ const frontendVisitor = path.join(__dirname, 'frontend', 'pages', 'visitor');
 const frontendDean = path.join(__dirname, 'frontend', 'pages', 'dean');
 const frontendPresident = path.join(__dirname, 'frontend', 'pages', 'SGO_PRESIDENT');
 
-// ── Directory-scoped page sender ────────────────────────────────
 const sendPageFrom = (dir, filename) => (req, res) => {
     const p = path.join(dir, filename);
     if (fs.existsSync(p)) return res.sendFile(p);
@@ -81,10 +79,8 @@ app.use(cors({
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true }));
 
-// Static files
 app.use('/uploads', express.static('uploads'));
 
-// Logging (dev only)
 if (process.env.NODE_ENV === 'development') {
     app.use((req, _res, next) => {
         console.log(`[${new Date().toISOString()}] ${req.method} ${req.originalUrl}`);
@@ -95,7 +91,6 @@ if (process.env.NODE_ENV === 'development') {
 // ── HEALTH CHECK ──
 app.get('/health', (_req, res) => res.json({ status: 'ok', service: 'Sport Fest', version: '1.0.0' }));
 
-// ── WEBSOCKET STATUS ENDPOINT ──
 app.get('/socket-status', (req, res) => {
     res.json({
         success: true,
@@ -113,7 +108,6 @@ app.get('/socket-status', (req, res) => {
 // ── PUBLIC PAGES ──
 app.get('/player-registration', sendPageFrom(frontendRoot, 'player_registration.html'));
 
-// ── PUBLIC LIVE SCOREBOARD (visitor) ──
 app.get('/live', sendPageFrom(frontendVisitor, 'index.html'));
 app.get('/live/scores', sendPageFrom(frontendVisitor, 'index.html'));
 app.get('/live/standings', sendPageFrom(frontendVisitor, 'standings.html'));
@@ -136,6 +130,7 @@ app.use(`${API}/leaderboard`, leaderboardRoutes);
 app.use(`${API}/sport-fest`, sportFestRoutes);
 app.use(`${API}/reports`, reportRoutes);
 app.use(`${API}/players`, playerRoutes);
+app.use(`${API}/visitor`, visitorRoutes); // NEW
 
 app.get(`${API}`, (_req, res) => res.json({
     service: 'Sport Fest Management System API',
@@ -155,11 +150,12 @@ app.get(`${API}`, (_req, res) => res.json({
         sportFest: `${API}/sport-fest`,
         reports: `${API}/reports`,
         players: `${API}/players`,
+        visitor: `${API}/visitor`, // NEW
     },
 }));
 
 // ── ROOT AND LOGIN ──
-app.get('/', sendPageFrom(frontendVisitor, 'index.html')); // live board as home
+app.get('/', sendPageFrom(frontendVisitor, 'index.html'));
 app.get('/login', sendPageFrom(frontendRoot, '/pages/login.html'));
 
 // ── Admin pages ──────────────────────────────────────────────
@@ -177,9 +173,6 @@ app.get('/admin/schedule', sendPageFrom(frontendAdmin, 'admin-schedule.html'));
 app.get('/admin/departments', sendPageFrom(frontendAdmin, 'admin-departments.html'));
 app.get('/admin/sport-fest', sendPageFrom(frontendAdmin, 'admin-sport-fest.html'));
 app.get('/admin/reports', sendPageFrom(frontendAdmin, 'admin-reports.html'));
-// Admin reuses the same finalized-results print sheet as the president —
-// it's role-checked client-side for admin|sgo_president (see
-// tournament-export.html), so no separate admin copy is needed.
 app.get('/admin/tournament-export', sendPageFrom(frontendPresident, 'tournament-export.html'));
 
 // ── Dean Adviser pages ────────────────────────────────────────
@@ -208,24 +201,14 @@ app.get('/president/schedule', sendPageFrom(frontendPresident, 'schedule.html'))
 app.get('/president/schedule.html', sendPageFrom(frontendPresident, 'schedule.html'));
 app.get('/president/venues', sendPageFrom(frontendPresident, 'venues.html'));
 app.get('/president/venues.html', sendPageFrom(frontendPresident, 'venues.html'));
-
-// NEW — Departments & Users (limited: sgo_president may only register/edit
-// dean_adviser + sgo_officer accounts — enforced server-side in
-// userController.js's PRESIDENT_MANAGEABLE_ROLES/presidentRoleGuard, and
-// mirrored client-side in users.html so the UI never offers a role the
-// API would reject).
 app.get('/president/departments', sendPageFrom(frontendPresident, 'departments.html'));
 app.get('/president/departments.html', sendPageFrom(frontendPresident, 'departments.html'));
 app.get('/president/users', sendPageFrom(frontendPresident, 'users.html'));
 app.get('/president/users.html', sendPageFrom(frontendPresident, 'users.html'));
-
 app.get('/president/tournament-export', sendPageFrom(frontendPresident, 'tournament-export.html'));
 app.get('/president/tournament-export.html', sendPageFrom(frontendPresident, 'tournament-export.html'));
-
-
 app.get('/president/assignment', (req, res) => res.redirect(301, '/president/schedule'));
 app.get('/president/assignment.html', (req, res) => res.redirect(301, '/president/schedule'));
-
 app.get('/president/live', sendPageFrom(frontendPresident, 'live-scores.html'));
 app.get('/president/live-scores.html', sendPageFrom(frontendPresident, 'live-scores.html'));
 app.get('/president/reports', sendPageFrom(frontendPresident, 'reports.html'));

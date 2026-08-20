@@ -713,6 +713,12 @@
             Auth.requireAuth('admin');
             renderSidebar('dashboard');
             await loadDashboard();
+
+            let _t = null;
+            const soft = () => { clearTimeout(_t); _t = setTimeout(() => loadDashboard(), 400); };
+            ['sf:live', 'sf:match', 'sf:leaderboard', 'sf:champion'].forEach(ev =>
+                window.addEventListener(ev, soft)
+            );
         });
 
         async function loadDashboard() {

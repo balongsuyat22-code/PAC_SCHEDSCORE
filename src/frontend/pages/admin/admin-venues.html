@@ -287,12 +287,9 @@
             closeConfirm();
         }
 
-        // ── INIT ──────────────────────────────────────────────────────────────
         document.addEventListener('DOMContentLoaded', () => {
             Auth.requireAuth('admin');
-            if (typeof renderSidebar === 'function') {
-                renderSidebar('venues');
-            }
+            if (typeof renderSidebar === 'function') renderSidebar('venues');
             loadPage();
         });
 

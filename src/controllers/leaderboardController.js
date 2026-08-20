@@ -95,34 +95,38 @@ const getDepartmentRanking = async (req, res, next) => {
         const rows = await cache.wrap(`leaderboard:ranking:${sportFestId}`, LEADERBOARD_TTL, async () => {
             const [r] = await pool.execute(
                 `SELECT
-                d.id, d.name, d.code, d.color, d.logo_url, d.short_name,
-                COALESCE(ds.total_points,        0) AS total_points,
-                COALESCE(ds.gold_medals,         0) AS gold_medals,
-                COALESCE(ds.silver_medals,       0) AS silver_medals,
-                COALESCE(ds.bronze_medals,       0) AS bronze_medals,
-                COALESCE(ds.total_participations,0) AS total_participations,
-                COALESCE(ds.tournaments_entered, 0) AS tournaments_entered,
-                COUNT(DISTINCT CASE WHEN m.winner_department_id = d.id AND m.status = 'completed' THEN m.id END)  AS total_wins,
-                COUNT(DISTINCT CASE WHEN (m.participant_a_department_id = d.id OR m.participant_b_department_id = d.id)
-                                     AND m.status = 'completed'
-                                     AND m.winner_department_id != d.id THEN m.id END)                            AS total_losses,
-                COUNT(DISTINCT CASE WHEN (m.participant_a_department_id = d.id OR m.participant_b_department_id = d.id)
-                                     AND m.status = 'completed' THEN m.id END)                                    AS total_matches_played,
-                RANK() OVER (
-                    ORDER BY
-                        COALESCE(ds.total_points,  0) DESC,
-                        COALESCE(ds.gold_medals,   0) DESC,
-                        COALESCE(ds.silver_medals, 0) DESC,
-                        COALESCE(ds.bronze_medals, 0) DESC
-                ) AS \`rank\`
-             FROM departments d
-             LEFT JOIN department_scores ds ON d.id = ds.department_id AND ds.sport_fest_id <=> ?
-             LEFT JOIN matches m
-                   ON (m.participant_a_department_id = d.id OR m.participant_b_department_id = d.id)
-             WHERE d.is_active = 1
-             GROUP BY d.id
-             ORDER BY total_points DESC, gold_medals DESC`,
-                [sportFestId]
+            d.id, d.name, d.code, d.color, d.logo_url, d.short_name,
+            COALESCE(ds.total_points,        0) AS total_points,
+            COALESCE(ds.gold_medals,         0) AS gold_medals,
+            COALESCE(ds.silver_medals,       0) AS silver_medals,
+            COALESCE(ds.bronze_medals,       0) AS bronze_medals,
+            COALESCE(ds.total_participations,0) AS total_participations,
+            COALESCE(ds.tournaments_entered, 0) AS tournaments_entered,
+            COUNT(DISTINCT CASE WHEN m.winner_department_id = d.id AND m.status = 'completed' THEN m.id END) AS total_wins,
+            COUNT(DISTINCT CASE WHEN (m.participant_a_department_id = d.id OR m.participant_b_department_id = d.id)
+                                 AND m.status = 'completed'
+                                 AND m.winner_department_id != d.id THEN m.id END) AS total_losses,
+            COUNT(DISTINCT CASE WHEN (m.participant_a_department_id = d.id OR m.participant_b_department_id = d.id)
+                                 AND m.status = 'completed' THEN m.id END) AS total_matches_played,
+            RANK() OVER (
+                ORDER BY
+                    COALESCE(ds.total_points,  0) DESC,
+                    COALESCE(ds.gold_medals,   0) DESC,
+                    COALESCE(ds.silver_medals, 0) DESC,
+                    COALESCE(ds.bronze_medals, 0) DESC
+            ) AS \`rank\`
+         FROM departments d
+         LEFT JOIN department_scores ds ON d.id = ds.department_id AND ds.sport_fest_id <=> ?
+         LEFT JOIN matches m
+               ON (m.participant_a_department_id = d.id OR m.participant_b_department_id = d.id)
+              AND EXISTS (
+                  SELECT 1 FROM sport_fest_tournaments sft
+                  WHERE sft.tournament_id = m.tournament_id AND sft.sport_fest_id <=> ?
+              )
+         WHERE d.is_active = 1
+         GROUP BY d.id
+         ORDER BY total_points DESC, gold_medals DESC`,
+                [sportFestId, sportFestId]
             );
             return r;
         });
