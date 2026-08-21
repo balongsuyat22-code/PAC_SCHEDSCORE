@@ -633,13 +633,27 @@
                 background: var(--bg2);
                 border: 1px solid var(--border);
                 border-radius: 12px;
-                padding: 12px;
+                padding: 10px 12px;
+                flex-wrap: nowrap;
+                overflow-x: auto;
+                -webkit-overflow-scrolling: touch;
+                scrollbar-width: thin;
+            }
+
+            .filter-label {
+                flex-shrink: 0;
+            }
+
+            .filter-pill {
+                flex-shrink: 0;
+                padding: 6px 12px;
+                font-size: 11.5px;
             }
 
             .filter-bar #lst-search {
-                width: 100% !important;
+                flex-shrink: 0;
+                width: 150px !important;
                 margin-left: 0 !important;
-                order: 99;
             }
 
             .modal {

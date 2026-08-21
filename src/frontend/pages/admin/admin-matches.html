@@ -576,34 +576,53 @@
 
             .match-stats {
                 grid-template-columns: repeat(2, 1fr);
-                gap: 10px;
-            }
-
-            .match-stat {
-                padding: 12px 14px;
-            }
-
-            .match-stat-val {
-                font-size: 24px;
-            }
-
-            /* Filter row: the selects/date/search here carry fixed inline
-               widths (170px/160px/200px/155px) which force overflow on a
-               phone — stack them full-width instead. */
-            .filter-bar {
-                flex-direction: column;
-                align-items: stretch;
-                background: var(--bg2);
-                border: 1px solid var(--border);
-                border-radius: 12px;
-                padding: 12px;
                 gap: 8px;
             }
 
-            .filter-bar .filter-sel,
-            .filter-bar .search-wrap,
+            .match-stat {
+                padding: 10px 12px;
+            }
+
+            .match-stat-val {
+                font-size: 20px;
+            }
+
+            .match-stat-lbl {
+                font-size: 9.5px;
+            }
+
+            /* Filter row: the selects/date/search here carry fixed inline
+               widths (170px/160px/200px/155px) which forced overflow, and
+               stacking them one-per-row ate the whole screen. Scroll
+               horizontally in a single compact row instead. */
+            .filter-bar {
+                flex-wrap: nowrap;
+                overflow-x: auto;
+                -webkit-overflow-scrolling: touch;
+                background: var(--bg2);
+                border: 1px solid var(--border);
+                border-radius: 12px;
+                padding: 10px 12px;
+                gap: 8px;
+                scrollbar-width: thin;
+            }
+
+            .filter-bar .filter-sel {
+                flex-shrink: 0;
+                width: 130px !important;
+                font-size: 12.5px;
+                padding: 8px 10px;
+            }
+
+            .filter-bar .search-wrap {
+                flex-shrink: 0;
+                width: 170px !important;
+            }
+
             .filter-bar .btn {
-                width: 100% !important;
+                flex-shrink: 0;
+                width: auto !important;
+                white-space: nowrap;
             }
 
             .modal {
@@ -621,6 +640,51 @@
 
             .ffa-toolbar {
                 padding: 10px 12px;
+            }
+
+            /* Live match banner: the desktop layout is a single flex row
+               (pulse dot, sport icon, matchup info, 52px score, action
+               buttons) that's far too wide for a phone — the button
+               column was overflowing off-screen and getting hidden.
+               Stack info and actions into their own full-width rows. */
+            .live-banner {
+                flex-wrap: wrap;
+                padding: 12px 14px;
+                gap: 8px;
+            }
+
+            .live-banner>span:first-of-type {
+                font-size: 22px !important;
+            }
+
+            .live-score-big {
+                font-size: 26px;
+                padding: 0 8px;
+            }
+
+            .live-banner>div[style*="flex:1"] {
+                flex: 1 1 100%;
+                order: 3;
+                min-width: 0;
+            }
+
+            .live-banner>div:last-child {
+                flex: 1 1 100%;
+                order: 4;
+                flex-direction: row !important;
+                padding-left: 0 !important;
+                border-left: none !important;
+                border-top: 1px solid rgba(255, 255, 255, 0.1);
+                padding-top: 10px !important;
+                margin-top: 2px;
+            }
+
+            .live-banner>div:last-child .btn {
+                flex: 1;
+                justify-content: center;
+                font-size: 12px;
+                padding: 8px 10px;
+                white-space: nowrap;
             }
 
             .ffa-table th,

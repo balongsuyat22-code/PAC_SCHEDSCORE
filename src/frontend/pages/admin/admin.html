@@ -305,6 +305,48 @@
             .results-table tbody td:nth-child(4) {
                 display: none;
             }
+
+            /* Stat cards: the base rule uses auto-fit/minmax(160px,1fr),
+               but the icon+number+label content doesn't actually shrink
+               below ~160px, so on a narrow phone the grid collapses to a
+               single column and each card stretches full width. Force an
+               explicit compact 2-column grid instead. */
+            .stats-grid {
+                grid-template-columns: repeat(2, 1fr) !important;
+                gap: 10px;
+                margin-bottom: 20px;
+            }
+
+            .stat-card {
+                padding: 12px;
+                gap: 10px;
+            }
+
+            .stat-icon-box {
+                width: 36px;
+                height: 36px;
+                border-radius: 8px;
+                flex-shrink: 0;
+            }
+
+            .stat-icon-box .icon {
+                width: 18px;
+                height: 18px;
+            }
+
+            .stat-val {
+                font-size: 20px;
+            }
+
+            .stat-lbl {
+                font-size: 10px;
+            }
+
+            /* Quick action shortcuts just duplicate the sidebar nav on a
+               phone and eat a lot of vertical space — hide on mobile. */
+            .quick-actions {
+                display: none;
+            }
         }
 
         .lb-mini-row {
