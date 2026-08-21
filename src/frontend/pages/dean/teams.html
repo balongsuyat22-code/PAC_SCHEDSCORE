@@ -234,20 +234,20 @@
         </div>
         <div class="content">
             <div class="stat-strip" id="team-stats"></div>
-            <div style="display:flex;gap:10px;margin-bottom:16px;flex-wrap:wrap">
-                <select id="f-sport" class="form-select" style="width:200px" onchange="applyFilters()">
+            <div class="filter-bar">
+                <select id="f-sport" class="form-select filter-field" onchange="applyFilters()">
                     <option value="">All Sports</option>
                 </select>
-                <select id="f-gender" class="form-select" style="width:150px" onchange="applyFilters()">
+                <select id="f-gender" class="form-select filter-field" onchange="applyFilters()">
                     <option value="">All Genders</option>
                     <option value="Men">Men</option>
                     <option value="Women">Women</option>
                     <option value="Mixed">Mixed</option>
                 </select>
-                <input id="f-search" class="form-input" style="flex:1;min-width:180px" placeholder="Search teams..."
+                <input id="f-search" class="form-input filter-field-grow" placeholder="Search teams..."
                     oninput="applyFilters()">
             </div>
-            <div id="team-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:16px">
+            <div id="team-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:16px">
                 <div class="empty-state" style="grid-column:1/-1">
                     <div class="empty-text">Loading...</div>
                 </div>

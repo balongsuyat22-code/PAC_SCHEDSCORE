@@ -171,7 +171,44 @@
 
             .roster-report-row,
             .roster-report-header {
-                grid-template-columns: 1fr 60px 80px
+                grid-template-columns: 28px 1fr 90px 90px;
+            }
+
+            .roster-report-row>*:nth-child(3),
+            .roster-report-row>*:nth-child(5),
+            .roster-report-header>*:nth-child(3),
+            .roster-report-header>*:nth-child(5) {
+                display: none;
+            }
+        }
+
+        @media(max-width:480px) {
+
+            .roster-report-row,
+            .roster-report-header {
+                grid-template-columns: 22px 1fr 80px;
+                gap: 6px;
+                padding: 8px 12px;
+            }
+
+            .roster-report-row>*:nth-child(4),
+            .roster-report-header>*:nth-child(4) {
+                display: none;
+            }
+        }
+
+        @media (max-width: 560px) {
+            .perf-metric {
+                padding: 12px 14px;
+            }
+
+            .perf-metric-val {
+                font-size: 24px;
+            }
+
+            .result-sport-row {
+                padding: 10px 12px;
+                gap: 10px;
             }
         }
     </style>
@@ -239,19 +276,17 @@
             </div>
 
             <div id="tab-matches" style="display:none">
-                <div style="display:flex;gap:10px;margin-bottom:14px;flex-wrap:wrap">
-                    <select id="mh-sport" class="form-select" style="width:190px" onchange="filterMatchHistory()">
+                <div class="filter-bar">
+                    <select id="mh-sport" class="form-select filter-field" onchange="filterMatchHistory()">
                         <option value="">All Sports</option>
                     </select>
-                    <select id="mh-result" class="form-select" style="width:150px" onchange="filterMatchHistory()">
+                    <select id="mh-result" class="form-select filter-field" onchange="filterMatchHistory()">
                         <option value="">All Results</option>
                         <option value="win">Wins Only</option>
                         <option value="loss">Losses Only</option>
                     </select>
-                    <input type="date" id="mh-from" class="form-select" style="width:155px"
-                        onchange="filterMatchHistory()">
-                    <input type="date" id="mh-to" class="form-select" style="width:155px"
-                        onchange="filterMatchHistory()">
+                    <input type="date" id="mh-from" class="form-select filter-field" onchange="filterMatchHistory()">
+                    <input type="date" id="mh-to" class="form-select filter-field" onchange="filterMatchHistory()">
                 </div>
                 <div class="card">
                     <div id="match-history-body">
@@ -263,17 +298,17 @@
             </div>
 
             <div id="tab-players" style="display:none">
-                <div style="display:flex;gap:10px;margin-bottom:14px;flex-wrap:wrap">
-                    <select id="pr-sport" class="form-select" style="width:190px" onchange="filterPlayerRoster()">
+                <div class="filter-bar">
+                    <select id="pr-sport" class="form-select filter-field" onchange="filterPlayerRoster()">
                         <option value="">All Sports</option>
                     </select>
-                    <select id="pr-status" class="form-select" style="width:150px" onchange="filterPlayerRoster()">
+                    <select id="pr-status" class="form-select filter-field" onchange="filterPlayerRoster()">
                         <option value="">All Statuses</option>
                         <option value="approved">Approved</option>
                         <option value="pending">Pending</option>
                         <option value="rejected">Rejected</option>
                     </select>
-                    <input id="pr-search" class="form-input" style="flex:1;min-width:180px" placeholder="Search name..."
+                    <input id="pr-search" class="form-input filter-field-grow" placeholder="Search name..."
                         oninput="filterPlayerRoster()">
                 </div>
                 <div class="card">

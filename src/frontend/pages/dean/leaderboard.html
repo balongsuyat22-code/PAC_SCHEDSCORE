@@ -108,7 +108,9 @@
             background: var(--bg2);
             border: 1px solid var(--border);
             border-radius: 14px;
-            overflow: hidden;
+            overflow-x: auto;
+            overflow-y: hidden;
+            -webkit-overflow-scrolling: touch;
         }
 
         .lb-thead {
@@ -320,6 +322,66 @@
 
             .grid-3 {
                 grid-template-columns: 1fr;
+            }
+        }
+
+        @media (max-width: 560px) {
+            .champion-hero {
+                padding: 22px 18px;
+            }
+
+            .ch-name {
+                font-size: 30px;
+            }
+
+            .ch-pts {
+                font-size: 20px;
+            }
+
+            .my-dept-card {
+                flex-direction: column;
+                text-align: center;
+                padding: 18px;
+                gap: 14px;
+            }
+
+            .my-dept-card>div:last-child {
+                border-left: none !important;
+                padding-left: 0 !important;
+                border-top: 1px solid rgba(99, 102, 241, 0.2);
+                padding-top: 14px !important;
+                text-align: center !important;
+                width: 100%;
+            }
+
+            .my-rank-big {
+                font-size: 48px;
+            }
+
+            .lb-thead,
+            .lb-row {
+                grid-template-columns: 36px 1fr 70px;
+                gap: 8px;
+                padding: 12px 14px;
+            }
+
+            .lb-thead>*:nth-child(6),
+            .lb-row>*:nth-child(6) {
+                display: none;
+            }
+
+            .lb-dept-logo {
+                width: 32px;
+                height: 32px;
+                font-size: 11px;
+            }
+
+            .lb-pts {
+                font-size: 19px;
+            }
+
+            .lb-bar {
+                width: 80px;
             }
         }
     </style>

@@ -22,6 +22,7 @@ const DEAN_ICONS = {
     layers: `<svg viewBox="0 0 24 24"><path d="m12.83 2.18a2 2 0 0 0-1.66 0L2.6 6.08a1 1 0 0 0 0 1.83l8.58 3.91a2 2 0 0 0 1.66 0l8.58-3.9a1 1 0 0 0 0-1.83Z"/><path d="m22 12.5-8.58 3.91a2 2 0 0 1-1.66 0L2 12.5"/><path d="m22 17.5-8.58 3.91a2 2 0 0 1-1.66 0L2 17.5"/></svg>`,
     activity: `<svg viewBox="0 0 24 24"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>`,
     medal: `<svg viewBox="0 0 24 24"><path d="M7.21 15 2.66 7.14a2 2 0 0 1 .13-2.2L4.4 2.8A2 2 0 0 1 6 2h12a2 2 0 0 1 1.6.8l1.6 2.14a2 2 0 0 1 .14 2.2L16.79 15"/><path d="M11 12 5.12 2.2"/><path d="m13 12 5.88-9.8"/><path d="M8 7h8"/><circle cx="12" cy="17" r="5"/><path d="M12 18v-2h-.5"/></svg>`,
+    menu: `<svg viewBox="0 0 24 24"><line x1="4" y1="7" x2="20" y2="7"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="17" x2="20" y2="17"/></svg>`,
 };
 
 function deanIcon(name, cls = '') {
@@ -103,6 +104,7 @@ function renderSidebar(activePage) {
     else document.body.insertAdjacentHTML('afterbegin', sidebarHtml);
 
     document.getElementById('logout-btn')?.addEventListener('click', confirmDeanLogout);
+    initMobileNav();
 
     const hideBadge = (id) => {
         const el = document.getElementById(id);
@@ -141,4 +143,84 @@ function confirmDeanLogout() {
     overlay.querySelector('.logout-confirm-btn').addEventListener('click', () => Auth.logout());
     overlay.addEventListener('click', close);
     document.body.appendChild(overlay);
+}
+
+/* ============================================================
+   MOBILE NAV — hamburger toggle, backdrop, swipe-to-close
+   ============================================================ */
+function initMobileNav() {
+    const titleEl = document.querySelector('.topbar-title');
+    if (titleEl && !titleEl.querySelector('.burger-menu')) {
+        const btn = document.createElement('button');
+        btn.className = 'burger-menu';
+        btn.type = 'button';
+        btn.setAttribute('aria-label', 'Open navigation menu');
+        btn.setAttribute('aria-expanded', 'false');
+        btn.setAttribute('aria-controls', 'sidebar');
+        btn.innerHTML = deanIcon('menu');
+        titleEl.insertAdjacentElement('afterbegin', btn);
+        btn.addEventListener('click', toggleMobileSidebar);
+    }
+
+    if (!document.getElementById('dean-sidebar-overlay')) {
+        const overlay = document.createElement('div');
+        overlay.className = 'sidebar-open-overlay';
+        overlay.id = 'dean-sidebar-overlay';
+        overlay.addEventListener('click', closeMobileSidebar);
+        document.body.appendChild(overlay);
+    }
+
+    const sidebarEl = document.getElementById('sidebar');
+    if (sidebarEl) {
+        sidebarEl.querySelectorAll('.nav-item').forEach(a => a.addEventListener('click', closeMobileSidebar));
+
+        let touchStartX = null, touchStartY = null;
+        sidebarEl.addEventListener('touchstart', (e) => {
+            touchStartX = e.touches[0].clientX;
+            touchStartY = e.touches[0].clientY;
+        }, { passive: true });
+        sidebarEl.addEventListener('touchmove', (e) => {
+            if (touchStartX === null) return;
+            const dx = e.touches[0].clientX - touchStartX;
+            const dy = e.touches[0].clientY - touchStartY;
+            if (dx < -45 && Math.abs(dx) > Math.abs(dy)) closeMobileSidebar();
+        }, { passive: true });
+        sidebarEl.addEventListener('touchend', () => { touchStartX = null; touchStartY = null; });
+    }
+
+    if (!window.__deanMobileNavGlobalBound) {
+        window.__deanMobileNavGlobalBound = true;
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') closeMobileSidebar();
+        });
+        window.addEventListener('resize', () => {
+            if (window.innerWidth > 900) closeMobileSidebar();
+        });
+    }
+}
+
+function toggleMobileSidebar() {
+    const sidebarEl = document.getElementById('sidebar');
+    if (!sidebarEl) return;
+    sidebarEl.classList.contains('sidebar-open') ? closeMobileSidebar() : openMobileSidebar();
+}
+
+function openMobileSidebar() {
+    const sidebarEl = document.getElementById('sidebar');
+    const overlay = document.getElementById('dean-sidebar-overlay');
+    const btn = document.querySelector('.burger-menu');
+    sidebarEl?.classList.add('sidebar-open');
+    overlay?.classList.add('show');
+    btn?.setAttribute('aria-expanded', 'true');
+    document.body.style.overflow = 'hidden';
+}
+
+function closeMobileSidebar() {
+    const sidebarEl = document.getElementById('sidebar');
+    const overlay = document.getElementById('dean-sidebar-overlay');
+    const btn = document.querySelector('.burger-menu');
+    sidebarEl?.classList.remove('sidebar-open');
+    overlay?.classList.remove('show');
+    btn?.setAttribute('aria-expanded', 'false');
+    document.body.style.overflow = '';
 }

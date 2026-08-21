@@ -187,9 +187,29 @@
             display: flex;
             align-items: center;
             justify-content: space-between;
+            flex-wrap: wrap;
+            gap: 8px;
             padding: 10px 20px;
             background: var(--bg3);
             border-bottom: 1px solid var(--border);
+        }
+
+        @media (max-width: 480px) {
+            .notif-item {
+                padding: 12px 14px;
+                gap: 12px;
+            }
+
+            .notif-icon-wrap {
+                width: 36px;
+                height: 36px;
+                font-size: 10px;
+            }
+
+            .notif-detail-icon {
+                width: 44px;
+                height: 44px;
+            }
         }
 
         .bulk-bar-count {

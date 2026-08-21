@@ -82,17 +82,17 @@
                 <div class="tab-pill" onclick="switchTab('approved',this)">Approved</div>
                 <div class="tab-pill" onclick="switchTab('rejected',this)">Rejected</div>
             </div>
-            <div style="display:flex;gap:10px;margin-bottom:16px;flex-wrap:wrap">
-                <select id="f-sport" class="form-select" style="width:200px" onchange="applyFilters()">
+            <div class="filter-bar">
+                <select id="f-sport" class="form-select filter-field" onchange="applyFilters()">
                     <option value="">All Sports</option>
                 </select>
-                <select id="f-gender" class="form-select" style="width:140px" onchange="applyFilters()">
+                <select id="f-gender" class="form-select filter-field" onchange="applyFilters()">
                     <option value="">All Genders</option>
                     <option value="Male">Male</option>
                     <option value="Female">Female</option>
                 </select>
-                <input id="f-search" class="form-input" style="flex:1;min-width:200px"
-                    placeholder="Search name, jersey..." oninput="applyFilters()">
+                <input id="f-search" class="form-input filter-field-grow" placeholder="Search name, jersey..."
+                    oninput="applyFilters()">
             </div>
             <div id="player-grid" class="player-grid">
                 <div class="empty-state" style="grid-column:1/-1">

@@ -180,6 +180,56 @@
             color: var(--text);
         }
 
+        @media (max-width: 560px) {
+            .live-match-card {
+                padding: 18px 16px;
+            }
+
+            .live-match-grid {
+                grid-template-columns: 1fr 1fr;
+                grid-template-areas:
+                    "teamA teamB"
+                    "score score";
+                gap: 12px;
+            }
+
+            .live-match-grid>.live-team-side:nth-child(1) {
+                grid-area: teamA;
+            }
+
+            .live-match-grid>.live-team-side:nth-child(3) {
+                grid-area: teamB;
+            }
+
+            .live-match-grid>.live-score-center {
+                grid-area: score;
+            }
+
+            .live-team-logo {
+                width: 46px;
+                height: 46px;
+                font-size: 16px;
+            }
+
+            .live-team-name {
+                font-size: 15px;
+            }
+
+            .live-score-nums {
+                font-size: 44px;
+                justify-content: center;
+            }
+
+            .live-score-dash {
+                font-size: 20px;
+            }
+
+            .live-hero {
+                padding: 12px 16px;
+                flex-wrap: wrap;
+            }
+        }
+
         .section-label {
             font-family: 'Barlow Condensed', sans-serif;
             font-size: 14px;
@@ -221,8 +271,8 @@
                 <div class="filter-pill" onclick="setFilter('ours',this)">Our Matches</div>
             </div>
 
-            <div style="display:flex;gap:10px;margin-bottom:16px;flex-wrap:wrap">
-                <select id="f-sport" class="form-select" style="width:200px" onchange="applyFilters()">
+            <div class="filter-bar">
+                <select id="f-sport" class="form-select filter-field" onchange="applyFilters()">
                     <option value="">All Sports</option>
                 </select>
             </div>

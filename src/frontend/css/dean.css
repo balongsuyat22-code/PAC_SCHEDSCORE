@@ -826,3 +826,205 @@
 .logout-confirm-btn:active {
     transform: scale(0.97);
 }
+
+/* ============================================================
+   MOBILE NAV — burger button + backdrop (drives shared.css's
+   .burger-menu / .sidebar-open / .sidebar-open-overlay hooks)
+   ============================================================ */
+.burger-menu {
+    color: var(--text2);
+    border-radius: 8px;
+    width: 36px;
+    height: 36px;
+    margin-right: 10px;
+}
+.burger-menu:hover,
+.burger-menu:focus-visible { color: #818CF8; background: rgba(99, 102, 241, 0.12); }
+.burger-menu:active { transform: scale(0.94); }
+
+/* Fade the backdrop in/out instead of an abrupt display swap */
+.sidebar-open-overlay {
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.25s ease;
+}
+.sidebar-open-overlay.show {
+    opacity: 1;
+    pointer-events: auto;
+}
+
+@media (max-width: 900px) {
+    .sidebar.sidebar-open {
+        box-shadow: 16px 0 40px rgba(0, 0, 0, 0.45);
+    }
+    .sidebar-footer {
+        padding-bottom: calc(16px + env(safe-area-inset-bottom));
+    }
+    .sidebar {
+        padding-top: env(safe-area-inset-top);
+    }
+}
+
+/* ============================================================
+   ACCESSIBLE FOCUS — visible keyboard focus ring app-wide
+   ============================================================ */
+a:focus-visible,
+button:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible,
+.nav-item:focus-visible,
+[tabindex]:focus-visible {
+    outline: 2px solid #818CF8;
+    outline-offset: 2px;
+    border-radius: 6px;
+}
+
+/* ============================================================
+   FILTER BAR — reusable responsive filter/search row
+   Replaces one-off inline widths that don't shrink well on phones
+   ============================================================ */
+.filter-bar {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+    align-items: center;
+    margin-bottom: 16px;
+}
+.filter-field {
+    flex: 1 1 160px;
+    min-width: 140px;
+    max-width: 220px;
+}
+.filter-field-grow {
+    flex: 2 1 200px;
+    min-width: 180px;
+    max-width: none;
+}
+.filter-field-auto {
+    flex: 0 0 auto;
+}
+@media (max-width: 560px) {
+    .filter-bar { gap: 8px; }
+    .filter-field,
+    .filter-field-grow,
+    .filter-field-auto {
+        flex: 1 1 100%;
+        max-width: none;
+        min-width: 0;
+    }
+    .filter-bar > button { width: 100%; justify-content: center; }
+}
+
+/* ============================================================
+   VS / COMPACT MATCH CARD — used on Live Scores (completed &
+   upcoming lists). Defined here since it's dean-portal specific.
+   ============================================================ */
+.vs-card {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 12px 16px;
+    transition: border-color 0.15s;
+}
+.vs-card:hover { border-color: var(--border-gold); }
+.vs-card.is-our-match { border-left: 3px solid #818CF8; }
+.vs-dept-side {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    min-width: 0;
+}
+.vs-dept-logo {
+    width: 36px;
+    height: 36px;
+    border-radius: 9px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: 13px;
+    font-weight: 900;
+    color: #fff;
+    flex-shrink: 0;
+}
+.vs-dept-name {
+    font-size: 13px;
+    font-weight: 600;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.vs-score-center {
+    flex-shrink: 0;
+    text-align: center;
+    min-width: 96px;
+}
+.vs-score-big {
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: 24px;
+    font-weight: 900;
+    color: var(--gold);
+    line-height: 1;
+}
+.vs-label {
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--muted);
+    letter-spacing: 1px;
+}
+@media (max-width: 480px) {
+    .vs-card { padding: 10px 12px; gap: 8px; }
+    .vs-dept-name { font-size: 12px; }
+    .vs-dept-logo { width: 30px; height: 30px; font-size: 11px; }
+    .vs-score-center { min-width: 72px; }
+    .vs-score-big { font-size: 19px; }
+}
+
+/* ============================================================
+   PHONE-TIGHT SIZING — extra compression under 480px, layered
+   on top of shared.css's own 480px tier
+   ============================================================ */
+@media (max-width: 480px) {
+    .dept-hero { padding: 20px; gap: 16px; }
+    .dept-hero-logo { width: 64px; height: 64px; font-size: 24px; }
+    .dept-hero-name { font-size: 26px; }
+    .dept-hero-pts-num { font-size: 38px; }
+    .stat-strip { grid-template-columns: 1fr 1fr; gap: 8px; }
+    .stat-strip-card { padding: 12px; gap: 10px; }
+    .stat-strip-val { font-size: 22px; }
+    .stat-strip-icon { width: 32px; height: 32px; }
+    .player-avatar-lg { width: 46px; height: 46px; font-size: 18px; }
+    .player-card-body { padding: 12px; gap: 10px; }
+    .lb-pts { font-size: 19px; }
+    .sched-time-col { font-size: 16px; }
+
+    .sched-match-row { padding: 12px 14px; gap: 10px; }
+    .roster-row { padding: 10px 12px; }
+}
+
+/* Buttons/inputs get a slightly taller touch target on touch-sized screens */
+@media (max-width: 560px) {
+    .btn { min-height: 40px; }
+    .form-input, .form-select, .form-textarea { min-height: 44px; }
+    .topbar-actions .btn span:not(.icon) { display: inline; }
+}
+
+/* Pill-style tab bars (lb-tab, report-tab, tab-pill, view-btn, filter-pill,
+   notif-filter-pill) — tighten so 3-4 tabs never wrap awkwardly on phones */
+@media (max-width: 420px) {
+    .lb-tabs, .report-tabs, .tab-bar {
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+    }
+    .lb-tab, .report-tab, .tab-pill {
+        flex: 1 1 auto;
+        white-space: nowrap;
+        font-size: 12px;
+        padding: 7px 8px;
+    }
+}

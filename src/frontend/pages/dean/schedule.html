@@ -237,6 +237,100 @@
             font-size: 12px;
             color: var(--muted);
         }
+
+        .sched-controls-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+            gap: 12px;
+        }
+
+        .sched-controls-left {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            align-items: center;
+        }
+
+        @media (max-width: 560px) {
+            .sched-controls-row {
+                flex-direction: column;
+                align-items: stretch;
+            }
+
+            .sched-controls-left {
+                flex-direction: column;
+                align-items: stretch;
+            }
+
+            .sched-controls-left .form-select {
+                width: 100% !important;
+            }
+
+            .view-toggle {
+                align-self: stretch;
+            }
+
+            .view-toggle .view-btn {
+                flex: 1;
+                text-align: center;
+            }
+
+            .sched-item {
+                flex-wrap: wrap;
+            }
+
+            .sched-time {
+                min-width: 44px;
+                font-size: 17px;
+            }
+
+            /* Calendar shrinks to a compact dot-indicator grid rather than
+               trying to fit event labels in ~45px-wide day cells */
+            .cal-cell {
+                min-height: 56px;
+                padding: 5px;
+            }
+
+            .cal-date-num {
+                font-size: 12px;
+                margin-bottom: 2px;
+            }
+
+            .cal-cell.today .cal-date-num {
+                width: 18px;
+                height: 18px;
+                font-size: 10px;
+            }
+
+            .cal-day-header {
+                padding: 6px 2px;
+                font-size: 9px;
+                letter-spacing: 0.4px;
+            }
+
+            .cal-event {
+                font-size: 0;
+                height: 5px;
+                width: 5px;
+                min-width: 5px;
+                padding: 0;
+                border-radius: 50%;
+                display: inline-block;
+                margin: 0 1px 1px 0;
+                white-space: normal;
+            }
+
+            .cal-nav {
+                gap: 8px;
+            }
+
+            .cal-month {
+                font-size: 17px;
+            }
+        }
     </style>
 </head>
 
@@ -268,9 +362,8 @@
         </div>
         <div class="content">
 
-            <div
-                style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;flex-wrap:wrap;gap:12px">
-                <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center">
+            <div class="sched-controls-row">
+                <div class="sched-controls-left">
                     <select id="f-sport" class="form-select" style="width:190px" onchange="applyFilters()">
                         <option value="">All Sports</option>
                     </select>
