@@ -249,14 +249,36 @@
 
         /* Responsive */
         @media (max-width: 768px) {
+
+            /* Filter row: was stacking each select/input full-width one
+               per row (6 rows tall). Scroll horizontally in one compact
+               row instead, matching the other admin pages. */
             .filter-row {
-                flex-direction: column;
+                flex-wrap: nowrap;
+                overflow-x: auto;
+                -webkit-overflow-scrolling: touch;
+                background: var(--bg2);
+                border: 1px solid var(--border);
+                border-radius: 12px;
+                padding: 10px 12px;
+                gap: 8px;
+                scrollbar-width: thin;
             }
 
             .filter-row select,
             .filter-row input {
-                width: 100% !important;
+                flex-shrink: 0;
+                width: 140px !important;
                 min-width: unset !important;
+            }
+
+            .filter-row input#f-search {
+                width: 190px !important;
+            }
+
+            .filter-row .btn {
+                flex-shrink: 0;
+                white-space: nowrap;
             }
 
             #user-stats {
@@ -290,9 +312,18 @@
                 padding: 16px;
             }
 
-            /* Table mobile styling (card wrap, fade edges, zebra rows,
-               cell density) now lives in shared.css so every page's
-               tables look consistent — no local override needed here. */
+            .table-wrap {
+                overflow-x: auto;
+            }
+
+            table {
+                font-size: 13px;
+            }
+
+            th,
+            td {
+                padding: 8px 10px;
+            }
 
             .modal {
                 width: 98vw;

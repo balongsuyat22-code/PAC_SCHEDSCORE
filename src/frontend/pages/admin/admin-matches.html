@@ -147,6 +147,10 @@
             margin-top: 2px;
         }
 
+        .mhc-side-score {
+            display: none;
+        }
+
         .mhc-center {
             text-align: center;
             min-width: 80px;
@@ -640,6 +644,90 @@
 
             .ffa-toolbar {
                 padding: 10px 12px;
+            }
+
+            /* Match header card (used in the Schedule/Score/Complete
+               modals) — was a single flex row with two centered team
+               columns that couldn't shrink below their content, causing
+               names to overlap the center score on a phone. Restructure
+               into a compact scoreboard: each team's own score sits
+               right next to that team's name, so it's unambiguous which
+               score belongs to which team, and long names truncate with
+               an ellipsis instead of overlapping anything. */
+            .match-header-card {
+                flex-direction: column;
+                align-items: stretch;
+                gap: 10px;
+                padding: 14px 16px;
+            }
+
+            .mhc-side {
+                display: flex;
+                align-items: center;
+                gap: 10px;
+                text-align: left;
+                flex: none;
+            }
+
+            .mhc-logo {
+                margin: 0;
+                width: 38px;
+                height: 38px;
+                font-size: 14px;
+                flex-shrink: 0;
+            }
+
+            .mhc-side-info {
+                flex: 1;
+                min-width: 0;
+            }
+
+            .mhc-name {
+                font-size: 13.5px;
+                overflow: hidden;
+                text-overflow: ellipsis;
+                white-space: nowrap;
+            }
+
+            .mhc-dept {
+                font-size: 10.5px;
+                overflow: hidden;
+                text-overflow: ellipsis;
+                white-space: nowrap;
+            }
+
+            .mhc-side-score {
+                display: block;
+                flex-shrink: 0;
+                font-family: 'Barlow Condensed', sans-serif;
+                font-size: 22px;
+                font-weight: 900;
+                color: var(--gold);
+                min-width: 26px;
+                text-align: right;
+            }
+
+            .mhc-side-score:empty {
+                display: none;
+            }
+
+            .mhc-center {
+                order: 2;
+                padding: 8px 0;
+                border-top: 1px dashed var(--border);
+                border-bottom: 1px dashed var(--border);
+            }
+
+            /* The center number is now redundant with the per-side
+               scores above/below it — de-emphasize it into a small
+               status line instead of a large duplicate number. */
+            .mhc-score {
+                font-size: 13px;
+                color: var(--muted);
+            }
+
+            .mhc-vs {
+                font-size: 13px;
             }
 
             /* Live match banner: the desktop layout is a single flex row
@@ -1481,7 +1569,6 @@
                                 ${isLive ? `<button class="btn btn-primary btn-sm" onclick="openScore(${m.id})"><span class="icon" data-icon="dashboard"></span> ${isBinary ? 'Result' : 'Score'}</button>` : ''}
                                 ${isLive ? `<button class="btn btn-sm" style="background:var(--green);color:#000;font-weight:800" onclick="openComplete(${m.id})"><span class="icon" data-icon="flagIcon"></span> Finish</button>` : ''}
                                 ${isDone ? `<button class="btn btn-secondary btn-sm" onclick="openScore(${m.id})"><span class="icon" data-icon="eye"></span> View Details</button>` : ''}
-                                ${!isLive && !isDone ? `<button class="btn btn-secondary btn-sm" onclick="openSchedule(${m.id})" title="Edit Schedule"><span class="icon" data-icon="edit"></span></button>` : ''}
                             `}
                         </div>
                     </td>
@@ -1905,12 +1992,25 @@
                     ? `<div class="mhc-score">${scoreStr}</div>`
                     : `<div class="mhc-vs">VS</div>`);
 
+            // Per-side score used only on mobile, where each team's own
+            // score sits right next to that team's name instead of a
+            // shared center number — avoids "which score is whose?"
+            // confusion once the card stacks vertically. Left blank
+            // (and hidden via :empty) for matches with no score yet.
+            const rawA = type === 'sets' ? m.sets_won_a : m.total_score_a;
+            const rawB = type === 'sets' ? m.sets_won_b : m.total_score_b;
+            const sideScoreA = type !== 'binary' && rawA != null ? toWhole(rawA) : '';
+            const sideScoreB = type !== 'binary' && rawB != null ? toWhole(rawB) : '';
+
             return `
         <div class="match-header-card">
             <div class="mhc-side">
                 <div class="mhc-logo" style="background:${cA}">${iA}</div>
-                <div class="mhc-name">${nA}</div>
-                <div class="mhc-dept">${m.dept_a_name || 'Grade/Strand A'}</div>
+                <div class="mhc-side-info">
+                    <div class="mhc-name">${nA}</div>
+                    <div class="mhc-dept">${m.dept_a_name || 'Grade/Strand A'}</div>
+                </div>
+                <div class="mhc-side-score">${sideScoreA}</div>
             </div>
             <div class="mhc-center">
                 ${centerHTML}
@@ -1919,8 +2019,11 @@
             </div>
             <div class="mhc-side">
                 <div class="mhc-logo" style="background:${cB}">${iB}</div>
-                <div class="mhc-name">${nB}</div>
-                <div class="mhc-dept">${m.dept_b_name || 'Grade/Strand B'}</div>
+                <div class="mhc-side-info">
+                    <div class="mhc-name">${nB}</div>
+                    <div class="mhc-dept">${m.dept_b_name || 'Grade/Strand B'}</div>
+                </div>
+                <div class="mhc-side-score">${sideScoreB}</div>
             </div>
         </div>`;
         }

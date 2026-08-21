@@ -144,6 +144,14 @@
             text-align: center
         }
 
+        .lb-dept-name {
+            font-size: 14px;
+            font-weight: 600;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
         .lb-dept-cell {
             display: flex;
             align-items: center;
@@ -258,8 +266,11 @@
 
             .lb-thead,
             .lb-row {
-                grid-template-columns: 44px 1fr 60px 90px;
-                min-width: 0
+                grid-template-columns: 40px 1fr 60px 80px;
+                min-width: 0;
+                padding-left: 14px;
+                padding-right: 14px;
+                gap: 6px;
             }
 
             .lb-thead>*:nth-child(3),
@@ -285,12 +296,68 @@
         }
 
         @media(max-width:600px) {
+
+            /* Tabs: was a full vertical stack (4 rows tall) — scroll
+               horizontally in one compact row instead. */
             .lb-tabs {
-                flex-direction: column
+                flex-wrap: nowrap;
+                overflow-x: auto;
+                -webkit-overflow-scrolling: touch;
+                scrollbar-width: thin;
             }
 
             .lb-tab {
-                min-width: 0
+                flex: 0 0 auto;
+                min-width: 0;
+                white-space: nowrap;
+                padding: 8px 14px;
+            }
+
+            /* Department color box: at this width it's squeezed next to
+               the name and looks cramped/uneven — drop it and put the
+               department's color on the rank number instead as a small
+               underline, so the color cue survives without eating space. */
+            .lb-dept-logo {
+                display: none;
+            }
+
+            .lb-dept-cell {
+                gap: 0;
+            }
+
+            .lb-rank-num {
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+                gap: 3px;
+                font-size: 18px;
+            }
+
+            .lb-rank-num::after {
+                content: '';
+                display: block;
+                width: 16px;
+                height: 4px;
+                border-radius: 2px;
+                background: var(--dept-color, #555);
+            }
+
+            .lb-thead,
+            .lb-row {
+                grid-template-columns: 34px 1fr 60px 74px;
+                padding: 12px 12px;
+            }
+
+            .lb-dept-name {
+                font-size: 13px;
+            }
+
+            .lb-num {
+                font-size: 17px;
+            }
+
+            .lb-pts {
+                font-size: 19px;
             }
         }
     </style>
@@ -402,7 +469,7 @@
         async function loadPage() { const [lbRes, champRes, sportRes] = await Promise.all([api('/leaderboard'), api('/leaderboard/overall-champion'), api('/leaderboard/by-sport')]); lbData = lbRes.data || []; champData = champRes.data || null; bySportData = sportRes.data || []; renderChampion(); renderOverall(); renderMedals(); renderBySport(); renderProgress() }
         function switchTab(name, el) { ['overall', 'medals', 'bysport', 'progress'].forEach(t => document.getElementById(`tab-${t}`).style.display = t === name ? '' : 'none'); document.querySelectorAll('.lb-tab').forEach(b => b.classList.remove('active')); el.classList.add('active') }
         function renderChampion() { const el = document.getElementById('champion-section'); const leader = champData?.champion || champData?.current_leader; if (!leader) { el.innerHTML = ''; return } el.innerHTML = `<div class="champion-hero"><div class="ch-label">${champData.is_final ? 'SPORT FEST OVERALL CHAMPION' : 'CURRENT LEADER'}</div><div class="ch-name">${leader.name}</div><div class="ch-pts">${leader.total_points} POINTS</div><div style="font-size:16px;position:relative;margin-top:4px">Gold ${leader.gold_medals || 0} · Silver ${leader.silver_medals || 0} · Bronze ${leader.bronze_medals || 0}</div><div style="font-size:13px;color:var(--muted);margin-top:8px;position:relative">${champData.message || ''}</div></div>` }
-        function renderOverall() { const el = document.getElementById('lb-overall-body'); const max = lbData[0]?.total_points || 1; if (!lbData.length) { el.innerHTML = `<div class="empty-state" style="padding:40px"><div class="empty-text">No standings yet</div></div>`; return } el.innerHTML = lbData.map((d, i) => { const rank = i + 1, bar = Math.min((d.total_points / max) * 100, 100); const rkColor = rank === 1 ? '#FFD700' : rank === 2 ? '#C0C0C0' : rank === 3 ? '#CD7F32' : 'var(--muted)'; const init = (d.name || '?').split(' ').map(w => w[0]).slice(0, 2).join('').toUpperCase(); const logoHtml = d.logo_url ? `<img src="${d.logo_url}" alt="" onerror="this.style.display='none'">` : init; return `<div class="lb-row ${rank <= 3 ? `rank-${rank}` : ''}"><div class="lb-rank-num" style="color:${rkColor}">${rank}</div><div class="lb-dept-cell"><div class="lb-dept-logo" style="background:${d.color || '#555'}">${logoHtml}</div><div style="min-width:0"><div style="font-size:14px;font-weight:600">${d.name}</div><div class="lb-bar"><div class="lb-bar-fill" style="width:${bar}%;background:${d.color || 'var(--gold)'}"></div></div></div></div><div class="lb-num" style="color:#FFD700">${d.gold_medals || 0}</div><div class="lb-num" style="color:#C0C0C0">${d.silver_medals || 0}</div><div class="lb-num" style="color:#CD7F32">${d.bronze_medals || 0}</div><div class="lb-num" style="color:var(--muted)">${d.total_participations || 0}</div><div class="lb-pts">${d.total_points || 0}</div></div>` }).join('') }
+        function renderOverall() { const el = document.getElementById('lb-overall-body'); const max = lbData[0]?.total_points || 1; if (!lbData.length) { el.innerHTML = `<div class="empty-state" style="padding:40px"><div class="empty-text">No standings yet</div></div>`; return } el.innerHTML = lbData.map((d, i) => { const rank = i + 1, bar = Math.min((d.total_points / max) * 100, 100); const rkColor = rank === 1 ? '#FFD700' : rank === 2 ? '#C0C0C0' : rank === 3 ? '#CD7F32' : 'var(--muted)'; const init = (d.name || '?').split(' ').map(w => w[0]).slice(0, 2).join('').toUpperCase(); const logoHtml = d.logo_url ? `<img src="${d.logo_url}" alt="" onerror="this.style.display='none'">` : init; return `<div class="lb-row ${rank <= 3 ? `rank-${rank}` : ''}" style="--dept-color:${d.color || '#555'}"><div class="lb-rank-num" style="color:${rkColor}">${rank}</div><div class="lb-dept-cell"><div class="lb-dept-logo" style="background:${d.color || '#555'}">${logoHtml}</div><div style="min-width:0"><div class="lb-dept-name">${d.name}</div><div class="lb-bar"><div class="lb-bar-fill" style="width:${bar}%;background:${d.color || 'var(--gold)'}"></div></div></div></div><div class="lb-num" style="color:#FFD700">${d.gold_medals || 0}</div><div class="lb-num" style="color:#C0C0C0">${d.silver_medals || 0}</div><div class="lb-num" style="color:#CD7F32">${d.bronze_medals || 0}</div><div class="lb-num" style="color:var(--muted)">${d.total_participations || 0}</div><div class="lb-pts">${d.total_points || 0}</div></div>` }).join('') }
         function renderMedals() { const sorted = [...lbData].sort((a, b) => (b.gold_medals - a.gold_medals) || (b.silver_medals - a.silver_medals) || (b.bronze_medals - a.bronze_medals)); document.getElementById('lb-medals-body').innerHTML = sorted.map((d, i) => { const init = (d.name || '?').split(' ').map(w => w[0]).slice(0, 2).join('').toUpperCase(); return `<tr style="border-bottom:1px solid rgba(255,255,255,.04)"><td style="padding:10px 20px;font-family:'Barlow Condensed',sans-serif;font-size:18px;font-weight:900;color:var(--muted)">${i + 1}</td><td style="padding:10px 20px"><div style="display:flex;align-items:center;gap:10px"><div style="width:32px;height:32px;border-radius:8px;background:${d.color || '#555'};display:flex;align-items:center;justify-content:center;font-family:'Barlow Condensed',sans-serif;font-size:12px;font-weight:900;color:#fff">${init}</div><span style="font-weight:600">${d.name}</span></div></td><td style="text-align:center;font-family:'Barlow Condensed',sans-serif;font-size:20px;font-weight:800;color:#FFD700;padding:10px">${d.gold_medals || 0}</td><td style="text-align:center;font-family:'Barlow Condensed',sans-serif;font-size:20px;font-weight:800;color:#C0C0C0;padding:10px">${d.silver_medals || 0}</td><td style="text-align:center;font-family:'Barlow Condensed',sans-serif;font-size:20px;font-weight:800;color:#CD7F32;padding:10px">${d.bronze_medals || 0}</td><td style="text-align:center;font-family:'Barlow Condensed',sans-serif;font-size:20px;font-weight:800;padding:10px">${(d.gold_medals || 0) + (d.silver_medals || 0) + (d.bronze_medals || 0)}</td></tr>` }).join('') }
         function renderBySport() { const el = document.getElementById('lb-bysport-body'); if (!bySportData.length) { el.innerHTML = `<div class="empty-state" style="padding:40px"><div class="empty-text">No sport results yet</div></div>`; return } const grouped = {}; bySportData.forEach(r => { (grouped[r.sport_name] = grouped[r.sport_name] || []).push(r) }); el.innerHTML = Object.entries(grouped).map(([sport, rows]) => `<div class="sport-section-hdr">${sport}</div>${rows.sort((a, b) => (b.sport_points || 0) - (a.sport_points || 0)).map((r, i) => `<div class="sport-lb-row"><div style="font-family:'Barlow Condensed',sans-serif;font-size:18px;font-weight:900;width:28px;text-align:center;color:${i === 0 ? '#FFD700' : i === 1 ? '#C0C0C0' : i === 2 ? '#CD7F32' : 'var(--muted)'}">${i + 1}</div><div style="flex:1;font-size:13px;font-weight:600">${r.department_name}</div><div class="sport-lb-pts">+${r.sport_points || 0}</div></div>`).join('')}`).join('') }
         function renderProgress() { const el = document.getElementById('lb-progress-body'); const s = champData?.tournament_stats; if (!s) { el.innerHTML = `<div class="empty-state" style="padding:40px"><div class="empty-text">No data</div></div>`; return } const pct = s.total_tournaments ? Math.round((s.completed_tournaments / s.total_tournaments) * 100) : 0; el.innerHTML = `<div class="card" style="margin-bottom:16px"><div class="card-header"><div class="card-title">Event Completion</div></div><div class="card-body"><div style="display:flex;justify-content:space-between;font-size:13px;color:var(--muted);margin-bottom:6px"><span>Completed</span><span style="color:var(--gold);font-weight:700">${s.completed_tournaments}/${s.total_tournaments}</span></div><div class="prog-bar"><div class="prog-fill" style="width:${pct}%"></div></div></div></div><div class="prog-grid">${[[s.completed_tournaments, 'Completed', 'var(--green)'], [s.ongoing_tournaments, 'Live Now', 'var(--red)'], [s.upcoming_tournaments, 'Upcoming', 'var(--muted)']].map(([v, l, c]) => `<div style="background:var(--bg2);border:1px solid var(--border);border-radius:12px;padding:20px;text-align:center"><div style="font-family:'Barlow Condensed',sans-serif;font-size:36px;font-weight:900;color:${c}">${v}</div><div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin-top:4px">${l}</div></div>`).join('')}</div>` }
