@@ -167,7 +167,7 @@
             color: var(--gold)
         }
 
-        @media(max-width:768px) {
+        @media (max-width: 768px) {
 
             .roster-report-row,
             .roster-report-header {
@@ -180,24 +180,35 @@
             .roster-report-header>*:nth-child(5) {
                 display: none;
             }
-        }
 
-        @media(max-width:480px) {
-
-            .roster-report-row,
-            .roster-report-header {
-                grid-template-columns: 22px 1fr 80px;
-                gap: 6px;
-                padding: 8px 12px;
+            .hist-row {
+                flex-wrap: wrap;
+                gap: 8px 10px;
+                padding: 12px 14px;
             }
 
-            .roster-report-row>*:nth-child(4),
-            .roster-report-header>*:nth-child(4) {
-                display: none;
+            .hist-row>div:first-child {
+                flex: 1 1 100%;
+            }
+
+            .hist-score {
+                font-size: 16px;
             }
         }
 
         @media (max-width: 560px) {
+            .report-tabs {
+                overflow-x: auto;
+                -webkit-overflow-scrolling: touch;
+                flex-wrap: nowrap;
+            }
+
+            .report-tab {
+                flex: 0 0 auto;
+                padding: 8px 12px;
+                font-size: 12px;
+            }
+
             .perf-metric {
                 padding: 12px 14px;
             }
@@ -209,6 +220,43 @@
             .result-sport-row {
                 padding: 10px 12px;
                 gap: 10px;
+                flex-wrap: wrap;
+            }
+
+            .result-sport-row>div:nth-child(2) {
+                flex: 1 1 calc(100% - 60px);
+                min-width: 0;
+            }
+
+            .result-pts {
+                font-size: 18px;
+            }
+
+            .wl-bar-count {
+                font-size: 16px;
+            }
+        }
+
+        @media (max-width: 480px) {
+
+            .roster-report-row,
+            .roster-report-header {
+                grid-template-columns: 22px 1fr 72px;
+                gap: 6px;
+                padding: 8px 12px;
+            }
+
+            .roster-report-row>*:nth-child(4),
+            .roster-report-header>*:nth-child(4) {
+                display: none;
+            }
+
+            .hist-row {
+                padding: 10px 12px;
+            }
+
+            .hist-score {
+                font-size: 15px;
             }
         }
     </style>
@@ -450,7 +498,7 @@
             return `<div class="hist-row">
 <div style="flex:1"><div style="font-size:13px;font-weight:600">${teams}</div>
 <div style="font-size:11px;color:var(--muted);margin-top:2px">${m.sport_name || ''} · ${m.tournament_name || ''} · ${formatDate(m.completed_at)}</div></div>
-<div class="hist-score">${m.final_score_display || '—'}</div>
+<div class="hist-score">${(m.final_score_display || '—').toString().replace(/(\d+)\.0+(?=\D|$)/g, '$1')}</div>
 <div>${ffa ? '<span style="color:var(--muted);font-size:11px">DONE</span>' : won ? `<span class="hist-win">WIN</span>` : lost ? `<span class="hist-loss">LOSS</span>` : `<span style="color:var(--muted);font-size:11px">—</span>`}</div>
 </div>`;
         }

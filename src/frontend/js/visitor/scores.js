@@ -5,7 +5,12 @@
 (function () {
     'use strict';
 
-    const API_BASE = (window.API_BASE || window.CONFIG?.API_BASE || '/api').replace(/\/$/, '');
+    // Prefer explicit config, then shared BASE from config.js (production-safe), else /api
+    const API_BASE = (
+        window.API_BASE ||
+        window.CONFIG?.API_BASE ||
+        (typeof BASE !== 'undefined' ? String(BASE).replace(/\/$/, '') + '/api' : '/api')
+    ).replace(/\/$/, '');
     const SOCKET_URL = window.SOCKET_URL || window.CONFIG?.SOCKET_URL || undefined;
 
     let allMatches = [];
@@ -63,7 +68,27 @@
         }
     }
 
+    function sumScores(scores, side) {
+        if (!Array.isArray(scores) || !scores.length) return null;
+        const key = side === 'b' ? 'score_b' : 'score_a';
+        return scores.reduce((s, r) => s + (Number(r[key]) || 0), 0);
+    }
+
     function normalizeMatch(m) {
+        if (!m) return m;
+        const scores = m.scores || null;
+        const result = m.result || null;
+        // Prefer explicit live totals, then result totals, then summed periods.
+        // Do NOT force 0 when nothing is known — 0 is a real score and must not
+        // overwrite a later computation from scores/result in the modal builders.
+        const pickTotal = (live, flat, side) => {
+            if (live != null && live !== '') return Number(live);
+            if (flat != null && flat !== '') return Number(flat);
+            if (result && result['total_score_' + side] != null) return Number(result['total_score_' + side]);
+            const summed = sumScores(scores, side);
+            if (summed != null) return summed;
+            return null;
+        };
         return {
             ...m,
             id: m.id,
@@ -74,20 +99,12 @@
             sets_to_win: m.sets_to_win || null,
             dept_a_name: m.dept_a_name || m.dept_a || null,
             dept_b_name: m.dept_b_name || m.dept_b || null,
-            live_total_a:
-                m.live_total_a != null
-                    ? Number(m.live_total_a)
-                    : m.total_score_a != null
-                        ? Number(m.total_score_a)
-                        : 0,
-            live_total_b:
-                m.live_total_b != null
-                    ? Number(m.live_total_b)
-                    : m.total_score_b != null
-                        ? Number(m.total_score_b)
-                        : 0,
-            sets_won_a: m.sets_won_a != null ? Number(m.sets_won_a) : 0,
-            sets_won_b: m.sets_won_b != null ? Number(m.sets_won_b) : 0,
+            scores: scores || m.scores || null,
+            result: result || m.result || null,
+            live_total_a: pickTotal(m.live_total_a, m.total_score_a, 'a'),
+            live_total_b: pickTotal(m.live_total_b, m.total_score_b, 'b'),
+            sets_won_a: m.sets_won_a != null ? Number(m.sets_won_a) : null,
+            sets_won_b: m.sets_won_b != null ? Number(m.sets_won_b) : null,
             watchers: m.watchers || 0,
         };
     }
@@ -925,12 +942,24 @@
                 if (!json.success) throw new Error(json.message || 'Match not found');
                 match = normalizeMatch(json.data);
             }
-            const fromList = allMatches.find((x) => x.id === match.id);
+            const fromList = allMatches.find((x) => String(x.id) === String(match.id));
             if (fromList) {
                 match.tournament_format = match.tournament_format || fromList.tournament_format;
                 match.scoring_type = match.scoring_type || fromList.scoring_type;
                 match.bracket_side = match.bracket_side || fromList.bracket_side;
                 match.bracket_position = match.bracket_position || fromList.bracket_position;
+                match.sets_to_win = match.sets_to_win || fromList.sets_to_win;
+                // Detail endpoint may omit list-only aggregates — keep them as fallback
+                if (match.live_total_a == null && fromList.live_total_a != null) match.live_total_a = fromList.live_total_a;
+                if (match.live_total_b == null && fromList.live_total_b != null) match.live_total_b = fromList.live_total_b;
+                if (match.sets_won_a == null && fromList.sets_won_a != null) match.sets_won_a = fromList.sets_won_a;
+                if (match.sets_won_b == null && fromList.sets_won_b != null) match.sets_won_b = fromList.sets_won_b;
+                if (!match.dept_a_name && fromList.dept_a_name) match.dept_a_name = fromList.dept_a_name;
+                if (!match.dept_b_name && fromList.dept_b_name) match.dept_b_name = fromList.dept_b_name;
+                if (!match.dept_a_color && fromList.dept_a_color) match.dept_a_color = fromList.dept_a_color;
+                if (!match.dept_b_color && fromList.dept_b_color) match.dept_b_color = fromList.dept_b_color;
+                if (!match.dept_a_logo && fromList.dept_a_logo) match.dept_a_logo = fromList.dept_a_logo;
+                if (!match.dept_b_logo && fromList.dept_b_logo) match.dept_b_logo = fromList.dept_b_logo;
             }
             if (isFFAMatch(match)) body.innerHTML = await buildFFAModal(match);
             else if (match.scoring_type === 'binary') body.innerHTML = buildBinaryModal(match);
@@ -1144,12 +1173,19 @@
 
         let setsA = 0;
         let setsB = 0;
-        scores.forEach((s) => {
-            const a = whole(s.score_a);
-            const b = whole(s.score_b);
-            if (a > b) setsA++;
-            else if (b > a) setsB++;
-        });
+        if (scores.length) {
+            scores.forEach((s) => {
+                const a = whole(s.score_a);
+                const b = whole(s.score_b);
+                if (a > b) setsA++;
+                else if (b > a) setsB++;
+            });
+        } else {
+            // Fallback to list aggregates when period rows were not returned
+            if (match.sets_won_a != null) setsA = whole(match.sets_won_a);
+            if (match.sets_won_b != null) setsB = whole(match.sets_won_b);
+        }
+        // Finalized result totals win when present (sets stored as totals)
         if (result.total_score_a != null) setsA = whole(result.total_score_a);
         if (result.total_score_b != null) setsB = whole(result.total_score_b);
 
@@ -1227,16 +1263,22 @@
         const nameB = match.dept_b_name || 'Side B';
         const isTime = match.scoring_type === 'time';
         const isDone = match.status === 'completed';
-        let totalA =
-            result.total_score_a != null
-                ? result.total_score_a
-                : scores.reduce((s, r) => s + (Number(r.score_a) || 0), 0);
-        let totalB =
-            result.total_score_b != null
-                ? result.total_score_b
-                : scores.reduce((s, r) => s + (Number(r.score_b) || 0), 0);
-        if (match.live_total_a != null) totalA = match.live_total_a;
-        if (match.live_total_b != null) totalB = match.live_total_b;
+        // Precedence: period scores (most detailed) → finalized result → live list aggregates
+        let totalA;
+        let totalB;
+        if (scores.length) {
+            totalA = scores.reduce((s, r) => s + (Number(r.score_a) || 0), 0);
+            totalB = scores.reduce((s, r) => s + (Number(r.score_b) || 0), 0);
+        } else if (result.total_score_a != null || result.total_score_b != null) {
+            totalA = result.total_score_a != null ? Number(result.total_score_a) : 0;
+            totalB = result.total_score_b != null ? Number(result.total_score_b) : 0;
+        } else {
+            totalA = match.live_total_a != null ? Number(match.live_total_a) : 0;
+            totalB = match.live_total_b != null ? Number(match.live_total_b) : 0;
+        }
+        // For completed matches, result totals remain authoritative when present
+        if (isDone && result.total_score_a != null) totalA = Number(result.total_score_a);
+        if (isDone && result.total_score_b != null) totalB = Number(result.total_score_b);
         const aWon = isDone && (isTime ? totalA < totalB : totalA > totalB);
         const bWon = isDone && (isTime ? totalB < totalA : totalB > totalA);
         const tableRows = scores

@@ -280,22 +280,59 @@
 
             .sched-item {
                 flex-wrap: wrap;
+                gap: 8px 12px;
+                padding: 12px 12px;
+                align-items: flex-start;
             }
 
             .sched-time {
-                min-width: 44px;
-                font-size: 17px;
+                min-width: 48px;
+                font-size: 18px;
+                line-height: 1.1;
             }
 
-            /* Calendar shrinks to a compact dot-indicator grid rather than
-               trying to fit event labels in ~45px-wide day cells */
+            .sched-info {
+                flex: 1 1 calc(100% - 60px);
+                min-width: 0;
+            }
+
+            .sched-teams {
+                font-size: 13px;
+                line-height: 1.35;
+                white-space: normal;
+            }
+
+            .sched-meta {
+                font-size: 11px;
+                line-height: 1.35;
+            }
+
+            .sched-item>div:last-child {
+                width: 100%;
+                display: flex;
+                align-items: center;
+                justify-content: space-between;
+                gap: 8px;
+                margin-top: 2px;
+                padding-top: 8px;
+                border-top: 1px solid rgba(255, 255, 255, 0.05);
+            }
+
+            .sched-block-date {
+                font-size: 13px;
+                padding: 8px 12px;
+                flex-wrap: wrap;
+                gap: 4px;
+            }
+
+            /* Calendar shrinks to a compact dot-indicator grid */
             .cal-cell {
-                min-height: 56px;
-                padding: 5px;
+                min-height: 52px;
+                padding: 4px;
             }
 
             .cal-date-num {
-                font-size: 12px;
+                font-size: 11px;
                 margin-bottom: 2px;
             }
 
@@ -306,9 +343,9 @@
             }
 
             .cal-day-header {
-                padding: 6px 2px;
+                padding: 6px 1px;
                 font-size: 9px;
-                letter-spacing: 0.4px;
+                letter-spacing: 0.3px;
             }
 
             .cal-event {
@@ -328,7 +365,26 @@
             }
 
             .cal-month {
-                font-size: 17px;
+                font-size: 16px;
+            }
+
+            #cal-detail .sched-item {
+                padding: 10px 12px;
+            }
+        }
+
+        @media (max-width: 380px) {
+            .sched-time {
+                font-size: 16px;
+                min-width: 42px;
+            }
+
+            .sched-teams {
+                font-size: 12px;
+            }
+
+            .cal-cell {
+                min-height: 46px;
             }
         }
     </style>
@@ -405,7 +461,7 @@
         </div>
     </main>
 
-    <script src=" ../../js/shared.js"></script>
+    <script src="../../js/shared.js"></script>
     <script src="../../js/dean-sidebar.js"></script>
     <script>
         let allMatches = [];
@@ -422,16 +478,38 @@
             return f === 'free_for_all' || f === 'team_ranking';
         }
 
+        function cleanScoreNum(n) {
+            if (n == null || n === '') return null;
+            const x = Number(n);
+            if (Number.isNaN(x)) {
+                // Strip trailing .00 from string scores like "12.00"
+                const s = String(n).trim();
+                if (/^-?\d+\.0+$/.test(s)) return String(parseInt(s, 10));
+                return s.replace(/(\.\d*?)0+$/, '$1').replace(/\.$/, '');
+            }
+            if (Number.isInteger(x)) return String(x);
+            // Drop trailing zeros: 12.50 → 12.5, 12.00 → 12
+            return String(parseFloat(x.toFixed(2)));
+        }
+
         function scoreLabel(m) {
             if (isFFA(m)) return 'FFA';
             if (m.scoring_type === 'sets') {
                 const sa = m.sets_won_a, sb = m.sets_won_b;
-                if (sa != null && sb != null) return sa + '–' + sb;
-                return m.final_score_display || '';
+                if (sa != null && sb != null) return cleanScoreNum(sa) + '–' + cleanScoreNum(sb);
+                return cleanScoreDisplay(m.final_score_display) || '';
             }
-            if (m.scoring_type === 'binary') return m.final_score_display || '';
-            if (m.total_score_a != null) return m.total_score_a + '–' + m.total_score_b;
-            return m.final_score_display || '';
+            if (m.scoring_type === 'binary') return cleanScoreDisplay(m.final_score_display) || '';
+            if (m.total_score_a != null || m.total_score_b != null) {
+                return cleanScoreNum(m.total_score_a ?? 0) + '–' + cleanScoreNum(m.total_score_b ?? 0);
+            }
+            return cleanScoreDisplay(m.final_score_display) || '';
+        }
+
+        function cleanScoreDisplay(s) {
+            if (s == null || s === '') return '';
+            // "12.00–10.00" or "12.00 - 10.00"
+            return String(s).replace(/(\d+)\.0+(?=\D|$)/g, '$1');
         }
 
         function formatTagHtml(m) {

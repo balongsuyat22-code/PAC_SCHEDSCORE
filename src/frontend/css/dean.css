@@ -1028,3 +1028,10 @@ textarea:focus-visible,
         padding: 7px 8px;
     }
 }
+
+/* Dean portal content breathing room on phones */
+@media (max-width: 560px) {
+    .main .content { padding-left: 14px; padding-right: 14px; }
+    .card { border-radius: 12px; }
+    .topbar-actions .btn-sm { padding: 7px 12px; }
+}
