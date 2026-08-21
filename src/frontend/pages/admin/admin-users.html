@@ -39,16 +39,23 @@
         .user-cell-info {
             display: flex;
             flex-direction: column;
+            min-width: 0;
         }
 
         .user-cell-name {
             font-weight: 600;
             font-size: 14px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
         }
 
         .user-cell-sub {
             font-size: 11px;
             color: var(--muted);
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
         }
 
         .role-pill {
@@ -312,17 +319,21 @@
                 padding: 16px;
             }
 
+            /* Table mobile styling (card wrap, fade edges, zebra rows,
+               cell density) lives in shared.css. Hide lower-priority
+               columns here so each row is shorter and easier to scan
+               without excessive horizontal scrolling. */
             .table-wrap {
                 overflow-x: auto;
             }
 
-            table {
-                font-size: 13px;
-            }
-
-            th,
-            td {
-                padding: 8px 10px;
+            table th:nth-child(2),
+            table td:nth-child(2),
+            table th:nth-child(4),
+            table td:nth-child(4),
+            table th:nth-child(6),
+            table td:nth-child(6) {
+                display: none;
             }
 
             .modal {
@@ -349,8 +360,11 @@
                 text-align: center;
             }
 
+            /* Row was wrapping avatar below the name/email whenever the
+               cell got tight — truncate with an ellipsis instead (see
+               .user-cell-name/.user-cell-sub) and keep them side by side. */
             .user-cell {
-                flex-wrap: wrap;
+                flex-wrap: nowrap;
             }
 
             .role-pill {
