@@ -3,7 +3,7 @@
 
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover">
     <title>PAC SCHED-SCORE — Reports</title>
     <link
         href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;600;700;800;900&family=Barlow:wght@300;400;500;600&display=swap"
@@ -167,11 +167,32 @@
             color: var(--gold)
         }
 
+        html,
+        body {
+            max-width: 100%;
+            overflow-x: hidden;
+        }
+
+        .main,
+        .content {
+            max-width: 100%;
+            overflow-x: hidden;
+        }
+
+        @media (max-width: 900px) {
+            .main {
+                margin-left: 0 !important;
+                width: 100%;
+                max-width: 100vw;
+            }
+        }
+
         @media (max-width: 768px) {
 
             .roster-report-row,
             .roster-report-header {
-                grid-template-columns: 28px 1fr 90px 90px;
+                grid-template-columns: 28px 1fr 80px 80px;
+                gap: 6px;
             }
 
             .roster-report-row>*:nth-child(3),
@@ -183,12 +204,13 @@
 
             .hist-row {
                 flex-wrap: wrap;
-                gap: 8px 10px;
-                padding: 12px 14px;
+                gap: 6px 10px;
+                padding: 12px;
             }
 
             .hist-row>div:first-child {
                 flex: 1 1 100%;
+                min-width: 0;
             }
 
             .hist-score {
@@ -197,10 +219,16 @@
         }
 
         @media (max-width: 560px) {
+            .content {
+                padding-left: 12px !important;
+                padding-right: 12px !important;
+            }
+
             .report-tabs {
                 overflow-x: auto;
                 -webkit-overflow-scrolling: touch;
                 flex-wrap: nowrap;
+                max-width: 100%;
             }
 
             .report-tab {
@@ -209,6 +237,69 @@
                 font-size: 12px;
             }
 
+            /* metrics grid — force 2 cols on phone */
+            #perf-metrics {
+                grid-template-columns: 1fr 1fr !important;
+                gap: 8px !important;
+            }
+
+            .perf-metric {
+                padding: 12px;
+            }
+
+            .perf-metric-val {
+                font-size: 22px;
+            }
+
+            .result-sport-row {
+                padding: 10px 12px;
+                gap: 8px;
+                flex-wrap: wrap;
+            }
+
+            .result-sport-row>div:nth-child(2) {
+                flex: 1 1 calc(100% - 56px);
+                min-width: 0;
+            }
+
+            .result-pts {
+                font-size: 18px;
+            }
+
+            .wl-bar-count {
+                font-size: 16px;
+            }
+
+            .grid-2 {
+                grid-template-columns: 1fr !important;
+                gap: 12px !important;
+            }
+        }
+
+        @media (max-width: 480px) {
+
+            .roster-report-row,
+            .roster-report-header {
+                grid-template-columns: 22px 1fr 70px;
+                gap: 6px;
+                padding: 8px 10px;
+            }
+
+            .roster-report-row>*:nth-child(4),
+            .roster-report-header>*:nth-child(4) {
+                display: none;
+            }
+
+            .hist-row {
+                padding: 10px;
+            }
+
+            .hist-score {
+                font-size: 15px;
+            }
+        }
+
+        @media (max-width: 560px) {
             .perf-metric {
                 padding: 12px 14px;
             }
@@ -220,43 +311,6 @@
             .result-sport-row {
                 padding: 10px 12px;
                 gap: 10px;
-                flex-wrap: wrap;
-            }
-
-            .result-sport-row>div:nth-child(2) {
-                flex: 1 1 calc(100% - 60px);
-                min-width: 0;
-            }
-
-            .result-pts {
-                font-size: 18px;
-            }
-
-            .wl-bar-count {
-                font-size: 16px;
-            }
-        }
-
-        @media (max-width: 480px) {
-
-            .roster-report-row,
-            .roster-report-header {
-                grid-template-columns: 22px 1fr 72px;
-                gap: 6px;
-                padding: 8px 12px;
-            }
-
-            .roster-report-row>*:nth-child(4),
-            .roster-report-header>*:nth-child(4) {
-                display: none;
-            }
-
-            .hist-row {
-                padding: 10px 12px;
-            }
-
-            .hist-score {
-                font-size: 15px;
             }
         }
     </style>
@@ -299,7 +353,7 @@
                         <div style="font-size:12px;color:var(--muted);margin-top:6px" id="rpt-rank"></div>
                     </div>
                 </div>
-                <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:12px;margin-bottom:24px"
+                <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:12px;margin-bottom:24px"
                     id="perf-metrics"></div>
                 <div class="grid-2" style="margin-bottom:24px">
                     <div class="card">
@@ -498,7 +552,7 @@
             return `<div class="hist-row">
 <div style="flex:1"><div style="font-size:13px;font-weight:600">${teams}</div>
 <div style="font-size:11px;color:var(--muted);margin-top:2px">${m.sport_name || ''} · ${m.tournament_name || ''} · ${formatDate(m.completed_at)}</div></div>
-<div class="hist-score">${(m.final_score_display || '—').toString().replace(/(\d+)\.0+(?=\D|$)/g, '$1')}</div>
+<div class="hist-score">${m.final_score_display || '—'}</div>
 <div>${ffa ? '<span style="color:var(--muted);font-size:11px">DONE</span>' : won ? `<span class="hist-win">WIN</span>` : lost ? `<span class="hist-loss">LOSS</span>` : `<span style="color:var(--muted);font-size:11px">—</span>`}</div>
 </div>`;
         }

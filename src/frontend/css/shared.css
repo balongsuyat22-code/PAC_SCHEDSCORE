@@ -27,6 +27,10 @@
 
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 html { scroll-behavior: smooth; }
+html {
+  max-width: 100%;
+  overflow-x: hidden;
+}
 body {
   font-family: 'Barlow', sans-serif;
   background: var(--bg);
@@ -34,6 +38,8 @@ body {
   min-height: 100vh;
   display: flex;
   overflow-x: hidden;
+  max-width: 100vw;
+  width: 100%;
 }
 
 /* ── ICONS ──
@@ -650,6 +656,13 @@ tr:last-child td { border-bottom: none; }
 
     .sidebar.sidebar-open {
         transform: translateX(0); /* Slide in when open */
+    }
+
+    /* Critical: drop desktop sidebar offset so content uses full phone width */
+    .main {
+        margin-left: 0 !important;
+        width: 100%;
+        max-width: 100vw;
     }
 
     /* Add a dim overlay when sidebar is open */
