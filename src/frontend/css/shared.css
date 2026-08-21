@@ -964,3 +964,115 @@ tr:last-child td { border-bottom: none; }
   .topbar-title { flex: 1 1 auto; }
   .topbar-actions { width: 100%; justify-content: flex-start; }
 }
+
+/* ============================================================
+   MOBILE POLISH PASS — TABLES & CARDS
+   Applies globally to every page that includes shared.css.
+   Goal: tables and card/div containers should look intentional
+   on a phone, not like a squished desktop layout.
+   ============================================================ */
+@media (max-width: 768px) {
+
+  /* ── Prevent 16px+ inputs zooming in on focus on iOS Safari ── */
+  .form-input, .form-select, .form-textarea,
+  .filter-bar input, .filter-bar select {
+    font-size: 16px !important;
+  }
+
+  /* ── Cards: consistent stacking rhythm everywhere ── */
+  .card { border-radius: 12px; margin-bottom: 14px; }
+  .card:last-child { margin-bottom: 0; }
+  .card-header { gap: 10px; }
+  .card-title { font-size: 14px; }
+
+  /* ── Stat grid: keep 2 columns but make each card breathe ── */
+  .stats-grid { gap: 10px; margin-bottom: 20px; }
+  .stat-card { padding: 14px; border-radius: 10px; }
+  .stat-value { font-size: 26px; }
+  .stat-label { font-size: 10.5px; letter-spacing: 0.5px; }
+  .stat-icon { margin-bottom: 8px; }
+
+  /* ── TABLES ──
+     Keep the horizontal-scroll pattern (safest for data-heavy tables
+     with many columns) but make the container feel like a proper
+     mobile card, add a soft fade on the scrollable edges so it's
+     obvious there's more to see, and tighten cell density. ── */
+  .table-wrap {
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    background:
+      linear-gradient(to right, var(--bg2) 30%, rgba(16,19,26,0)) 0 0,
+      linear-gradient(to left, var(--bg2) 30%, rgba(16,19,26,0)) 100% 0,
+      linear-gradient(to right, rgba(0,0,0,0.35), rgba(0,0,0,0)) 0 0,
+      linear-gradient(to left, rgba(0,0,0,0.35), rgba(0,0,0,0)) 100% 0;
+    background-repeat: no-repeat;
+    background-size: 24px 100%, 24px 100%, 10px 100%, 10px 100%;
+    background-attachment: local, local, scroll, scroll;
+  }
+  table { min-width: 560px; }
+  th {
+    padding: 10px 12px;
+    font-size: 10px;
+    letter-spacing: 1px;
+    background: var(--bg3);
+  }
+  td {
+    padding: 11px 12px;
+    font-size: 13px;
+  }
+  tr td:first-child, tr th:first-child { padding-left: 14px; }
+  tr td:last-child, tr th:last-child { padding-right: 14px; }
+  tbody tr:nth-child(even) td { background: rgba(255,255,255,0.015); }
+
+  /* ── Leaderboard rows ── */
+  .lb-row { padding: 10px 14px; gap: 10px; }
+  .lb-rank { font-size: 17px; width: 24px; }
+  .lb-color { width: 4px; height: 30px; }
+  .lb-dept-name { font-size: 13px; }
+  .lb-dept-medals { font-size: 11px; }
+  .lb-pts { font-size: 18px; }
+  .lb-pts-lbl { font-size: 9px; }
+
+  /* ── Match card: same stacking language as the schedule page ──
+     top row (icon + status) stays compact, info/meta and score
+     drop to their own full-width rows via flex-wrap + basis:100%. */
+  .match-card { flex-wrap: wrap; padding: 12px 14px; gap: 8px; }
+  .match-sport-icon { order: 1; }
+  .match-status { order: 2; margin-left: auto; }
+  .match-info { order: 3; flex: 1 1 100%; padding-top: 8px; border-top: 1px dashed var(--border); }
+  .match-score { order: 4; flex: 1 1 100%; text-align: left; font-size: 26px; }
+
+  /* ── Forms ── */
+  .form-group { margin-bottom: 14px; }
+  .form-input, .form-select, .form-textarea { padding: 10px 13px; }
+
+  /* ── Buttons: comfortable tap targets ── */
+  .btn { min-height: 38px; }
+
+  /* ── Empty states shouldn't eat the whole screen ── */
+  .empty-state { padding: 36px 18px; }
+  .empty-icon .icon { width: 36px; height: 36px; }
+  .empty-text { font-size: 13.5px; }
+}
+
+@media (max-width: 480px) {
+  .stat-card { padding: 12px; }
+  .stat-value { font-size: 22px; }
+  .stat-label { font-size: 10px; }
+
+  th { font-size: 9.5px; padding: 9px 10px; }
+  td { font-size: 12.5px; padding: 10px; }
+
+  .match-teams { font-size: 13px; }
+  .match-meta { font-size: 11px; }
+  .match-score { font-size: 22px; }
+
+  .lb-row { padding: 9px 12px; }
+  .lb-dept-name { font-size: 12.5px; }
+  .lb-pts { font-size: 16px; }
+
+  .modal-title { font-size: 17px; }
+  .modal-header { padding: 14px 16px; }
+  .modal-footer { padding: 12px 16px; }
+  .modal-footer .btn { flex: 1 1 auto; justify-content: center; }
+}

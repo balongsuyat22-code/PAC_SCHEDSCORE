@@ -563,6 +563,99 @@
             flex-shrink: 0;
         }
 
+        /* ── FILTER BAR (list view) ──
+           These classes were used in the JS-rendered markup but never
+           actually styled, so the filter pills/search were rendering as
+           plain unstyled buttons — fixing this properly rather than just
+           patching it for mobile. */
+        .filter-bar {
+            display: flex;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-bottom: 20px;
+        }
+
+        .filter-label {
+            font-size: 12px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: var(--muted);
+        }
+
+        .filter-pill {
+            padding: 7px 14px;
+            border-radius: 20px;
+            background: var(--bg3);
+            border: 1px solid var(--border);
+            color: var(--text2);
+            font-family: 'Barlow', sans-serif;
+            font-size: 12.5px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.15s;
+            white-space: nowrap;
+        }
+
+        .filter-pill:hover {
+            background: var(--bg4);
+            color: var(--text);
+        }
+
+        .filter-pill.active {
+            background: var(--gold);
+            color: #000;
+            border-color: var(--gold);
+        }
+
+        @media (max-width: 768px) {
+            .topbar {
+                flex-wrap: wrap;
+                height: auto;
+                padding: 10px 16px;
+                gap: 8px;
+            }
+
+            .topbar-title {
+                font-size: 16px;
+            }
+
+            .topbar-actions {
+                flex-wrap: wrap;
+            }
+
+            .content {
+                padding: 16px;
+            }
+
+            .filter-bar {
+                background: var(--bg2);
+                border: 1px solid var(--border);
+                border-radius: 12px;
+                padding: 12px;
+            }
+
+            .filter-bar #lst-search {
+                width: 100% !important;
+                margin-left: 0 !important;
+                order: 99;
+            }
+
+            .modal {
+                width: 96vw;
+                max-width: 96vw;
+            }
+
+            .modal-body {
+                padding: 16px;
+            }
+
+            .form-row {
+                grid-template-columns: 1fr;
+            }
+        }
+
         @media (max-width: 640px) {
             .participant-card-header {
                 flex-wrap: wrap;

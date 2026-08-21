@@ -288,18 +288,9 @@
                 padding: 16px;
             }
 
-            .table-wrap {
-                overflow-x: auto;
-            }
-
-            table {
-                font-size: 13px;
-            }
-
-            th,
-            td {
-                padding: 8px 10px;
-            }
+            /* Table mobile styling (card wrap, fade edges, zebra rows,
+               cell density) now lives in shared.css so every page's
+               tables look consistent — no local override needed here. */
 
             .modal {
                 width: 98vw;
@@ -312,6 +303,15 @@
 
             .form-row {
                 grid-template-columns: 1fr;
+            }
+
+            .roster-player-card {
+                border-radius: 12px;
+                padding: 14px;
+            }
+
+            .roster-player-avatar {
+                margin: 0 auto;
             }
         }
 
@@ -328,6 +328,10 @@
 
             .player-info-cell {
                 flex-wrap: wrap;
+            }
+
+            .roster-player-card {
+                padding: 12px;
             }
         }
     </style>
