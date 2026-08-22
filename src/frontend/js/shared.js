@@ -1,12 +1,5 @@
-/* ============================================================
-   SPORTFEST — SHARED JS
-   API · Auth · Toast · Modal · Realtime (Socket.IO) · helpers
-   + Admin Dashboard tab functions + Mock data
-   ============================================================ */
-
 const API_BASE = window.location.origin + '/api';
 
-// ── Auth ──────────────────────────────────────────────────────
 const Auth = {
     getToken: () => localStorage.getItem('sf_token'),
     getUser: () => { try { return JSON.parse(localStorage.getItem('sf_user')); } catch { return null; } },
@@ -16,7 +9,7 @@ const Auth = {
         localStorage.removeItem('sf_user');
         window.location.href = '/login';
     },
-    // expectedRoles: string OR array of allowed roles
+
     requireAuth(expectedRoles = null) {
         const user = this.getUser();
         if (!user) { window.location.href = '/login'; return null; }
@@ -38,7 +31,6 @@ const Auth = {
     }
 };
 
-// ── API Request Helper ────────────────────────────────────────
 const api = async (path, options = {}) => {
     const token = Auth.getToken();
 
@@ -80,7 +72,6 @@ const api = async (path, options = {}) => {
     }
 };
 
-// ── Sidebar Init (legacy pages that still call initSidebar) ───
 const initSidebar = () => {
     const user = Auth.getUser();
     if (!user) return;
@@ -105,7 +96,6 @@ const initSidebar = () => {
     document.getElementById('logout-btn')?.addEventListener('click', Auth.logout);
 };
 
-// ── Logo Helpers ──────────────────────────────────────────────
 const Logos = {
     _map: null,
     load() {
@@ -137,14 +127,12 @@ const Logos = {
     }
 };
 
-// ── Table Search ──────────────────────────────────────────────
 function filterTable(tableId, query) {
     const rows = document.querySelectorAll(`#${tableId} tbody tr`);
     const q = query.toLowerCase();
     rows.forEach(r => r.style.display = r.textContent.toLowerCase().includes(q) ? '' : 'none');
 }
 
-// ── Toast ─────────────────────────────────────────────────────
 const Toast = {
     show(msg, type = 'success', duration = 3000) {
         let t = document.getElementById('sf-toast');
@@ -162,14 +150,12 @@ const Toast = {
     }
 };
 
-// ── Modal ─────────────────────────────────────────────────────
 const Modal = {
     open(id) { document.getElementById(id)?.classList.add('open'); },
     close(id) { document.getElementById(id)?.classList.remove('open'); },
     closeAll() { document.querySelectorAll('.modal-overlay').forEach(m => m.classList.remove('open')); }
 };
 
-// ── Render Helpers ────────────────────────────────────────────
 const statusBadge = (status) => {
     const map = {
         ongoing: ['badge-pulse badge-green', 'Live'],
@@ -224,14 +210,6 @@ const formatDate = (d) => d
     : '—';
 const formatTime = (t) => t ? String(t).slice(0, 5) : '—';
 
-/* ============================================================
-   REALTIME — Socket.IO client
-   Auto-loads socket.io from CDN, joins rooms, toasts + events.
-   Pages listen with:
-     window.addEventListener('sf:live', e => { ... e.detail })
-     window.addEventListener('sf:leaderboard', e => { ... })
-     window.addEventListener('sf:match', e => { ... })
-   ============================================================ */
 const Realtime = {
     socket: null,
     connected: false,
@@ -389,6 +367,11 @@ const Realtime = {
     },
 
     _renderNotifBell() {
+        if (typeof NotificationEngine !== 'undefined' && NotificationEngine._activeTick) {
+            NotificationEngine._activeTick();
+            return;
+        }
+
         const badge = document.getElementById('sf-notif-badge');
         const list = document.getElementById('sf-notif-list');
         if (badge) {
@@ -414,17 +397,10 @@ const Realtime = {
     },
 };
 
-// Auto-connect when a logged-in user is on any page that loads shared.js
 document.addEventListener('DOMContentLoaded', () => {
     if (Auth.getToken()) Realtime.connect().catch(() => { });
 });
 
-/* ============================================================
-   ADMIN DASHBOARD TAB FUNCTIONS
-   Only active when admin.html is loaded (checks for elements)
-   ============================================================ */
-
-// ── Dashboard ─────────────────────────────────────────────────
 async function loadDashboard() {
     const [dash, champion] = await Promise.all([
         api('/reports/dashboard'),
@@ -519,7 +495,6 @@ async function loadMiniLeaderboard() {
         </div>`).join('');
 }
 
-// ── Live Matches ──────────────────────────────────────────────
 async function loadLiveMatches() {
     const res = await api('/matches/live');
     const el = document.getElementById('live-matches-list');
@@ -551,7 +526,6 @@ async function loadLiveMatches() {
         </div>`).join('');
 }
 
-// ── Leaderboard ───────────────────────────────────────────────
 async function loadLeaderboard() {
     const res = await api('/leaderboard');
     if (!res.success) return;
@@ -614,7 +588,6 @@ async function loadLeaderboard() {
     }
 }
 
-// ── Tournaments ───────────────────────────────────────────────
 async function loadTournaments() {
     const res = await api('/tournaments');
     if (!res.success) return;
@@ -652,7 +625,6 @@ async function generateBracket(id) {
     if (res.success) loadTournaments();
 }
 
-// ── Matches ───────────────────────────────────────────────────
 async function loadMatches() {
     const res = await api('/matches');
     if (!res.success) return;
@@ -672,7 +644,6 @@ async function loadMatches() {
         || '<tr><td colspan="8" style="text-align:center;color:var(--muted);padding:24px">No matches</td></tr>';
 }
 
-// ── Departments ───────────────────────────────────────────────
 async function loadDepartments() {
     const res = await api('/departments');
     if (!res.success) return;
@@ -710,7 +681,6 @@ async function loadDepartments() {
         </div>`).join('');
 }
 
-// ── Sports ────────────────────────────────────────────────────
 async function loadSports() {
     const res = await api('/sports');
     if (!res.success) return;
@@ -728,7 +698,6 @@ async function loadSports() {
         </tr>`).join('');
 }
 
-// ── Teams ─────────────────────────────────────────────────────
 async function loadTeams() {
     const [teams, depts, sports] = await Promise.all([api('/teams'), api('/departments'), api('/sports')]);
     if (!teams.success) return;
@@ -753,7 +722,6 @@ async function loadTeams() {
         || '<tr><td colspan="5" style="text-align:center;color:var(--muted);padding:24px">No teams</td></tr>';
 }
 
-// ── Venues ────────────────────────────────────────────────────
 async function loadVenues() {
     const res = await api('/venues');
     if (!res.success) return;
@@ -780,7 +748,6 @@ async function loadVenues() {
         </div>`).join('');
 }
 
-// ── Users ─────────────────────────────────────────────────────
 async function loadUsers() {
     const res = await api('/users');
     if (!res.success) return;
@@ -804,7 +771,6 @@ async function loadUsers() {
         || '<tr><td colspan="6" style="text-align:center;color:var(--muted);padding:24px">No users</td></tr>';
 }
 
-// ── Schedule ──────────────────────────────────────────────────
 async function loadSchedule() {
     const res = await api('/schedules/today');
     const el = document.getElementById('today-schedule');
@@ -825,7 +791,6 @@ async function loadSchedule() {
         </div>`).join('');
 }
 
-// ── CRUD Helpers ──────────────────────────────────────────────
 async function createTournament() {
     const name = document.getElementById('tn-name')?.value?.trim();
     const sport_id = parseInt(document.getElementById('tn-sport')?.value) || null;
@@ -950,9 +915,6 @@ async function createTeam() {
     if (res.success) { Modal.closeAll(); loadTeams(); }
 }
 
-/* ============================================================
-   MOCK DATA — used as fallback when server is unreachable
-   ============================================================ */
 const MOCK_DATA = {
     '/leaderboard': {
         success: true,

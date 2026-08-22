@@ -12,10 +12,6 @@
     <link rel="stylesheet" href="../../css/referee.css">
 
     <style>
-        /* ═══════════════════════════════════════════════════════════
-           Live Scoring — mobile-first, clean referee UI
-           ═══════════════════════════════════════════════════════════ */
-
         .scoring-container {
             display: grid;
             grid-template-columns: minmax(280px, 340px) 1fr;
@@ -23,7 +19,6 @@
             align-items: start;
         }
 
-        /* ── Match queue ───────────────────────────────────────── */
         .match-list-card {
             background: var(--bg2);
             border: 1px solid var(--border);
@@ -79,7 +74,6 @@
             box-shadow: 0 0 0 1px var(--gold);
         }
 
-        /* ── Scoreboard shell ───────────────────────────────────── */
         .scoreboard-main {
             background: radial-gradient(ellipse at top left, #1e293b 0%, #0f172a 70%);
             border: 2px solid var(--border-gold);
@@ -201,7 +195,6 @@
             transform: none !important;
         }
 
-        /* Big start / finish actions — easy thumbs on phone */
         .btn-start-match,
         .scoreboard-main .btn-primary.btn-icon {
             width: 100% !important;
@@ -215,7 +208,6 @@
             touch-action: manipulation;
         }
 
-        /* ── Action log ─────────────────────────────────────────── */
         .history-log {
             margin-top: 20px;
             background: var(--bg3);
@@ -292,7 +284,6 @@
             }
         }
 
-        /* ── Type-to-confirm ────────────────────────────────────── */
         .confirm-type-box {
             margin-top: 16px;
             padding: 14px;
@@ -334,7 +325,6 @@
             background: rgba(34, 197, 94, 0.08);
         }
 
-        /* ── Icons ──────────────────────────────────────────────── */
         .icon {
             display: inline-flex;
             align-items: center;
@@ -376,7 +366,6 @@
             gap: 8px;
         }
 
-        /* ── Live standings ─────────────────────────────────────── */
         .standings-toggle {
             display: flex;
             align-items: center;
@@ -475,7 +464,6 @@
             color: var(--muted);
         }
 
-        /* ── FFA ────────────────────────────────────────────────── */
         .ffa-participant-list {
             display: flex;
             flex-direction: column;
@@ -622,7 +610,6 @@
             color: var(--muted);
         }
 
-        /* ── Match-started banner (no topbar clash) ─────────────── */
         .match-started-banner {
             display: flex;
             align-items: flex-start;
@@ -696,7 +683,6 @@
             }
         }
 
-        /* ── Toasts: clear of topbar / notch ─────────────────────── */
         .toast-container,
         #toast-container,
         .toast-wrap {
@@ -722,9 +708,6 @@
             word-break: break-word;
         }
 
-        /* ═══════════════════════════════════════════════════════════
-           PHONE / TABLET
-           ═══════════════════════════════════════════════════════════ */
         @media (max-width: 900px) {
             .scoring-container {
                 grid-template-columns: 1fr;
@@ -856,13 +839,11 @@
                 max-height: 200px;
             }
 
-            /* Sticky score actions near thumb zone */
             .control-grid .btn-score {
                 min-height: 54px;
             }
         }
 
-        /* Prefer reduced motion */
         @media (prefers-reduced-motion: reduce) {
 
             .match-item,
@@ -948,7 +929,6 @@
     </main>
 
 
-    <!-- ─── FFA COMPLETE MODAL ─── -->
     <div class="modal-overlay" id="modal-complete-ffa"
         onclick="if(event.target===this)Modal.close('modal-complete-ffa')">
         <div class="modal" style="width: 90%; max-width: 550px;">
@@ -993,7 +973,6 @@
     </div>
 
 
-    <!-- ─── 1v1 / SETS / BINARY COMPLETE MODAL ─── -->
     <div class="modal-overlay" id="modal-complete" onclick="if(event.target===this)Modal.close('modal-complete')">
         <div class="modal" style="width: 90%; max-width: 550px;">
             <div class="modal-header">
@@ -1074,7 +1053,7 @@
     <script src="../../js/shared.js"></script>
     <script src="../../js/referee-sidebar.js"></script>
     <script>
-        /* ── Scoring-specific icons (named SCORE_ICONS to avoid clash with referee-sidebar.js) ── */
+
         const SCORE_ICONS = {
             flag: `<svg viewBox="0 0 24 24"><path d="M14.4 6L14 4H5v17h2v-7h5.6l.4 2h7V6z"/></svg>`,
             play: `<svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>`,
@@ -1095,7 +1074,6 @@
             return `<span class="icon icon-fill ${size}">${SCORE_ICONS[name] || ''}</span>`;
         }
 
-        /* ── State ── */
         let selectedMatch = null;
         let allMatches = [];
         let scoringType = 'points';
@@ -1108,15 +1086,10 @@
         let currentTab = 'active';
         let standingsOpen = false;
 
-        // Elimination-mode state: ordered array of department_ids in the
-        // order they were knocked out (index 0 = first out = last place).
-        // Kept separate from ffaParticipants so re-renders don't lose it.
         let eliminationOrder = [];
 
         document.addEventListener('DOMContentLoaded', async () => {
-            // BUG FIX: same gap as history.html/tournaments.html — this is
-            // the live scoring page (the most sensitive referee page, since
-            // it can submit final scores) and had zero auth/role check.
+
             if (!Auth.requireAuth('sgo_officer')) return;
 
             renderRefereeSidebar('scoring');
@@ -1138,7 +1111,6 @@
             }, 1000);
         }
 
-        /* ── Type-to-confirm helper ── */
         function checkTypeConfirm(inputId, btnId) {
             const input = document.getElementById(inputId);
             const btn = document.getElementById(btnId);
@@ -1218,9 +1190,6 @@
             scoringType = m.scoring_type || 'points';
             standingsOpen = false;
 
-            // The referee is now actively looking at this match — its
-            // sidebar "Match LIVE" / "Match Overdue" alert has done its
-            // job, so clear it instead of letting it nag forever.
             if (typeof window.dismissMatchNotifications === 'function') {
                 window.dismissMatchNotifications(m.id);
             }
@@ -1237,8 +1206,7 @@
                     ffaScoringType = 'points';
                     Toast.show(res.message || 'Error loading FFA participants', 'error');
                 }
-                // Rebuild elimination order from any previously-saved results
-                // (result_value doubles as elimination rank — see saveAllFFAScores).
+
                 if (ffaScoringType === 'elimination') {
                     const total = ffaParticipants.length;
                     eliminationOrder = ffaParticipants
@@ -1362,13 +1330,6 @@
             }, 5500);
         }
 
-        // ─────────────────────────────────────────────────────────────
-        // Live Standings preview — collapsible sorted view used by every
-        // FFA scoring type so a big roster doesn't turn into an unreadable
-        // wall of inputs. Values are read straight from ffaParticipants /
-        // eliminationOrder, so it updates the instant you type or eliminate,
-        // no save required.
-        // ─────────────────────────────────────────────────────────────
         function computeStandingsRows() {
             if (!ffaParticipants.length) return [];
 
@@ -1376,13 +1337,13 @@
                 const total = ffaParticipants.length;
                 const stillIn = ffaParticipants.filter(p => !eliminationOrder.includes(p.department_id));
                 const rows = [];
-                // Survivor(s) currently still in — rank 1 (only meaningful once 1 remains, but show while playing too)
+
                 stillIn.forEach(p => rows.push({ name: p.team_name || p.department_name, sub: p.department_name, value: 'Still in', out: false }));
-                // Eliminated, most-recent-out first (best of the losers)
+
                 [...eliminationOrder].reverse().forEach((deptId, idx) => {
                     const p = ffaParticipants.find(x => x.department_id === deptId);
                     if (!p) return;
-                    const place = total - (eliminationOrder.length - 1 - (eliminationOrder.length - 1 - idx)); // placeholder, recalced below
+                    const place = total - (eliminationOrder.length - 1 - (eliminationOrder.length - 1 - idx));
                     rows.push({ name: p.team_name || p.department_name, sub: p.department_name, value: `Out #${eliminationOrder.indexOf(deptId) + 1}`, out: true });
                 });
                 return rows;
@@ -1619,9 +1580,6 @@
             document.getElementById('scoreboard-area').innerHTML = scoreboardHTML;
         }
 
-        // ─────────────────────────────────────────────────────────────
-        // ELIMINATION / SURVIVAL FFA MODE
-        // ─────────────────────────────────────────────────────────────
         function eliminateParticipant(deptId) {
             if (eliminationOrder.includes(deptId)) return;
             eliminationOrder.push(deptId);
@@ -1633,9 +1591,6 @@
             renderScoreboard();
         }
 
-        // ─────────────────────────────────────────────────────────────
-        // SETS FORMAT
-        // ─────────────────────────────────────────────────────────────
         function renderSetsScoreboard(m, isCompleted, isScheduled) {
             const displayA = m.team_a_name || m.dept_a_name;
             const displayB = m.team_b_name || m.dept_b_name;
@@ -1775,9 +1730,6 @@
             renderScoreboard();
         }
 
-        // ─────────────────────────────────────────────────────────────
-        // BINARY (WINNER-ONLY)
-        // ─────────────────────────────────────────────────────────────
         function renderBinaryScoreboard(m, isCompleted, isScheduled) {
             const displayA = m.team_a_name || m.dept_a_name;
             const displayB = m.team_b_name || m.dept_b_name;
@@ -1841,9 +1793,7 @@
                     participant.ffa_result_value = value;
                 }
             }
-            // Live standings panel reads straight from ffaParticipants, so
-            // just re-render it in place instead of the whole scoreboard
-            // (keeps the input focused instead of losing keystrokes).
+
             const panelHost = document.getElementById('standings-panel')?.parentElement;
             if (panelHost) {
                 const temp = document.createElement('div');
@@ -1870,11 +1820,7 @@
             try {
                 let resultsToSave;
                 if (ffaScoringType === 'elimination') {
-                    // Encode elimination order so higher = survived longer =
-                    // better, matching the "higher is better" convention
-                    // points/distance already use — no special-casing needed
-                    // wherever final ranks get computed downstream, as long
-                    // as 'elimination' is treated like 'points' there.
+
                     const total = ffaParticipants.length;
                     resultsToSave = ffaParticipants.map(p => {
                         const outIdx = eliminationOrder.indexOf(p.department_id);
@@ -1933,9 +1879,7 @@
 
         async function submitCompleteFFA() {
             if (!selectedMatch) return;
-            // Was calling the wrong path (/matches/:id/complete-ffa, 404).
-            // The real route is POST /matches/ffa/:matchId/complete
-            // (see routes/matches.js — matchCtrl.completeFFAMatch).
+
             const res = await api(`/matches/ffa/${selectedMatch.id}/complete`, { method: 'POST' });
 
             if (res.success) {
@@ -2015,18 +1959,13 @@
             document.querySelectorAll('.btn-score').forEach(btn => btn.disabled = false);
         }
 
-        /**
-         * Fallback filter when /matches/:id/players is unavailable.
-         * - If match has a team name: keep players on that team OR individual players (no team).
-         * - If no team name: keep the full department list (individual / dept sports).
-         */
         function filterMatchPlayers(players, teamName) {
             if (!Array.isArray(players) || !players.length) return [];
             if (!teamName) return players;
             const target = String(teamName).trim().toLowerCase();
             const filtered = players.filter(p => {
                 const tn = (p.team_name || '').trim().toLowerCase();
-                // Include: exact team match OR individual players with no team
+
                 return !tn || tn === target;
             });
             return filtered.length ? filtered : players;
@@ -2045,7 +1984,6 @@
             return html;
         }
 
-        /** Completed-match result card (Winner / Loser / MVP). */
         function renderCompletedResultCard(m) {
             const displayA = m.team_a_name || m.dept_a_name || 'Side A';
             const displayB = m.team_b_name || m.dept_b_name || 'Side B';
@@ -2163,8 +2101,6 @@
             Modal.open('modal-complete');
 
             try {
-                // Prefer dedicated match-players endpoint (team + individual/no-team).
-                // Falls back to department endpoints if the new route is not deployed yet.
                 let playersA = [];
                 let playersB = [];
                 let labelA = selectedMatch.team_a_name || selectedMatch.dept_a_name || 'Side A';
@@ -2172,21 +2108,12 @@
 
                 const matchPlayersRes = await api(`/matches/${selectedMatch.id}/players`);
                 if (matchPlayersRes.success && matchPlayersRes.data) {
-                    // Defense in depth: filter to this match's team even if
-                    // the backend hasn't deployed the server-side fix yet,
-                    // so the dropdown never shows a whole department roster.
                     playersA = filterMatchPlayers(matchPlayersRes.data.side_a || [], selectedMatch.team_a_name);
                     playersB = filterMatchPlayers(matchPlayersRes.data.side_b || [], selectedMatch.team_b_name);
                     labelA = matchPlayersRes.data.label_a || labelA;
                     labelB = matchPlayersRes.data.label_b || labelB;
                 } else {
-                    // BUG FIX: this fallback hits the department-wide
-                    // players endpoint, which used to return every approved
-                    // player in the department regardless of sport. Now
-                    // passing the match's sport_id (matchController.js
-                    // getPlayersByDepartment filters on it when present) so
-                    // this fallback is scoped the same way the primary
-                    // /matches/:id/players endpoint always was meant to be.
+
                     const [resA, resB] = await Promise.all([
                         api(`/matches/players/department/${selectedMatch.participant_a_department_id}?sport_id=${selectedMatch.sport_id}`),
                         api(`/matches/players/department/${selectedMatch.participant_b_department_id}?sport_id=${selectedMatch.sport_id}`)

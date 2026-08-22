@@ -1,28 +1,5 @@
-/**
- * utils/scoring.js
- * ---------------------------------------------------------------------------
- * This is the piece that was missing: turning a finished tournament into
- * medals/points that the leaderboard actually reflects.
- *
- * Before this file, nothing in the codebase ever wrote to tournament_results,
- * so department_scores (and therefore the whole leaderboard/medal tally) was
- * permanently stuck — the real-time socket events were firing correctly, but
- * pointing at data that never changed.
- *
- * ⚠️ ASSUMPTION YOU SHOULD VERIFY: medal point values below (gold/silver/
- * bronze) are a placeholder default, not your actual scoring rule. Change
- * DEFAULT_MEDAL_POINTS to match your event's real point scale.
- *
- * All functions here take an active `conn` (a connection already inside a
- * transaction, via pool.getConnection() + beginTransaction()) — they do NOT
- * manage transactions themselves. The caller decides commit/rollback.
- */
-
 const DEFAULT_MEDAL_POINTS = { 1: 10, 2: 7, 3: 5 };
 
-// ── Round robin: read the standings table (now correctly seeded — see
-//    generateBracket) ordered by standing points, then point differential,
-//    then total points scored, as tiebreakers. ──────────────────────────
 async function roundRobinStandings(conn, tournamentId) {
     const [rows] = await conn.execute(
         `SELECT department_id
@@ -34,9 +11,6 @@ async function roundRobinStandings(conn, tournamentId) {
     return rows.map((r, i) => ({ department_id: r.department_id, rank: i + 1 }));
 }
 
-// ── Free-for-all: ffa_results.rank_position is already computed by
-//    _reRankFFA() in matchController when results are recorded, ties get
-//    the same rank_position already. ─────────────────────────────────────
 async function ffaStandings(conn, tournamentId) {
     const [rows] = await conn.execute(
         `SELECT department_id, rank_position
@@ -47,16 +21,6 @@ async function ffaStandings(conn, tournamentId) {
     );
     return rows.map((r) => ({ department_id: r.department_id, rank: r.rank_position }));
 }
-
-// ── Single elimination: no dedicated standings table, so this is derived
-//    from the bracket itself.
-//    - Winner of the final match = 1st.
-//    - Loser of the final match = 2nd.
-//    - Both semifinal losers = tied 3rd (bronze), since there's no 3rd-place
-//      playoff match in this schema. If your event runs one, this needs a
-//      small update to treat that match as authoritative for 3rd instead.
-//    - Byes (a match with only one real participant) are skipped as sources
-//      of a "loser" since nothing was actually played. ────────────────────
 async function singleEliminationStandings(conn, tournamentId) {
     const [matches] = await conn.execute(
         `SELECT round_number, participant_a_department_id, participant_b_department_id, winner_department_id
@@ -97,12 +61,8 @@ async function singleEliminationStandings(conn, tournamentId) {
 async function computeFinalStandings(conn, tournamentId, format) {
     if (format === 'round_robin') return roundRobinStandings(conn, tournamentId);
     if (format === 'free_for_all') return ffaStandings(conn, tournamentId);
-    return singleEliminationStandings(conn, tournamentId); // default/fallback
+    return singleEliminationStandings(conn, tournamentId);
 }
-
-// ── Write tournament_results for this tournament, replacing any prior
-//    (re-running finalize is safe/idempotent), then roll the change into
-//    department_scores. ──────────────────────────────────────────────────
 async function recordResultsAndRebuild(conn, tournamentId, pointsMap = DEFAULT_MEDAL_POINTS) {
     const [[t]] = await conn.execute('SELECT format FROM tournaments WHERE id = ?', [tournamentId]);
     if (!t) return { recorded: 0 };
@@ -125,13 +85,6 @@ async function recordResultsAndRebuild(conn, tournamentId, pointsMap = DEFAULT_M
     await rebuildDepartmentScores(conn);
     return { recorded: standings.length };
 }
-
-// ── Rebuilds department_scores from tournament_results, for ALL
-//    departments/seasons. This is the exact logic that used to live only
-//    in leaderboardController.recalculate() — extracted here so both the
-//    manual "Recalculate" button and automatic tournament finalization stay
-//    in sync instead of duplicating (and eventually diverging from) this
-//    SQL in two places. ────────────────────────────────────────────────
 async function rebuildDepartmentScores(conn) {
     await conn.execute(
         `UPDATE department_scores

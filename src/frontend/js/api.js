@@ -1,11 +1,6 @@
-/* ============================================================
-   PAC SCHED-SCORE — CORE JS (api, auth, toast, modal, render helpers)
-   Shared by admin / dean / SGO_PRESIDENT / referee pages
-   ============================================================ */
 
 const API_BASE = window.location.origin + '/api';
 
-// ── Auth ──────────────────────────────────────────────────────
 const Auth = {
     getToken: () => localStorage.getItem('sf_token'),
     getUser: () => { try { return JSON.parse(localStorage.getItem('sf_user')); } catch { return null; } },
@@ -14,7 +9,7 @@ const Auth = {
         localStorage.removeItem('sf_user');
         window.location.href = '/login';
     },
-    // expectedRoles: string or array of allowed roles for this page
+
     requireAuth(expectedRoles = null) {
         const user = this.getUser();
         if (!user) { window.location.href = '/login'; return null; }
@@ -30,7 +25,6 @@ const Auth = {
     }
 };
 
-// ── API Request Helper ────────────────────────────────────────
 const api = async (path, options = {}) => {
     const token = Auth.getToken();
     const headers = {
@@ -61,7 +55,6 @@ const api = async (path, options = {}) => {
     }
 };
 
-// ── Toast ─────────────────────────────────────────────────────
 const Toast = {
     show(msg, type = 'success', duration = 3000) {
         let t = document.getElementById('sf-toast');
@@ -79,14 +72,12 @@ const Toast = {
     }
 };
 
-// ── Modal ─────────────────────────────────────────────────────
 const Modal = {
     open(id) { document.getElementById(id)?.classList.add('open'); },
     close(id) { document.getElementById(id)?.classList.remove('open'); },
     closeAll() { document.querySelectorAll('.modal-overlay').forEach(m => m.classList.remove('open')); }
 };
 
-// ── Render Helpers ────────────────────────────────────────────
 const statusBadge = (status) => {
     const map = {
         ongoing: ['badge-pulse badge-green', '🟢 LIVE'],
@@ -137,32 +128,50 @@ const formatDate = (d) => d
 const formatTime = (t) => t ? t.slice(0, 5) : '—';
 const initials = (name = '') => name.split(' ').map(w => w[0] || '').slice(0, 2).join('').toUpperCase() || '?';
 
-// ── Table Search ──────────────────────────────────────────────
 function filterTable(tableId, query) {
     const rows = document.querySelectorAll(`#${tableId} tbody tr`);
     const q = query.toLowerCase();
     rows.forEach(r => r.style.display = r.textContent.toLowerCase().includes(q) ? '' : 'none');
 }
 
-// ── Notification bell (generic, polls announcements/alerts) ───
 const NotifBell = {
     async init() {
         const bell = document.getElementById('notif-bell');
+        const dropdown = document.getElementById('notif-dropdown');
         if (!bell) return;
+
         bell.addEventListener('click', (e) => {
             e.stopPropagation();
-            const dd = document.getElementById('notif-dropdown');
-            if (!dd) return;
-            dd.style.display = dd.style.display === 'block' ? 'none' : 'block';
+            if (!dropdown) return;
+            const opening = dropdown.style.display !== 'block';
+            dropdown.style.display = opening ? 'block' : 'none';
+            if (opening) this.refresh();
         });
         document.addEventListener('click', () => {
-            const dd = document.getElementById('notif-dropdown');
-            if (dd) dd.style.display = 'none';
+            if (dropdown) dropdown.style.display = 'none';
         });
-    }
+
+        this.refresh();
+        clearInterval(this._timer);
+        this._timer = setInterval(() => this.refresh(), 45000);
+        ['sf:notif', 'sf:live', 'sf:match', 'sf:leaderboard', 'sf:champion'].forEach(evt => {
+            window.addEventListener(evt, () => this.refresh());
+        });
+    },
+
+    async refresh() {
+        if (typeof NotificationEngine === 'undefined') return;
+        const badgeEl = document.getElementById('notif-badge');
+        const listEl = document.getElementById('notif-list');
+        if (!badgeEl && !listEl) return;
+
+        const role = (typeof Auth !== 'undefined' && Auth.getUser && Auth.getUser()?.role) || null;
+        const items = await NotificationEngine.list(role);
+        const live = (typeof Realtime !== 'undefined' && Realtime.getFeed) ? Realtime.getFeed() : [];
+        NotificationEngine.render('notif-list', 'notif-badge', items, live);
+    },
 };
 
-// ── Mobile sidebar toggle ───────────────────────────────────────
 function toggleSidebar() {
     const sidebar = document.getElementById('app-sidebar');
     if (!sidebar) return;

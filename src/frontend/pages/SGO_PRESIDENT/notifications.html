@@ -36,21 +36,32 @@
         <div class="content">
             <div class="page-header" style="margin-bottom:20px">
                 <div>
-                    <div class="page-title" style="font-size:22px">Announcements</div>
-                    <div class="page-sub">Broadcast to deans, officers, and visitors watching the sport fest</div>
+                    <div class="page-title" style="font-size:22px">What needs your attention</div>
+                    <div class="page-sub">Matches, teams, tournaments, and approvals across the whole sport fest</div>
+                </div>
+                <div style="display:flex;gap:10px">
+                    <button class="btn btn-secondary btn-sm" id="notif-refresh-btn" type="button">
+                        <i class="fa-solid fa-rotate-right"></i> Refresh
+                    </button>
                 </div>
             </div>
 
-            <!--
-                This page used to duplicate two lists that already live in
-                full elsewhere — "Upcoming Match Reminders" was the same
-                data as Schedule & Officers, and "Recent Results" was the
-                same data as Reports. Keeping three near-identical views of
-                the same match feed was exactly the kind of "which page do
-                I go to for this" confusion being reported, so this page
-                is now just the one thing it does that nowhere else does:
-                sending a broadcast — plus quick links to the full views.
-            -->
+            <div class="card" style="margin-bottom:20px">
+                <div class="card-header">
+                    <div class="card-title">
+                        <i class="fa-solid fa-list-check" style="margin-right:8px;color:var(--gold)"></i>
+                        Notifications
+                        <span id="notif-page-count" class="badge badge-muted" style="margin-left:8px">0</span>
+                    </div>
+                </div>
+                <div class="card-body" style="padding:0">
+                    <div id="notif-page-list" style="max-height:520px;overflow-y:auto">
+                        <div class="notif-item empty"
+                            style="padding:24px;color:var(--muted);text-align:center;font-size:13px">Loading…</div>
+                    </div>
+                </div>
+            </div>
+
             <div class="card" style="max-width:640px">
                 <div class="card-header">
                     <div class="card-title">
@@ -85,13 +96,64 @@
     </main>
 
     <script src="../../js/api.js"></script>
+    <script src="../../js/notification-engine.js"></script>
     <script src="../../js/sgo_president.js"></script>
     <script>
         document.addEventListener('DOMContentLoaded', async () => {
             Auth.requireAuth('sgo_president');
             renderSidebar('notifications');
             NotifBell.init();
+            await loadNotificationsPage();
+            document.getElementById('notif-refresh-btn')?.addEventListener('click', loadNotificationsPage);
+
+            ['sf:notif', 'sf:live', 'sf:match', 'sf:leaderboard', 'sf:champion'].forEach(evt => {
+                window.addEventListener(evt, () => loadNotificationsPage());
+            });
         });
+
+        async function loadNotificationsPage() {
+            const listEl = document.getElementById('notif-page-list');
+            const countEl = document.getElementById('notif-page-count');
+            if (!listEl) return;
+
+            const items = await NotificationEngine.list('sgo_president');
+            countEl.textContent = items.length;
+
+            if (!items.length) {
+                listEl.innerHTML = `<div class="notif-item empty" style="padding:24px;color:var(--muted);text-align:center;font-size:13px">
+                    You're all caught up — nothing needs attention right now.
+                </div>`;
+                return;
+            }
+
+            const colorFor = { critical: '#E8323B', warning: '#F5B800', live: '#22C55E', info: '#3B82F6', success: '#22C55E' };
+            const labelFor = { critical: 'Needs attention', warning: 'Heads up', live: 'Live', info: 'Info', success: 'Good news' };
+
+            listEl.innerHTML = items.map(n => `
+                <div class="notif-item" data-notif-id="${n.id}" style="cursor:${n.link ? 'pointer' : 'default'}"
+                     ${n.link ? `onclick="window.location.href='${n.link}'"` : ''}>
+                    <div style="display:flex;gap:14px;align-items:flex-start;padding:14px 18px;border-bottom:1px solid var(--border)">
+                        <span style="font-size:20px;flex-shrink:0">${n.icon || '🔔'}</span>
+                        <div style="flex:1;min-width:0">
+                            <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+                                <strong style="color:${colorFor[n.severity] || 'var(--muted)'};font-size:14px">${n.title}</strong>
+                                <span class="badge badge-muted" style="font-size:10px">${labelFor[n.severity] || ''}</span>
+                            </div>
+                            <div style="font-size:13px;color:var(--muted);margin-top:4px">${n.message}</div>
+                        </div>
+                        ${n.dismissible ? `<button type="button" data-dismiss="${n.id}" title="Dismiss" aria-label="Dismiss"
+                            style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:16px;line-height:1;padding:2px 6px;flex-shrink:0">&times;</button>` : ''}
+                    </div>
+                </div>`).join('');
+
+            listEl.querySelectorAll('[data-dismiss]').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    NotificationEngine.dismiss(btn.dataset.dismiss);
+                    loadNotificationsPage();
+                });
+            });
+        }
 
         async function sendBroadcast() {
             const message = document.getElementById('bc-message').value.trim();

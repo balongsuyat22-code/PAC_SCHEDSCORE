@@ -2,7 +2,6 @@ const router = require('express').Router();
 const sfc = require('../controllers/sportFestController');
 const { authenticate, authorize } = require('../middleware/auth');
 
-// NOTE: '/active' must stay above '/:id' or Express will treat "active" as an id.
 router.get('/', sfc.getAll);
 router.get('/active', sfc.getActive);
 router.get('/:id', sfc.getOne);

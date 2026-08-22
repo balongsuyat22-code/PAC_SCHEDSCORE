@@ -1,8 +1,4 @@
-/* ══════════════════════════════════════════════════════════════
-   BRACKET DESIGNS — one per format
-   ══════════════════════════════════════════════════════════════ */
 
-/* ── Shared helpers ─────────────────────────────────────────── */
 const BD = {
     dept(m, slot) {
         const name = slot === 'a'
@@ -30,11 +26,8 @@ const BD = {
     },
 };
 
-/* ══════════════════════════════════════════════════════════════
-   SINGLE ELIMINATION BRACKET
-   ══════════════════════════════════════════════════════════════ */
 function renderSingleEliminationBracket(matches, participants, tournament) {
-    // Group matches by round
+
     const rounds = {};
     matches.forEach(m => {
         const r = m.round_number || 1;
@@ -89,11 +82,8 @@ function renderSingleEliminationBracket(matches, participants, tournament) {
     </div>`;
 }
 
-/* ══════════════════════════════════════════════════════════════
-   ROUND ROBIN BRACKET
-   ══════════════════════════════════════════════════════════════ */
 function renderRoundRobinBracket(matches, participants, tournament) {
-    // Calculate standings
+
     const standings = {};
     participants.forEach(p => {
         standings[p.department_id] = {
@@ -136,7 +126,6 @@ function renderRoundRobinBracket(matches, participants, tournament) {
 
     const sortedStandings = Object.values(standings).sort((a, b) => b.points - a.points || (b.pf - b.pa) - (a.pf - a.pa));
 
-    // Group matches by round
     const rounds = {};
     matches.forEach(m => {
         const r = m.round_number || 1;
@@ -227,9 +216,6 @@ function renderRoundRobinBracket(matches, participants, tournament) {
     </div>`;
 }
 
-/* ══════════════════════════════════════════════════════════════
-   FFA BRACKET
-   ══════════════════════════════════════════════════════════════ */
 function renderFFABracket(matches, participants, tournament) {
     const ffaScoring = tournament.ffa_scoring || 'points';
     const unit = ffaScoring === 'time' ? 's' : ffaScoring === 'distance' ? 'm' : 'pts';
@@ -262,9 +248,6 @@ function renderFFABracket(matches, participants, tournament) {
     </div>`;
 }
 
-/* ══════════════════════════════════════════════════════════════
-   MAIN RENDER FUNCTION
-   ══════════════════════════════════════════════════════════════ */
 function renderBracketByFormat(matches, participants, tournament) {
     if (!matches || matches.length === 0) {
         return `<div class="section-empty">No matches available. Generate bracket first.</div>`;

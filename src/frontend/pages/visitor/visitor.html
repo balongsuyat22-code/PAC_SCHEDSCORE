@@ -2511,7 +2511,6 @@
             color: var(--accent)
         }
 
-        /* Desktop Matches Grid */
         @media(min-width:1024px) {
             #matches-container {
                 display: grid;
@@ -2772,7 +2771,6 @@
             color: var(--live);
         }
 
-        /* ── Champion bar ── */
         .champion-bar {
             position: sticky;
             top: calc(var(--topbar-h) + var(--safe-top));
@@ -2848,7 +2846,6 @@
             flex-shrink: 0;
         }
 
-        /* Floating button alternative */
         .champion-fab {
             position: fixed;
             right: 16px;
@@ -2970,7 +2967,6 @@
         </nav>
     </div>
 
-    <!-- Sport Fest Champion (hidden until declared) -->
     <div id="champion-bar" class="champion-bar" style="display:none" role="button" tabindex="0"
         onclick="openChampionModal()">
         <div class="champion-bar-inner">
@@ -3098,13 +3094,13 @@
         </div>
     </div>
     <script>
-        // Add this at the VERY TOP of your script section
+
         (function () {
             let themeApplied = false;
 
             async function preloadTheme() {
                 try {
-                    // Fetch the leaderboard data
+
                     const response = await fetch('/api/leaderboard');
                     const data = await response.json();
 
@@ -3115,20 +3111,18 @@
                         const g = parseInt(hex.slice(2, 4), 16);
                         const b = parseInt(hex.slice(4, 6), 16);
 
-                        // Apply ALL theme properties
+
                         const root = document.documentElement;
                         root.style.setProperty('--accent', color);
                         root.style.setProperty('--accent-rgb', `${r},${g},${b}`);
                         root.style.setProperty('--accent-dim', `rgba(${r},${g},${b},0.12)`);
                         root.style.setProperty('--accent-glow', `rgba(${r},${g},${b},0.3)`);
 
-                        // Also update the hero glow
                         const heroGlow = document.getElementById('hero-glow');
                         if (heroGlow) {
                             heroGlow.style.background = `radial-gradient(ellipse, rgba(${r},${g},${b},0.15) 0%, transparent 70%)`;
                         }
 
-                        // Update ticker label
                         const tickerLabel = document.getElementById('ticker-label');
                         if (tickerLabel) {
                             tickerLabel.style.background = color;
@@ -3141,15 +3135,12 @@
                 }
             }
 
-            // Run immediately
             preloadTheme();
 
-            // Override applyDynamicTheme to prevent it from overriding our preload
-            // but still allow it to update if needed
             const originalApplyTheme = window.applyDynamicTheme;
             window.applyDynamicTheme = function (color) {
                 if (!themeApplied) {
-                    // Only apply if not already applied
+
                     if (color && color.startsWith('#')) {
                         const hex = color.replace('#', '');
                         const r = parseInt(hex.slice(0, 2), 16);
@@ -3180,19 +3171,18 @@
     <script>
         async function preloadTheme() {
             try {
-                // Fetch the leaderboard data first
+
                 const response = await fetch('/api/leaderboard');
                 const data = await response.json();
 
                 if (data.data && data.data.length > 0 && data.data[0].color) {
-                    // Apply the theme BEFORE the page renders
+
                     const color = data.data[0].color;
                     const hex = color.replace('#', '');
                     const r = parseInt(hex.slice(0, 2), 16);
                     const g = parseInt(hex.slice(2, 4), 16);
                     const b = parseInt(hex.slice(4, 6), 16);
 
-                    // Apply to root
                     document.documentElement.style.setProperty('--accent', color);
                     document.documentElement.style.setProperty('--accent-rgb', `${r},${g},${b}`);
                     document.documentElement.style.setProperty('--accent-dim', `rgba(${r},${g},${b},0.12)`);
@@ -3203,7 +3193,6 @@
             }
         }
 
-        // Run this immediately
         preloadTheme();
 
         const BASE = window.location.origin;
@@ -3218,15 +3207,12 @@
         let isConnected = false;
         let activeMatchRooms = new Set();
 
-        // Real-time polling cadence — matches/scores refresh fast, standings a
-        // little slower since they change less often (only on match completion).
         const MATCHES_POLL_MS = 5000;
         const LEADERBOARD_POLL_MS = 8000;
         const MODAL_POLL_MS = 4000;
 
         const TIME_BASED_SPORTS = ['swimming', 'athletics', 'track', 'cycling', 'running', 'gymnastics', 'triathlon'];
 
-        // ── SOCKET.IO SETUP ──
         function initSocket() {
             try {
                 socket = io(WS_URL, {
@@ -3242,10 +3228,8 @@
                     isConnected = true;
                     updateWSStatus(true);
 
-                    // Join leaderboard room for automatic updates
                     socket.emit('joinLeaderboard');
 
-                    // Get initial live matches
                     socket.emit('getLiveMatches');
                     socket.emit('getLeaderboard');
                 });
@@ -3263,25 +3247,21 @@
                     socket.emit('joinLeaderboard');
                     socket.emit('getLiveMatches');
                     socket.emit('getLeaderboard');
-                    // Re-join previously watched matches
                     activeMatchRooms.forEach(matchId => {
                         socket.emit('joinMatch', matchId);
                     });
                 });
 
-                // ── SCORE UPDATE (real-time) ──
                 socket.on('score:update', (data) => {
                     console.log('📊 Score update:', data);
                     handleScoreUpdate(data);
                 });
 
-                // ── MATCH STARTED ──
                 socket.on('match:started', (data) => {
                     console.log('▶️ Match started:', data);
-                    loadMatches(); // Refresh to show live status
+                    loadMatches();
                 });
 
-                // ── MATCH COMPLETED ──
                 socket.on('match:completed', (data) => {
                     console.log('🏁 Match completed:', data);
                     loadMatches();
@@ -3291,16 +3271,14 @@
                     }
                 });
 
-                // ── LEADERBOARD CHANGED ──
                 socket.on('leaderboard:changed', (data) => {
                     console.log('🏆 Leaderboard changed:', data);
                     loadLeaderboard();
                     loadChampion();
                 });
 
-                // ── LIVE MATCHES LIST ──
                 socket.on('live:matches', (matches) => {
-                    // Merge with existing matches for live updates
+
                     if (matches && matches.length) {
                         matches.forEach(lm => {
                             const existing = allMatches.find(m => m.id === lm.id);
@@ -3316,13 +3294,10 @@
                     }
                 });
 
-                // ── LIVE TICK ──
                 socket.on('live:tick', (data) => {
-                    // Update the match in the list without full refresh
                     updateMatchScore(data);
                 });
 
-                // ── LEADERBOARD DATA ──
                 socket.on('leaderboard:data', (data) => {
                     if (data && data.length) {
                         allLbData = data;
@@ -3333,10 +3308,8 @@
                     }
                 });
 
-                // ── MATCH STATE (when joining a match) ──
                 socket.on('match:state', (data) => {
                     if (data.match) {
-                        // Update local cache
                         const existing = allMatches.find(m => m.id === data.match.id);
                         if (existing) {
                             Object.assign(existing, data.match);
@@ -3344,7 +3317,6 @@
                             allMatches.push(data.match);
                         }
                         if (data.scores) {
-                            // Cache scores for the match
                             setsDataCache[data.match.id] = {
                                 setsWonA: data.match.sets_won_a || 0,
                                 setsWonB: data.match.sets_won_b || 0,
@@ -3379,7 +3351,6 @@
         }
 
         function handleScoreUpdate(data) {
-            // Update match in allMatches
             const match = allMatches.find(m => m.id === data.match_id);
             if (match) {
                 match.live_score_a = data.total_a;
@@ -3393,17 +3364,13 @@
                         currentSet: data.all_scores[data.all_scores.length - 1] || null
                     };
                 }
-                // Re-render if scores tab is active
                 if (document.getElementById('sec-scores').classList.contains('active')) {
                     renderMatches();
                 }
-                // Update ticker
                 updateTicker();
-                // If modal is open for this match, update it
                 if (openModalMatchId === data.match_id) {
                     loadAndRenderModal(data.match_id, true);
                 }
-                // Flash effect on the score
                 flashScore(data.match_id);
             }
         }
@@ -3425,7 +3392,6 @@
             const cards = document.querySelectorAll(`.match-card[data-match-id="${matchId}"], .ffa-card[data-match-id="${matchId}"]`);
             cards.forEach(card => {
                 card.classList.remove('score-flash');
-                // Force reflow
                 void card.offsetWidth;
                 card.classList.add('score-flash');
             });
@@ -3444,8 +3410,6 @@
                 activeMatchRooms.delete(matchId);
             }
         }
-
-        // ── THEME ──
         function applyDynamicTheme(color) {
             if (!color || !color.startsWith('#')) return;
             const hex = color.replace('#', '');
@@ -4412,8 +4376,6 @@
             if (name === 'schedule') renderSchedule();
             if (name === 'highlights') renderHighlights();
         }
-
-        // ── OVERRIDE loadMatches to use WebSocket for live updates ──
         const originalLoadMatches = loadMatches;
         loadMatches = async function () {
             try {
@@ -4421,8 +4383,6 @@
                 if (!r.ok) throw new Error();
                 const j = await r.json();
                 allMatches = j.data || [];
-
-                // Join rooms for live matches
                 if (socket && isConnected) {
                     allMatches.filter(m => m.status === 'ongoing').forEach(m => {
                         if (!activeMatchRooms.has(m.id)) {
@@ -4461,8 +4421,6 @@
                 document.getElementById('matches-container').innerHTML = `<div class="empty-state"><span class="empty-icon">${I.zap}</span><div class="empty-title">Could not load matches</div><div class="empty-sub">Check server connection</div></div>`;
             }
         };
-
-        // ── OVERRIDE openMatchModal to join WebSocket room ──
         const originalOpenMatchModal = openMatchModal;
         openMatchModal = async function (matchId) {
             const fromList = allMatches.find(x => x.id === matchId || String(x.id) === String(matchId));
@@ -4472,8 +4430,6 @@
             overlay.classList.add('open');
             document.body.style.overflow = 'hidden';
             openModalMatchId = matchId;
-
-            // Join WebSocket room for this match
             joinMatchRoom(matchId);
 
             await loadAndRenderModal(matchId, false);
@@ -4483,8 +4439,6 @@
                 modalRefreshTimer = setInterval(() => loadAndRenderModal(matchId, true), MODAL_POLL_MS);
             }
         };
-
-        // ── OVERRIDE closeModal to leave WebSocket room ──
         const originalCloseModal = closeModal;
         closeModal = function () {
             if (openModalMatchId) {
@@ -4496,13 +4450,10 @@
             clearInterval(modalRefreshTimer);
             modalRefreshTimer = null;
         };
-
-        // ── OVERRIDE loadLeaderboard to use WebSocket ──
         const originalLoadLeaderboard = loadLeaderboard;
         loadLeaderboard = async function () {
             const el = document.getElementById('lb-container');
             try {
-                // Use REST as fallback, but WebSocket will push updates
                 const r = await fetch(`${BASE}/api/leaderboard`);
                 if (!r.ok) throw new Error();
                 const j = await r.json();
@@ -4514,22 +4465,15 @@
                 if (!allLbData.length) el.innerHTML = `<div class="empty-state"><span class="empty-icon">${I.trophy}</span><div class="empty-title">Standings unavailable</div></div>`;
             }
         };
-
-        // ── INIT ──
-        // Initialize Socket.IO first
         initSocket();
 
-        // Then load initial data
         setTimeout(() => {
             loadMatches();
             loadLeaderboard();
         }, 500);
-
-        // Set up timers (fallback polling)
         matchesRefreshTimer = setInterval(loadMatches, MATCHES_POLL_MS);
         lbRefreshTimer = setInterval(loadLeaderboard, LEADERBOARD_POLL_MS);
 
-        // Clock update
         function updateClock() {
             const now = new Date();
             document.getElementById('topbar-clock').textContent = now.toLocaleTimeString('en-PH', { hour: '2-digit', minute: '2-digit', second: '2-digit' });

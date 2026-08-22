@@ -1,32 +1,8 @@
-/**
- * TEAM CONTROLLER
- * Teams belong to a department and a sport.
- *
- * Who does what:
- *   dean_adviser  → create/edit teams for their own dept; manage roster (add/remove players)
- *   admin         → full CRUD
- *   sgo_president → read (for bracket seeding)
- *   sgo_officer   → read (for scoring context)
- *   visitor       → read approved teams
- *
- * SEASON NOTE: teams now carry a sport_fest_id stamped at creation time
- * (utils/season.js). "Current roster" endpoints default to the active
- * season so an archived season's teams don't clutter today's lists, and
- * the Men/Women/Mixed gender-conflict check is scoped per season so a
- * department can field a "Men" team again next year even if one existed
- * in a completed season.
- */
 
 const { pool } = require('../config/database');
 const { logActivity } = require('../utils/logger');
 const { getActiveSportFestId } = require('../utils/season');
 
-// ---------------------------------------------------------------------------
-// GET ALL TEAMS — active season only by default
-// GET /api/teams
-// Query: sport_id, department_id, gender, player_gender, season_id
-// Protected: all roles
-// ---------------------------------------------------------------------------
 const getAll = async (req, res, next) => {
     try {
         const { sport_id, department_id, gender, player_gender, season_id } = req.query;
@@ -50,7 +26,6 @@ const getAll = async (req, res, next) => {
         const params = [];
 
         if (season_id === 'all') {
-            // no filter — show every season
         } else if (season_id) {
             query += ' AND t.sport_fest_id = ?';
             params.push(season_id);
@@ -59,7 +34,6 @@ const getAll = async (req, res, next) => {
             if (activeId) { query += ' AND t.sport_fest_id = ?'; params.push(activeId); }
         }
 
-        // Dean sees their dept only
         if (callerRole === 'dean_adviser') {
             query += ' AND t.department_id = ?';
             params.push(req.user.department_id);
@@ -85,11 +59,6 @@ const getAll = async (req, res, next) => {
     }
 };
 
-// ---------------------------------------------------------------------------
-// GET SINGLE PLAYERS (players not yet assigned to a team) — active season only
-// GET /api/teams/singles
-// Protected: dean_adviser | admin
-// ---------------------------------------------------------------------------
 const getSingles = async (req, res, next) => {
     try {
         const { sport_id, department_id } = req.query;
@@ -130,11 +99,6 @@ const getSingles = async (req, res, next) => {
     }
 };
 
-// ---------------------------------------------------------------------------
-// GET ONE TEAM (with players)
-// GET /api/teams/:id
-// Protected: all authenticated roles
-// ---------------------------------------------------------------------------
 const getOne = async (req, res, next) => {
     try {
         const [team] = await pool.execute(
@@ -153,8 +117,6 @@ const getOne = async (req, res, next) => {
             return res.status(404).json({ success: false, message: 'Team not found.' });
         }
 
-        // Dean/Adviser: dept check (optional chaining — this route may be
-        // hit without req.user set, e.g. a public/visitor request)
         if (req.user?.role === 'dean_adviser' && team[0].department_id !== req.user.department_id) {
             return res.status(403).json({ success: false, message: 'Access denied.' });
         }
@@ -170,11 +132,6 @@ const getOne = async (req, res, next) => {
     }
 };
 
-// ---------------------------------------------------------------------------
-// CREATE TEAM  (Dean/Adviser own dept | Admin)
-// POST /api/teams
-// Body: { name, department_id, sport_id, gender, coach_name, logo_url }
-// ---------------------------------------------------------------------------
 const create = async (req, res, next) => {
     try {
         const { name, department_id, sport_id, gender, coach_name, logo_url } = req.body;
@@ -194,7 +151,6 @@ const create = async (req, res, next) => {
             });
         }
 
-        // Dean can only create for their dept
         const effectiveDeptId = req.user.role === 'dean_adviser'
             ? req.user.department_id
             : parseInt(department_id);
@@ -203,8 +159,6 @@ const create = async (req, res, next) => {
             return res.status(403).json({ success: false, message: 'You can only create teams for your own department.' });
         }
 
-        // Gender conflict checks — scoped to THIS season only, so a Men/Women/Mixed
-        // team from an archived season never blocks the same sport next season.
         const [existingTeams] = await pool.execute(
             'SELECT gender FROM teams WHERE department_id = ? AND sport_id = ? AND sport_fest_id = ?',
             [effectiveDeptId, sport_id, sportFestId]
@@ -248,10 +202,6 @@ const create = async (req, res, next) => {
     }
 };
 
-// ---------------------------------------------------------------------------
-// UPDATE TEAM  (Dean own dept | Admin)
-// PUT /api/teams/:id
-// ---------------------------------------------------------------------------
 const update = async (req, res, next) => {
     try {
         const teamId = parseInt(req.params.id);
@@ -264,7 +214,6 @@ const update = async (req, res, next) => {
             return res.status(403).json({ success: false, message: 'Access denied.' });
         }
 
-        // Gender conflict (exclude self), scoped to the team's own season
         const [existingTeams] = await pool.execute(
             'SELECT gender FROM teams WHERE department_id = ? AND sport_id = ? AND id != ? AND sport_fest_id = ?',
             [department_id, sport_id, teamId, team[0].sport_fest_id]
@@ -294,11 +243,6 @@ const update = async (req, res, next) => {
     }
 };
 
-// ---------------------------------------------------------------------------
-// ADD PLAYER TO TEAM  (Dean own dept | Admin)
-// POST /api/teams/:id/members
-// Body: { player_id }
-// ---------------------------------------------------------------------------
 const addMember = async (req, res, next) => {
     try {
         const teamId = parseInt(req.params.id);
@@ -311,7 +255,6 @@ const addMember = async (req, res, next) => {
             return res.status(403).json({ success: false, message: 'Access denied.' });
         }
 
-        // Verify player is from the same dept
         const [player] = await pool.execute('SELECT department_id, sport_fest_id FROM players WHERE id = ?', [player_id]);
         if (!player.length) return res.status(404).json({ success: false, message: 'Player not found.' });
         if (player[0].department_id !== team[0].department_id) {
@@ -321,10 +264,6 @@ const addMember = async (req, res, next) => {
             return res.status(400).json({ success: false, message: 'Player and team belong to different seasons.' });
         }
 
-        // Check capacity + assign atomically — same TOCTOU fix as
-        // playerController.updatePlayerStatus: read-then-write on a COUNT
-        // lets two concurrent adds both slip in when the team has exactly
-        // one slot left.
         const [claim] = await pool.execute(
             `UPDATE players p
              JOIN sports s ON s.id = ?
@@ -347,10 +286,6 @@ const addMember = async (req, res, next) => {
     }
 };
 
-// ---------------------------------------------------------------------------
-// REMOVE PLAYER FROM TEAM  (Dean own dept | Admin)
-// DELETE /api/teams/:id/members/:playerId
-// ---------------------------------------------------------------------------
 const removeMember = async (req, res, next) => {
     try {
         const teamId = parseInt(req.params.id);
@@ -370,11 +305,6 @@ const removeMember = async (req, res, next) => {
     }
 };
 
-// ---------------------------------------------------------------------------
-// UPDATE PLAYER STATUS WITHIN TEAM  (approve / reject within dept — Dean | Admin)
-// PATCH /api/teams/:id/members/:playerId/status
-// Body: { status: 'approved' | 'rejected' | 'pending' }
-// ---------------------------------------------------------------------------
 const updatePlayerStatus = async (req, res, next) => {
     try {
         const teamId = parseInt(req.params.id);
@@ -419,11 +349,6 @@ const updatePlayerStatus = async (req, res, next) => {
     }
 };
 
-// ---------------------------------------------------------------------------
-// SUBMIT TEAM ROSTER  (Dean finalizes lineup — marks all approved players as confirmed)
-// POST /api/teams/:id/submit-roster
-// Protected: dean_adviser (own dept) | admin
-// ---------------------------------------------------------------------------
 const submitRoster = async (req, res, next) => {
     try {
         const teamId = parseInt(req.params.id);
@@ -458,17 +383,10 @@ const submitRoster = async (req, res, next) => {
     }
 };
 
-// ---------------------------------------------------------------------------
-// DELETE TEAM  (Admin only)
-// DELETE /api/teams/:id
-// ---------------------------------------------------------------------------
 const remove = async (req, res, next) => {
     try {
         const teamId = parseInt(req.params.id);
 
-        // Same guard departmentController.remove() already had — a team
-        // that's an active participant (or has matches scheduled) shouldn't
-        // vanish out from under a tournament in progress.
         const [active] = await pool.execute(
             `SELECT COUNT(*) AS count FROM matches m
              JOIN teams t ON t.id = ?
@@ -484,7 +402,6 @@ const remove = async (req, res, next) => {
             });
         }
 
-        // Unlink players first
         await pool.execute('UPDATE players SET team_id = NULL WHERE team_id = ?', [teamId]);
         await pool.execute('DELETE FROM teams WHERE id = ?', [teamId]);
 

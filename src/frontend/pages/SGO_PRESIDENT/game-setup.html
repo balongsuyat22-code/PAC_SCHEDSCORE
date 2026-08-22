@@ -1175,7 +1175,6 @@
         </div>
     </div>
 
-    <!-- Auto-Schedule Modal (round robin only) -->
     <div class="modal-overlay" id="modal-auto-schedule">
         <div class="modal">
             <div class="modal-header">
@@ -1230,7 +1229,6 @@
         </div>
     </div>
 
-    <!-- FFA Schedule Modal (single date/time/venue, no repeating slots) -->
     <div class="modal-overlay" id="modal-ffa-schedule">
         <div class="modal">
             <div class="modal-header">
@@ -1274,7 +1272,6 @@
         </div>
     </div>
 
-    <!-- Finalize Modal -->
     <div class="modal-overlay" id="modal-finalize">
         <div class="modal" style="max-width:520px">
             <div class="modal-header">
@@ -1314,13 +1311,7 @@
     <script src="../../js/sgo_president.js"></script>
     <script src="../../js/bracket-design.js"></script>
     <script>
-        /* ============================================================
-           GAME SETUP — SGO President tournament list + manage workspace
-           Sections: state · helpers · boot · list · create · workspace
-                     tabs · participants · schedule · finalize
-           ============================================================ */
 
-        // ── State ────────────────────────────────────────────────
         let currentTournamentId = null;
         let currentTournament = null;
         let currentBracketMatches = [];
@@ -1344,7 +1335,6 @@
             elimination: 'Officer taps "Eliminate" as departments are knocked out. Last standing is 1st.',
         };
 
-        // ── Helpers ──────────────────────────────────────────────
         function statusColor(status) {
             if (status === 'approved') return 'var(--green)';
             if (status === 'rejected') return 'var(--red)';
@@ -1369,7 +1359,6 @@
             return typeof formatTime === 'function' ? formatTime(t) : String(t).slice(0, 5);
         }
 
-        /** Primary / secondary name without duplicating course text */
         function participantNames(p) {
             const team = (p.team_name || '').trim();
             const dept = (p.department_name || '').trim();
@@ -1402,7 +1391,6 @@
             return `<span class="dept-dot" style="background:${color || '#555'}"></span>`;
         }
 
-        /** Shared match row used by Matches / Bracket / Results / Schedule */
         function matchCardHtml(m, opts = {}) {
             const { nA, nB, cA, cB } = matchSideNames(m);
             const score = matchScoreText(m);
@@ -1438,7 +1426,6 @@
             </div>`;
         }
 
-        // ── Boot ─────────────────────────────────────────────────
         document.addEventListener('DOMContentLoaded', async () => {
             Auth.requireAuth('sgo_president');
             renderSidebar('game-setup');
@@ -1473,9 +1460,6 @@
                 }
             });
         });
-
-
-        // ── Create tournament form ───────────────────────────
 
         function onFfaScoringChange() {
             const el = document.getElementById('tn-ffa-scoring');
@@ -1519,7 +1503,6 @@
             }
         }
 
-        // ── List / workspace shell ──────────────────────────
         function showList() {
             document.getElementById('list-view').style.display = '';
             document.getElementById('tourn-workspace').style.display = 'none';
@@ -1589,7 +1572,6 @@
             }).join('');
         }
 
-        // ── Create tournament ───────────────────────────────
         async function createTournament() {
             const name = document.getElementById('tn-name').value.trim();
             const sport_id = parseInt(document.getElementById('tn-sport').value) || null;
@@ -1635,9 +1617,6 @@
             }
         }
 
-        // NOTE: /matches/officers currently 404s because of a route-order bug
-        // in routes/matches.js (a literal path must be registered before
-        // '/:id'). Once fixed server-side, this will populate correctly.
         async function loadOfficerOptionsForSchedule() {
             const res = await api('/matches/officers');
             officersCache = res.success ? (res.data || []) : [];
@@ -1650,7 +1629,6 @@
             }
         }
 
-        // ── Workspace data ────────────────────────────────────
         async function refreshAll() {
             if (!currentTournamentId) return;
             const [tourneyRes, bracketRes] = await Promise.all([
@@ -1669,7 +1647,6 @@
             const title = document.getElementById('topbar-title');
             if (title) title.innerHTML = '<i class="fa-solid fa-trophy"></i> ' + (currentTournament.name || 'Tournament');
 
-            // Toolbar visibility
             const btnAdd = document.getElementById('btn-add-participants');
             const btnGen = document.getElementById('btn-generate');
             const btnAuto = document.getElementById('btn-auto-schedule');
@@ -1721,7 +1698,7 @@
                     };
                 });
                 if (res.data.ffa_scoring) currentTournament.ffa_scoring = res.data.ffa_scoring;
-            } catch (e) { /* ignore */ }
+            } catch (e) { }
         }
 
         function renderHeroBar() {
@@ -1770,8 +1747,6 @@
             </div>`;
         }
 
-
-        // ── Workspace tabs ──────────────────────────────────
         function renderWsTabs() {
             const el = document.getElementById('ws-tabs');
             if (!el || !currentTournament) return;
@@ -1788,15 +1763,15 @@
             ];
 
             if (isFfa) {
-                // FFA: schedule card + ranked standings only
+
                 tabs.push({ id: 'schedule', label: 'Schedule' });
                 tabs.push({ id: 'standings', label: 'Standings' });
             } else if (isRR) {
-                // Round robin: one Matches list (covers schedule/bracket/results) + standings
+
                 tabs.push({ id: 'matches', label: `Matches (${currentBracketMatches.length})` });
                 tabs.push({ id: 'standings', label: 'Standings' });
             } else {
-                // Elimination / group: schedule timeline + bracket tree + standings + results when ongoing
+
                 tabs.push({ id: 'schedule', label: 'Schedule' });
                 tabs.push({ id: 'bracket', label: `Bracket (${currentBracketMatches.length})` });
                 tabs.push({ id: 'standings', label: 'Standings' });
@@ -1836,7 +1811,6 @@
             el.innerHTML = (map[activeTab] || tabOverview)();
         }
 
-        // ── Tab renderers ───────────────────────────────────
         function tabOverview() {
             const t = currentTournament;
             const parts = t.participants || [];
@@ -1846,7 +1820,6 @@
             const matchLabel = isFfa ? 'Event' : 'Matches';
             const matchVal = isFfa ? (currentBracketMatches[0]?.status === 'completed' ? 'Done' : (currentBracketMatches.length ? 'Ready' : '—')) : currentBracketMatches.length;
 
-            // Stats only — status/sport/format/gender already in hero
             return `
             <div class="grid-3" style="margin-bottom:16px">
                 <div class="stat-card stat-blue">
@@ -1882,7 +1855,6 @@
             const matches = currentBracketMatches || [];
             const isFfa = isFfaFormat(currentTournament.format);
 
-            // FFA: show dedicated event card (admin-style) instead of empty/duplicate timeline
             if (isFfa) return tabFfaEventCard();
 
             const dates = [...new Set(matches.map(m => m.scheduled_date).filter(Boolean))].sort();
@@ -1982,7 +1954,7 @@
 
 
         function tabMatches() {
-            // Unified match list for round robin (replaces schedule + bracket + results)
+
             const matches = currentBracketMatches || [];
             const isFinalized = currentTournament.status === 'completed';
             const canAuto = currentTournament.format === 'round_robin' && !isFinalized;
@@ -2000,7 +1972,6 @@
             const completed = matches.filter(m => m.status === 'completed').length;
             const pending = matches.length - completed;
 
-            // Sort: completed last, then by date/time
             const sorted = [...matches].sort((a, b) => {
                 const ac = a.status === 'completed' ? 1 : 0;
                 const bc = b.status === 'completed' ? 1 : 0;
@@ -2037,14 +2008,13 @@
                 </div></div>`;
             }
 
-            // Prefer shared renderer if available
+
             if (typeof renderBracketByFormat === 'function') {
                 const body = renderBracketByFormat(matches, currentTournament.participants || [], currentTournament);
                 return `<div class="card"><div class="card-header"><div class="card-title"><i class="fa-solid fa-trophy"></i> Bracket</div></div>
                     <div class="card-body">${body}</div></div>`;
             }
 
-            // Admin-style grouped match cards
             const groups = {};
             matches.forEach(m => {
                 const key = m.round_name || m.bracket_round || m.bracket_side || m.bracket_position || 'Matches';
@@ -2124,7 +2094,7 @@
             const isFfa = isFfaFormat(currentTournament.format);
 
             if (isFfa) {
-                // Rank by ffa_result_value if present on participants
+
                 const scoring = currentTournament.ffa_scoring || 'points';
                 const unit = scoring === 'time' ? 's' : scoring === 'distance' ? 'm' : 'pts';
                 const lowerBetter = scoring === 'time';
@@ -2172,7 +2142,6 @@
                 </div>`;
             }
 
-            // Head-to-head W/D/L table
             const standing = {};
             parts.forEach(p => {
                 const id = p.department_id;
@@ -2268,8 +2237,6 @@
             </div>`;
         }
 
-        // ── Free-For-All card ───────────────────────────────────
-        // ── FFA schedule actions ────────────────────────────
         function openFfaSchedule() {
             const match = currentBracketMatches[0];
             if (currentTournament?.status === 'completed') {
@@ -2304,7 +2271,6 @@
             }
         }
 
-        // ── Participants modal ──────────────────────────────
         async function openAddParticipants() {
             const el = document.getElementById('dept-checklist');
             const meta = document.getElementById('elig-meta');
@@ -2391,7 +2357,6 @@
             }
         }
 
-        // ── Bracket actions ─────────────────────────────────
         async function generateBracket() {
             if (!confirm('Generate the bracket now? This will (re)create matches for this tournament.')) return;
             const res = await api(`/tournaments/${currentTournamentId}/generate`, { method: 'POST' });
@@ -2426,8 +2391,6 @@
             updateSlotCalc();
         }
 
-        // Tells you the exact number of dates/times to enter instead of
-        // guessing: matches = N*(N-1)/2 for round robin, slots = dates × times.
         function updateSlotCalc() {
             const box = document.getElementById('slot-calc');
             if (!box) return;
@@ -2461,7 +2424,6 @@
             }
         }
 
-        // ── Auto-schedule (round robin) ─────────────────────
         function openAutoSchedule() {
             updateSlotCalc();
             Modal.open('modal-auto-schedule');
@@ -2489,11 +2451,9 @@
             if (res.success) { Modal.close('modal-auto-schedule'); refreshAll(); }
         }
 
-        // ── Points-per-place (finalize modal) ───────────────────
-        const DEFAULT_POINTS_MAP = { 1: 10, 2: 7, 3: 5 };
-        // pointsRows declared in state block
 
-        // ── Finalize / points ───────────────────────────────
+        const DEFAULT_POINTS_MAP = { 1: 10, 2: 7, 3: 5 };
+
         function renderPointsRows() {
             const host = document.getElementById('points-rows');
             const placeLabel = (r) => r === 1 ? '1st' : r === 2 ? '2nd' : r === 3 ? '3rd' : `${r}th`;
@@ -2546,8 +2506,7 @@
                     renderPointsRows();
                 }
             } catch {
-                // Endpoint not deployed yet — silently keep the 10/7/5 default,
-                // finalize still works, it just won't prefill saved values.
+
             }
         }
 

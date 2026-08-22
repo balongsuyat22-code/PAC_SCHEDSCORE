@@ -1,30 +1,3 @@
-/**
- * LEADERBOARD CONTROLLER
- * Real-time and historical rankings for the sport fest.
- *
- * Who does what:
- *   visitor       → view overall leaderboard, medal tally, by-sport, champion
- *   dean_adviser  → same as visitor + department-specific breakdown
- *   sgo_president → same + trigger recalculate
- *   admin         → full access including recalculate
- *   sgo_officer   → read-only (same as visitor)
- *
- * SEASON NOTE: department_scores now has one row PER (department, season).
- * Every query below that joins department_scores must filter by the
- * active season's id, or a department with scores from two seasons will
- * come back as two duplicate rows with different totals. The `<=> ?`
- * operator is MySQL's NULL-safe equals, so this also works correctly for
- * legacy rows where sport_fest_id is still NULL.
- *
- * LIVE UPDATES: recalculate() is the one write path in this file — it
- * rebuilds department_scores from scratch. Anyone watching the public
- * leaderboard/medal tally/dashboard needs to know when that happens, so
- * it now emits a global 'leaderboard:changed' event. The read endpoints
- * below stay plain REST; clients that receive 'leaderboard:changed' (from
- * here, or from matchController/tournamentController after a match or
- * tournament finalizes) should silently refetch getLeaderboard/getMedalTally
- * rather than requiring the visitor to hit refresh.
- */
 
 const { pool } = require('../config/database');
 const { logActivity } = require('../utils/logger');
@@ -33,19 +6,8 @@ const { emitToLeaderboard } = require('../utils/socketEmit');
 const cache = require('../utils/cache');
 const { rebuildDepartmentScores } = require('../utils/scoring');
 
-// Short TTL: these are hit by every visitor on the public /live board.
-// 10s means a burst of 200 concurrent viewers costs one query, not 200,
-// while staying close enough to real-time that nobody notices the delay.
-// getLiveLeaderboard (below) is intentionally NOT cached — that one exists
-// specifically for the "just happened" refresh right after a socket event.
 const LEADERBOARD_TTL = 10;
 
-// ---------------------------------------------------------------------------
-// GET OVERALL LEADERBOARD — active season only
-// GET /api/leaderboard
-// Returns all departments ranked by total_points → gold → silver → bronze
-// Protected: all roles (public)
-// ---------------------------------------------------------------------------
 const getLeaderboard = async (req, res, next) => {
     try {
         const sportFestId = await getActiveSportFestId();
@@ -82,12 +44,6 @@ const getLeaderboard = async (req, res, next) => {
     }
 };
 
-// ---------------------------------------------------------------------------
-// GET DEPARTMENT RANKING  (alias used by visitor/dean pages) — active season
-// GET /api/leaderboard/departments
-// Same as getLeaderboard but includes win/loss record per department
-// Protected: all roles (public)
-// ---------------------------------------------------------------------------
 const getDepartmentRanking = async (req, res, next) => {
     try {
         const sportFestId = await getActiveSportFestId();
@@ -137,12 +93,6 @@ const getDepartmentRanking = async (req, res, next) => {
     }
 };
 
-// ---------------------------------------------------------------------------
-// GET MEDAL TALLY — active season only
-// GET /api/leaderboard/medals
-// Classic Olympic-style medal table (gold → silver → bronze)
-// Protected: all roles (public)
-// ---------------------------------------------------------------------------
 const getMedalTally = async (req, res, next) => {
     try {
         const sportFestId = await getActiveSportFestId();
@@ -177,14 +127,6 @@ const getMedalTally = async (req, res, next) => {
     }
 };
 
-// ---------------------------------------------------------------------------
-// GET LEADERBOARD BY SPORT
-// GET /api/leaderboard/by-sport
-// Shows each department's best performance per sport, across all seasons
-// this sport has run — this is a "trophy case" view (same intent as
-// departmentController.getScores), so it's deliberately NOT season-scoped.
-// Protected: all roles (public)
-// ---------------------------------------------------------------------------
 const getBySport = async (req, res, next) => {
     try {
         const { sport_id } = req.query;
@@ -229,12 +171,6 @@ const getBySport = async (req, res, next) => {
     }
 };
 
-// ---------------------------------------------------------------------------
-// GET TOP SCORERS / MVP LEADERBOARD
-// GET /api/leaderboard/top-scorers
-// All-time (across seasons) — same rationale as getBySport above.
-// Protected: all roles (public)
-// ---------------------------------------------------------------------------
 const getTopScorers = async (req, res, next) => {
     try {
         const { sport_id, limit = 20 } = req.query;
@@ -278,12 +214,6 @@ const getTopScorers = async (req, res, next) => {
     }
 };
 
-// ---------------------------------------------------------------------------
-// GET WINNING TEAMS
-// GET /api/leaderboard/winning-teams
-// All-time — see note on getBySport.
-// Protected: all roles (public)
-// ---------------------------------------------------------------------------
 const getWinningTeams = async (req, res, next) => {
     try {
         const [rows] = await pool.execute(
@@ -315,12 +245,6 @@ const getWinningTeams = async (req, res, next) => {
     }
 };
 
-// ---------------------------------------------------------------------------
-// GET CHAMPION TEAMS (gold medal per sport)
-// GET /api/leaderboard/champions
-// All-time — see note on getBySport.
-// Protected: all roles (public)
-// ---------------------------------------------------------------------------
 const getChampionTeams = async (req, res, next) => {
     try {
         const [rows] = await pool.execute(
@@ -351,11 +275,6 @@ const getChampionTeams = async (req, res, next) => {
     }
 };
 
-// ---------------------------------------------------------------------------
-// GET OVERALL CHAMPION  (used on sport fest summary page) — active season
-// GET /api/leaderboard/overall-champion
-// Protected: all roles (public)
-// ---------------------------------------------------------------------------
 const getOverallChampion = async (req, res, next) => {
     try {
         const sportFestId = await getActiveSportFestId();
@@ -377,7 +296,6 @@ const getOverallChampion = async (req, res, next) => {
         const hasTournaments = Number(totals.total) > 0;
         const allComplete = manuallyDeclared || (hasTournaments && Number(totals.incomplete) === 0);
 
-        // Current leader / champion (rank 1) for THIS season
         const [leaders] = await pool.execute(
             `SELECT
                 d.id, d.name, d.code, d.color, d.logo_url,
@@ -395,7 +313,6 @@ const getOverallChampion = async (req, res, next) => {
 
         const leader = leaders[0] || null;
 
-        // Sport breakdown for the leader, THIS season only
         let sportBreakdown = [];
         if (leader) {
             const [breakdown] = await pool.execute(
@@ -417,7 +334,6 @@ const getOverallChampion = async (req, res, next) => {
             sportBreakdown = breakdown;
         }
 
-        // Full leaderboard for the widget, THIS season
         const [leaderboard] = await pool.execute(
             `SELECT
                 d.id, d.name, d.code, d.color, d.logo_url,
@@ -438,7 +354,6 @@ const getOverallChampion = async (req, res, next) => {
             [sportFestId]
         );
 
-        // Tournament progress stats for THIS season
         const [[stats]] = await pool.execute(
             `SELECT
                 COUNT(*)                                                         AS total_tournaments,
@@ -470,12 +385,6 @@ const getOverallChampion = async (req, res, next) => {
     }
 };
 
-// ---------------------------------------------------------------------------
-// GET DEPARTMENT MVP  (top MVP per department)
-// GET /api/leaderboard/department-mvp/:departmentId
-// All-time — see note on getBySport.
-// Protected: all roles (public)
-// ---------------------------------------------------------------------------
 const getDepartmentMVP = async (req, res, next) => {
     try {
         const { departmentId } = req.params;
@@ -506,12 +415,6 @@ const getDepartmentMVP = async (req, res, next) => {
     }
 };
 
-// ---------------------------------------------------------------------------
-// GET OVERALL MVP  (across all departments)
-// GET /api/leaderboard/overall-mvp
-// All-time — see note on getBySport.
-// Protected: all roles (public)
-// ---------------------------------------------------------------------------
 const getOverallMVP = async (req, res, next) => {
     try {
         const [rows] = await pool.execute(
@@ -540,24 +443,7 @@ const getOverallMVP = async (req, res, next) => {
     }
 };
 
-// ---------------------------------------------------------------------------
-// RECALCULATE LEADERBOARD  (re-aggregates from tournament_results)
-// POST /api/leaderboard/recalculate
-// Protected: admin | sgo_president
-//
-// SEASON FIX: the previous version grouped only by department_id, which
-// after the season migration would collapse every season's history into
-// a single row (data loss) and then fight with the new unique key on
-// (department_id, sport_fest_id) — each run could pile up duplicate rows
-// instead of updating in place. This version groups by season too, via
-// tournament → sport_fest_tournaments → sport_fest_id, and rebuilds
-// EVERY season's totals correctly and independently.
-//
-// LIVE UPDATE: this is a full rebuild of department_scores, so it can
-// change what every visitor's leaderboard/medal-tally/dashboard widget
-// is showing. Emits a global 'leaderboard:changed' once committed so
-// connected clients can silently refetch instead of needing a refresh.
-// ---------------------------------------------------------------------------
+
 const recalculate = async (req, res, next) => {
     const conn = await pool.getConnection();
     try {

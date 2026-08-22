@@ -1,12 +1,3 @@
-/**
- * AUTH CONTROLLER
- * Handles: login, logout, token refresh, profile (getMe, updateProfile, changePassword)
- *
- * Roles: admin | dean_adviser | sgo_president | sgo_officer
- * - Players are NOT user accounts; they are data records managed by dean_adviser
- * - Visitor role removed - only authenticated users with specific roles can access
- */
-
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const { v4: uuidv4 } = require('uuid');
@@ -53,11 +44,6 @@ const login = async (req, res, next) => {
             });
         }
 
-
-        // .trim() here defensively strips any stray whitespace/CR/LF that may
-        // have snuck into the stored hash (e.g. from how it was inserted),
-        // without weakening the check — real bcrypt hashes never legitimately
-        // contain leading/trailing whitespace.
         const storedHash = (user.password_hash || '').trim();
         const isMatch = await bcrypt.compare(password, storedHash);
         if (!isMatch) {
@@ -130,9 +116,6 @@ const register = async (req, res, next) => {
             });
         }
 
-        // registerPlayer's counterpart (changePassword/resetPassword) both
-        // enforce a minimum length; this endpoint didn't, so an account
-        // could previously be created with a 1-character password.
         if (password.length < 6) {
             return res.status(400).json({
                 success: false,
@@ -358,10 +341,6 @@ const changePassword = async (req, res, next) => {
 
 const resetPassword = async (req, res, next) => {
     try {
-        // This resets ANOTHER user's password — defense in depth beyond
-        // whatever the route middleware does. Without this, any endpoint
-        // that forgets to restrict this route to admin would let anyone
-        // authenticated take over any account.
         if (!req.user || req.user.role !== 'admin') {
             return res.status(403).json({ success: false, message: 'Only an admin can reset another user\'s password.' });
         }
@@ -383,7 +362,6 @@ const resetPassword = async (req, res, next) => {
 
         await pool.execute('UPDATE users SET password_hash = ?, updated_at = NOW() WHERE id = ?', [hash, targetId]);
 
-        // Revoke all their refresh tokens
         await pool.execute('DELETE FROM refresh_tokens WHERE user_id = ?', [targetId]);
 
         await logActivity(
@@ -401,22 +379,6 @@ const resetPassword = async (req, res, next) => {
     }
 };
 
-// ── DEV-ONLY DEBUG HELPER ──────────────────────────────────────
-// Reveals whether a stored hash has stray whitespace (length mismatch
-// only — NOT the actual hash bytes; see hardening notes below).
-// Mounted only when NODE_ENV !== 'production' (see routes/auth.js).
-//
-// HARDENED — the original version had two real security problems even
-// for a "dev-only" route:
-//   1. It accepted the password via GET query string (?password=...),
-//      which lands in server access logs, browser history, and any
-//      proxy/CDN logs in between — regardless of environment.
-//   2. It echoed the full hex dump of the bcrypt hash bytes back in the
-//      response body. A bcrypt hash isn't the password, but there's no
-//      reason to hand it to the client at all, dev tool or not — treat
-//      "the hash leaked" the same as "a secret leaked."
-// Fixed: requires POST (body, not query string) and returns only
-// length/whitespace diagnostics, never the hash itself.
 const debugPassword = async (req, res) => {
     try {
         if (process.env.NODE_ENV === 'production') {

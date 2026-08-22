@@ -111,7 +111,7 @@ const update = async (req, res, next) => {
              WHERE id = ?`,
             [
                 name,
-                location || null,                    // was: location || 0
+                location || null,
                 capacity != null ? capacity : 0,
                 description || null,
                 is_active !== undefined ? is_active : 1,
@@ -129,9 +129,7 @@ const update = async (req, res, next) => {
 
 const remove = async (req, res, next) => {
     try {
-        // Same guard departmentController.remove() already had — nothing
-        // previously stopped a venue being deactivated while matches are
-        // still scheduled or in progress there, silently orphaning them.
+
         const [active] = await pool.execute(
             `SELECT COUNT(*) AS count FROM matches WHERE venue_id = ? AND status IN ('scheduled', 'ongoing')`,
             [req.params.id]

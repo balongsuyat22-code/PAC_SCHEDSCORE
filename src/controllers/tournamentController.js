@@ -1,15 +1,10 @@
-/**
- * controllers/tournamentController.js
- * Schema-aligned for:
- *  tournaments, matches, tournament_participants, departments, players, sports
- */
+
 const { pool } = require('../config/database');
 const { getActiveSportFestId } = require('../utils/season');
 const { recordResultsAndRebuild, DEFAULT_MEDAL_POINTS } = require('../utils/scoring');
 const cache = require('../utils/cache');
 const { emitToLeaderboard } = require('../utils/socketEmit');
 
-// ── Helpers ───────────────────────────────────────────────────
 function isTeamSport(row) {
     if (!row) return false;
     const cat = String(row.category || row.sport_category || '').toLowerCase();
@@ -28,13 +23,9 @@ function requiredPlayers(row) {
     const minP = Number(row.min_players) || 0;
     const teamSize = Number(row.team_size) || 0;
     if (!team) return minP > 0 ? minP : 1;
-    // Team sports never require only 1
     return Math.max(minP, teamSize, 2);
 }
 
-// Validates a { "1": 10, "2": 7, ... } points-per-place map coming from the
-// finalize request body. Returns null if nothing usable was sent (caller
-// falls back to the tournament's saved config, then DEFAULT_MEDAL_POINTS).
 function validatePointsMap(raw) {
     if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return null;
     const cleaned = {};
@@ -111,7 +102,6 @@ const getAll = async (req, res, next) => {
     }
 };
 
-// ── Get one tournament + participants + players ───────────────
 const getOne = async (req, res, next) => {
     try {
         const t = await getTournamentWithSport(req.params.id);
@@ -173,7 +163,6 @@ const getOne = async (req, res, next) => {
     }
 };
 
-// ── Participants only ─────────────────────────────────────────
 const getParticipants = async (req, res, next) => {
     try {
         const t = await getTournamentWithSport(req.params.id);
@@ -233,7 +222,6 @@ const getParticipants = async (req, res, next) => {
     }
 };
 
-// ── Eligibility (team vs individual + min roster + no dupes) ──
 const getEligibility = async (req, res, next) => {
     try {
         const t = await getTournamentWithSport(req.params.id);
@@ -334,7 +322,6 @@ const getEligibility = async (req, res, next) => {
     }
 };
 
-// ── Add participants ──────────────────────────────────────────
 const addParticipants = async (req, res, next) => {
     try {
         const tournamentId = req.params.id;
@@ -470,7 +457,6 @@ const getBracket = async (req, res, next) => {
     }
 };
 
-// ── Create tournament ─────────────────────────────────────────
 const create = async (req, res, next) => {
     try {
         const {
@@ -495,7 +481,6 @@ const create = async (req, res, next) => {
             return res.status(400).json({ success: false, message: 'name and sport_id are required' });
         }
 
-        // Resolve which sport fest this tournament belongs to
         let festId = sport_fest_id ? parseInt(sport_fest_id, 10) : null;
         if (!festId) {
             festId = await getActiveSportFestId();
@@ -507,7 +492,6 @@ const create = async (req, res, next) => {
             });
         }
 
-        // Pull sport defaults for team/individual
         const [sports] = await pool.execute(
             `SELECT * FROM sports WHERE id = ? LIMIT 1`,
             [sport_id]
@@ -556,8 +540,6 @@ const create = async (req, res, next) => {
 
         const tournamentId = result.insertId;
 
-        // ── Critical: link tournament to the sport fest (junction table) ──
-        // getAll filters through this table, so without the row the tournament is invisible
         await pool.execute(
             `INSERT IGNORE INTO sport_fest_tournaments (tournament_id, sport_fest_id)
              VALUES (?, ?)`,
@@ -575,7 +557,6 @@ const create = async (req, res, next) => {
     }
 };
 
-// ── Update tournament ─────────────────────────────────────────
 const update = async (req, res, next) => {
     try {
         const id = req.params.id;
@@ -648,7 +629,6 @@ const update = async (req, res, next) => {
     }
 };
 
-// ── Generate bracket (round robin + single elim basic) ────────
 const generateBracket = async (req, res, next) => {
     const conn = await pool.getConnection();
     try {
@@ -672,11 +652,6 @@ const generateBracket = async (req, res, next) => {
 
         await conn.beginTransaction();
 
-        // Atomically claim the tournament for bracket generation: this row
-        // is only updatable while status is still draft/registration, and
-        // only one concurrent request can win the race (the loser's UPDATE
-        // affects 0 rows). Prevents two rapid "Generate Bracket" clicks from
-        // both deleting/recreating matches at once.
         const [claim] = await conn.execute(
             `UPDATE tournaments SET status = 'ongoing', updated_at = NOW()
              WHERE id = ? AND status IN ('draft', 'registration')`,
@@ -691,7 +666,6 @@ const generateBracket = async (req, res, next) => {
             });
         }
 
-        // Clear existing matches for this tournament
         await conn.execute(`DELETE FROM matches WHERE tournament_id = ?`, [req.params.id]);
 
         const depts = participants.map((p) => p.department_id);
@@ -699,10 +673,7 @@ const generateBracket = async (req, res, next) => {
         let created = 0;
 
         if (format === 'round_robin') {
-            // Seed a zeroed standings row per participant — previously
-            // nothing did this, so the UPDATE statements that run after
-            // every match (_updateRoundRobinStandings in matchController)
-            // were silently affecting 0 rows and standings never appeared.
+
             await conn.execute(`DELETE FROM round_robin_standings WHERE tournament_id = ?`, [req.params.id]);
             for (const deptId of depts) {
                 await conn.execute(
@@ -727,7 +698,6 @@ const generateBracket = async (req, res, next) => {
                 }
             }
         } else if (format === 'free_for_all') {
-            // One placeholder “match” row for FFA events (no A/B)
             await conn.execute(
                 `INSERT INTO matches
           (tournament_id, sport_id, round_number, match_number, status)
@@ -736,11 +706,11 @@ const generateBracket = async (req, res, next) => {
             );
             created = 1;
         } else {
-            // single_elimination (and fallback): pair in order, bye as NULL opponent
+
             let round = 1;
             let matchNumber = 1;
             const queue = [...depts];
-            // pad to next power of 2 with byes (null)
+
             let size = 1;
             while (size < queue.length) size *= 2;
             while (queue.length < size) queue.push(null);
@@ -766,8 +736,6 @@ const generateBracket = async (req, res, next) => {
             }
         }
 
-        // status was already claimed as 'ongoing' atomically above, before
-        // any inserts ran, so there's nothing left to update here.
         await conn.commit();
 
         res.json({
@@ -784,7 +752,6 @@ const generateBracket = async (req, res, next) => {
     }
 };
 
-// ── Promote knockout (placeholder for group-stage formats) ────
 const promoteKnockout = async (req, res, next) => {
     try {
         res.status(501).json({
@@ -796,7 +763,6 @@ const promoteKnockout = async (req, res, next) => {
     }
 };
 
-// ── Auto-schedule round robin ─────────────────────────────────
 const scheduleRoundRobin = async (req, res, next) => {
     try {
         const t = await getTournamentWithSport(req.params.id);
@@ -813,7 +779,7 @@ const scheduleRoundRobin = async (req, res, next) => {
         const dates = Array.isArray(req.body.dates) ? req.body.dates.filter(Boolean) : [];
         const times = Array.isArray(req.body.times) ? req.body.times.filter(Boolean) : [];
         const venueId = req.body.venue_id ? parseInt(req.body.venue_id, 10) : null;
-        const assignOfficers = req.body.assign_officers !== false; // default true
+        const assignOfficers = req.body.assign_officers !== false;
 
         if (!dates.length || !times.length) {
             return res.status(400).json({
@@ -833,16 +799,8 @@ const scheduleRoundRobin = async (req, res, next) => {
             });
         }
 
-        // Tell the caller exactly how many slots this round robin needs, so the
-        // UI can stop people guessing. Not a hard block here (a re-run with
-        // fewer slots than remaining matches is allowed — matches just repeat
-        // slots), but scheduleRoundRobin's response reports it either way.
         const requiredSlots = allMatches.length;
 
-        // Only pending/scheduled matches can be re-slotted — a match that's
-        // already ongoing or completed keeps whatever venue/time it was
-        // actually played at, instead of being silently overwritten by an
-        // auto-schedule re-run.
         const matches = allMatches.filter((m) => ['pending', 'scheduled'].includes(m.status));
         const locked = allMatches.length - matches.length;
         if (!matches.length) {
@@ -852,7 +810,6 @@ const scheduleRoundRobin = async (req, res, next) => {
             });
         }
 
-        // Build slot list and shuffle match order lightly
         const slots = [];
         for (const d of dates) {
             for (const tm of times) {
@@ -866,11 +823,6 @@ const scheduleRoundRobin = async (req, res, next) => {
             [ordered[i], ordered[j]] = [ordered[j], ordered[i]];
         }
 
-        // Pull the active officer pool once, then track a busy-set of
-        // "officerId|date|time" locally so two matches landing on the same
-        // slot in this same run never both get assigned the same officer.
-        // (This mirrors the exact-timeslot conflict rule schedule() already
-        // enforces for manual assignment in matchController.js.)
         let officers = [];
         const officerBusy = new Set();
         if (assignOfficers) {
@@ -880,10 +832,7 @@ const scheduleRoundRobin = async (req, res, next) => {
             officers = officerRows.map((r) => r.id);
 
             if (officers.length) {
-                // Seed busy-set with this officer's *existing* commitments across
-                // the whole system (other tournaments included), so auto-assign
-                // never books someone who's already refereeing elsewhere at that
-                // date/time.
+
                 const [existingAssignments] = await pool.execute(
                     `SELECT referee_id, scheduled_date, scheduled_time
              FROM matches
@@ -899,8 +848,6 @@ const scheduleRoundRobin = async (req, res, next) => {
 
         const pickOfficer = (date, time) => {
             if (!officers.length) return null;
-            // Rotate through a shuffled copy each call so assignment isn't
-            // always weighted toward the same first officer.
             const shuffled = [...officers].sort(() => Math.random() - 0.5);
             for (const officerId of shuffled) {
                 const key = `${officerId}|${date}|${time}`;
@@ -909,7 +856,7 @@ const scheduleRoundRobin = async (req, res, next) => {
                     return officerId;
                 }
             }
-            return null; // every officer already busy at this slot — leave unassigned
+            return null;
         };
 
         let updated = 0;
@@ -948,8 +895,6 @@ const scheduleRoundRobin = async (req, res, next) => {
     }
 };
 
-// ── Points config (used by the finalize modal to prefill saved/default values) ──
-// Needs migration:  ALTER TABLE tournaments ADD COLUMN points_config JSON NULL;
 const getPointsConfig = async (req, res, next) => {
     try {
         const [[t]] = await pool.execute(
@@ -963,7 +908,7 @@ const getPointsConfig = async (req, res, next) => {
             try {
                 const parsed = typeof t.points_config === 'string' ? JSON.parse(t.points_config) : t.points_config;
                 if (parsed && Object.keys(parsed).length) map = parsed;
-            } catch { /* fall back to default */ }
+            } catch { }
         }
         return res.json({ success: true, data: { points_map: map } });
     } catch (err) {
@@ -971,7 +916,6 @@ const getPointsConfig = async (req, res, next) => {
     }
 };
 
-// ── Finalize tournament ───────────────────────────────────────
 const finalizeTournament = async (req, res, next) => {
     const conn = await pool.getConnection();
     try {
@@ -994,12 +938,6 @@ const finalizeTournament = async (req, res, next) => {
             });
         }
 
-        // Points-per-place: explicit request body > previously saved config
-        // on this tournament (a re-finalize keeps whatever was used before
-        // unless the president changes it) > global DEFAULT_MEDAL_POINTS.
-        // This is the piece that used to be entirely hardcoded — finalize
-        // always used DEFAULT_MEDAL_POINTS = {1:10, 2:7, 3:5} from
-        // utils/scoring.js with no way to change it per tournament.
         const requestedMap = validatePointsMap(req.body?.points_map);
         let savedMap = null;
         if (!requestedMap && t.points_config) {
@@ -1011,9 +949,6 @@ const finalizeTournament = async (req, res, next) => {
 
         await conn.beginTransaction();
 
-        // Atomic claim, same pattern as generateBracket: only one concurrent
-        // "Finalize" click can win, the other gets a clean 409 instead of
-        // tournament_results being computed/written twice.
         const [claim] = await conn.execute(
             `UPDATE tournaments SET status = 'completed', points_config = ?, updated_at = NOW()
              WHERE id = ? AND status != 'completed'`,
@@ -1025,13 +960,6 @@ const finalizeTournament = async (req, res, next) => {
             return res.status(409).json({ success: false, message: 'This tournament was already finalized.' });
         }
 
-        // This is the step that used to be entirely missing: compute final
-        // standings from the bracket/standings/FFA results, write medals +
-        // points to tournament_results, and roll that into department_scores
-        // so the leaderboard the visitor page is already listening for
-        // actually has new numbers to show. Now takes the president's
-        // per-tournament points map instead of always using the hardcoded
-        // 10/7/5 default.
         const { recorded } = await recordResultsAndRebuild(conn, req.params.id, pointsMap);
 
         await conn.commit();
@@ -1058,7 +986,6 @@ const finalizeTournament = async (req, res, next) => {
     }
 };
 
-// ── Remove participant ────────────────────────────────────────
 const removeParticipant = async (req, res, next) => {
     try {
         const { id, departmentId } = req.params;

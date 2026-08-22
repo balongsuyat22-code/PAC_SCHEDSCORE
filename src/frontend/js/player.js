@@ -3,7 +3,7 @@
 const API = window.location.origin + '/api';
 
 async function apiFetch(path, opts = {}) {
-    // Safely check multiple possible token names that your login page might use
+
     const token = localStorage.getItem('sf_token') || localStorage.getItem('accessToken') || localStorage.getItem('token');
 
     try {
@@ -23,7 +23,6 @@ async function apiFetch(path, opts = {}) {
     }
 }
 
-/* ── STORE ── */
 const Store = {
     getPlayers() {
         try { return JSON.parse(localStorage.getItem('sf_players') || '[]'); } catch { return []; }
@@ -48,7 +47,6 @@ const Store = {
     },
 
     getUser() {
-        // Try multiple keys your auth system might use
         try {
             return JSON.parse(localStorage.getItem('sf_user')) ||
                 JSON.parse(localStorage.getItem('user')) || null;
@@ -57,7 +55,6 @@ const Store = {
     setUser(u) { localStorage.setItem('sf_user', JSON.stringify(u)); },
 };
 
-/* ── TOAST ── */
 const Toast = {
     el: null,
     init() { this.el = document.getElementById('toast'); },
@@ -71,7 +68,6 @@ const Toast = {
     }
 };
 
-/* ── NOTIFICATIONS ── */
 const Notif = {
     btn: null, badge: null, dropdown: null, list: null,
     init() {
@@ -135,7 +131,6 @@ const Notif = {
     }
 };
 
-/* ── ACTIVE NAV LINK ── */
 function setActiveNav() {
     const page = location.pathname.split('/').pop();
     document.querySelectorAll('.topbar__nav-link').forEach(link => {

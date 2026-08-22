@@ -5,7 +5,7 @@ const { authenticate, authorize } = require('../middleware/auth');
 
 router.get('/live', matchCtrl.getLive);
 router.get('/mvps', matchCtrl.getMVPs);
-router.get('/ffa/:tournamentId', matchCtrl.getFFAResults);  // or keep restricted if FFA is internal-only
+router.get('/ffa/:tournamentId', matchCtrl.getFFAResults);
 
 router.get('/officers', authenticate, authorize('sgo_president', 'admin'), matchCtrl.getAvailableOfficers);
 router.get('/my-assignments', authenticate, authorize('sgo_officer'), matchCtrl.getMyAssignments);

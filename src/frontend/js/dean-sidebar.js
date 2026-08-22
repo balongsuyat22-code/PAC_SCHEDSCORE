@@ -1,6 +1,4 @@
-/* ============================================================
-   DEAN / ADVISER SIDEBAR — SVG icons (no emoji)
-   ============================================================ */
+
 const DEAN_ICONS = {
     dashboard: `<svg viewBox="0 0 24 24"><rect width="7" height="9" x="3" y="3" rx="1"/><rect width="7" height="5" x="14" y="3" rx="1"/><rect width="7" height="9" x="14" y="12" rx="1"/><rect width="7" height="5" x="3" y="16" rx="1"/></svg>`,
     live: `<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="3"/></svg>`,
@@ -63,7 +61,7 @@ function renderSidebar(activePage) {
         const badgeHtml = item.badge && item.key === 'live'
             ? `<span class="nav-badge" id="sb-live-count" style="background:var(--red)">—</span>`
             : item.badge && item.key === 'notifications'
-                ? `<span class="nav-badge" id="sb-notif-count" style="background:var(--gold);color:#000">—</span>`
+                ? `<span class="nav-badge" id="sb-notif-count" style="background:var(--gold);color:#000;display:none">0</span>`
                 : '';
         return `<a class="nav-item${isActive ? ' active' : ''}" href="${item.href}">
             <span class="nav-icon">${DEAN_ICONS[item.icon] || ''}</span>
@@ -105,6 +103,7 @@ function renderSidebar(activePage) {
 
     document.getElementById('logout-btn')?.addEventListener('click', confirmDeanLogout);
     initMobileNav();
+    injectDeanNotifBell();
 
     const hideBadge = (id) => {
         const el = document.getElementById(id);
@@ -120,7 +119,60 @@ function renderSidebar(activePage) {
         badge.style.display = count > 0 ? '' : 'none';
     }).catch(() => hideBadge('sb-live-count'));
 
-    hideBadge('sb-notif-count');
+}
+
+function injectDeanNotifBell() {
+    if (typeof NotificationEngine === 'undefined') return;
+
+    const actions = document.querySelector('.topbar-actions');
+    if (actions && !document.getElementById('sf-notif-wrap')) {
+        const wrap = document.createElement('div');
+        wrap.id = 'sf-notif-wrap';
+        wrap.style.cssText = 'display:flex;align-items:center;gap:10px;margin-right:4px;position:relative;';
+        wrap.innerHTML = `
+            <div class="nav-notification-container" style="position:relative">
+                <button type="button" id="sf-notif-btn" class="btn btn-secondary btn-sm"
+                        style="padding:6px 10px;position:relative" aria-label="Notifications">
+                    <span class="icon" style="width:16px;height:16px">${DEAN_ICONS.bell}</span>
+                    <span id="sf-notif-badge" class="notif-badge" style="display:none">0</span>
+                </button>
+                <div id="sf-notif-dropdown" class="notif-dropdown" style="display:none;position:absolute;right:0;top:calc(100% + 8px);width:320px;background:var(--bg2);border:1px solid var(--border);border-radius:12px;box-shadow:0 12px 40px rgba(0,0,0,.45);z-index:200;overflow:hidden">
+                    <div class="notif-header" style="display:flex;justify-content:space-between;align-items:center;padding:10px 14px;border-bottom:1px solid var(--border)">
+                        <span style="font-weight:700;font-size:13px">Notifications</span>
+                    </div>
+                    <div class="notif-list" id="sf-notif-list" style="max-height:320px;overflow-y:auto">
+                        <div class="notif-item empty" style="padding:16px;color:var(--muted);text-align:center;font-size:13px">No notifications yet</div>
+                    </div>
+                </div>
+            </div>`;
+        actions.insertBefore(wrap, actions.firstChild);
+
+        const btn = document.getElementById('sf-notif-btn');
+        const dd = document.getElementById('sf-notif-dropdown');
+        btn?.addEventListener('click', (e) => {
+            e.stopPropagation();
+            dd.style.display = dd.style.display === 'block' ? 'none' : 'block';
+        });
+        document.addEventListener('click', () => { if (dd) dd.style.display = 'none'; });
+        dd?.addEventListener('click', (e) => e.stopPropagation());
+    }
+
+    NotificationEngine.mount({
+        stateContainerId: 'sf-notif-list',
+        badgeId: 'sf-notif-badge',
+        role: 'dean_adviser',
+    });
+
+    const syncNavBadge = async () => {
+        const items = await NotificationEngine.list('dean_adviser');
+        const navBadge = document.getElementById('sb-notif-count');
+        if (!navBadge) return;
+        navBadge.textContent = items.length > 9 ? '9+' : String(items.length);
+        navBadge.style.display = items.length > 0 ? '' : 'none';
+    };
+    syncNavBadge();
+    setInterval(syncNavBadge, 45000);
+    ['sf:notif', 'sf:live', 'sf:match', 'sf:leaderboard'].forEach(evt => window.addEventListener(evt, syncNavBadge));
 }
 
 function confirmDeanLogout() {
@@ -145,9 +197,6 @@ function confirmDeanLogout() {
     document.body.appendChild(overlay);
 }
 
-/* ============================================================
-   MOBILE NAV — hamburger toggle, backdrop, swipe-to-close
-   ============================================================ */
 function initMobileNav() {
     const titleEl = document.querySelector('.topbar-title');
     if (titleEl && !titleEl.querySelector('.burger-menu')) {

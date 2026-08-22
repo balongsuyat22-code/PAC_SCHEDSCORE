@@ -373,10 +373,7 @@
         let currentView = 'table';
 
         document.addEventListener('DOMContentLoaded', () => {
-            // BUG FIX: this page had no auth check at all — any logged-in
-            // user of any role (or even a stale/expired session) could load
-            // the full referee Tournaments page. Matches every other role's
-            // pages, which all gate on Auth.requireAuth(role) first.
+
             if (!Auth.requireAuth('sgo_officer')) return;
 
             renderRefereeSidebar('tournaments');

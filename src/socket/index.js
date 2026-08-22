@@ -1,11 +1,11 @@
-// socket/index.js - Socket.IO Setup and Event Handlers
+
 const { pool } = require('../config/database');
 const jwt = require('jsonwebtoken');
 const jwtConfig = require('../config/jwt');
 const { getActiveSportFestId } = require('../utils/season');
 
 module.exports = (io) => {
-    // Store active rooms and match watchers
+
     const matchRooms = new Map();
     const tournamentRooms = new Map();
     const userSessions = new Map();
@@ -13,17 +13,14 @@ module.exports = (io) => {
     io.on('connection', (socket) => {
         console.log(`New client connected: ${socket.id}`);
 
-        // ── AUTHENTICATION ──
         socket.on('authenticate', async (token) => {
             try {
                 const decoded = jwt.verify(token, jwtConfig.secret);
 
-                // Store user data in socket
                 socket.userId = decoded.id;
                 socket.userRole = decoded.role;
                 socket.userUuid = decoded.uuid;
 
-                // Store session
                 userSessions.set(socket.id, {
                     userId: decoded.id,
                     role: decoded.role,
@@ -34,16 +31,14 @@ module.exports = (io) => {
                 console.log(`User ${decoded.id} authenticated on socket ${socket.id}`);
             } catch (err) {
                 socket.emit('authenticated', { success: false, message: 'Invalid token' });
-                // Don't disconnect - allow visitor access without auth
+
             }
         });
 
-        // ── JOIN MATCH ROOM (for live scoring) ──
         socket.on('joinMatch', async (matchId) => {
             matchId = parseInt(matchId);
             const roomName = `match_${matchId}`;
 
-            // Leave previous match rooms
             if (socket.matchRooms) {
                 socket.matchRooms.forEach(room => {
                     if (room.startsWith('match_')) {
@@ -56,13 +51,11 @@ module.exports = (io) => {
             if (!socket.matchRooms) socket.matchRooms = new Set();
             socket.matchRooms.add(roomName);
 
-            // Track watchers
             if (!matchRooms.has(matchId)) {
                 matchRooms.set(matchId, new Set());
             }
             matchRooms.get(matchId).add(socket.id);
 
-            // Send current match state
             try {
                 const [match] = await pool.execute(
                     `SELECT m.*,
@@ -113,7 +106,6 @@ module.exports = (io) => {
             console.log(`Socket ${socket.id} joined match ${matchId}`);
         });
 
-        // ── LEAVE MATCH ROOM ──
         socket.on('leaveMatch', (matchId) => {
             matchId = parseInt(matchId);
             const roomName = `match_${matchId}`;
@@ -129,7 +121,6 @@ module.exports = (io) => {
             }
         });
 
-        // ── JOIN TOURNAMENT ROOM (for bracket updates) ──
         socket.on('joinTournament', (tournamentId) => {
             tournamentId = parseInt(tournamentId);
             const roomName = `tournament_${tournamentId}`;
@@ -160,7 +151,6 @@ module.exports = (io) => {
             }
         });
 
-        // ── JOIN LEADERBOARD (global updates) ──
         socket.on('joinLeaderboard', () => {
             socket.join('leaderboard');
             console.log(`Socket ${socket.id} joined leaderboard`);
@@ -170,7 +160,6 @@ module.exports = (io) => {
             socket.leave('leaderboard');
         });
 
-        // ── REQUEST LIVE MATCHES LIST ──
         socket.on('getLiveMatches', async () => {
             try {
                 const [matches] = await pool.execute(
@@ -198,7 +187,6 @@ module.exports = (io) => {
             }
         });
 
-        // ── REQUEST LEADERBOARD ──
         socket.on('getLeaderboard', async () => {
             try {
                 const sportFestId = await getActiveSportFestId();
@@ -225,7 +213,6 @@ module.exports = (io) => {
             }
         });
 
-        // ── REQUEST MATCH SCORE HISTORY ──
         socket.on('getScoreHistory', async (matchId) => {
             try {
                 const [scores] = await pool.execute(
@@ -244,14 +231,12 @@ module.exports = (io) => {
             }
         });
 
-        // ── PING (keep-alive) ──
         socket.on('ping', () => {
             socket.emit('pong', { timestamp: Date.now() });
         });
 
-        // ── DISCONNECT ──
         socket.on('disconnect', () => {
-            // Clean up match rooms
+
             if (socket.matchRooms) {
                 socket.matchRooms.forEach(room => {
                     const matchId = parseInt(room.split('_')[1]);
@@ -263,8 +248,6 @@ module.exports = (io) => {
                     }
                 });
             }
-
-            // Clean up tournament rooms
             if (socket.tournamentRooms) {
                 socket.tournamentRooms.forEach(room => {
                     const tournamentId = parseInt(room.split('_')[1]);
@@ -281,28 +264,18 @@ module.exports = (io) => {
             console.log(`Client disconnected: ${socket.id}`);
         });
     });
-
-    // ── HELPER: Broadcast to match room ──
     const emitToMatch = (matchId, event, data) => {
         io.to(`match_${matchId}`).emit(event, data);
     };
-
-    // ── HELPER: Broadcast to tournament room ──
     const emitToTournament = (tournamentId, event, data) => {
         io.to(`tournament_${tournamentId}`).emit(event, data);
     };
-
-    // ── HELPER: Broadcast to leaderboard ──
     const emitToLeaderboard = (event, data) => {
         io.to('leaderboard').emit(event, data);
     };
-
-    // ── HELPER: Broadcast to all connected clients ──
     const emitToAll = (event, data) => {
         io.emit(event, data);
     };
-
-    // Return helpers for use in controllers
     return {
         emitToMatch,
         emitToTournament,

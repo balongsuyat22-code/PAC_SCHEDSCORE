@@ -1,11 +1,4 @@
-/**
- * LOGIN DIAGNOSTIC SCRIPT
- * Usage: node src/config/checkLogin.js
- *
- * Connects with the exact same config your app uses and walks through
- * every step authController.login() does, printing what it finds at
- * each stage — so we can see exactly where the 401 is coming from.
- */
+
 require('dotenv').config();
 const mysql = require('mysql2/promise');
 const bcrypt = require('bcryptjs');
@@ -44,7 +37,6 @@ const run = async () => {
     }
     console.log('✅ Connected to database\n');
 
-    // ── Step 1: does the users table exist and have rows at all? ──
     const [[countRow]] = await conn.query('SELECT COUNT(*) AS count FROM users');
     console.log(`Step 1 — Total rows in "users" table: ${countRow.count}`);
     if (countRow.count === 0) {
@@ -55,7 +47,6 @@ const run = async () => {
         return;
     }
 
-    // ── Step 2: check the password_hash column's actual defined length ──
     const [[colInfo]] = await conn.query(
         `SELECT CHARACTER_MAXIMUM_LENGTH AS len, DATA_TYPE AS type
          FROM information_schema.COLUMNS
@@ -71,7 +62,6 @@ const run = async () => {
         console.log('✅ Column length looks fine (>= 60 chars)\n');
     }
 
-    // ── Step 3: walk through each demo account exactly like authController.login() ──
     console.log('Step 3 — Checking each demo account:\n');
     for (const { email, password } of ACCOUNTS_TO_CHECK) {
         const [users] = await conn.execute(

@@ -376,7 +376,6 @@
         </div>
     </main>
 
-    <!-- Create / Edit Modal -->
     <div class="modal-overlay" id="modal-dept" onclick="if(event.target===this)Modal.close('modal-dept')">
         <div class="modal" style="max-width:520px">
             <div class="modal-header">
@@ -420,7 +419,6 @@
         </div>
     </div>
 
-    <!-- Detail Modal -->
     <div class="modal-overlay" id="modal-detail" onclick="if(event.target===this)Modal.close('modal-detail')">
         <div class="modal" style="max-width:580px">
             <div class="modal-header">
@@ -669,10 +667,6 @@
             }
         }
 
-        /**
-         * Soft-deactivate a department.
-         * Backend blocks if still in draft/registration/ongoing tournaments.
-         */
         async function deleteDept(id) {
             const d = allDepts.find(x => x.id === id);
             if (!d) return;

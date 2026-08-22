@@ -3,35 +3,25 @@ function safeDate(val) {
     return String(val).split('T')[0];
 }
 
-// ── Utility: safe FK (never send 0 or "") ──────────────────────────
 function safeFK(val) {
     const n = parseInt(val);
     return Number.isInteger(n) && n > 0 ? n : null;
 }
 
-// ── Global match schedule modal state ─────────────────────────────
 let _scheduleMatchId = null;
 let _scheduleVenues = [];
 let _scheduleReferees = [];
 let _scheduleLoaded = false;
 
-// ── Load venues + referees once ────────────────────────────────────
 async function ensureScheduleDropdowns() {
     if (_scheduleLoaded) return;
     try {
-        // BUG FIX: this used to read localStorage 'token', but every other
-        // page in the app (api.js / shared.js Auth.getToken()) stores the
-        // JWT under 'sf_token'. With the wrong key this was always sending
-        // "Authorization: Bearer null" — venues/officers loaded as silent
-        // empty arrays instead of 401'ing loudly, so it was easy to miss.
+
         const token = localStorage.getItem('sf_token');
         const headers = { 'Authorization': `Bearer ${token}` };
         const [vRes, rRes] = await Promise.all([
             fetch('/api/venues', { headers }).then(r => r.json()),
-            // BUG FIX: the officer role in this system is 'sgo_officer', not
-            // 'referee' (see ALLOWED_ROLES in userController.js) — this
-            // query always matched zero rows, so the Referee dropdown was
-            // silently empty.
+
             fetch('/api/users?role=sgo_officer', { headers }).then(r => r.json()),
         ]);
         _scheduleVenues = vRes.data || [];
@@ -42,7 +32,6 @@ async function ensureScheduleDropdowns() {
     }
 }
 
-// ── Inject modal HTML into the page if it doesn't already exist ───
 function ensureScheduleModal() {
     if (document.getElementById('sf-modal-schedule')) return;
 
@@ -104,28 +93,24 @@ function closeSFModal() {
     if (el) el.style.display = 'none';
 }
 
-// ── Open the schedule modal for a match from the tournament page ──
 async function openEditMatch(matchId) {
     ensureScheduleModal();
     await ensureScheduleDropdowns();
 
     _scheduleMatchId = matchId;
 
-    // Populate venue dropdown
     const vSel = document.getElementById('sf-sched-venue');
     vSel.innerHTML = '<option value="">No venue</option>' +
         _scheduleVenues.map(v =>
             `<option value="${v.id}">${v.name}${v.location ? ' \u2014 ' + v.location : ''}</option>`
         ).join('');
 
-    // Populate referee dropdown
     const rSel = document.getElementById('sf-sched-referee');
     rSel.innerHTML = '<option value="">No referee</option>' +
         _scheduleReferees.map(r =>
             `<option value="${r.id}">${r.first_name} ${r.last_name}</option>`
         ).join('');
 
-    // Fetch current match data
     try {
         const token = localStorage.getItem('sf_token');
         const res = await fetch(`/api/matches/${matchId}`, {
@@ -134,18 +119,15 @@ async function openEditMatch(matchId) {
         const data = await res.json();
         const m = data.data || {};
 
-        // ── KEY FIX: always use safeDate() — strips "T00:00:00.000Z" ──
         document.getElementById('sf-sched-date').value = safeDate(m.scheduled_date);
         document.getElementById('sf-sched-time').value = m.scheduled_time
             ? String(m.scheduled_time).slice(0, 5)
             : '';
         document.getElementById('sf-sched-notes').value = m.notes || '';
 
-        // Pre-select venue / referee only if valid IDs exist
         vSel.value = m.venue_id ? String(m.venue_id) : '';
         rSel.value = m.referee_id ? String(m.referee_id) : '';
 
-        // Preview card
         const nA = m.team_a_name || m.dept_a_name || 'TBD';
         const nB = m.team_b_name || m.dept_b_name || 'TBD';
         const cA = m.dept_a_color || '#555';
@@ -173,7 +155,6 @@ async function openEditMatch(matchId) {
     modal.style.display = 'flex';
 }
 
-// ── Save the schedule ──────────────────────────────────────────────
 async function saveSFSchedule() {
     if (!_scheduleMatchId) return;
 
@@ -183,7 +164,6 @@ async function saveSFSchedule() {
     const refRaw = document.getElementById('sf-sched-referee').value;
     const notes = document.getElementById('sf-sched-notes').value;
 
-    // ── KEY FIX: always strip to yyyy-MM-dd before sending ──────────
     const cleanDate = safeDate(rawDate) || null;
 
     const body = {
@@ -196,11 +176,7 @@ async function saveSFSchedule() {
 
     try {
         const token = localStorage.getItem('sf_token');
-        // BUG FIX: routes/matches.js registers this as
-        // router.put('/:id/schedule', ...) — PUT, not PATCH. Express doesn't
-        // fuzzy-match methods, so every save silently 404'd (caught below as
-        // a generic "Failed to schedule match" toast with no indication the
-        // endpoint itself was never actually reached).
+
         const res = await fetch(`/api/matches/${_scheduleMatchId}/schedule`, {
             method: 'PUT',
             headers: {

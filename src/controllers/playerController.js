@@ -1,42 +1,12 @@
-/**
- * PLAYER CONTROLLER
- * Players are DATA RECORDS (not user accounts) managed by dean_adviser.
- *
- * Who does what:
- *   dean_adviser  → registerPlayer, editPlayerInfo, removePlayer, viewRegisteredPlayers,
- *                   checkEligibility, approveRegistration (within their dept),
- *                   importPlayerList, validateRegistration
- *   admin         → full access; approveRegistration globally; deletePlayer
- *   sgo_president → read-only: view approved players for bracket seeding
- *   sgo_officer   → read-only: view approved players for scoring/MVP selection
- *   visitor       → read-only: approved players only (public leaderboard context)
- *
- * SEASON NOTE: players now carry a sport_fest_id stamped at registration
- * time (utils/season.js). All "current roster" endpoints below default to
- * the active season so archived seasons' rosters don't clutter today's
- * lists. Pass ?season_id=<id> to look at a specific past season instead.
- */
 
 const { pool } = require('../config/database');
 const { logActivity } = require('../utils/logger');
 const { getActiveSportFestId } = require('../utils/season');
 
-// ---------------------------------------------------------------------------
-// REGISTER PLAYER  (Dean/Adviser registers on behalf of their department)
-// POST /api/players
-// Body: { first_name, last_name, gender, department_id, sport_id, team_id,
-//         jersey_number, position, image_url }
-// Protected: dean_adviser (own dept) | admin
-// ---------------------------------------------------------------------------
 const registerPlayer = async (req, res, next) => {
     const conn = await pool.getConnection();
     try {
-        // Hard gate at the controller level: players are registered ON
-        // BEHALF OF a department by that department's dean, or by admin —
-        // never by the player themselves. This doesn't rely on route
-        // middleware alone; if this function is ever reached without an
-        // authenticated dean/admin, it refuses rather than silently
-        // trusting req.user.
+
         if (!req.user || !['dean_adviser', 'admin'].includes(req.user.role)) {
             return res.status(403).json({
                 success: false,
@@ -57,7 +27,6 @@ const registerPlayer = async (req, res, next) => {
             });
         }
 
-        // Dean/Adviser can only register players for their own department
         if (req.user.role === 'dean_adviser' && req.user.department_id !== parseInt(department_id)) {
             return res.status(403).json({
                 success: false,
@@ -74,9 +43,6 @@ const registerPlayer = async (req, res, next) => {
         }
 
         await conn.beginTransaction();
-
-        // Prevent duplicate: same name + dept + sport, WITHIN THIS SEASON.
-        // (Scoped by season so a player who played last year can register again.)
         const [duplicate] = await conn.execute(
             `SELECT id FROM players
              WHERE LOWER(first_name) = LOWER(?) AND LOWER(last_name) = LOWER(?)
@@ -91,13 +57,6 @@ const registerPlayer = async (req, res, next) => {
             });
         }
 
-        // This is NOT a block — a student legitimately playing both
-        // basketball and badminton is normal for a sports fest. But the
-        // dean has no visibility into that when typing a new entry, and a
-        // typo'd duplicate (same person, sport re-entered by mistake) looks
-        // identical to a real second sport from the backend's point of
-        // view. So: surface it as a warning the dean can see and dismiss,
-        // rather than silently allowing or wrongly blocking either case.
         const [possibleMatches] = await conn.execute(
             `SELECT p.id, p.status, p.team_id, s.name AS sport_name, t.name AS team_name
              FROM players p
@@ -163,14 +122,6 @@ const registerPlayer = async (req, res, next) => {
     }
 };
 
-// ---------------------------------------------------------------------------
-// GET ALL PLAYERS
-// GET /api/players
-// Query: department_id, sport_id, team_id, status, gender, search, season_id
-// Protected: all roles (visitors see approved only)
-// Defaults to the ACTIVE season. Pass ?season_id=<id> for an archived one,
-// or ?season_id=all to see every season at once.
-// ---------------------------------------------------------------------------
 const getAllPlayers = async (req, res, next) => {
     try {
         const { department_id, sport_id, team_id, status, gender, search, season_id } = req.query;
@@ -196,7 +147,7 @@ const getAllPlayers = async (req, res, next) => {
         const params = [];
 
         if (season_id === 'all') {
-            // no season filter — show every season
+
         } else if (season_id) {
             query += ' AND p.sport_fest_id = ?';
             params.push(season_id);
@@ -205,15 +156,14 @@ const getAllPlayers = async (req, res, next) => {
             if (activeId) { query += ' AND p.sport_fest_id = ?'; params.push(activeId); }
         }
 
-        // Visitors and unauthenticated: approved only
         if (!callerRole || callerRole === 'visitor') {
             query += " AND p.status = 'approved'";
         } else if (callerRole === 'dean_adviser') {
-            // Dean sees their department only
+
             query += ' AND p.department_id = ?';
             params.push(req.user.department_id);
         } else {
-            // Admin / sgo_president / sgo_officer: respect filters
+
             if (status) { query += ' AND p.status = ?'; params.push(status); }
         }
 
@@ -238,11 +188,6 @@ const getAllPlayers = async (req, res, next) => {
     }
 };
 
-// ---------------------------------------------------------------------------
-// GET PENDING PLAYERS  (for approval queue) — active season only
-// GET /api/players/pending
-// Protected: admin | dean_adviser (own dept)
-// ---------------------------------------------------------------------------
 const getPendingPlayers = async (req, res, next) => {
     try {
         let query = `
@@ -278,11 +223,6 @@ const getPendingPlayers = async (req, res, next) => {
     }
 };
 
-// ---------------------------------------------------------------------------
-// GET APPROVED PLAYERS  (public-friendly endpoint) — active season only
-// GET /api/players/approved
-// Protected: all roles including visitor
-// ---------------------------------------------------------------------------
 const getApprovedPlayers = async (req, res, next) => {
     try {
         const { department_id, sport_id } = req.query;
@@ -317,11 +257,6 @@ const getApprovedPlayers = async (req, res, next) => {
     }
 };
 
-// ---------------------------------------------------------------------------
-// GET REJECTED PLAYERS — active season only
-// GET /api/players/rejected
-// Protected: admin | dean_adviser (own dept)
-// ---------------------------------------------------------------------------
 const getRejectedPlayers = async (req, res, next) => {
     try {
         let query = `
@@ -353,11 +288,6 @@ const getRejectedPlayers = async (req, res, next) => {
     }
 };
 
-// ---------------------------------------------------------------------------
-// GET ONE PLAYER
-// GET /api/players/:id
-// Protected: all authenticated roles
-// ---------------------------------------------------------------------------
 const getPlayerById = async (req, res, next) => {
     try {
         const [rows] = await pool.execute(
@@ -377,7 +307,6 @@ const getPlayerById = async (req, res, next) => {
             return res.status(404).json({ success: false, message: 'Player not found.' });
         }
 
-        // Dean/Adviser can only view players from their dept
         if (req.user.role === 'dean_adviser' && rows[0].department_id !== req.user.department_id) {
             return res.status(403).json({ success: false, message: 'Access denied.' });
         }
@@ -389,11 +318,6 @@ const getPlayerById = async (req, res, next) => {
     }
 };
 
-// ---------------------------------------------------------------------------
-// GET PLAYERS BY SPORT — active season only
-// GET /api/players/by-sport/:sportId
-// Protected: all authenticated roles
-// ---------------------------------------------------------------------------
 const getPlayersBySport = async (req, res, next) => {
     try {
         const { sportId } = req.params;
@@ -426,11 +350,6 @@ const getPlayersBySport = async (req, res, next) => {
     }
 };
 
-// ---------------------------------------------------------------------------
-// GET PLAYERS BY DEPARTMENT  (for MVP selection in match scoring) — active season
-// GET /api/players/by-department/:departmentId
-// Protected: sgo_officer | sgo_president | admin
-// ---------------------------------------------------------------------------
 const getPlayersByDepartment = async (req, res, next) => {
     try {
         const { departmentId } = req.params;
@@ -458,13 +377,6 @@ const getPlayersByDepartment = async (req, res, next) => {
     }
 };
 
-// ---------------------------------------------------------------------------
-// GET TEAM PLAYERS
-// GET /api/players/by-team/:teamId
-// Protected: all authenticated roles
-// (No season filter needed — a team belongs to exactly one season already,
-// so its players are inherently scoped correctly.)
-// ---------------------------------------------------------------------------
 const getTeamPlayers = async (req, res, next) => {
     try {
         const [rows] = await pool.execute(
@@ -485,19 +397,12 @@ const getTeamPlayers = async (req, res, next) => {
     }
 };
 
-// ---------------------------------------------------------------------------
-// UPDATE PLAYER INFO  (Dean/Adviser edits their own player; admin edits any)
-// PUT /api/players/:id
-// Body: { first_name, last_name, gender, jersey_number, position, team_id, image_url }
-// Protected: dean_adviser (own dept) | admin
-// ---------------------------------------------------------------------------
 const updatePlayer = async (req, res, next) => {
     const conn = await pool.getConnection();
     try {
         const playerId = parseInt(req.params.id);
         const { first_name, last_name, gender, jersey_number, position, team_id, image_url } = req.body;
 
-        // Verify player exists and check dept restriction
         const [existing] = await conn.execute(
             'SELECT id, department_id, status FROM players WHERE id = ?',
             [playerId]
@@ -606,7 +511,6 @@ const updatePlayerStatus = async (req, res, next) => {
                 );
             }
         } else {
-            // rejected | pending — was missing before
             await pool.execute(
                 `UPDATE players
                  SET status = ?,
@@ -635,11 +539,6 @@ const updatePlayerStatus = async (req, res, next) => {
     }
 };
 
-// ---------------------------------------------------------------------------
-// CHECK ELIGIBILITY  (validates a player against sport rules)
-// GET /api/players/:id/eligibility
-// Protected: dean_adviser | admin
-// ---------------------------------------------------------------------------
 const checkEligibility = async (req, res, next) => {
     try {
         const [rows] = await pool.execute(
@@ -664,7 +563,6 @@ const checkEligibility = async (req, res, next) => {
         if (!player.gender) issues.push('Gender not specified.');
         if (!player.first_name || !player.last_name) issues.push('Incomplete name.');
 
-        // Check for duplicate registration in same sport, same season
         const [dups] = await pool.execute(
             `SELECT COUNT(*) AS count FROM players
              WHERE LOWER(first_name) = LOWER(?) AND LOWER(last_name) = LOWER(?)
@@ -691,12 +589,6 @@ const checkEligibility = async (req, res, next) => {
     }
 };
 
-// ---------------------------------------------------------------------------
-// IMPORT PLAYERS (bulk registration from a JSON array)
-// POST /api/players/import
-// Body: { players: [ { first_name, last_name, gender, sport_id, team_id?, jersey_number?, position? } ] }
-// Protected: dean_adviser (own dept) | admin
-// ---------------------------------------------------------------------------
 const importPlayers = async (req, res, next) => {
     const conn = await pool.getConnection();
     try {
@@ -738,7 +630,6 @@ const importPlayers = async (req, res, next) => {
                 continue;
             }
 
-            // Check duplicate within this season
             const [dup] = await conn.execute(
                 `SELECT id FROM players
                  WHERE LOWER(first_name)=LOWER(?) AND LOWER(last_name)=LOWER(?)
@@ -751,9 +642,6 @@ const importPlayers = async (req, res, next) => {
                 continue;
             }
 
-            // Same non-blocking cross-sport check as registerPlayer — a
-            // CSV import is exactly where a name gets pasted into two
-            // different sport sheets by accident with nobody noticing.
             const [crossSport] = await conn.execute(
                 `SELECT s.name AS sport_name FROM players p
                  LEFT JOIN sports s ON p.sport_id = s.id
@@ -807,10 +695,6 @@ const importPlayers = async (req, res, next) => {
     }
 };
 
-// ---------------------------------------------------------------------------
-// DELETE PLAYER  (Hard delete — admin only)
-// DELETE /api/players/:id
-// ---------------------------------------------------------------------------
 const deletePlayer = async (req, res, next) => {
     const conn = await pool.getConnection();
     try {
@@ -846,10 +730,6 @@ const deletePlayer = async (req, res, next) => {
     }
 };
 
-// ---------------------------------------------------------------------------
-// REMOVE PLAYER FROM TEAM  (dean_adviser own dept | admin)
-// PATCH /api/players/:id/remove-from-team
-// ---------------------------------------------------------------------------
 const removeFromTeam = async (req, res, next) => {
     try {
         const playerId = parseInt(req.params.id);
@@ -871,17 +751,6 @@ const removeFromTeam = async (req, res, next) => {
     }
 };
 
-// ---------------------------------------------------------------------------
-// CHECK POSSIBLE DUPLICATE  (live-check while filling the registration form)
-// GET /api/players/check-duplicate?first_name=&last_name=&department_id=&sport_id=
-// Protected: dean_adviser (own dept) | admin
-//
-// Lets the registration form warn the dean BEFORE they submit, instead of
-// only finding out after: "Juan Dela Cruz is already on the Basketball
-// roster (Team Falcons) — continuing will register him for a second sport."
-// Same-sport exact matches are still hard-blocked by registerPlayer itself;
-// this is the softer, earlier warning for the cross-sport/cross-team case.
-// ---------------------------------------------------------------------------
 const checkDuplicate = async (req, res, next) => {
     try {
         const { first_name, last_name, department_id, sport_id } = req.query;
@@ -910,7 +779,7 @@ const checkDuplicate = async (req, res, next) => {
         return res.json({
             success: true,
             data: {
-                exact_duplicate: sameSport.length > 0, // would be hard-blocked if they submit
+                exact_duplicate: sameSport.length > 0,
                 possible_duplicates: otherSports.map(m => ({
                     player_id: m.id, sport: m.sport_name, team: m.team_name, status: m.status,
                 })),

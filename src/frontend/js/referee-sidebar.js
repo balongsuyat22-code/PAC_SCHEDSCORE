@@ -1,14 +1,7 @@
 let refereeMobileOpen = false;
-// BUG FIX: this was read/written in toggleRefereeCollapse() below but never
-// declared anywhere, so calling the collapse button threw
-// "ReferenceError: refereeSidebarCollapsed is not defined" the first time
-// it ran (reading an undeclared identifier throws even in non-strict mode).
-// Restoring it from localStorage also means the collapsed state now
-// actually persists across page loads, which the localStorage.setItem call
-// below was already trying to do but nothing ever read back.
+
 let refereeSidebarCollapsed = localStorage.getItem('sf_sidebar_collapsed') === '1';
 
-/* ── SVG ICON HELPERS ── */
 const ICONS = {
     trophy: `<svg viewBox="0 0 24 24"><path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6"/><path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18"/><path d="M4 22h16"/><path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22"/><path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22"/><path d="M18 2H6v7a6 6 0 0 0 12 0V2Z"/></svg>`,
     zap: `<svg viewBox="0 0 24 24"><path d="M13 2 3 14h9l-1 8 10-12h-9l1-8z"/></svg>`,
@@ -36,8 +29,6 @@ function icon(name, cls = '') {
     return `<span class="icon ${cls}">${ICONS[name] || ''}</span>`;
 }
 
-
-/* ── RENDER SIDEBAR (President-style footer) ── */
 function renderRefereeSidebar(currentPage = '') {
     const sidebar = document.getElementById('sidebar');
     if (!sidebar) return;
@@ -105,9 +96,6 @@ function renderRefereeSidebar(currentPage = '') {
 
     document.getElementById('logout-btn')?.addEventListener('click', confirmRefereeLogout);
 
-    // Re-apply persisted collapsed state — previously only ever set on
-    // click, so a collapsed sidebar would flash back open on every page
-    // navigation until the button was clicked again.
     if (refereeSidebarCollapsed) {
         sidebar.classList.add('collapsed');
         document.querySelector('.main')?.classList.add('sidebar-collapsed');
@@ -115,7 +103,6 @@ function renderRefereeSidebar(currentPage = '') {
 
 }
 
-/* ── LOGOUT CONFIRMATION (Referee only) ── */
 function confirmRefereeLogout() {
     document.querySelector('.logout-overlay')?.remove();
     const overlay = document.createElement('div');
@@ -138,7 +125,6 @@ function confirmRefereeLogout() {
     document.body.appendChild(overlay);
 }
 
-/* ── RENDER TOPBAR ── */
 async function renderRefereeTopbar() {
     const topbar = document.querySelector('.topbar');
     if (!topbar) return;
@@ -187,7 +173,6 @@ async function renderRefereeTopbar() {
     setInterval(fetchNotifications, 60000);
 }
 
-/* ── SIDEBAR TOGGLES ── */
 function toggleRefereeCollapse() {
     refereeSidebarCollapsed = !refereeSidebarCollapsed;
     localStorage.setItem('sf_sidebar_collapsed', refereeSidebarCollapsed ? '1' : '0');
@@ -203,39 +188,14 @@ function toggleSidebar() {
     if (overlay) overlay.style.display = refereeMobileOpen ? 'block' : 'none';
 }
 
-/* ── NOTIFICATIONS ──
- * BUG FIX: notification links used to be bare relative filenames
- * ('matches.html', 'scoring.html?id=...', 'profile.html'). server.js
- * registers referee pages as clean routes with no .html
- * (app.get('/referee/matches', ...), etc.) and mounts referee static
- * assets at '/', not '/referee' — so a relative href like 'matches.html'
- * clicked from e.g. /referee/schedule resolved to /referee/matches.html,
- * which matches no route and no static file, and fell through to the
- * catch-all that serves login.html for any non-asset extension. In
- * practice: clicking a notification silently bounced the referee back to
- * the login screen instead of opening the match. Also 'profile.html' had
- * no route at all — repointed to /referee/matches, the closest existing
- * "everything" view.
- *
- * Each notification's id embeds the match's *current* status
- * (`match_<id>_<status>`), so a dismissal only suppresses that
- * exact state — the moment the match moves to a new status
- * (scheduled -> ongoing -> completed) it's a fresh id and will
- * resurface. This replaces the old "mark all read" behaviour,
- * which used a single global timestamp and explicitly refused to
- * suppress 'ongoing' / overdue notifications at all — meaning a
- * "Match LIVE" alert could never be dismissed until the match was
- * completed, even right after you started it and were actively
- * scoring it. That was the persistent-notification bug.
- */
 const DISMISS_KEY = 'sf_dismissed_notifs';
-const DISMISS_TTL = 12 * 60 * 60 * 1000; // prune anything older than 12h
+const DISMISS_TTL = 12 * 60 * 60 * 1000;
 
 function getDismissedNotifs() {
     try {
         const raw = JSON.parse(localStorage.getItem(DISMISS_KEY) || '{}');
         const now = Date.now();
-        // Prune stale entries so this never grows unbounded.
+
         const pruned = {};
         Object.keys(raw).forEach(id => {
             if (now - raw[id] < DISMISS_TTL) pruned[id] = raw[id];
@@ -252,9 +212,6 @@ function dismissNotif(notifId) {
     localStorage.setItem(DISMISS_KEY, JSON.stringify(dismissed));
 }
 
-/* Called from scoring.html when a referee opens a match — if they're
- * actively looking at it, its "Match LIVE" / "Match Overdue" alert
- * has served its purpose and shouldn't keep nagging them. */
 window.dismissMatchNotifications = function (matchId) {
     ['ongoing', 'scheduled'].forEach(status => dismissNotif(`match_${matchId}_${status}`));
     fetchNotifications();
@@ -274,13 +231,24 @@ async function fetchNotifications() {
 
         res.data.forEach(m => {
             const notifId = `match_${m.id}_${m.status}`;
-            if (dismissed[notifId]) return;
-
             const nameA = m.team_a_name || m.dept_a_name || 'TBD';
             const nameB = m.team_b_name || m.dept_b_name || 'TBD';
             const isFFA = (m.tournament_format || '').toLowerCase() === 'free_for_all' ||
                 (m.tournament_format || '').toLowerCase() === 'team_ranking';
             const matchup = isFFA ? (m.tournament_name || 'FFA Event') : `${nameA} vs ${nameB}`;
+
+            if ((m.status === 'scheduled' || m.status === 'pending') && !m.venue_name) {
+                const venueNotifId = `match_${m.id}_novenue`;
+                if (!dismissed[venueNotifId]) {
+                    notifications.push({
+                        id: venueNotifId, icon: 'mapPin', title: 'No Venue Assigned',
+                        message: `${matchup} has no venue set yet — check with the SGO President.`,
+                        link: '/referee/matches', weight: 3, color: '#F5B800', cls: 'ni-gold', time: currentTimeStr
+                    });
+                }
+            }
+
+            if (dismissed[notifId]) return;
 
             if (m.status === 'cancelled') {
                 notifications.push({
@@ -377,15 +345,16 @@ window.toggleNotifDropdown = function (event) {
 
 window.markAllRead = async function (event) {
     if (event) event.stopPropagation();
-    // Dismiss exactly what's currently showing (by their status-scoped
-    // ids), including live/overdue ones — a match's alert should only
-    // come back if its status actually changes again.
+
     try {
         const user = Auth.getUser();
         if (user) {
             const res = await api(`/matches?referee_id=${user.id}`);
             if (res.success && res.data) {
-                res.data.forEach(m => dismissNotif(`match_${m.id}_${m.status}`));
+                res.data.forEach(m => {
+                    dismissNotif(`match_${m.id}_${m.status}`);
+                    dismissNotif(`match_${m.id}_novenue`);
+                });
             }
         }
     } catch (err) {

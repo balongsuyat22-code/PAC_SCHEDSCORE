@@ -12,6 +12,5 @@ router.get('/matches/:id/scoreboard', matchController.getScoreboard);
 router.get('/departments', departmentController.getAll);
 router.get('/departments/:id', departmentController.getOne);
 router.get('/tournaments/:id/bracket', getBracket);
-// standings removed until getStandings exists
 
 module.exports = router;

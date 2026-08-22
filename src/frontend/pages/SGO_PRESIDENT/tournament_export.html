@@ -11,8 +11,6 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
     <link rel="stylesheet" href="../../css/sgo_president.css">
     <style>
-        /* Print sheet — deliberately plain/high-contrast, independent of the
-           dark app theme, since this is what actually gets printed/PDF'd. */
         .export-toolbar {
             display: flex;
             gap: 10px;
@@ -227,22 +225,17 @@
     <script src="../../js/sgo_president.js"></script>
     <script>
         document.addEventListener('DOMContentLoaded', async () => {
-            // This page is shared by admin and sgo_president. Auth.requireAuth()
-            // in this codebase takes a single role, so check membership manually
-            // instead of assuming it accepts an array.
+
             const allowedRoles = ['admin', 'sgo_president'];
             const user = (typeof Auth !== 'undefined' && Auth.getUser) ? Auth.getUser() : null;
             if (!user || !allowedRoles.includes(user.role)) {
-                // Falls back to whichever single-role check this page was
-                // loaded under (president shell) so unauthenticated users
-                // still get redirected to login as usual.
+
                 Auth.requireAuth('sgo_president');
                 return;
             }
             if (typeof renderSidebar === 'function') renderSidebar('reports');
             await loadTournamentList();
 
-            // Deep-link support: /president/tournament-export?tournament_id=5
             const qsId = new URLSearchParams(window.location.search).get('tournament_id');
             if (qsId) {
                 document.getElementById('t-select').value = qsId;
@@ -256,8 +249,6 @@
             const current = sel.value;
             if (!res.success) return;
 
-            // Only finalized tournaments have a locked-in winner worth printing —
-            // matches server-side getTournamentExport()'s 'completed'-only guard.
             const finalized = (res.data || []).filter(t => t.status === 'completed');
             sel.innerHTML = '<option value="">Select a finalized tournament...</option>' +
                 finalized.map(t => `<option value="${t.id}">${t.name} — ${t.sport_name}</option>`).join('');
@@ -305,7 +296,7 @@
             const champion = data.standings?.find(s => s.rank === 1);
 
             const matchRows = (data.matches || []).map(m => {
-                const isFfa = !m.dept_b_name && m.dept_a_name; // heuristic, mirrors FFA display elsewhere
+                const isFfa = !m.dept_b_name && m.dept_a_name;
                 const a = m.dept_a_name || '—';
                 const b = m.dept_b_name || '—';
                 const score = (m.total_score_a != null && m.total_score_b != null)

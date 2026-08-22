@@ -381,7 +381,6 @@ const remove = async (req, res, next) => {
             });
         }
 
-        // 2) Linked tournaments still open
         const [openTourneys] = await pool.execute(
             `SELECT COUNT(*) AS count
              FROM sport_fest_tournaments sft

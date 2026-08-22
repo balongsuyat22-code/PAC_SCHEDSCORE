@@ -21,9 +21,6 @@ router.put('/:id', authorize('admin', 'sgo_president'), uc.update);
 router.patch('/:id/deactivate', authorize('admin', 'sgo_president'), uc.deactivate);
 router.patch('/:id/activate', authorize('admin', 'sgo_president'), uc.activate);
 
-// Hard delete stays admin-only — a president can deactivate (reversible,
-// audit-logged) but never permanently delete. userController.remove()
-// also self-guards this even if the route were opened up later.
 router.delete('/:id', authorize('admin'), uc.remove);
 
 module.exports = router;

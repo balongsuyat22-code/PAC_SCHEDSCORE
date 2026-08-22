@@ -12,7 +12,6 @@ app.set('trust proxy', 1);
 const { testConnection } = require('./config/database');
 const { errorHandler, notFound } = require('./middleware/errorHandler');
 
-// Import routes
 const authRoutes = require('./routes/auth');
 const departmentRoutes = require('./routes/departments');
 const sportsRoutes = require('./routes/sports');
@@ -26,15 +25,13 @@ const leaderboardRoutes = require('./routes/leaderboard');
 const sportFestRoutes = require('./routes/sportFest');
 const reportRoutes = require('./routes/reports');
 const playerRoutes = require('./routes/player');
-const visitorRoutes = require('./routes/visitor'); // NEW
+const visitorRoutes = require('./routes/visitor');
 
-// Import socket utilities
 const { initSocket } = require('./utils/socketEmit');
 
 const server = http.createServer(app);
 const PORT = process.env.PORT || 3000;
 
-// ── SOCKET.IO SETUP ──
 const io = socketIo(server, {
     cors: {
         origin: process.env.CORS_ORIGIN || '*',
@@ -52,7 +49,6 @@ initSocket(socketHelpers);
 
 app.set('io', io);
 
-// ── Frontend directories ────────────────────────────────────────
 const frontendRoot = path.join(__dirname, 'frontend');
 const frontendAdmin = path.join(__dirname, 'frontend', 'pages', 'admin');
 const frontendReferee = path.join(__dirname, 'frontend', 'pages', 'referee');
@@ -69,7 +65,6 @@ const sendPageFrom = (dir, filename) => (req, res) => {
     );
 };
 
-// ── MIDDLEWARE ──
 app.use(cors({
     origin: process.env.CORS_ORIGIN || '*',
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
@@ -88,7 +83,6 @@ if (process.env.NODE_ENV === 'development') {
     });
 }
 
-// ── HEALTH CHECK ──
 app.get('/health', (_req, res) => res.json({ status: 'ok', service: 'Sport Fest', version: '1.0.0' }));
 
 app.get('/socket-status', (req, res) => {
@@ -105,7 +99,6 @@ app.get('/socket-status', (req, res) => {
     });
 });
 
-// ── PUBLIC PAGES ──
 app.get('/player-registration', sendPageFrom(frontendRoot, 'player_registration.html'));
 
 app.get('/live', sendPageFrom(frontendVisitor, 'index.html'));
@@ -115,7 +108,6 @@ app.get('/live/schedule', sendPageFrom(frontendVisitor, 'schedule.html'));
 app.get('/live/mvp', sendPageFrom(frontendVisitor, 'mvp.html'));
 app.get('/live/highlights', sendPageFrom(frontendVisitor, 'highlights.html'));
 
-// ── API ROUTES ──
 const API = '/api';
 app.use(`${API}/auth`, authRoutes);
 app.use(`${API}/departments`, departmentRoutes);
@@ -130,7 +122,7 @@ app.use(`${API}/leaderboard`, leaderboardRoutes);
 app.use(`${API}/sport-fest`, sportFestRoutes);
 app.use(`${API}/reports`, reportRoutes);
 app.use(`${API}/players`, playerRoutes);
-app.use(`${API}/visitor`, visitorRoutes); // NEW
+app.use(`${API}/visitor`, visitorRoutes);
 
 app.get(`${API}`, (_req, res) => res.json({
     service: 'Sport Fest Management System API',
@@ -150,15 +142,13 @@ app.get(`${API}`, (_req, res) => res.json({
         sportFest: `${API}/sport-fest`,
         reports: `${API}/reports`,
         players: `${API}/players`,
-        visitor: `${API}/visitor`, // NEW
+        visitor: `${API}/visitor`,
     },
 }));
 
-// ── ROOT AND LOGIN ──
 app.get('/', sendPageFrom(frontendVisitor, 'index.html'));
 app.get('/login', sendPageFrom(frontendRoot, '/pages/login.html'));
 
-// ── Admin pages ──────────────────────────────────────────────
 app.get('/admin', sendPageFrom(frontendAdmin, 'admin.html'));
 app.get('/admin/dashboard', sendPageFrom(frontendAdmin, 'admin.html'));
 app.get('/admin/tournaments', sendPageFrom(frontendAdmin, 'admin-tournaments.html'));
@@ -175,7 +165,6 @@ app.get('/admin/sport-fest', sendPageFrom(frontendAdmin, 'admin-sport-fest.html'
 app.get('/admin/reports', sendPageFrom(frontendAdmin, 'admin-reports.html'));
 app.get('/admin/tournament-export', sendPageFrom(frontendPresident, 'tournament-export.html'));
 
-// ── Dean Adviser pages ────────────────────────────────────────
 app.get('/dean', sendPageFrom(frontendDean, 'dashboard.html'));
 app.get('/dean/dashboard', sendPageFrom(frontendDean, 'dashboard.html'));
 app.get('/dean/live', sendPageFrom(frontendDean, 'live.html'));
@@ -189,7 +178,6 @@ app.get('/dean/scores', sendPageFrom(frontendDean, 'scores.html'));
 app.get('/dean/reports', sendPageFrom(frontendDean, 'reports.html'));
 app.get('/dean/standings', sendPageFrom(frontendDean, 'standings.html'));
 
-// ── SGO President pages ──────────────────────────────────────
 app.get('/president', sendPageFrom(frontendPresident, 'dashboard.html'));
 app.get('/president/dashboard', sendPageFrom(frontendPresident, 'dashboard.html'));
 app.get('/president/dashboard.html', sendPageFrom(frontendPresident, 'dashboard.html'));
@@ -233,7 +221,6 @@ app.get('/sgo_president/*', (req, res) => {
     }
 });
 
-// ── SGO Officer pages ──
 app.get('/officer', (req, res) => res.redirect('/referee'));
 app.get('/officer/dashboard', (req, res) => res.redirect('/referee'));
 app.get('/officer/matches', (req, res) => res.redirect('/referee/matches'));
@@ -241,7 +228,6 @@ app.get('/officer/scoring', (req, res) => res.redirect('/referee/scoring'));
 app.get('/officer/history', (req, res) => res.redirect('/referee/history'));
 app.get('/officer/standings', (req, res) => res.redirect('/referee/leaderboard'));
 
-// ── Referee pages ──
 app.get('/referee', sendPageFrom(frontendReferee, 'schedule.html'));
 app.get('/referee/history', sendPageFrom(frontendReferee, 'history.html'));
 app.get('/referee/leaderboard', sendPageFrom(frontendReferee, 'leaderboard.html'));
@@ -250,7 +236,6 @@ app.get('/referee/scoring', sendPageFrom(frontendReferee, 'scoring.html'));
 app.get('/referee/schedule', sendPageFrom(frontendReferee, 'schedule.html'));
 app.get('/referee/tournaments', sendPageFrom(frontendReferee, 'tournaments.html'));
 
-// ── Static files ──────────────────────────────────────────────
 app.use(express.static(frontendRoot));
 app.use(express.static(frontendAdmin));
 app.use(express.static(frontendDean));
@@ -258,7 +243,6 @@ app.use(express.static(frontendPresident));
 app.use(express.static(frontendReferee));
 app.use(express.static(frontendVisitor));
 
-// ── Catch-all route ──
 app.get('*', (req, res, next) => {
     if (req.originalUrl.startsWith('/api')) return next();
 
@@ -272,11 +256,9 @@ app.get('*', (req, res, next) => {
     next();
 });
 
-// ── ERROR HANDLING ──
 app.use(notFound);
 app.use(errorHandler);
 
-// ── START SERVER ──
 const start = async () => {
     try {
         await testConnection();

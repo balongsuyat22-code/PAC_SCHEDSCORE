@@ -1,31 +1,3 @@
-/**
- * USER CONTROLLER
- * Manages system user accounts (not players — players are in playerController)
- *
- * Role map:
- *   admin        → full CRUD on all users
- *   dean_adviser → read-only on their own department users; update own profile via authController
- *   sgo_president→ CRUD limited to dean_adviser + sgo_officer accounts only
- *                   (register, edit, deactivate/reactivate). Cannot create,
- *                   view, edit, or touch admin / sgo_president accounts, and
- *                   cannot hard-delete anyone — see PRESIDENT_MANAGEABLE_ROLES
- *                   and presidentRoleGuard() below.
- *   sgo_officer  → read-only own record
- *
- * Roles allowed as user accounts: admin | dean_adviser | sgo_president | sgo_officer
- * NOTE: "player" is NOT a user-account role — players are managed via playerController
- *
- * REFEREE CONVENTION FIX: matches.referee_id points DIRECTLY at users.id
- * (an sgo_officer account) — there is no separate `referees` table in
- * this schema. matchController.getAvailableOfficers and
- * scheduleController use that convention consistently. getOfficers below
- * previously joined through `SELECT id FROM referees WHERE user_id = u.id`,
- * which either throws (if the `referees` table doesn't exist) or silently
- * returns 0 assigned_matches for everyone (if it exists but is unrelated/
- * empty) — either way the assignment counts sgo_president relies on when
- * picking an officer were wrong. Fixed to match m.referee_id = u.id
- * directly, same as everywhere else.
- */
 
 const bcrypt = require('bcryptjs');
 const { v4: uuidv4 } = require('uuid');
@@ -34,20 +6,12 @@ const { logActivity } = require('../utils/logger');
 
 const ALLOWED_ROLES = ['admin', 'dean_adviser', 'sgo_president', 'sgo_officer'];
 
-// Roles an sgo_president is allowed to register/edit/deactivate.
-// Presidents run day-to-day tournament ops and need to be able to onboard
-// their own officers (referees) and coordinate with dean/advisers, but must
-// never be able to create/promote/touch admin or sgo_president accounts.
 const PRESIDENT_MANAGEABLE_ROLES = ['dean_adviser', 'sgo_officer'];
 
-// Helper — convert empty string / undefined → null
 const n = (v) => (v === undefined || v === '' ? null : v);
 
-// Throws a 403-shaped error object if an sgo_president caller is trying to
-// touch a role outside PRESIDENT_MANAGEABLE_ROLES. Admins are unrestricted.
-// `targetRole` may be null when the target doesn't exist yet (create flow).
 function presidentRoleGuard(callerRole, ...roles) {
-    if (callerRole !== 'sgo_president') return null; // only presidents are restricted here
+    if (callerRole !== 'sgo_president') return null;
     const offender = roles.find((r) => r && !PRESIDENT_MANAGEABLE_ROLES.includes(r));
     if (offender) {
         return {
@@ -58,12 +22,6 @@ function presidentRoleGuard(callerRole, ...roles) {
     return null;
 }
 
-// ---------------------------------------------------------------------------
-// GET ALL USERS
-// GET /api/users
-// Query params: role, department_id, is_active, search
-// Protected: admin (full list) | sgo_president (officers only)
-// ---------------------------------------------------------------------------
 const getAll = async (req, res, next) => {
     try {
         const { role, department_id, is_active, search } = req.query;
@@ -82,9 +40,6 @@ const getAll = async (req, res, next) => {
         `;
         const params = [];
 
-        // SGO president can see (and manage) dean/adviser + sgo_officer accounts —
-        // dean/advisers for coordination/notifications, officers for match
-        // assignment. Never admin or fellow sgo_president accounts.
         if (callerRole === 'sgo_president') {
             if (role && PRESIDENT_MANAGEABLE_ROLES.includes(role)) {
                 query += ' AND u.role = ?';
@@ -94,7 +49,7 @@ const getAll = async (req, res, next) => {
                 params.push(...PRESIDENT_MANAGEABLE_ROLES);
             }
         } else {
-            // Admin: respect optional filters
+
             if (role) {
                 query += ' AND u.role = ?';
                 params.push(role);
@@ -127,18 +82,11 @@ const getAll = async (req, res, next) => {
     }
 };
 
-// ---------------------------------------------------------------------------
-// GET ONE USER
-// GET /api/users/:id
-// Protected: admin | own record
-// ---------------------------------------------------------------------------
 const getOne = async (req, res, next) => {
     try {
         const targetId = parseInt(req.params.id);
         const callerRole = req.user.role;
 
-        // Non-admins can view their own record; sgo_president can also view
-        // any dean_adviser / sgo_officer record it's allowed to manage.
         if (callerRole !== 'admin' && req.user.id !== targetId && callerRole !== 'sgo_president') {
             return res.status(403).json({ success: false, message: 'Access denied.' });
         }
@@ -176,11 +124,6 @@ const getOne = async (req, res, next) => {
     }
 };
 
-// ---------------------------------------------------------------------------
-// CREATE USER  (Admin only)
-// POST /api/users
-// Body: { username, email, password, role, first_name, last_name, phone, department_id }
-// ---------------------------------------------------------------------------
 const create = async (req, res, next) => {
     try {
         let {
@@ -195,7 +138,6 @@ const create = async (req, res, next) => {
             department_id,
         } = req.body;
 
-        // Required fields
         if (!username || !email || !password || !first_name || !last_name || !role) {
             return res.status(400).json({
                 success: false,
@@ -213,7 +155,6 @@ const create = async (req, res, next) => {
         const presidentDenied = presidentRoleGuard(req.user.role, role);
         if (presidentDenied) return res.status(403).json(presidentDenied);
 
-        // dean_adviser must be tied to a department
         if (role === 'dean_adviser' && !department_id) {
             return res.status(400).json({
                 success: false,
@@ -224,7 +165,6 @@ const create = async (req, res, next) => {
         email = email.trim().toLowerCase();
         username = username.trim().toLowerCase();
 
-        // Duplicate check
         const [existing] = await pool.execute(
             'SELECT id FROM users WHERE email = ? OR username = ?',
             [email, username]
@@ -263,11 +203,6 @@ const create = async (req, res, next) => {
     }
 };
 
-// ---------------------------------------------------------------------------
-// UPDATE USER  (Admin only — for admin to edit any user's account details)
-// PUT /api/users/:id
-// Note: users update their own profile via PUT /api/auth/me
-// ---------------------------------------------------------------------------
 const update = async (req, res, next) => {
     try {
         const targetId = parseInt(req.params.id);
@@ -277,7 +212,6 @@ const update = async (req, res, next) => {
             return res.status(400).json({ success: false, message: 'first_name and last_name are required.' });
         }
 
-        // Validate role if being changed
         if (role && !ALLOWED_ROLES.includes(role)) {
             return res.status(400).json({
                 success: false,
@@ -290,14 +224,11 @@ const update = async (req, res, next) => {
             if (!targetRows.length) {
                 return res.status(404).json({ success: false, message: 'User not found.' });
             }
-            // Guard against both the account's existing role and whatever
-            // role it's being changed to (if any) — a president can't edit
-            // an admin's profile, nor turn a dean/officer INTO an admin.
+
             const presidentDenied = presidentRoleGuard(req.user.role, targetRows[0].role, role);
             if (presidentDenied) return res.status(403).json(presidentDenied);
         }
 
-        // Prevent admin from accidentally removing the last admin
         if (role && role !== 'admin') {
             const [admins] = await pool.execute(
                 "SELECT COUNT(*) AS count FROM users WHERE role = 'admin' AND is_active = 1 AND id != ?",
@@ -342,20 +273,14 @@ const update = async (req, res, next) => {
     }
 };
 
-// ---------------------------------------------------------------------------
-// DEACTIVATE USER  (Admin only — soft delete)
-// PATCH /api/users/:id/deactivate
-// ---------------------------------------------------------------------------
 const deactivate = async (req, res, next) => {
     try {
         const targetId = parseInt(req.params.id);
 
-        // Prevent self-deactivation
         if (req.user.id === targetId) {
             return res.status(400).json({ success: false, message: 'You cannot deactivate your own account.' });
         }
 
-        // Prevent removing last admin
         const [rows] = await pool.execute('SELECT role FROM users WHERE id = ?', [targetId]);
         if (!rows.length) {
             return res.status(404).json({ success: false, message: 'User not found.' });
@@ -375,7 +300,6 @@ const deactivate = async (req, res, next) => {
 
         await pool.execute('UPDATE users SET is_active = 0, updated_at = NOW() WHERE id = ?', [targetId]);
 
-        // Revoke refresh tokens so they are immediately logged out
         await pool.execute('DELETE FROM refresh_tokens WHERE user_id = ?', [targetId]);
 
         await logActivity(req.user.id, 'USER_DEACTIVATED', 'user', targetId, `User deactivated: ID ${targetId}`);
@@ -387,10 +311,6 @@ const deactivate = async (req, res, next) => {
     }
 };
 
-// ---------------------------------------------------------------------------
-// REACTIVATE USER  (Admin only)
-// PATCH /api/users/:id/activate
-// ---------------------------------------------------------------------------
 const activate = async (req, res, next) => {
     try {
         const targetId = parseInt(req.params.id);
@@ -414,18 +334,10 @@ const activate = async (req, res, next) => {
     }
 };
 
-// ---------------------------------------------------------------------------
-// DELETE USER  (Admin only — hard delete, use sparingly)
-// DELETE /api/users/:id
-// ---------------------------------------------------------------------------
 const remove = async (req, res, next) => {
     try {
         const targetId = parseInt(req.params.id);
 
-        // Hard delete stays admin-only regardless of route wiring — an
-        // sgo_president can register/edit/deactivate dean/officer accounts,
-        // but permanent deletion (including of its own scope) is reserved
-        // for admin so there's always an audit trail via deactivate instead.
         if (req.user.role !== 'admin') {
             return res.status(403).json({ success: false, message: 'Only an admin can permanently delete a user. Use Deactivate instead.' });
         }
@@ -466,22 +378,6 @@ const remove = async (req, res, next) => {
     }
 };
 
-// ---------------------------------------------------------------------------
-// GET SGO OFFICERS  (used by sgo_president to list available officers for assignment)
-// GET /api/users/officers
-// Protected: admin | sgo_president
-//
-// FIXED: referee_id on `matches` points directly at users.id — there is
-// no separate `referees` table anywhere else in this codebase (see
-// matchController.getAvailableOfficers, which already joined this way).
-// The previous version here joined through
-//   LEFT JOIN matches m ON m.referee_id = (SELECT id FROM referees WHERE user_id = u.id LIMIT 1)
-// which assumed a `referees` table that this schema doesn't use, so
-// assigned_matches came back wrong (0, or a query error) for every
-// officer — meaning sgo_president's "pick the least-busy officer" screen
-// was working off bad data. Aligned to the same convention as
-// matchController.getAvailableOfficers.
-// ---------------------------------------------------------------------------
 const getOfficers = async (req, res, next) => {
     try {
         const [rows] = await pool.execute(
@@ -501,11 +397,6 @@ const getOfficers = async (req, res, next) => {
     }
 };
 
-// ---------------------------------------------------------------------------
-// GET DEAN/ADVISERS  (used by admin for listing; by sgo_president for notifications)
-// GET /api/users/deans
-// Protected: admin | sgo_president
-// ---------------------------------------------------------------------------
 const getDeans = async (req, res, next) => {
     try {
         const { department_id } = req.query;
@@ -534,10 +425,6 @@ const getDeans = async (req, res, next) => {
     }
 };
 
-// ---------------------------------------------------------------------------
-// VIEW USER ACTIVITY LOGS  (Admin only)
-// GET /api/users/:id/logs
-// ---------------------------------------------------------------------------
 const getUserLogs = async (req, res, next) => {
     try {
         const targetId = parseInt(req.params.id);

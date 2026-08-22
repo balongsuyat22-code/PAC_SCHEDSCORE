@@ -1,11 +1,9 @@
 const mysql = require('mysql2/promise');
 require('dotenv').config();
 
-// Railway's MySQL plugin exposes MYSQL_URL (a full connection string) or
-// individual MYSQLHOST/MYSQLUSER/etc vars. This keeps local DB_* vars working too.
 const buildPoolConfig = () => {
     if (process.env.MYSQL_URL) {
-        return process.env.MYSQL_URL; // mysql2 accepts a connection string directly
+        return process.env.MYSQL_URL;
     }
 
     return {

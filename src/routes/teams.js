@@ -4,12 +4,6 @@ const tmc = require('../controllers/teamController');
 const { authenticate, authorize } = require('../middleware/auth');
 
 router.get('/', tmc.getAll);
-
-// NOTE: '/singles' MUST be registered before '/:id' below, otherwise Express
-// matches "GET /teams/singles" against '/:id' (id="singles") first and
-// tmc.getSingles is never reached. It carries its own auth middleware here
-// (instead of relying on a later router.use(authenticate)) so that
-// '/:id' can stay public, exactly as it was before.
 router.get('/singles', authenticate, authorize('admin', 'dean_adviser'), tmc.getSingles);
 
 router.get('/:id', tmc.getOne);

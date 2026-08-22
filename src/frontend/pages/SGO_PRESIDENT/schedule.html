@@ -11,8 +11,6 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
     <link rel="stylesheet" href="../../css/sgo_president.css">
     <style>
-        /* Free-For-All row treatment — distinct from the dept_a vs dept_b
-           layout, since FFA has no two-sided matchup. */
         .ffa-row-badge {
             display: inline-flex;
             align-items: center;
@@ -53,7 +51,6 @@
             font-weight: 400;
         }
 
-        /* ── Locked (completed/cancelled) row guard ──────────────── */
         .locked-badge {
             display: inline-flex;
             align-items: center;
@@ -84,8 +81,6 @@
             margin-left: 6px;
         }
 
-        /* ── Officer Workload panel (merged in from the old, now-retired
-           Game Assignment page — see the redirect note in that file) ── */
         .officer-panel {
             display: flex;
             flex-direction: column;
@@ -186,7 +181,6 @@
                 </div>
             </div>
 
-            <!-- Filters -->
             <div class="card" style="margin-bottom:16px;padding:14px 16px">
                 <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center">
                     <div
@@ -215,11 +209,6 @@
                 </div>
             </div>
 
-            <!-- Officer Workload — merged in from the old Game Assignment
-                 page. That page was ~90% the same match list as this one,
-                 just filtered to "unassigned" first; the "Needs officer
-                 only" chip above covers that, and this panel covers the
-                 workload-balance view it added. -->
             <div class="card" style="margin-bottom:16px">
                 <div class="card-header">
                     <div class="card-title">
@@ -238,7 +227,6 @@
                 </div>
             </div>
 
-            <!-- Matches Table -->
             <div class="card">
                 <div class="table-wrap">
                     <table id="match-table">
@@ -265,7 +253,6 @@
         </div>
     </main>
 
-    <!-- Schedule Modal -->
     <div class="modal-overlay" id="modal-schedule">
         <div class="modal">
             <div class="modal-header">
@@ -326,9 +313,6 @@
             await loadMatches();
         });
 
-        // A completed or cancelled match is done — its schedule and officer
-        // are historical record at that point, not something that should
-        // still be editable. Everything below keys off this.
         const LOCKED_STATUSES = ['completed', 'cancelled'];
         const isLocked = (m) => LOCKED_STATUSES.includes(m.status);
 
@@ -400,9 +384,6 @@
                 console.error('Error loading venues:', error);
             }
         }
-
-        // Was 404ing because /matches/officers got swallowed by /matches/:id
-        // in the routes file (fixed server-side — see routes/matches.js).
         async function loadOfficerOptions() {
             try {
                 const res = await api('/matches/officers');
@@ -430,10 +411,6 @@
             }
         }
 
-        // Cache of tournament_id -> participant department names, filled
-        // lazily so FFA rows can show "Dept A, Dept B, Dept C" instead of
-        // "TBD vs TBD" (FFA matches have no participant_a/b — the roster
-        // lives on tournament_participants instead).
         const ffaParticipantsCache = {};
         async function getFfaParticipants(tournamentId) {
             if (ffaParticipantsCache[tournamentId]) return ffaParticipantsCache[tournamentId];
@@ -485,9 +462,6 @@
                     return;
                 }
 
-                // Render immediately with a lightweight placeholder for FFA
-                // matchup cells, then backfill participant names once fetched
-                // — avoids blocking the whole table on N extra requests.
                 tbody.innerHTML = rows.map((m, idx) => `
                     <tr data-row="${idx}">
                         <td>
@@ -529,7 +503,6 @@
                     </tr>
                 `).join('');
 
-                // Backfill FFA participant lists
                 rows.forEach(async (m, idx) => {
                     if (!isFfa(m)) return;
                     const names = await getFfaParticipants(m.tournament_id);
@@ -543,9 +516,7 @@
         }
 
         function openSchedule(m) {
-            // Defense in depth — the button is already hidden for locked
-            // matches, but this blocks anyone calling openSchedule(...)
-            // directly (e.g. from an old cached page or devtools).
+
             if (isLocked(m)) {
                 Toast.show(`This match is ${m.status} — its schedule and officer are locked.`, 'error');
                 return;

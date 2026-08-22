@@ -1,8 +1,4 @@
-/* ============================================================
-   SGO PRESIDENT SIDEBAR — PAC SCHED-SCORE
-   Do NOT redeclare Modal/Toast with const — api.js may already
-   define them. Always assign to window.*.
-   ============================================================ */
+
 (function () {
     'use strict';
 
@@ -169,10 +165,68 @@
             links[i].addEventListener('click', closeSidebarOnNavigate);
         }
 
+        injectPresidentNotifBell();
+
         sidebarRendered = true;
         requestAnimationFrame(function () {
             setTimeout(hidePageLoader, 120);
         });
+    }
+
+    function injectPresidentNotifBell() {
+        var actions = document.querySelector('.topbar-actions');
+        if (!actions || document.getElementById('sf-notif-wrap')) return;
+
+        var wrap = document.createElement('div');
+        wrap.id = 'sf-notif-wrap';
+        wrap.style.cssText = 'display:flex;align-items:center;gap:10px;margin-right:4px;position:relative;';
+        wrap.innerHTML =
+            '<span id="sf-conn-dot" title="Connecting…" ' +
+            'style="width:8px;height:8px;border-radius:50%;background:var(--muted);flex-shrink:0;' +
+            'box-shadow:0 0 0 3px rgba(34,197,94,0.12)"></span>' +
+            '<div class="nav-notification-container" style="position:relative">' +
+            '<button type="button" id="sf-notif-btn" class="btn btn-secondary btn-sm" ' +
+            'style="padding:6px 10px;position:relative" aria-label="Notifications">' +
+            '<i class="fa-solid fa-bell" style="width:16px"></i>' +
+            '<span id="sf-notif-badge" class="notif-badge" style="display:none">0</span>' +
+            '</button>' +
+            '<div id="sf-notif-dropdown" class="notif-dropdown" style="display:none;position:absolute;right:0;top:calc(100% + 8px);width:340px;background:var(--bg2);border:1px solid var(--border);border-radius:12px;box-shadow:0 12px 40px rgba(0,0,0,.45);z-index:200;overflow:hidden">' +
+            '<div class="notif-header" style="display:flex;justify-content:space-between;align-items:center;padding:10px 14px;border-bottom:1px solid var(--border)">' +
+            '<span style="font-weight:700;font-size:13px">Notifications</span>' +
+            '<button type="button" id="sf-notif-clear" class="btn btn-secondary btn-sm" style="padding:2px 8px;font-size:11px">Clear live feed</button>' +
+            '</div>' +
+            '<div class="notif-list" id="sf-notif-list" style="max-height:320px;overflow-y:auto">' +
+            '<div class="notif-item empty" style="padding:16px;color:var(--muted);text-align:center;font-size:13px">No notifications yet</div>' +
+            '</div></div></div>';
+        actions.insertBefore(wrap, actions.firstChild);
+
+        var btn = document.getElementById('sf-notif-btn');
+        var dd = document.getElementById('sf-notif-dropdown');
+        btn.addEventListener('click', function (e) {
+            e.stopPropagation();
+            var open = dd.style.display === 'block';
+            dd.style.display = open ? 'none' : 'block';
+            if (!open && typeof Realtime !== 'undefined') Realtime._renderNotifBell();
+        });
+        var clearBtn = document.getElementById('sf-notif-clear');
+        if (clearBtn) {
+            clearBtn.addEventListener('click', function (e) {
+                e.stopPropagation();
+                if (typeof Realtime !== 'undefined') Realtime.clearFeed();
+            });
+        }
+        document.addEventListener('click', function () { dd.style.display = 'none'; });
+        dd.addEventListener('click', function (e) { e.stopPropagation(); });
+
+        if (typeof Realtime !== 'undefined') Realtime.connect().catch(function () { });
+
+        if (typeof NotificationEngine !== 'undefined') {
+            NotificationEngine.mount({
+                stateContainerId: 'sf-notif-list',
+                badgeId: 'sf-notif-badge',
+                role: 'sgo_president',
+            });
+        }
     }
 
     function confirmSgoPresidentLogout() {

@@ -324,7 +324,6 @@
         </div>
     </main>
 
-    <!-- CONFIRMATION MODAL -->
     <div class="modal-overlay" id="modal-confirm" onclick="if(event.target===this)closeConfirm()">
         <div class="modal">
             <div class="modal-header">
@@ -345,7 +344,6 @@
         </div>
     </div>
 
-    <!-- CREATE / EDIT MODAL -->
     <div class="modal-overlay" id="modal-user" onclick="if(event.target===this)Modal.close('modal-user')">
         <div class="modal" style="max-width:580px">
             <div class="modal-header">
@@ -430,7 +428,6 @@
         </div>
     </div>
 
-    <!-- VIEW DETAIL MODAL -->
     <div class="modal-overlay" id="modal-detail" onclick="if(event.target===this)Modal.close('modal-detail')">
         <div class="modal" style="max-width:480px">
             <div class="modal-header">
@@ -445,7 +442,6 @@
         </div>
     </div>
 
-    <!-- RESET PASSWORD MODAL -->
     <div class="modal-overlay" id="modal-reset-pw" onclick="if(event.target===this)Modal.close('modal-reset-pw')">
         <div class="modal" style="max-width:400px">
             <div class="modal-header">
@@ -475,10 +471,7 @@
     <script src="../../js/api.js"></script>
     <script src="../../js/sgo_president.js"></script>
     <script>
-        // Roles this page is allowed to create/edit. Mirrors
-        // PRESIDENT_MANAGEABLE_ROLES enforced server-side in
-        // userController.js — kept in sync so the UI never offers an
-        // option the API would reject anyway.
+
         const MANAGEABLE_ROLES = ['dean_adviser', 'sgo_officer'];
 
         let allUsers = [], filteredUsers = [];
@@ -507,8 +500,6 @@
             if (!user) return;
             renderSidebar('users');
 
-            // Department list for filters & form — presidents can see all
-            // departments (read-only context, not a user-role concern).
             const dRes = await api('/departments');
             const dOpts = (dRes.data || []).map(d => `<option value="${d.id}">${d.name}</option>`).join('');
             document.getElementById('f-dept').innerHTML += dOpts;
@@ -526,9 +517,7 @@
 
             const res = await api(url);
             if (!res.success) { Toast.show(res.message || 'Failed to load users', 'error'); return; }
-            // Backend already scopes sgo_president to dean_adviser + sgo_officer
-            // (see PRESIDENT_MANAGEABLE_ROLES in userController.js), but filter
-            // again client-side as a belt-and-braces guard.
+
             allUsers = (res.data || []).filter(u => MANAGEABLE_ROLES.includes(u.role));
             renderStats();
             applyFilter();

@@ -1,12 +1,4 @@
-/* ============================================================
-   ADMIN SIDEBAR — PAC SCHED-SCORE
-   Roles: admin | dean_adviser | sgo_president | sgo_officer | visitor
 
-   Every admin page should:
-     1) include ../../js/shared.js then ../../js/admin-sidebar.js
-     2) call Auth.requireAuth('admin') first on DOMContentLoaded
-     3) call renderSidebar('<nav-key>') to inject sidebar + mobile burger
-   ============================================================ */
 const ADMIN_ICONS = {
     dashboard: `<svg viewBox="0 0 24 24"><line x1="18" y1="20" x2="18" y2="10"></line><line x1="12" y1="20" x2="12" y2="4"></line><line x1="6" y1="20" x2="6" y2="14"></line></svg>`,
     live: `<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="2"></circle><path d="M16.24 7.76a6 6 0 0 1 0 8.49m-8.48-.01a6 6 0 0 1 0-8.49m11.31-2.82a10 10 0 0 1 0 14.14m-14.14 0a10 10 0 0 1 0-14.14"></path></svg>`,
@@ -104,6 +96,14 @@ function renderSidebar(activePage) {
     setupBurgerMenu();
     injectRealtimeChrome();
 
+    if (typeof NotificationEngine !== 'undefined') {
+        NotificationEngine.mount({
+            stateContainerId: 'sf-notif-list',
+            badgeId: 'sf-notif-badge',
+            role: 'admin',
+        });
+    }
+
     if (typeof Realtime !== 'undefined') {
         Realtime.connect().catch(() => { });
         window.addEventListener('sf:live', () => {
@@ -118,7 +118,6 @@ function renderSidebar(activePage) {
     }
 }
 
-/** Inject connection dot + notification bell into the page topbar */
 function injectRealtimeChrome() {
     const actions = document.querySelector('.topbar-actions');
     if (!actions || document.getElementById('sf-notif-wrap')) return;
@@ -138,9 +137,9 @@ function injectRealtimeChrome() {
             </button>
             <div id="sf-notif-dropdown" class="notif-dropdown" style="display:none">
                 <div class="notif-header" style="display:flex;justify-content:space-between;align-items:center;padding:10px 14px;border-bottom:1px solid var(--border)">
-                    <span style="font-weight:700;font-size:13px">Live updates</span>
+                    <span style="font-weight:700;font-size:13px">Notifications</span>
                     <button type="button" id="sf-notif-clear" class="btn btn-secondary btn-sm"
-                            style="padding:2px 8px;font-size:11px">Clear</button>
+                            style="padding:2px 8px;font-size:11px">Clear live feed</button>
                 </div>
                 <div class="notif-list" id="sf-notif-list" style="max-height:320px;overflow-y:auto">
                     <div class="notif-item empty" style="padding:16px;color:var(--muted);text-align:center;font-size:13px">No notifications yet</div>
@@ -152,7 +151,7 @@ function injectRealtimeChrome() {
     const btn = document.getElementById('sf-notif-btn');
     const dd = document.getElementById('sf-notif-dropdown');
     if (dd) {
-        dd.style.cssText = 'display:none;position:absolute;right:0;top:calc(100% + 8px);width:320px;background:var(--bg2);border:1px solid var(--border);border-radius:12px;box-shadow:0 12px 40px rgba(0,0,0,.45);z-index:200;overflow:hidden';
+        dd.style.cssText = 'display:none;position:absolute;right:0;top:calc(100% + 8px);width:340px;background:var(--bg2);border:1px solid var(--border);border-radius:12px;box-shadow:0 12px 40px rgba(0,0,0,.45);z-index:200;overflow:hidden';
     }
     btn?.addEventListener('click', (e) => {
         e.stopPropagation();

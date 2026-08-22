@@ -1,13 +1,4 @@
-/**
- * SPORTS CONTROLLER
- *
- * Season scoping for tournament counts / lists:
- *   - Prefer ?season_id= query (or "all" for every season)
- *   - Else the active sport fest (is_current = 1)
- *   - Else the most recent sport_fest_events row (year DESC, id DESC)
- *     so the Sports admin view shows this fest's tournaments only,
- *     not archived seasons.
- */
+
 const { pool } = require('../config/database');
 const { logActivity } = require('../utils/logger');
 const { getActiveSportFestId } = require('../utils/season');
@@ -36,8 +27,6 @@ async function resolveSportFestId(seasonIdQuery) {
         return { sportFestId: activeId, unscoped: false };
     }
 
-    // No is_current season — fall back to newest event so the Sports page
-    // shows the latest fest's tournaments instead of every past season.
     const [latest] = await pool.execute(
         `SELECT id FROM sport_fest_events
          ORDER BY year DESC, id DESC
@@ -68,7 +57,6 @@ const getAll = async (req, res, next) => {
                  )`;
             params = [sportFestId];
         } else {
-            // No fest at all — count nothing (avoid dumping all history)
             tournamentJoin = 'LEFT JOIN tournaments t ON 1 = 0';
             params = [];
         }
@@ -128,7 +116,6 @@ const getTournaments = async (req, res, next) => {
             )`;
             params.push(sportFestId);
         } else if (!unscoped && sportFestId == null) {
-            // No fest resolved — return empty rather than every historical tournament
             query += ' AND 1 = 0';
         }
 

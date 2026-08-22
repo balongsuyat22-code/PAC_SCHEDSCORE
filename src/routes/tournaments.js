@@ -3,7 +3,6 @@ const router = express.Router();
 const ctrl = require('../controllers/tournamentController');
 const { authenticate, authorize } = require('../middleware/auth');
 
-// Public bracket for visitor live board (optional but recommended)
 router.get('/:id/bracket', ctrl.getBracket);
 
 router.get('/', authenticate, ctrl.getAll);

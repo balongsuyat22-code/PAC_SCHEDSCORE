@@ -1,8 +1,4 @@
-/**
- * Database Setup Script
- * Usage: node src/config/setupDatabase.js
- * Works locally (XAMPP) and on Railway (MYSQL_* / DB_* / MYSQL_URL).
- */
+
 require('dotenv').config();
 const mysql = require('mysql2/promise');
 const bcrypt = require('bcryptjs');
@@ -46,7 +42,6 @@ const run = async () => {
         await conn.query(`USE \`${dbName}\``);
         console.log('✅ Connected\n');
 
-        // ── 1. Apply schema ──
         console.log('📦 Applying schema...');
         const schemaPath = path.join(__dirname, '../../sql/schema.sql');
         if (!fs.existsSync(schemaPath)) {
@@ -80,16 +75,11 @@ const run = async () => {
             throw new Error('Required tables missing (tournament_results / department_scores)');
         }
 
-        // ── 2. Triggers ──
-        // Old triggers updated department_scores WITHOUT sport_fest_id.
-        // Scoring is handled in-app by recordResultsAndRebuild / rebuildDepartmentScores
-        // (season-aware). Keeping those triggers would double-count or write the wrong row.
         console.log('\n⚡ Removing legacy department_scores triggers (scoring is app-side)...');
         await conn.query('DROP TRIGGER IF EXISTS after_tournament_result_insert');
         await conn.query('DROP TRIGGER IF EXISTS after_tournament_result_update');
         console.log('✅ Legacy triggers dropped\n');
 
-        // ── 3. Seed departments ──
         console.log('🏫 Creating departments...');
         await conn.query(`
             INSERT IGNORE INTO departments (id, name, code, description) VALUES
@@ -102,7 +92,6 @@ const run = async () => {
         `);
         console.log('✅ Departments created\n');
 
-        // ── 4. Seed default users (no player role — players are data records only) ──
         console.log('👤 Creating default users...');
         const defaultUsers = [
             { username: 'admin', email: 'admin@sportfest.com', password: 'password', role: 'admin', first: 'System', last: 'Admin', dept: 1 },

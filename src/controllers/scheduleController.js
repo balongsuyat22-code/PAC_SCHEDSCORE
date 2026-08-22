@@ -87,14 +87,8 @@ const getToday = async (req, res, next) => {
     }
 };
 
-
-// Serializes "check for a conflict, then insert" for a given (venue, date)
-// so two schedules submitted at the same instant can't both pass the
-// conflict check and both get inserted. A MySQL named lock is the
-// lightest fix that doesn't require a schema change (no unique
-// constraint exists to fall back on for arbitrary time-range overlaps).
 const withVenueDateLock = async (venueId, date, fn) => {
-    if (!venueId) return fn(); // no venue = nothing to serialize
+    if (!venueId) return fn();
     const lockName = `sched_venue_${venueId}_${date}`;
     const conn = await pool.getConnection();
     try {
@@ -106,7 +100,7 @@ const withVenueDateLock = async (venueId, date, fn) => {
         }
         return await fn();
     } finally {
-        try { await conn.query('SELECT RELEASE_LOCK(?)', [lockName]); } catch { /* best effort */ }
+        try { await conn.query('SELECT RELEASE_LOCK(?)', [lockName]); } catch { }
         conn.release();
     }
 };
@@ -199,9 +193,6 @@ const update = async (req, res, next) => {
         } = req.body;
 
         await withVenueDateLock(venue_id, scheduled_date, async () => {
-            // This check didn't exist before at all — a schedule could be
-            // edited to overlap another booking at the same venue with no
-            // warning, since only create() checked for conflicts.
             if (venue_id && await checkVenueConflict(venue_id, scheduled_date, start_time, end_time, req.params.id)) {
                 const err = new Error('Venue has a scheduling conflict at that time');
                 err.statusCode = 409;

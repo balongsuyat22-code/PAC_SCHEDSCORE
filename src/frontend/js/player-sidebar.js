@@ -1,14 +1,8 @@
-// ==========================================
-// PLAYER SIDEBAR & NOTIFICATION ENGINE
-// File: js/player-sidebar.js
-// ==========================================
-
 let sidebarCollapsed = false;
 let sidebarMobileOpen = false;
 let playerProfileData = { user: null, department: null, matches: [] };
 let playerNotifs = [];
 
-// 1. AUTO-INJECT POLISHED CSS
 const injectSidebarStyles = () => {
     if (document.getElementById('sf-sidebar-styles')) return;
     const style = document.createElement('style');

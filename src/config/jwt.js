@@ -7,7 +7,6 @@ const config = {
     refreshExpiresIn: process.env.JWT_REFRESH_EXPIRES_IN || '7d',
 };
 
-// Add this helper function
 const generateToken = (payload) => {
     return jwt.sign(payload, config.secret, { expiresIn: config.expiresIn });
 };

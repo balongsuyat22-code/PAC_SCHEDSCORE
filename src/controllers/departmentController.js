@@ -1,20 +1,11 @@
-/**
- * DEPARTMENT CONTROLLER
- *
- * Season scoping:
- *   - Prefer ?season_id= query (or "all" for unscoped history)
- *   - Else the active sport fest (is_current = 1)
- *   - Else the most recent sport_fest_events row (year DESC, id DESC)
- *     so a missing/stale is_current flag still shows the latest fest
- *     instead of legacy NULL rows or an older season.
- */
+
 const { pool } = require('../config/database');
 const { logActivity } = require('../utils/logger');
 const { getActiveSportFestId } = require('../utils/season');
 
 /**
  * Resolve which sport_fest_id to use for scores/teams/members.
- * @param {string|undefined} seasonIdQuery  req.query.season_id
+ * @param {string|undefined} seasonIdQuery  
  * @returns {Promise<{ sportFestId: number|null, unscoped: boolean }>}
  */
 async function resolveSportFestId(seasonIdQuery) {
@@ -33,9 +24,6 @@ async function resolveSportFestId(seasonIdQuery) {
         return { sportFestId: activeId, unscoped: false };
     }
 
-    // No is_current season — fall back to the newest event so the admin
-    // grades/strands page shows the most recent fest instead of previous/
-    // legacy NULL-scored rows.
     const [latest] = await pool.execute(
         `SELECT id FROM sport_fest_events
          ORDER BY year DESC, id DESC
@@ -166,8 +154,6 @@ const getOne = async (req, res, next) => {
 
 const getScores = async (req, res, next) => {
     try {
-        // Default: only results from the active / most-recent sport fest.
-        // Pass ?season_id=all for full history.
         const { season_id } = req.query;
         const { sportFestId, unscoped } = await resolveSportFestId(season_id);
 

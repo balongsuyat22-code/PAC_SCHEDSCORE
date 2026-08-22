@@ -7,7 +7,7 @@ const logActivity = async (userId, action, entityType, entityId, description, ip
             [userId || null, action, entityType || null, entityId || null, description, ipAddress]
         );
     } catch (err) {
-        // Non-blocking: log silently
+
         console.error('Activity log error:', err.message);
     }
 };

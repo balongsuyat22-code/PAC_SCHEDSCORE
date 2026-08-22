@@ -1,19 +1,3 @@
-/**
- * MATCH CONTROLLER - Complete Updated Version with Real-Time Scoring
- * Handles scheduling, live scoring, and match completion.
- * Uses users with role 'sgo_officer' directly as referees.
- *
- * Who does what:
- *   sgo_president → schedule matches; assign venues & officers; start/end matches
- *   sgo_officer   → input/update live scores; complete matches; record MVP
- *   admin         → full access
- *   dean_adviser  → read: view their department's matches, live scores
- *   visitor       → read: live scores, scoreboard, completed matches
- *
- * LIVE UPDATES (Socket.IO):
- * All mutations emit to match_<id> and tournament_<id> rooms.
- * Leaderboard changes emit globally.
- */
 
 const { pool } = require('../config/database');
 const { progressBracket } = require('../services/matchService');
@@ -27,25 +11,9 @@ const {
     getMatchWatchers
 } = require('../utils/socketEmit');
 
-// Utility helpers
 const safeFK = (val) => { const n = parseInt(val); return Number.isInteger(n) && n > 0 ? n : null; };
 const safeDate = (val) => { if (!val) return null; return String(val).split('T')[0]; };
 
-// ---------------------------------------------------------------------------
-// MATCH STATE MACHINE
-// pending -> scheduled -> ongoing -> completed
-//                                 \-> cancelled (from pending/scheduled/ongoing)
-//
-// Rules:
-//  - schedule (date/time/venue/referee) may only change while the match has
-//    not started yet (pending/scheduled). Once a match is ongoing/completed,
-//    logistics are locked to avoid confusing referees/venues mid-game.
-//  - start requires the match to currently be scheduled (or pending, if an
-//    officer starts it ad-hoc). It can never "re-start" an ongoing/completed match.
-//  - scores may only be written while the match is ongoing.
-//  - complete requires the match to currently be ongoing, and can only
-//    happen once — this prevents double-counting round-robin standings.
-// ---------------------------------------------------------------------------
 const canReschedule = (status) => ['pending', 'scheduled'].includes(status);
 const canStart = (status) => ['pending', 'scheduled'].includes(status);
 const canScore = (status) => status === 'ongoing';
@@ -102,8 +70,6 @@ const getAll = async (req, res, next) => {
         `;
         const params = [];
 
-        // Season-scope by default so a match from an archived season doesn't
-        // keep showing up on referee/president/visitor match lists.
         if (sportFestId) {
             query += ` AND EXISTS (
                 SELECT 1 FROM sport_fest_tournaments sft
@@ -150,12 +116,7 @@ const getAll = async (req, res, next) => {
 const getPlayersByDepartment = async (req, res, next) => {
     try {
         const departmentId = parseInt(req.params.departmentId);
-        // BUG FIX: this previously had no sport filter at all, so it
-        // returned every approved player in the department — basketball
-        // players showing up as MVP candidates for a chess match, etc.
-        // sport_id is optional (older callers may not send it) but any
-        // caller building an MVP/roster picker for a specific match should
-        // always pass the match's sport_id now.
+
         const sportId = parseInt(req.query.sport_id);
 
         const params = [departmentId];
@@ -190,11 +151,6 @@ const getPlayersByDepartment = async (req, res, next) => {
     }
 };
 
-// ---------------------------------------------------------------------------
-// GET ONE MATCH (full detail with scores and result)
-// GET /api/matches/:id
-// Protected: all roles
-// ---------------------------------------------------------------------------
 const getOne = async (req, res, next) => {
     try {
         const [rows] = await pool.execute(
@@ -243,11 +199,6 @@ const getOne = async (req, res, next) => {
     }
 };
 
-// ---------------------------------------------------------------------------
-// GET LIVE SCOREBOARD for a specific match
-// GET /api/matches/:id/scoreboard
-// Protected: all roles (public)
-// ---------------------------------------------------------------------------
 const getScoreboard = async (req, res, next) => {
     try {
         const [match] = await pool.execute(
@@ -301,11 +252,7 @@ const getScoreboard = async (req, res, next) => {
     }
 };
 
-// ---------------------------------------------------------------------------
-// GET LIVE MATCHES (all ongoing)
-// GET /api/matches/live
-// Protected: all roles (public)
-// ---------------------------------------------------------------------------
+
 const getLive = async (req, res, next) => {
     try {
         const [rows] = await pool.execute(
@@ -332,7 +279,6 @@ const getLive = async (req, res, next) => {
                     ORDER BY m.status DESC, m.started_at DESC, m.scheduled_date ASC`
         );
 
-        // Add watcher counts
         const enrichedRows = rows.map(row => ({
             ...row,
             watchers: row.status === 'ongoing' ? getMatchWatchers(row.id) : 0
@@ -344,11 +290,7 @@ const getLive = async (req, res, next) => {
     }
 };
 
-// ---------------------------------------------------------------------------
-// GET ASSIGNED MATCHES for current SGO Officer
-// GET /api/matches/my-assignments
-// Protected: sgo_officer
-// ---------------------------------------------------------------------------
+
 const getMyAssignments = async (req, res, next) => {
     try {
         const [rows] = await pool.execute(
@@ -377,11 +319,7 @@ const getMyAssignments = async (req, res, next) => {
     }
 };
 
-// ---------------------------------------------------------------------------
-// LIST AVAILABLE OFFICERS (for assignment)
-// GET /api/matches/officers
-// Protected: sgo_president | admin
-// ---------------------------------------------------------------------------
+
 const getAvailableOfficers = async (req, res, next) => {
     try {
         const [rows] = await pool.execute(
@@ -403,12 +341,7 @@ const getAvailableOfficers = async (req, res, next) => {
     }
 };
 
-// ---------------------------------------------------------------------------
-// SCHEDULE MATCH (assign date, time, venue, officer)
-// PUT /api/matches/:id/schedule
-// Body: { scheduled_date, scheduled_time, venue_id, referee_id }
-// Protected: sgo_president | admin
-// ---------------------------------------------------------------------------
+
 const schedule = async (req, res, next) => {
     try {
         const matchId = parseInt(req.params.id);
@@ -430,7 +363,7 @@ const schedule = async (req, res, next) => {
             });
         }
 
-        // Verify the referee is actually an sgo_officer
+
         if (finalReferee) {
             const [officerCheck] = await pool.execute(
                 'SELECT id FROM users WHERE id = ? AND role = "sgo_officer" AND is_active = 1',
@@ -441,7 +374,6 @@ const schedule = async (req, res, next) => {
             }
         }
 
-        // Referee conflict check
         if (finalReferee && finalDate && finalTime) {
             const [conflicts] = await pool.execute(
                 `SELECT id FROM matches
@@ -453,7 +385,7 @@ const schedule = async (req, res, next) => {
             }
         }
 
-        // Venue conflict check
+
         if (finalVenue && finalDate && finalTime) {
             const [vConflicts] = await pool.execute(
                 `SELECT id FROM matches
@@ -479,10 +411,10 @@ const schedule = async (req, res, next) => {
 
         await logActivity(req.user.id, 'MATCH_SCHEDULED', 'match', matchId, `Match ${matchId} scheduled`);
 
-        // Let anyone viewing the tournament bracket/schedule pick this up live.
+
         const [[m]] = await pool.execute('SELECT tournament_id FROM matches WHERE id = ?', [matchId]);
 
-        // REAL-TIME: Emit to tournament room
+
         emitToTournament(m.tournament_id, 'match:scheduled', {
             match_id: matchId,
             scheduled_date: finalDate,
@@ -497,16 +429,12 @@ const schedule = async (req, res, next) => {
     }
 };
 
-// ---------------------------------------------------------------------------
-// START MATCH
-// PATCH /api/matches/:id/start
-// Protected: sgo_officer (assigned) | sgo_president | admin
-// ---------------------------------------------------------------------------
+
 const startMatch = async (req, res, next) => {
     try {
         const matchId = parseInt(req.params.id);
 
-        // Officers can only start their assigned match
+
         if (req.user.role === 'sgo_officer') {
             const [assigned] = await pool.execute(
                 'SELECT id FROM matches WHERE id = ? AND referee_id = ?',
@@ -539,7 +467,7 @@ const startMatch = async (req, res, next) => {
 
         const [[m]] = await pool.execute('SELECT tournament_id FROM matches WHERE id = ?', [matchId]);
 
-        // Get match details for real-time broadcast
+
         const [matchDetails] = await pool.execute(
             `SELECT m.*, da.name AS dept_a_name, db.name AS dept_b_name, s.name AS sport_name
              FROM matches m
@@ -557,7 +485,7 @@ const startMatch = async (req, res, next) => {
             watchers: 0
         };
 
-        // REAL-TIME: Emit to match room, tournament room, and all clients
+
         emitToMatch(matchId, 'match:started', startData);
         emitToTournament(m.tournament_id, 'match:started', startData);
         emitToAll('live:matchStarted', startData);
@@ -572,19 +500,14 @@ const startMatch = async (req, res, next) => {
     }
 };
 
-// ---------------------------------------------------------------------------
-// UPDATE SCORE (live period-by-period scoring)
-// PUT /api/matches/:id/score
-// Body: { period, period_label, score_a, score_b }
-// Protected: sgo_officer (assigned) | admin
-// ---------------------------------------------------------------------------
+
 const updateScore = async (req, res, next) => {
     try {
         const matchId = parseInt(req.params.id);
         const { period, period_label, score_a, score_b } = req.body;
         const userId = req.user.id;
 
-        // SGO Officer can only update scores for their assigned match
+
         if (req.user.role === 'sgo_officer') {
             const [assigned] = await pool.execute(
                 'SELECT id FROM matches WHERE id = ? AND referee_id = ?',
@@ -625,7 +548,7 @@ const updateScore = async (req, res, next) => {
             [matchId]
         );
 
-        // Get all scores for complete state
+
         const [allScores] = await pool.execute(
             `SELECT ms.*,
                     CONCAT(u.first_name, ' ', u.last_name) AS updated_by_name
@@ -636,7 +559,7 @@ const updateScore = async (req, res, next) => {
             [matchId]
         );
 
-        // Get match details
+
         const [[match]] = await pool.execute(
             `SELECT m.*, t.name AS tournament_name,
                     da.name AS dept_a_name, db.name AS dept_b_name,
@@ -650,7 +573,7 @@ const updateScore = async (req, res, next) => {
             [matchId]
         );
 
-        // ── ENHANCED REAL-TIME PUSH ──
+
         const scoreUpdate = {
             match_id: matchId,
             period: safePeriod,
@@ -674,10 +597,10 @@ const updateScore = async (req, res, next) => {
             }
         };
 
-        // Send to match room (all watchers)
+
         emitToMatch(matchId, 'score:update', scoreUpdate);
 
-        // Also send live tick for the "live matches" feed
+
         emitToAll('live:tick', {
             match_id: matchId,
             total_a: totals.total_a,
@@ -685,7 +608,7 @@ const updateScore = async (req, res, next) => {
             updated_at: new Date()
         });
 
-        // Send to tournament room for bracket updates
+
         emitToTournament(match.tournament_id, 'score:update', scoreUpdate);
 
         await logActivity(
@@ -706,13 +629,7 @@ const updateScore = async (req, res, next) => {
     }
 };
 
-// ---------------------------------------------------------------------------
-// COMPLETE MATCH (finalize result, record MVP, progress bracket)
-// POST /api/matches/:id/complete
-// Body: { winner_side?, win_type?, duration_minutes?, highlights?, final_score_display?,
-//          mvp_player_id?, mvp_player_name? }
-// Protected: sgo_officer (assigned) | sgo_president | admin
-// ---------------------------------------------------------------------------
+
 const completeMatch = async (req, res, next) => {
     const conn = await pool.getConnection();
     try {
@@ -723,7 +640,7 @@ const completeMatch = async (req, res, next) => {
         } = req.body;
         const userId = req.user.id;
 
-        // SGO Officer can only complete their assigned match
+
         if (req.user.role === 'sgo_officer') {
             const [assigned] = await pool.execute(
                 'SELECT id FROM matches WHERE id = ? AND referee_id = ?',
@@ -750,7 +667,7 @@ const completeMatch = async (req, res, next) => {
             });
         }
 
-        // ── Binary sports (e.g. Chess): no scores — only pick winner ──
+
         if (match.scoring_type === 'binary') {
             if (!winner_side || !['a', 'b', 'draw'].includes(winner_side)) {
                 return res.status(400).json({
@@ -830,7 +747,7 @@ const completeMatch = async (req, res, next) => {
                 `Binary match ${matchId} — winner_side: ${winner_side}`
             );
 
-            // ── REAL-TIME PUSH ──
+
             const resultData = {
                 match_id: matchId,
                 winner_side,
@@ -854,13 +771,13 @@ const completeMatch = async (req, res, next) => {
             return res.json({ success: true, message: 'Match completed (winner only).' });
         }
 
-        // ── Points / time / sets path ──
+
         const [[totals]] = await pool.execute(
             'SELECT COALESCE(SUM(score_a),0) AS total_a, COALESCE(SUM(score_b),0) AS total_b FROM match_scores WHERE match_id = ?',
             [matchId]
         );
 
-        // Auto-determine winner if not supplied
+
         if (!winner_side) {
             winner_side = (match.scoring_type === 'time')
                 ? (totals.total_a < totals.total_b ? 'a' : 'b')
@@ -924,13 +841,13 @@ const completeMatch = async (req, res, next) => {
             `Match ${matchId} completed — winner: ${winner_side}${safeMvpName ? `, MVP: ${safeMvpName}` : ''}`
         );
 
-        // Get all scores for history
+
         const [allScores] = await pool.execute(
             `SELECT * FROM match_scores WHERE match_id = ? ORDER BY period`,
             [matchId]
         );
 
-        // ── ENHANCED REAL-TIME PUSH ──
+
         const resultData = {
             match_id: matchId,
             winner_side,
@@ -948,16 +865,16 @@ const completeMatch = async (req, res, next) => {
             watchers: getMatchWatchers(matchId)
         };
 
-        // Send to match room
+
         emitToMatch(matchId, 'match:completed', resultData);
 
-        // Send to tournament room
+
         emitToTournament(match.tournament_id, 'bracket:updated', {
             match_id: matchId,
             winner_department_id: winner_dept_id
         });
 
-        // Send to global leaderboard
+
         emitToLeaderboard('leaderboard:changed', {
             reason: 'match_completed',
             match_id: matchId,
@@ -973,7 +890,7 @@ const completeMatch = async (req, res, next) => {
     }
 };
 
-// Round-robin standings helper (private)
+
 const _updateRoundRobinStandings = async (conn, match, winnerSide, totalA, totalB) => {
     const [[tourney]] = await conn.execute('SELECT format FROM tournaments WHERE id = ?', [match.tournament_id]);
     if (!tourney || tourney.format !== 'round_robin') return;
@@ -1014,11 +931,7 @@ const _updateRoundRobinStandings = async (conn, match, winnerSide, totalA, total
     }
 };
 
-// ---------------------------------------------------------------------------
-// FFA: GET RESULTS FOR ENTRY
-// GET /api/matches/ffa/:tournamentId
-// Protected: sgo_officer | sgo_president | admin
-// ---------------------------------------------------------------------------
+
 const getFFAResults = async (req, res, next) => {
     try {
         const { tournamentId } = req.params;
@@ -1049,12 +962,7 @@ const getFFAResults = async (req, res, next) => {
     }
 };
 
-// ---------------------------------------------------------------------------
-// FFA: SAVE RESULTS
-// POST /api/matches/ffa/:tournamentId/results
-// Body: { results: [ { department_id, result_value } ] }
-// Protected: sgo_officer | sgo_president | admin
-// ---------------------------------------------------------------------------
+
 const saveFFAResults = async (req, res, next) => {
     const conn = await pool.getConnection();
     try {
@@ -1079,7 +987,7 @@ const saveFFAResults = async (req, res, next) => {
             );
         }
 
-        // Activate the FFA match entry
+
         await conn.execute(
             `UPDATE matches SET status = 'ongoing', started_at = COALESCE(started_at, NOW())
              WHERE tournament_id = ? AND (bracket_side = 'ffa' OR bracket_position = 'FFA Event')`,
@@ -1100,7 +1008,7 @@ const saveFFAResults = async (req, res, next) => {
     }
 };
 
-// FFA re-rank helper (private)
+
 const _reRankFFA = async (conn, tournamentId) => {
     const [[t]] = await conn.execute('SELECT ffa_scoring FROM tournaments WHERE id = ?', [tournamentId]);
     const orderDir = (t && t.ffa_scoring === 'time') ? 'ASC' : 'DESC';
@@ -1117,11 +1025,7 @@ const _reRankFFA = async (conn, tournamentId) => {
     }
 };
 
-// ---------------------------------------------------------------------------
-// FFA: COMPLETE EVENT
-// POST /api/matches/ffa/:matchId/complete
-// Protected: sgo_officer | sgo_president | admin
-// ---------------------------------------------------------------------------
+
 const completeFFAMatch = async (req, res, next) => {
     try {
         const { matchId } = req.params;
@@ -1161,11 +1065,7 @@ const completeFFAMatch = async (req, res, next) => {
     }
 };
 
-// ---------------------------------------------------------------------------
-// GET MVPs
-// GET /api/matches/mvps
-// Protected: all roles
-// ---------------------------------------------------------------------------
+
 const getMVPs = async (req, res, next) => {
     try {
         const [mvps] = await pool.execute(
@@ -1190,16 +1090,11 @@ const getMVPs = async (req, res, next) => {
         );
         return res.json({ success: true, data: mvps });
     } catch (err) {
-        // Return empty rather than 500 to not break leaderboard pages
+
         return res.json({ success: true, data: [] });
     }
 };
 
-// ---------------------------------------------------------------------------
-// GET SCORE HISTORY / AUDIT TRAIL for a match
-// GET /api/matches/:id/score-history
-// Protected: admin | sgo_president | sgo_officer
-// ---------------------------------------------------------------------------
 const getScoreHistory = async (req, res, next) => {
     try {
         const [rows] = await pool.execute(
@@ -1221,8 +1116,6 @@ const getMatchPlayers = async (req, res, next) => {
     try {
         const matchId = parseInt(req.params.id);
 
-        // matches has no team_a_name / team_b_name columns — selecting them
-        // caused 500: Unknown column 'm.team_a_name' in 'field list'.
         const [matches] = await pool.execute(
             `SELECT
                 m.id,

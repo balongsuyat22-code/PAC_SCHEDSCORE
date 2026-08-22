@@ -1,13 +1,8 @@
-/**
- * REPORT / DASHBOARD CONTROLLER
- */
+
 const { pool } = require('../config/database');
 const { getActiveSportFestId } = require('../utils/season');
 const cache = require('../utils/cache');
 
-// These dashboards get polled by every open admin/president/dean tab.
-// 15s keeps counts feeling live without re-running ~20 subqueries per
-// open tab per poll.
 const DASHBOARD_TTL = 15;
 
 const getDashboard = async (req, res, next) => {
@@ -21,10 +16,7 @@ const getDashboard = async (req, res, next) => {
 };
 
 const buildDashboard = async (sportFestId) => {
-    // Season-scope helper: tournaments/matches belong to a fest via the
-    // sport_fest_tournaments junction. Players/teams carry sport_fest_id
-    // directly. `<=>` is NULL-safe so a missing active season returns zeros
-    // instead of every historical row.
+
     const inActiveFest = `
         EXISTS (
             SELECT 1 FROM sport_fest_tournaments sft
@@ -61,15 +53,14 @@ const buildDashboard = async (sportFestId) => {
                 (SELECT COUNT(*) FROM users WHERE role = 'sgo_officer' AND is_active = 1) as total_referees,
                 (SELECT COUNT(*) FROM teams WHERE sport_fest_id <=> ?) as total_teams
         `,
-        // 7× fest for the tournament/match EXISTS clauses, then players×2, teams×1
+
         [
-            ...festParams, ...festParams, ...festParams, // total / ongoing / completed tournaments
-            ...festParams, ...festParams, ...festParams, ...festParams, // total / live / completed / today matches
-            sportFestId, sportFestId, sportFestId, // approved players, pending players, teams
+            ...festParams, ...festParams, ...festParams,
+            ...festParams, ...festParams, ...festParams, ...festParams,
+            sportFestId, sportFestId, sportFestId,
         ]
     );
 
-    // Aliases the admin dashboard HTML already reads
     totals.total_approved_players = totals.total_players;
     totals.total_pending_players = totals.total_pending_players || 0;
 
@@ -572,20 +563,6 @@ const getTournamentReport = async (req, res, next) => {
     }
 };
 
-// ---------------------------------------------------------------------------
-// EXPORT / PRINT A FINALIZED TOURNAMENT
-// GET /api/reports/tournaments/:id/export
-// Protected: admin | sgo_president
-//
-// Returns everything needed to print a "results sheet" once a tournament
-// is done: every match played (with final score + winner) and the locked-in
-// standings/medals from tournament_results. Intended for the Reports /
-// Game Setup "Export" button that appears after finalizeTournament() sets
-// tournaments.status = 'completed'.
-//
-// Unlike getTournamentReport (a lighter dashboard summary), this pulls the
-// full match list so the printed sheet shows every game, not just totals.
-// ---------------------------------------------------------------------------
 const getTournamentExport = async (req, res, next) => {
     try {
         const tid = req.params.id;
@@ -601,8 +578,6 @@ const getTournamentExport = async (req, res, next) => {
             return res.status(404).json({ success: false, message: 'Tournament not found.' });
         }
 
-        // Exporting/printing only makes sense once results are locked in —
-        // otherwise "the winner" printed on the sheet could still change.
         if (tourney[0].status !== 'completed') {
             return res.status(400).json({
                 success: false,
@@ -660,8 +635,7 @@ const getTournamentExport = async (req, res, next) => {
                 standings,
                 totals: matchTotals,
                 exported_at: new Date().toISOString(),
-                // req.user is the decoded JWT payload ({ id, uuid, role }) — no
-                // name on it, so resolve the printable "Exported by" name here.
+
                 exported_by: await (async () => {
                     if (!req.user) return null;
                     const [[u]] = await pool.query(
@@ -683,7 +657,6 @@ const getActivityLog = async (req, res, next) => {
         const limitNum = Math.max(1, parseInt(req.query.limit, 10) || 50);
         const offsetNum = Math.max(0, parseInt(req.query.offset, 10) || 0);
 
-        // pool.query avoids some mysql2 prepared-statement issues with LIMIT/OFFSET
         const [rows] = await pool.query(
             `
             SELECT al.*, CONCAT(u.first_name,' ',u.last_name) as user_name, u.role
