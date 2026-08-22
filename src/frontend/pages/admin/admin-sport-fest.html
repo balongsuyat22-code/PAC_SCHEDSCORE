@@ -13,8 +13,6 @@
         /* ── Page ── */
         .content {
             padding: 20px 24px 40px;
-            max-width: 1280px;
-            margin: 0 auto;
         }
 
         .page-intro {
@@ -515,7 +513,7 @@
                         </svg></span>
                     Refresh
                 </button>
-                <button class="btn btn-primary btn-sm" onclick="openNewSeason()">
+                <button class="btn btn-primary btn-sm" id="btn-new-season" onclick="openNewSeason()">
                     <span class="icon" style="width:14px;height:14px;"><svg viewBox="0 0 24 24">
                             <polygon
                                 points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2">
@@ -765,6 +763,22 @@
 
         function renderGrid() {
             const el = document.getElementById('fest-grid');
+
+            // ── Guard: can't start a new season until the current one has
+            //    a champion declared — otherwise its standings/points get
+            //    orphaned once archived. Disable the button and explain why. ──
+            const current = allFests.find(f => f.is_current);
+            const newSeasonBtn = document.getElementById('btn-new-season');
+            if (newSeasonBtn) {
+                const blocked = current && !current.champion_department_name;
+                newSeasonBtn.disabled = !!blocked;
+                newSeasonBtn.title = blocked
+                    ? `Declare a champion for "${current.name}" before starting a new season`
+                    : '';
+                newSeasonBtn.style.opacity = blocked ? '0.5' : '';
+                newSeasonBtn.style.cursor = blocked ? 'not-allowed' : '';
+            }
+
             if (!allFests.length) {
                 el.innerHTML = `<div class="empty-state" style="grid-column:1/-1"><div class="empty-text">No seasons yet. Click <strong>Start New Season</strong> to begin.</div></div>`;
                 return;
@@ -870,6 +884,18 @@
 
         function openNewSeason() {
             const current = allFests.find(f => f.is_current);
+
+            // Guard: block if the current season doesn't have a champion
+            // declared yet — starting a new season archives it, and its
+            // standings/points would be left unfinalized.
+            if (current && !current.champion_department_name) {
+                const msg = current.status === 'completed'
+                    ? `"${current.name}" is completed but has no champion declared. Declare a champion before starting a new season.`
+                    : `"${current.name}" is still active with no champion declared. Complete the season and declare a champion first.`;
+                Toast.show(msg, 'error');
+                return;
+            }
+
             document.getElementById('ns-warning').innerHTML = current
                 ? `Starting a new season will <strong>archive "${escapeHtml(current.name)}"</strong>. Standings and results stay saved. New registrations attach to the new season.`
                 : `This will start your first active season. New player/team registrations and points will attach to it.`;

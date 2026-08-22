@@ -610,24 +610,54 @@
         }
 
         @media (max-width: 768px) {
+
+            /* Tabs: was a full vertical stack (4 rows) — scroll
+               horizontally in one compact row instead. */
             .rp-tabs {
-                flex-direction: column;
+                flex-wrap: nowrap;
+                overflow-x: auto;
+                -webkit-overflow-scrolling: touch;
+                scrollbar-width: thin;
             }
 
             .rp-tab {
-                flex: none;
-                justify-content: center;
-                padding: 8px 12px;
+                flex: 0 0 auto;
+                white-space: nowrap;
+                padding: 8px 14px;
             }
 
+            /* Filter bar: was stacking every select/input/button one per
+               row. Scroll horizontally in a single compact row instead,
+               same pattern as the other admin pages. */
             .filter-bar {
-                flex-direction: column;
+                flex-wrap: nowrap;
+                overflow-x: auto;
+                -webkit-overflow-scrolling: touch;
+                background: var(--bg2);
+                border: 1px solid var(--border);
+                border-radius: 12px;
+                padding: 10px 12px;
+                scrollbar-width: thin;
             }
 
             .filter-bar select,
             .filter-bar input {
-                width: 100% !important;
+                flex-shrink: 0;
                 min-width: unset !important;
+            }
+
+            /* Only the Match History filter bar has multiple fields that
+               need a fixed compact width to scroll nicely — Department
+               Report / Tournament Report each have a single select that
+               should just fill the available width normally. */
+            #tab-matches .filter-bar select,
+            #tab-matches .filter-bar input {
+                width: 150px !important;
+            }
+
+            .filter-bar .btn {
+                flex-shrink: 0;
+                white-space: nowrap;
             }
 
             .stat-mini {
@@ -785,6 +815,9 @@
                     </select>
                     <select id="mh-dept" onchange="loadMatchHistory()">
                         <option value="">All Departments</option>
+                    </select>
+                    <select id="mh-tourney" onchange="loadMatchHistory()">
+                        <option value="">All Tournaments</option>
                     </select>
                     <input type="date" id="mh-from" onchange="loadMatchHistory()">
                     <input type="date" id="mh-to" onchange="loadMatchHistory()">
@@ -1064,6 +1097,7 @@
             const tOpts = tournamentList.map(t => `<option value="${t.id}">${t.name}</option>`).join('');
             document.getElementById('mh-sport').innerHTML += sOpts;
             document.getElementById('mh-dept').innerHTML += dOpts;
+            document.getElementById('mh-tourney').innerHTML += tOpts;
             document.getElementById('dr-dept').innerHTML += dOpts;
             document.getElementById('tr-tourney').innerHTML += tOpts;
             await loadMatchHistory();
@@ -1105,18 +1139,20 @@
         }
 
         function clearMHFilters() {
-            ['mh-sport', 'mh-dept', 'mh-from', 'mh-to'].forEach(id => document.getElementById(id).value = '');
+            ['mh-sport', 'mh-dept', 'mh-tourney', 'mh-from', 'mh-to'].forEach(id => document.getElementById(id).value = '');
             loadMatchHistory();
         }
 
         async function loadMatchHistory() {
             const sport_id = document.getElementById('mh-sport').value;
             const department_id = document.getElementById('mh-dept').value;
+            const tournament_id = document.getElementById('mh-tourney').value;
             const from_date = document.getElementById('mh-from').value;
             const to_date = document.getElementById('mh-to').value;
             let url = '/reports/match-history?';
             if (sport_id) url += `sport_id=${sport_id}&`;
             if (department_id) url += `department_id=${department_id}&`;
+            if (tournament_id) url += `tournament_id=${tournament_id}&`;
             if (from_date) url += `from_date=${from_date}&`;
             if (to_date) url += `to_date=${to_date}&`;
             const res = await api(url);
