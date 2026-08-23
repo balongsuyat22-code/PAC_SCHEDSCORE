@@ -173,10 +173,8 @@
 
 <body>
     <aside class="sidebar" id="sidebar"></aside>
-
     <main class="main">
         <div class="topbar"></div>
-
         <div class="content">
             <div class="page-header">
                 <div>
@@ -279,7 +277,7 @@
             if (!user) return;
             try {
                 const res = await api(`/matches?referee_id=${user.id}`);
-                allAssignedMatches = res.data || [];
+                allAssignedMatches = (res.success && res.data) ? res.data : [];
             } catch (e) {
                 allAssignedMatches = [];
             }
@@ -306,6 +304,7 @@
             const st = (m.scoring_type || '').toLowerCase();
             if (st === 'sets') return '<span class="format-hint">Sets</span>';
             if (st === 'binary') return '<span class="format-hint">Win/Loss</span>';
+            if (st === 'time') return '<span class="format-hint">Time</span>';
             const fmt = (m.tournament_format || '').toLowerCase();
             if (fmt === 'free_for_all' || fmt === 'team_ranking') return '<span class="format-hint">FFA</span>';
             return '';

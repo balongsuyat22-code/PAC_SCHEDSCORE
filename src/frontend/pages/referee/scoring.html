@@ -1104,6 +1104,34 @@
                 if (targetMatch) selectMatch(targetMatch);
             }
         });
+        // ── Score display: decimals ONLY for time sports ──────────────
+        function isTimeScoring() {
+            return String(scoringType || selectedMatch?.scoring_type || '').toLowerCase() === 'time';
+        }
+        function isFfaTime() {
+            return String(ffaScoringType || selectedMatch?.ffa_scoring || selectedMatch?.scoring_type || '').toLowerCase() === 'time';
+        }
+        function toScoreNumber(n) {
+            const x = Number(n);
+            return Number.isFinite(x) ? x : 0;
+        }
+        function normalizeScore(n, timeMode) {
+            const x = toScoreNumber(n);
+            const time = timeMode != null ? timeMode : isTimeScoring();
+            return time ? Math.round(x * 100) / 100 : Math.round(x);
+        }
+        function fmtScore(n, timeMode) {
+            const x = toScoreNumber(n);
+            const time = timeMode != null ? timeMode : isTimeScoring();
+            if (time) {
+                const str = x.toFixed(2).replace(/\.?0+$/, '');
+                return str === '-0' ? '0' : str;
+            }
+            return String(Math.round(x));
+        }
+        function renderMainScore(a, b) {
+            return `${fmtScore(a)} <span style="color:var(--muted); font-size:clamp(30px, 5vw, 40px);">VS</span> ${fmtScore(b)}`;
+        }
 
         function startClock() {
             setInterval(() => {
@@ -1235,7 +1263,12 @@
                 orderedSets.forEach(r => {
                     if (r.score_a === r.score_b) return;
                     if (r.score_a > r.score_b) setsWonA++; else setsWonB++;
-                    completedSets.push({ set: r.period, label: r.period_label || `Set ${r.period}`, a: r.score_a, b: r.score_b });
+                    completedSets.push({
+                        set: r.period,
+                        label: r.period_label || `Set ${r.period}`,
+                        a: normalizeScore(r.score_a),
+                        b: normalizeScore(r.score_b)
+                    });
                 });
 
                 setState = {
@@ -1251,7 +1284,7 @@
             } else {
                 const res = await api(`/matches/${m.id}/scoreboard`);
                 if (res.success && res.data) {
-                    scores = { a: res.data.total_a || 0, b: res.data.total_b || 0 };
+                    scores = { a: normalizeScore(res.data.total_a), b: normalizeScore(res.data.total_b) };
                 } else {
                     scores = { a: 0, b: 0 };
                     Toast.show(res.message || 'Error loading 1v1 scores', 'error');
@@ -1477,7 +1510,7 @@
                                         step="${ffaScoringType === 'time' ? '0.01' : '1'}"
                                         class="ffa-score-input"
                                         placeholder="${scoreLabel}"
-                                        value="${p.ffa_result_value !== null && p.ffa_result_value !== undefined ? p.ffa_result_value : ''}"
+value="${p.ffa_result_value != null ? fmtScore(p.ffa_result_value, isFfaTime()) : ''}"
                                         onchange="updateFFAParticipantScore(${p.department_id}, this.value)">
                                 </div>`;
                 }).join('') : `<div class="empty-state" style="padding:20px;">No participants found for this event.</div>`}
@@ -1524,7 +1557,7 @@
 
             <div style="text-align:center; margin: 15px 0;">
                 <div id="display-main" class="score-display-main">
-                    ${scores.a} <span style="color:var(--muted); font-size:clamp(30px, 5vw, 40px);">VS</span> ${scores.b}
+                    ${renderMainScore(scores.a, scores.b)}
                 </div>
             </div>
 
@@ -1658,7 +1691,7 @@
             <div style="text-align:center;margin:10px 0 20px;font-size:13px;color:var(--muted)">Set ${st.currentSet} in progress</div>
             <div style="text-align:center; margin: 15px 0;">
                 <div id="display-main" class="score-display-main">
-                    ${st.scores.a} <span style="color:var(--muted); font-size:clamp(30px, 5vw, 40px);">VS</span> ${st.scores.b}
+                    ${renderMainScore(st.scores.a, st.scores.b)}
                 </div>
             </div>
 
@@ -1695,7 +1728,9 @@
         async function updateSetScore(side, amt) {
             if (isSaving || !selectedMatch || !setState) return;
 
-            setState.scores[side] = Math.max(0, setState.scores[side] + amt);
+            setState.scores[side] = normalizeScore(
+                Math.max(0, toScoreNumber(setState.scores[side]) + toScoreNumber(amt))
+            );
             isSaving = true;
             renderScoreboard();
 
@@ -1705,8 +1740,8 @@
                     body: JSON.stringify({
                         period: setState.currentSet,
                         period_label: `Set ${setState.currentSet}`,
-                        score_a: setState.scores.a,
-                        score_b: setState.scores.b,
+                        score_a: normalizeScore(setState.scores.a),
+                        score_b: normalizeScore(setState.scores.b),
                     }),
                 });
                 if (!res.success) throw new Error(res.message);
@@ -1786,14 +1821,13 @@
 
         function updateFFAParticipantScore(deptId, value) {
             const participant = ffaParticipants.find(p => p.department_id === deptId);
-            if (participant) {
-                if (ffaScoringType === 'time') {
-                    const numValue = parseFloat(value);
-                    participant.ffa_result_value = isNaN(numValue) ? null : numValue;
-                } else {
-                    participant.ffa_result_value = value;
-                }
+            if (!participant) return;
+            if (value === '' || value == null) {
+                participant.ffa_result_value = null;
+                return;
             }
+            participant.ffa_result_value = normalizeScore(value, isFfaTime());
+
 
             const panelHost = document.getElementById('standings-panel')?.parentElement;
             if (panelHost) {
@@ -1917,7 +1951,6 @@
 
         async function updateScore(side, amt, isUndo) {
             if (isSaving || !selectedMatch) return;
-            // Sets and binary have their own handlers – do not use this path
             if (scoringType === 'sets' || scoringType === 'binary') return;
 
             const teamName = side === 'a'
@@ -1927,20 +1960,19 @@
             const prevA = scores.a;
             const prevB = scores.b;
 
-            scores[side] = Math.max(0, scores[side] + amt);
+            const delta = isTimeScoring() ? toScoreNumber(amt) : Math.round(toScoreNumber(amt));
+            scores[side] = normalizeScore(Math.max(0, toScoreNumber(scores[side]) + delta));
+
             const displayEl = document.getElementById('display-main');
-            if (displayEl) {
-                displayEl.innerHTML =
-                    `${scores.a} <span style="color:var(--muted); font-size:clamp(30px, 5vw, 40px);">VS</span> ${scores.b}`;
-            }
+            if (displayEl) displayEl.innerHTML = renderMainScore(scores.a, scores.b);
 
             const logList = document.getElementById('action-log-list');
             const timeStr = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
             if (logList) {
                 if (logList.innerHTML.includes('Waiting for first score')) logList.innerHTML = '';
                 const logMsg = isUndo
-                    ? `<span style="color:#FCA5A5">Undid 1 pt for <strong>${teamName}</strong></span>`
-                    : `<span style="color:#86EFAC"><strong>${teamName}</strong> scored +${amt}</span>`;
+                    ? `<span style="color:#FCA5A5">Undid ${fmtScore(Math.abs(delta))} for <strong>${teamName}</strong></span>`
+                    : `<span style="color:#86EFAC"><strong>${teamName}</strong> scored +${fmtScore(delta)}</span>`;
                 logList.insertAdjacentHTML('afterbegin',
                     `<div class="log-item"><span style="color:var(--muted); font-family:monospace;">[${timeStr}]</span><span>${logMsg}</span></div>`);
             }
@@ -1962,9 +1994,9 @@
                     body: JSON.stringify({
                         period: 1,
                         period_label: 'Total',
-                        score_a: scores.a,
-                        score_b: scores.b
-                    })
+                        score_a: normalizeScore(scores.a),
+                        score_b: normalizeScore(scores.b),
+                    }),
                 });
                 if (!res.success) throw new Error(res.message || 'Score save failed');
 
@@ -1977,10 +2009,7 @@
             } catch (err) {
                 scores.a = prevA;
                 scores.b = prevB;
-                if (displayEl) {
-                    displayEl.innerHTML =
-                        `${scores.a} <span style="color:var(--muted); font-size:clamp(30px, 5vw, 40px);">VS</span> ${scores.b}`;
-                }
+                if (displayEl) displayEl.innerHTML = renderMainScore(scores.a, scores.b);
                 if (syncDot && syncStatus) {
                     syncDot.style.background = '#E8323B';
                     syncDot.classList.remove('sync-pulse');
@@ -1993,7 +2022,6 @@
                 document.querySelectorAll('.btn-score').forEach(btn => btn.disabled = false);
             }
         }
-
 
         function filterMatchPlayers(players, teamName) {
             if (!Array.isArray(players) || !players.length) return [];
@@ -2024,7 +2052,8 @@
             const displayA = m.team_a_name || m.dept_a_name || 'Side A';
             const displayB = m.team_b_name || m.dept_b_name || 'Side B';
             const winnerSide = m.winner_side || null;
-            const scoreText = m.final_score_display || (typeof scores !== 'undefined' ? `${scores.a} - ${scores.b}` : '—');
+            const scoreText = m.final_score_display
+                || (typeof scores !== 'undefined' ? `${fmtScore(scores.a)} - ${fmtScore(scores.b)}` : '—');
             const mvpName = m.mvp_player_name || null;
             const winType = m.win_type || 'normal';
 
@@ -2091,7 +2120,7 @@
             const alertText = document.getElementById('auto-winner-text');
 
             if (scoringType === 'sets') {
-                scoreDisplay = setState.completedSets.map(s => `${s.a}-${s.b}`).join(', ');
+                scoreDisplay = setState.completedSets.map(s => `${fmtScore(s.a)}-${fmtScore(s.b)}`).join(', ');
                 calcWinner = setState.setsWonA > setState.setsWonB ? 'a' : 'b';
                 alertBox.className = 'alert-box alert-auto';
                 alertText.innerHTML = `Calculated Winner: <strong>${calcWinner === 'a' ? displayA : displayB}</strong> (${Math.max(setState.setsWonA, setState.setsWonB)}-${Math.min(setState.setsWonA, setState.setsWonB)} sets)`;
@@ -2106,7 +2135,7 @@
                     alertText.innerHTML = `Select a winner before finishing.`;
                 }
             } else {
-                scoreDisplay = `${scores.a} - ${scores.b}`;
+                scoreDisplay = `${fmtScore(scores.a)} - ${fmtScore(scores.b)}`;
                 if (scores.a > scores.b) {
                     calcWinner = 'a';
                     alertBox.className = 'alert-box alert-auto';

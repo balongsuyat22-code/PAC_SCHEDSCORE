@@ -67,33 +67,56 @@ async function createNotification(opts = {}) {
 
         return row;
     } catch (err) {
+        if (err && (err.code === 'ER_NO_SUCH_TABLE' || err.errno === 1146)) {
+            console.warn('[notifications] table missing — skip create');
+            return null;
+        }
         console.error('[notifications] create failed:', err.message);
         return null;
     }
 }
 
+/** Build WHERE for the current user (personal + role + department broadcasts). */
 function audienceClause(user) {
-    const parts = ['(n.user_id = ?)'];
-    const params = [user.id];
+    const parts = [];
+    const params = [];
 
-    if (user.role) {
-        parts.push('(n.user_id IS NULL AND n.role = ?)');
-        params.push(user.role);
+    const uid = user && user.id != null ? Number(user.id) : null;
+    if (uid != null && Number.isFinite(uid)) {
+        parts.push('(n.user_id = ?)');
+        params.push(uid);
     }
 
+    if (user && user.role) {
+        parts.push('(n.user_id IS NULL AND n.role = ?)');
+        params.push(String(user.role));
+    }
+
+    // Global announcements
     parts.push('(n.user_id IS NULL AND n.role IS NULL AND n.department_id IS NULL)');
 
-    if (user.department_id) {
+    const deptId = user && user.department_id != null ? Number(user.department_id) : null;
+    if (deptId != null && Number.isFinite(deptId) && deptId > 0) {
         parts.push('(n.user_id IS NULL AND n.department_id = ?)');
-        params.push(user.department_id);
+        params.push(deptId);
+    }
+
+    if (!parts.length) {
+        parts.push('1 = 0');
     }
 
     return { sql: parts.join(' OR '), params };
 }
 
+function isMissingTable(err) {
+    return err && (err.code === 'ER_NO_SUCH_TABLE' || err.errno === 1146);
+}
+
 const list = async (req, res, next) => {
     try {
-        const limit = Math.min(parseInt(req.query.limit, 10) || 50, 100);
+        // NEVER bind LIMIT as prepared placeholder — mysql2 often throws
+        // "Incorrect arguments to mysqld_stmt_execute"
+        const limit = Math.min(Math.max(parseInt(req.query.limit, 10) || 50, 1), 100);
         const unreadOnly = req.query.unread === '1' || req.query.unread === 'true';
         const type = (req.query.type || '').trim() || null;
 
@@ -114,23 +137,34 @@ const list = async (req, res, next) => {
             qParams.push(type);
         }
 
-        query += ' ORDER BY n.created_at DESC LIMIT ?';
-        qParams.push(limit);
+        // Safe integer only (clamped above) — do not use ?
+        query += ` ORDER BY n.created_at DESC LIMIT ${limit}`;
 
         const [rows] = await pool.execute(query, qParams);
 
-        const [[{ unread }]] = await pool.execute(
-            `SELECT COUNT(*) AS unread FROM notifications n WHERE (${audience}) AND n.is_read = 0`,
-            params
-        );
+        let unread = 0;
+        try {
+            const [countRows] = await pool.execute(
+                `SELECT COUNT(*) AS unread FROM notifications n WHERE (${audience}) AND n.is_read = 0`,
+                params
+            );
+            unread = Number(countRows[0]?.unread) || 0;
+        } catch (_) {
+            unread = rows.filter((r) => !r.is_read).length;
+        }
 
         return res.json({
             success: true,
             data: rows,
-            unread: Number(unread) || 0,
+            unread,
             total: rows.length,
         });
     } catch (err) {
+        if (isMissingTable(err)) {
+            console.warn('[notifications] table missing — return empty list');
+            return res.json({ success: true, data: [], unread: 0, total: 0 });
+        }
+        console.error('[notifications] list error:', err.message);
         next(err);
     }
 };
@@ -138,7 +172,7 @@ const list = async (req, res, next) => {
 const markRead = async (req, res, next) => {
     try {
         const id = parseInt(req.params.id, 10);
-        if (!id) {
+        if (!id || !Number.isFinite(id)) {
             return res.status(400).json({ success: false, message: 'Invalid notification id' });
         }
 
@@ -155,6 +189,9 @@ const markRead = async (req, res, next) => {
         await pool.execute(`UPDATE notifications SET is_read = 1 WHERE id = ?`, [id]);
         return res.json({ success: true, message: 'Marked as read' });
     } catch (err) {
+        if (isMissingTable(err)) {
+            return res.json({ success: true, message: 'Marked as read' });
+        }
         next(err);
     }
 };
@@ -183,6 +220,9 @@ const markAllRead = async (req, res, next) => {
             updated: result.affectedRows,
         });
     } catch (err) {
+        if (isMissingTable(err)) {
+            return res.json({ success: true, message: 'All notifications marked as read', updated: 0 });
+        }
         next(err);
     }
 };
@@ -212,7 +252,10 @@ const broadcast = async (req, res, next) => {
         });
 
         if (!row) {
-            return res.status(500).json({ success: false, message: 'Failed to create notification' });
+            return res.status(500).json({
+                success: false,
+                message: 'Failed to create notification (is the notifications table created?)',
+            });
         }
 
         return res.status(201).json({ success: true, message: 'Announcement sent', data: row });
@@ -224,6 +267,10 @@ const broadcast = async (req, res, next) => {
 const remove = async (req, res, next) => {
     try {
         const id = parseInt(req.params.id, 10);
+        if (!id || !Number.isFinite(id)) {
+            return res.status(400).json({ success: false, message: 'Invalid notification id' });
+        }
+
         const { sql: audience, params } = audienceClause(req.user);
 
         const [visible] = await pool.execute(
@@ -237,6 +284,9 @@ const remove = async (req, res, next) => {
         await pool.execute(`DELETE FROM notifications WHERE id = ?`, [id]);
         return res.json({ success: true, message: 'Deleted' });
     } catch (err) {
+        if (isMissingTable(err)) {
+            return res.json({ success: true, message: 'Deleted' });
+        }
         next(err);
     }
 };
