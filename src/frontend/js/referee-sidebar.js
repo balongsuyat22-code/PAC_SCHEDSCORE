@@ -100,7 +100,6 @@ function renderRefereeSidebar(currentPage = '') {
         sidebar.classList.add('collapsed');
         document.querySelector('.main')?.classList.add('sidebar-collapsed');
     }
-
 }
 
 function confirmRefereeLogout() {
@@ -139,6 +138,9 @@ async function renderRefereeTopbar() {
             <button class="burger-menu" onclick="toggleSidebar()" aria-label="Open menu">${ICONS.menu}</button>
         </div>
         <div class="topbar-right">
+            <span id="sf-conn-dot" title="Connecting…"
+                  style="width:8px;height:8px;border-radius:50%;background:var(--muted);flex-shrink:0;
+                         box-shadow:0 0 0 3px rgba(34,197,94,0.12);margin-right:4px;align-self:center"></span>
             <div class="nav-notification-container">
                 <div class="nav-bell" onclick="window.toggleNotifDropdown(event)" role="button" aria-label="Notifications">
                     ${ICONS.bell}
@@ -171,6 +173,13 @@ async function renderRefereeTopbar() {
 
     fetchNotifications();
     setInterval(fetchNotifications, 60000);
+
+    // Live socket — joins user_/role_ rooms; toasts on notification:new
+    if (typeof Realtime !== 'undefined') {
+        Realtime.connect().catch(() => { });
+        window.addEventListener('sf:notif', () => { fetchNotifications(); });
+        window.addEventListener('sf:match', () => { fetchNotifications(); });
+    }
 }
 
 function toggleRefereeCollapse() {
@@ -195,7 +204,6 @@ function getDismissedNotifs() {
     try {
         const raw = JSON.parse(localStorage.getItem(DISMISS_KEY) || '{}');
         const now = Date.now();
-
         const pruned = {};
         Object.keys(raw).forEach(id => {
             if (now - raw[id] < DISMISS_TTL) pruned[id] = raw[id];
@@ -210,6 +218,12 @@ function dismissNotif(notifId) {
     const dismissed = getDismissedNotifs();
     dismissed[notifId] = Date.now();
     localStorage.setItem(DISMISS_KEY, JSON.stringify(dismissed));
+
+    // Mark server notification as read
+    if (String(notifId).startsWith('db_')) {
+        const id = String(notifId).replace('db_', '');
+        api('/notifications/' + id + '/read', { method: 'PATCH' }).catch(() => { });
+    }
 }
 
 window.dismissMatchNotifications = function (matchId) {
@@ -221,8 +235,46 @@ async function fetchNotifications() {
     const user = Auth.getUser();
     if (!user) return;
     try {
+        // 1) Server-persisted notifications (assignments, etc.)
+        let serverNotifs = [];
+        try {
+            const sn = await api('/notifications?limit=20');
+            if (sn.success && Array.isArray(sn.data)) {
+                const dismissedEarly = getDismissedNotifs();
+                serverNotifs = sn.data
+                    .filter(n => !n.is_read)
+                    .map(n => ({
+                        id: `db_${n.id}`,
+                        icon: n.type === 'schedule' ? 'calendar'
+                            : (n.type === 'score' ? 'activity'
+                                : (n.type === 'result' ? 'check' : 'bell')),
+                        title: n.title,
+                        message: n.message,
+                        link: n.link || '/referee/matches',
+                        weight: n.severity === 'critical' ? 8
+                            : (n.severity === 'live' ? 6
+                                : (n.severity === 'warning' ? 5 : 4)),
+                        color: n.severity === 'critical' ? '#E8323B'
+                            : (n.severity === 'live' || n.severity === 'success' ? '#22C55E'
+                                : (n.severity === 'warning' ? '#F5B800' : '#3B82F6')),
+                        cls: n.severity === 'critical' ? 'ni-red'
+                            : (n.severity === 'live' || n.severity === 'success' ? 'ni-green'
+                                : 'ni-gold'),
+                        time: n.created_at
+                            ? new Date(n.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+                            : '',
+                        _serverId: n.id,
+                    }))
+                    .filter(n => !dismissedEarly[n.id]);
+            }
+        } catch (_) { /* optional — table may not exist yet */ }
+
+        // 2) Derived alerts from assigned matches
         const res = await api(`/matches?referee_id=${user.id}`);
-        if (!res.success || !res.data) return;
+        if (!res.success || !res.data) {
+            renderNotificationList(serverNotifs);
+            return;
+        }
 
         const now = new Date();
         const dismissed = getDismissedNotifs();
@@ -293,6 +345,12 @@ async function fetchNotifications() {
             }
         });
 
+        // Merge server notifs (skip duplicates)
+        const seen = new Set(notifications.map(n => n.id));
+        serverNotifs.forEach(n => {
+            if (!seen.has(n.id)) notifications.push(n);
+        });
+
         renderNotificationList(notifications);
     } catch (err) {
         console.error('Notification fetch error:', err);
@@ -347,6 +405,9 @@ window.markAllRead = async function (event) {
     if (event) event.stopPropagation();
 
     try {
+        // Mark all server notifications read
+        await api('/notifications/read-all', { method: 'PATCH' }).catch(() => { });
+
         const user = Auth.getUser();
         if (user) {
             const res = await api(`/matches?referee_id=${user.id}`);

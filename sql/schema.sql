@@ -340,3 +340,23 @@ CREATE TABLE IF NOT EXISTS schedules (
     SET NULL
 ) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4;
 SET FOREIGN_KEY_CHECKS = 1;
+CREATE TABLE IF NOT EXISTS notifications (
+    id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    user_id INT UNSIGNED NULL,
+    role VARCHAR(40) NULL,
+    department_id INT UNSIGNED NULL,
+    type VARCHAR(40) NOT NULL DEFAULT 'system',
+    title VARCHAR(200) NOT NULL,
+    message TEXT NOT NULL,
+    link VARCHAR(255) NULL,
+    severity VARCHAR(20) NOT NULL DEFAULT 'info',
+    entity_type VARCHAR(40) NULL,
+    entity_id INT UNSIGNED NULL,
+    is_read TINYINT(1) NOT NULL DEFAULT 0,
+    created_by INT UNSIGNED NULL,
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    INDEX idx_notif_user_read (user_id, is_read, created_at),
+    INDEX idx_notif_role (role, is_read, created_at),
+    INDEX idx_notif_dept (department_id, is_read, created_at),
+    INDEX idx_notif_created (created_at)
+) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4;

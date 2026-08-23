@@ -1132,6 +1132,7 @@
             if (!user) return;
 
             const res = await api(`/matches?referee_id=${user.id}`);
+            window._myMatches = res.data || [];
             allMatches = res.data || [];
             renderMatchList();
         }
@@ -1884,16 +1885,31 @@
 
             if (res.success) {
                 Modal.close('modal-complete-ffa');
+                Toast.show(res.message || 'FFA event completed!', 'success');
+
                 selectedMatch = null;
-                document.getElementById('scoreboard-area').innerHTML = `
-                <div class="card" style="display:flex; align-items:center; justify-content:center; height: 400px; text-align:center;">
+                setState = null;
+                binaryWinner = null;
+
+                await loadMyMatches();
+
+                // Auto-select next unfinished match
+                const next = (window._myMatches || []).find(m =>
+                    ['scheduled', 'ongoing', 'pending'].includes(m.status)
+                );
+
+                if (next && typeof selectMatch === 'function') {
+                    selectMatch(next);
+                } else {
+                    document.getElementById('scoreboard-area').innerHTML = `
+                <div class="card" style="display:flex; align-items:center; justify-content:center; height:400px; text-align:center;">
                     <div class="empty-state">
-                        <div style="font-size: 60px; margin-bottom: 10px; color:var(--gold);">${scoreIcon('trophy', 'icon-xl')}</div>
-                        <div style="font-family:'Barlow Condensed'; font-size:24px; color:var(--gold);">EVENT RECORDED</div>
-                        <div class="empty-text">Select another event from your queue.</div>
+                        <div style="font-size:60px; margin-bottom:10px; color:var(--gold);">${scoreIcon('trophy', 'icon-xl')}</div>
+                        <div style="font-family:'Barlow Condensed'; font-size:24px; color:var(--gold);">ALL DONE</div>
+                        <div class="empty-text">No more matches in your queue.</div>
                     </div>
                 </div>`;
-                await loadMyMatches();
+                }
             } else {
                 Toast.show(res.message || 'Error completing FFA event', 'error');
             }
@@ -1901,24 +1917,33 @@
 
         async function updateScore(side, amt, isUndo) {
             if (isSaving || !selectedMatch) return;
+            // Sets and binary have their own handlers – do not use this path
+            if (scoringType === 'sets' || scoringType === 'binary') return;
+
             const teamName = side === 'a'
-                ? (selectedMatch.team_a_name || selectedMatch.dept_a_name)
-                : (selectedMatch.team_b_name || selectedMatch.dept_b_name);
+                ? (selectedMatch.team_a_name || selectedMatch.dept_a_name || 'Side A')
+                : (selectedMatch.team_b_name || selectedMatch.dept_b_name || 'Side B');
+
+            const prevA = scores.a;
+            const prevB = scores.b;
 
             scores[side] = Math.max(0, scores[side] + amt);
-            document.getElementById('display-main').innerHTML =
-                `${scores.a} <span style="color:var(--muted); font-size:clamp(30px, 5vw, 40px);">VS</span> ${scores.b}`;
+            const displayEl = document.getElementById('display-main');
+            if (displayEl) {
+                displayEl.innerHTML =
+                    `${scores.a} <span style="color:var(--muted); font-size:clamp(30px, 5vw, 40px);">VS</span> ${scores.b}`;
+            }
 
             const logList = document.getElementById('action-log-list');
             const timeStr = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
-
-            if (logList.innerHTML.includes('Waiting for first score')) logList.innerHTML = '';
-            const logMsg = isUndo
-                ? `<span style="color:#FCA5A5">Undid 1 pt for <strong>${teamName}</strong></span>`
-                : `<span style="color:#86EFAC"><strong>${teamName}</strong> scored +${amt}</span>`;
-
-            logList.insertAdjacentHTML('afterbegin',
-                `<div class="log-item"><span style="color:var(--muted); font-family:monospace;">[${timeStr}]</span><span>${logMsg}</span></div>`);
+            if (logList) {
+                if (logList.innerHTML.includes('Waiting for first score')) logList.innerHTML = '';
+                const logMsg = isUndo
+                    ? `<span style="color:#FCA5A5">Undid 1 pt for <strong>${teamName}</strong></span>`
+                    : `<span style="color:#86EFAC"><strong>${teamName}</strong> scored +${amt}</span>`;
+                logList.insertAdjacentHTML('afterbegin',
+                    `<div class="log-item"><span style="color:var(--muted); font-family:monospace;">[${timeStr}]</span><span>${logMsg}</span></div>`);
+            }
 
             isSaving = true;
             document.querySelectorAll('.btn-score').forEach(btn => btn.disabled = true);
@@ -1928,36 +1953,47 @@
                 syncDot.style.background = 'var(--gold)';
                 syncDot.classList.remove('sync-pulse');
                 syncStatus.style.color = 'var(--gold)';
-                syncStatus.innerHTML = `SYNCING...`;
+                syncStatus.innerHTML = 'SYNCING...';
             }
 
             try {
                 const res = await api(`/matches/${selectedMatch.id}/score`, {
                     method: 'PUT',
-                    body: JSON.stringify({ period: 1, period_label: 'Total', score_a: scores.a, score_b: scores.b })
+                    body: JSON.stringify({
+                        period: 1,
+                        period_label: 'Total',
+                        score_a: scores.a,
+                        score_b: scores.b
+                    })
                 });
-                if (res.success) {
-                    if (syncDot && syncStatus) {
-                        syncDot.style.background = '#22C55E';
-                        syncDot.classList.add('sync-pulse');
-                        syncStatus.style.color = '#22C55E';
-                        syncStatus.innerHTML = `SAVED SECURELY`;
-                    }
-                } else throw new Error(res.message);
+                if (!res.success) throw new Error(res.message || 'Score save failed');
+
+                if (syncDot && syncStatus) {
+                    syncDot.style.background = '#22C55E';
+                    syncDot.classList.add('sync-pulse');
+                    syncStatus.style.color = '#22C55E';
+                    syncStatus.innerHTML = 'SAVED SECURELY';
+                }
             } catch (err) {
-                scores[side] -= amt;
-                document.getElementById('display-main').innerHTML =
-                    `${scores.a} <span style="color:var(--muted); font-size:clamp(30px, 5vw, 40px);">VS</span> ${scores.b}`;
+                scores.a = prevA;
+                scores.b = prevB;
+                if (displayEl) {
+                    displayEl.innerHTML =
+                        `${scores.a} <span style="color:var(--muted); font-size:clamp(30px, 5vw, 40px);">VS</span> ${scores.b}`;
+                }
                 if (syncDot && syncStatus) {
                     syncDot.style.background = '#E8323B';
                     syncDot.classList.remove('sync-pulse');
                     syncStatus.style.color = '#E8323B';
-                    syncStatus.innerHTML = `NETWORK ERROR`;
+                    syncStatus.innerHTML = 'NETWORK ERROR';
                 }
+                Toast.show(err.message || 'Could not save score', 'error');
+            } finally {
+                isSaving = false;
+                document.querySelectorAll('.btn-score').forEach(btn => btn.disabled = false);
             }
-            isSaving = false;
-            document.querySelectorAll('.btn-score').forEach(btn => btn.disabled = false);
         }
+
 
         function filterMatchPlayers(players, teamName) {
             if (!Array.isArray(players) || !players.length) return [];
@@ -2193,22 +2229,35 @@
             if (res.success) {
                 Modal.close('modal-complete');
                 Toast.show(res.message || 'Match completed successfully!', 'success');
+
                 selectedMatch = null;
                 setState = null;
                 binaryWinner = null;
-                document.getElementById('scoreboard-area').innerHTML = `
-            <div class="card" style="display:flex; align-items:center; justify-content:center; height: 400px; text-align:center;">
-                <div class="empty-state">
-                    <div style="font-size: 60px; margin-bottom: 10px; color:var(--gold);">${scoreIcon('trophy', 'icon-xl')}</div>
-                    <div style="font-family:'Barlow Condensed'; font-size:24px; color:var(--gold);">MATCH RECORDED</div>
-                    <div class="empty-text">Select another match from your queue.</div>
-                </div>
-            </div>`;
+
                 await loadMyMatches();
+
+                // Auto-select next unfinished match
+                const next = (window._myMatches || []).find(m =>
+                    ['scheduled', 'ongoing', 'pending'].includes(m.status)
+                );
+
+                if (next && typeof selectMatch === 'function') {
+                    selectMatch(next);
+                } else {
+                    document.getElementById('scoreboard-area').innerHTML = `
+                <div class="card" style="display:flex; align-items:center; justify-content:center; height:400px; text-align:center;">
+                    <div class="empty-state">
+                        <div style="font-size:60px; margin-bottom:10px; color:var(--gold);">${scoreIcon('trophy', 'icon-xl')}</div>
+                        <div style="font-family:'Barlow Condensed'; font-size:24px; color:var(--gold);">ALL DONE</div>
+                        <div class="empty-text">No more matches in your queue.</div>
+                    </div>
+                </div>`;
+                }
             } else {
                 Toast.show(res.message || 'Error completing match', 'error');
             }
         }
+
     </script>
 </body>
 

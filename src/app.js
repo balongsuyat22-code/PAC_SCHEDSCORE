@@ -26,6 +26,7 @@ const sportFestRoutes = require('./routes/sportFest');
 const reportRoutes = require('./routes/reports');
 const playerRoutes = require('./routes/player');
 const visitorRoutes = require('./routes/visitor');
+const notificationRoutes = require('./routes/notifications');
 
 const { initSocket } = require('./utils/socketEmit');
 
@@ -123,6 +124,7 @@ app.use(`${API}/sport-fest`, sportFestRoutes);
 app.use(`${API}/reports`, reportRoutes);
 app.use(`${API}/players`, playerRoutes);
 app.use(`${API}/visitor`, visitorRoutes);
+app.use(`${API}/notifications`, notificationRoutes);
 
 app.get(`${API}`, (_req, res) => res.json({
     service: 'Sport Fest Management System API',

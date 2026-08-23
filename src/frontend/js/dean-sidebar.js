@@ -130,6 +130,9 @@ function injectDeanNotifBell() {
         wrap.id = 'sf-notif-wrap';
         wrap.style.cssText = 'display:flex;align-items:center;gap:10px;margin-right:4px;position:relative;';
         wrap.innerHTML = `
+            <span id="sf-conn-dot" title="Connecting…"
+                  style="width:8px;height:8px;border-radius:50%;background:var(--muted);flex-shrink:0;
+                         box-shadow:0 0 0 3px rgba(34,197,94,0.12)"></span>
             <div class="nav-notification-container" style="position:relative">
                 <button type="button" id="sf-notif-btn" class="btn btn-secondary btn-sm"
                         style="padding:6px 10px;position:relative" aria-label="Notifications">
@@ -155,6 +158,11 @@ function injectDeanNotifBell() {
         });
         document.addEventListener('click', () => { if (dd) dd.style.display = 'none'; });
         dd?.addEventListener('click', (e) => e.stopPropagation());
+    }
+
+    // Live socket (joins user_/role_/dept_ rooms)
+    if (typeof Realtime !== 'undefined') {
+        Realtime.connect().catch(() => { });
     }
 
     NotificationEngine.mount({

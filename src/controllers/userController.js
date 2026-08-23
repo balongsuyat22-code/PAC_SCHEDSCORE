@@ -4,9 +4,8 @@ const { v4: uuidv4 } = require('uuid');
 const { pool } = require('../config/database');
 const { logActivity } = require('../utils/logger');
 
-const ALLOWED_ROLES = ['admin', 'dean_adviser', 'sgo_president', 'sgo_officer'];
+const { ALLOWED_ROLES, PRESIDENT_MANAGEABLE_ROLES } = require('../config/roles');
 
-const PRESIDENT_MANAGEABLE_ROLES = ['dean_adviser', 'sgo_officer'];
 
 const n = (v) => (v === undefined || v === '' ? null : v);
 

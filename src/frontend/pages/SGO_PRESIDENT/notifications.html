@@ -29,8 +29,7 @@
                     Notifications
                 </div>
             </div>
-            <div class="topbar-actions">
-            </div>
+            <div class="topbar-actions"></div>
         </div>
 
         <div class="content">
@@ -62,6 +61,9 @@
                 </div>
             </div>
 
+            <!-- Broadcast removed until a real /notifications/broadcast endpoint exists.
+                 Uncomment and wire when the backend is ready. -->
+            <!--
             <div class="card" style="max-width:640px">
                 <div class="card-header">
                     <div class="card-title">
@@ -83,6 +85,7 @@
                     </button>
                 </div>
             </div>
+            -->
 
             <div style="display:flex;gap:12px;margin-top:20px;flex-wrap:wrap">
                 <a href="/president/schedule" class="btn btn-secondary btn-sm">
@@ -155,12 +158,8 @@
             });
         }
 
-        async function sendBroadcast() {
-            const message = document.getElementById('bc-message').value.trim();
-            if (!message) { Toast.show('Message cannot be empty', 'error'); return; }
-            Toast.show('Announcement queued for broadcast: "' + message.slice(0, 60) + (message.length > 60 ? '…' : '') + '"', 'success');
-            document.getElementById('bc-message').value = '';
-        }
+        // Placeholder – wire to real endpoint when ready
+        // async function sendBroadcast() { ... }
     </script>
 </body>
 

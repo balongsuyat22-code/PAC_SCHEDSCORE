@@ -2,8 +2,7 @@ const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
 
-// Ensure upload directory exists
-const uploadDir = 'uploads/departments/';
+const uploadDir = path.join(process.cwd(), 'uploads', 'departments');
 if (!fs.existsSync(uploadDir)) {
     fs.mkdirSync(uploadDir, { recursive: true });
 }
@@ -13,14 +12,20 @@ const storage = multer.diskStorage({
         cb(null, uploadDir);
     },
     filename: (req, file, cb) => {
-        // Save as: 17123456789.png
-        cb(null, Date.now() + path.extname(file.originalname));
-    }
+        cb(null, Date.now() + path.extname(file.originalname).toLowerCase());
+    },
 });
 
 const upload = multer({
-    storage: storage,
-    limits: { fileSize: 2 * 1024 * 1024 }, // 2MB limit
+    storage,
+    limits: { fileSize: 2 * 1024 * 1024 },
+    fileFilter: (req, file, cb) => {
+        const allowed = /jpeg|jpg|png|gif|webp/;
+        const ext = allowed.test(path.extname(file.originalname).toLowerCase());
+        const mime = allowed.test(file.mimetype);
+        if (ext && mime) return cb(null, true);
+        cb(new Error('Only image files (jpeg, jpg, png, gif, webp) are allowed.'));
+    },
 });
 
 module.exports = upload;

@@ -251,13 +251,22 @@ const Realtime = {
 
         this.socket.on('connect', () => {
             this.connected = true;
-            this.socket.emit('join', 'leaderboard');
-            this.socket.emit('join', 'live');
-            this.socket.emit('join:leaderboard');
-            this.socket.emit('join:live');
+            // IMPORTANT: authenticate so server joins user_/role_/dept_ rooms
+            if (token) this.socket.emit('authenticate', token);
+            this.socket.emit('joinLeaderboard');
+            this.socket.emit('join', 'notifications');
             this._setConnDot(true);
             console.info('[Realtime] connected', this.socket.id);
         });
+
+        this.socket.on('authenticated', (payload) => {
+            if (payload?.success) {
+                console.info('[Realtime] authenticated', payload.rooms || '');
+            } else {
+                console.warn('[Realtime] auth failed', payload?.message);
+            }
+        });
+
         this.socket.on('disconnect', () => {
             this.connected = false;
             this._setConnDot(false);
@@ -274,16 +283,45 @@ const Realtime = {
             if (this._feed.length > this._maxFeed) this._feed.length = this._maxFeed;
             this._renderNotifBell();
             window.dispatchEvent(new CustomEvent('sf:notif', { detail: item }));
-            if (type === 'live' || type === 'done' || type === 'trophy' || type === 'lb') {
-                try { Toast.show(title + (body ? ' — ' + body : ''), type === 'done' || type === 'trophy' ? 'success' : 'info', 3500); } catch (_) { }
+            if (type === 'live' || type === 'done' || type === 'trophy' || type === 'lb' || type === 'announce' || type === 'info') {
+                try {
+                    Toast.show(
+                        title + (body ? ' — ' + body : ''),
+                        type === 'done' || type === 'trophy' ? 'success' : 'info',
+                        3500
+                    );
+                } catch (_) { }
             }
         };
 
         const bus = (name, detail) =>
             window.dispatchEvent(new CustomEvent(name, { detail }));
 
+        // —— Real notifications from server ——
+        this.socket.on('notification:new', (row) => {
+            if (!row) return;
+            const typeMap = {
+                score: 'live',
+                schedule: 'info',
+                announce: 'announce',
+                result: 'done',
+                reminder: 'info',
+                system: 'info',
+            };
+            push(
+                typeMap[row.type] || 'info',
+                row.title || 'Notification',
+                row.message || '',
+                { serverId: row.id, link: row.link, severity: row.severity }
+            );
+            bus('sf:notif', row);
+            if (typeof NotificationEngine !== 'undefined' && NotificationEngine._activeTick) {
+                try { NotificationEngine._activeTick(); } catch (_) { }
+            }
+        });
+
         this.socket.on('live:matchStarted', (d) => {
-            push('live', 'Match live', `${d?.dept_a || d?.team_a || 'A'} vs ${d?.dept_b || d?.team_b || 'B'}`);
+            push('live', 'Match live', `${d?.dept_a || d?.team_a || d?.match?.dept_a_name || 'A'} vs ${d?.dept_b || d?.team_b || d?.match?.dept_b_name || 'B'}`);
             bus('sf:live', d);
             bus('sf:match', { action: 'started', ...d });
             this._bumpLiveBadge(+1);
@@ -303,7 +341,7 @@ const Realtime = {
             bus('sf:match', { action: 'score', ...d });
         });
         this.socket.on('match:completed', (d) => {
-            push('done', 'Match completed', d?.winner ? `Winner: ${d.winner}` : 'Result locked in');
+            push('done', 'Match completed', d?.winner ? `Winner: ${d.winner}` : (d?.final_score_display || 'Result locked in'));
             bus('sf:match', { action: 'completed', ...d });
             bus('sf:live', d);
             this._bumpLiveBadge(-1);
@@ -904,15 +942,25 @@ async function createVenue() {
 
 async function createTeam() {
     const body = {
-        name: document.getElementById('tm-name').value.trim(),
-        department_id: parseInt(document.getElementById('tm-dept').value) || null,
-        sport_id: parseInt(document.getElementById('tm-sport').value) || null,
-        color: document.getElementById('tm-color').value,
+        name: document.getElementById('tm-name')?.value?.trim(),
+        department_id: parseInt(document.getElementById('tm-dept')?.value, 10) || null,
+        sport_id: parseInt(document.getElementById('tm-sport')?.value, 10) || null,
+        gender: document.getElementById('tm-gender')?.value || 'Men',
     };
-    if (!body.name || !body.department_id) { Toast.show('Team name and department required', 'error'); return; }
+    if (!body.name || !body.department_id || !body.sport_id) {
+        Toast.show('Team name, department and sport are required', 'error');
+        return;
+    }
+    if (!body.gender) {
+        Toast.show('Gender is required', 'error');
+        return;
+    }
     const res = await api('/teams', { method: 'POST', body: JSON.stringify(body) });
     Toast.show(res.message || (res.success ? 'Team created!' : 'Error'), res.success ? 'success' : 'error');
-    if (res.success) { Modal.closeAll(); loadTeams(); }
+    if (res.success) {
+        Modal.closeAll();
+        if (typeof loadTeams === 'function') loadTeams();
+    }
 }
 
 const MOCK_DATA = {

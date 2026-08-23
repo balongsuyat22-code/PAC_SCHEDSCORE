@@ -4,10 +4,7 @@ const { v4: uuidv4 } = require('uuid');
 const { pool } = require('../config/database');
 const jwtConfig = require('../config/jwt');
 const { logActivity } = require('../utils/logger');
-
-
-const ALLOWED_ROLES = ['admin', 'dean_adviser', 'sgo_president', 'sgo_officer'];
-
+const { ALLOWED_ROLES } = require('../config/roles');
 
 const login = async (req, res, next) => {
     try {
@@ -20,7 +17,6 @@ const login = async (req, res, next) => {
                 message: 'Email/Username and password are required.',
             });
         }
-
 
         const [users] = await pool.execute(
             `SELECT u.*, d.name AS department_name, d.code AS department_code
@@ -36,20 +32,18 @@ const login = async (req, res, next) => {
 
         const user = users[0];
 
-
         if (!user.is_active) {
             return res.status(401).json({
                 success: false,
-                message: 'Your account has been deactivated. Contact the administrator.'
+                message: 'Your account has been deactivated. Contact the administrator.',
             });
         }
 
-        const storedHash = (user.password_hash || '').trim();
+        const storedHash = user.password_hash || '';
         const isMatch = await bcrypt.compare(password, storedHash);
         if (!isMatch) {
             return res.status(401).json({ success: false, message: 'Invalid credentials.' });
         }
-
 
         const payload = {
             id: user.id,
@@ -65,9 +59,8 @@ const login = async (req, res, next) => {
             expiresIn: jwtConfig.refreshExpiresIn,
         });
 
-
         await pool.execute('DELETE FROM refresh_tokens WHERE user_id = ?', [user.id]);
-        const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000); // 7 days
+        const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
         await pool.execute(
             'INSERT INTO refresh_tokens (user_id, token, expires_at) VALUES (?, ?, ?)',
             [user.id, refreshToken, expiresAt]
@@ -76,7 +69,6 @@ const login = async (req, res, next) => {
         await pool.execute('UPDATE users SET last_login = NOW() WHERE id = ?', [user.id]);
 
         await logActivity(user.id, 'USER_LOGIN', 'user', user.id, `User logged in: ${user.username}`);
-
 
         const { password_hash, ...safeUser } = user;
 
@@ -89,7 +81,6 @@ const login = async (req, res, next) => {
                 user: safeUser,
             },
         });
-
     } catch (err) {
         next(err);
     }
@@ -108,7 +99,6 @@ const register = async (req, res, next) => {
             phone,
         } = req.body;
 
-
         if (!username || !email || !password || !first_name || !last_name || !role) {
             return res.status(400).json({
                 success: false,
@@ -123,15 +113,12 @@ const register = async (req, res, next) => {
             });
         }
 
-
-        const ALLOWED_ROLES = ['admin', 'dean_adviser', 'sgo_president', 'sgo_officer'];
         if (!ALLOWED_ROLES.includes(role)) {
             return res.status(400).json({
                 success: false,
                 message: `Invalid role. Allowed: ${ALLOWED_ROLES.join(', ')}`,
             });
         }
-
 
         if (role === 'dean_adviser' && !department_id) {
             return res.status(400).json({
@@ -152,7 +139,7 @@ const register = async (req, res, next) => {
         }
 
         const salt = await bcrypt.genSalt(10);
-        const password_hash = (await bcrypt.hash(password, salt)).trim();
+        const password_hash = await bcrypt.hash(password, salt);
         const uuid = uuidv4();
 
         const [result] = await pool.execute(
@@ -173,7 +160,7 @@ const register = async (req, res, next) => {
         );
 
         await logActivity(
-            req.user?.id || result.insertId,
+            req.user?.id || null,
             'USER_REGISTERED',
             'user',
             result.insertId,
@@ -185,12 +172,10 @@ const register = async (req, res, next) => {
             message: 'Account created successfully.',
             data: { id: result.insertId, uuid, username: usernameNorm, email: emailNorm, role },
         });
-
     } catch (err) {
         next(err);
     }
 };
-
 
 const refresh = async (req, res, next) => {
     try {
@@ -206,7 +191,6 @@ const refresh = async (req, res, next) => {
             return res.status(401).json({ success: false, message: 'Invalid or expired refresh token.' });
         }
 
-
         const [tokens] = await pool.execute(
             'SELECT id FROM refresh_tokens WHERE token = ? AND expires_at > NOW()',
             [refreshToken]
@@ -219,12 +203,10 @@ const refresh = async (req, res, next) => {
         const accessToken = jwt.sign(payload, jwtConfig.secret, { expiresIn: jwtConfig.expiresIn });
 
         return res.json({ success: true, data: { accessToken } });
-
     } catch (err) {
         next(err);
     }
 };
-
 
 const logout = async (req, res, next) => {
     try {
@@ -240,7 +222,6 @@ const logout = async (req, res, next) => {
         next(err);
     }
 };
-
 
 const getMe = async (req, res, next) => {
     try {
@@ -263,12 +244,10 @@ const getMe = async (req, res, next) => {
         }
 
         return res.json({ success: true, data: rows[0] });
-
     } catch (err) {
         next(err);
     }
 };
-
 
 const updateProfile = async (req, res, next) => {
     try {
@@ -289,7 +268,6 @@ const updateProfile = async (req, res, next) => {
         await logActivity(userId, 'PROFILE_UPDATED', 'user', userId, 'Profile updated');
 
         return res.json({ success: true, message: 'Profile updated successfully.' });
-
     } catch (err) {
         next(err);
     }
@@ -317,23 +295,20 @@ const changePassword = async (req, res, next) => {
             return res.status(404).json({ success: false, message: 'User not found.' });
         }
 
-        const isMatch = await bcrypt.compare(current_password, (rows[0].password_hash || '').trim());
+        const isMatch = await bcrypt.compare(current_password, rows[0].password_hash || '');
         if (!isMatch) {
             return res.status(400).json({ success: false, message: 'Current password is incorrect.' });
         }
 
         const salt = await bcrypt.genSalt(10);
-        const hash = (await bcrypt.hash(new_password, salt)).trim();
+        const hash = await bcrypt.hash(new_password, salt);
 
         await pool.execute('UPDATE users SET password_hash = ?, updated_at = NOW() WHERE id = ?', [hash, req.user.id]);
-
-
         await pool.execute('DELETE FROM refresh_tokens WHERE user_id = ?', [req.user.id]);
 
         await logActivity(req.user.id, 'PASSWORD_CHANGED', 'user', req.user.id, 'Password changed');
 
         return res.json({ success: true, message: 'Password changed successfully. Please log in again.' });
-
     } catch (err) {
         next(err);
     }
@@ -342,7 +317,7 @@ const changePassword = async (req, res, next) => {
 const resetPassword = async (req, res, next) => {
     try {
         if (!req.user || req.user.role !== 'admin') {
-            return res.status(403).json({ success: false, message: 'Only an admin can reset another user\'s password.' });
+            return res.status(403).json({ success: false, message: "Only an admin can reset another user's password." });
         }
 
         const { new_password } = req.body;
@@ -358,10 +333,9 @@ const resetPassword = async (req, res, next) => {
         }
 
         const salt = await bcrypt.genSalt(10);
-        const hash = (await bcrypt.hash(new_password, salt)).trim();
+        const hash = await bcrypt.hash(new_password, salt);
 
         await pool.execute('UPDATE users SET password_hash = ?, updated_at = NOW() WHERE id = ?', [hash, targetId]);
-
         await pool.execute('DELETE FROM refresh_tokens WHERE user_id = ?', [targetId]);
 
         await logActivity(
@@ -373,7 +347,6 @@ const resetPassword = async (req, res, next) => {
         );
 
         return res.json({ success: true, message: 'Password reset successfully.' });
-
     } catch (err) {
         next(err);
     }
@@ -390,7 +363,7 @@ const debugPassword = async (req, res) => {
         if (!email || !password) {
             return res.status(400).json({
                 success: false,
-                message: 'Email and password required in the POST body (not query params).'
+                message: 'Email and password required in the POST body (not query params).',
             });
         }
 
@@ -421,7 +394,7 @@ const debugPassword = async (req, res) => {
                 has_stray_whitespace: raw.length !== trimmed.length,
                 password_match_raw_hash: matchRaw,
                 password_match_trimmed_hash: matchTrimmed,
-            }
+            },
         });
     } catch (err) {
         return res.status(500).json({ success: false, error: err.message });

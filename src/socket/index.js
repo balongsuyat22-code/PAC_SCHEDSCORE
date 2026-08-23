@@ -1,4 +1,3 @@
-
 const { pool } = require('../config/database');
 const jwt = require('jsonwebtoken');
 const jwtConfig = require('../config/jwt');
@@ -20,30 +19,60 @@ module.exports = (io) => {
                 socket.userId = decoded.id;
                 socket.userRole = decoded.role;
                 socket.userUuid = decoded.uuid;
+                socket.departmentId = decoded.department_id || null;
+
+                // Load department if not in JWT
+                if (!socket.departmentId && decoded.id) {
+                    try {
+                        const [rows] = await pool.execute(
+                            'SELECT department_id, role FROM users WHERE id = ? LIMIT 1',
+                            [decoded.id]
+                        );
+                        if (rows[0]) {
+                            socket.departmentId = rows[0].department_id || null;
+                            if (!socket.userRole) socket.userRole = rows[0].role;
+                        }
+                    } catch (_) { /* ignore */ }
+                }
 
                 userSessions.set(socket.id, {
                     userId: decoded.id,
-                    role: decoded.role,
-                    joinedAt: new Date()
+                    role: socket.userRole,
+                    departmentId: socket.departmentId,
+                    joinedAt: new Date(),
                 });
 
-                socket.emit('authenticated', { success: true });
-                console.log(`User ${decoded.id} authenticated on socket ${socket.id}`);
+                // Targeted rooms for notifications
+                socket.join(`user_${decoded.id}`);
+                if (socket.userRole) socket.join(`role_${socket.userRole}`);
+                if (socket.departmentId) socket.join(`dept_${socket.departmentId}`);
+                socket.join('notifications');
+
+                socket.emit('authenticated', {
+                    success: true,
+                    rooms: {
+                        user: `user_${decoded.id}`,
+                        role: socket.userRole ? `role_${socket.userRole}` : null,
+                        department: socket.departmentId ? `dept_${socket.departmentId}` : null,
+                    },
+                });
+                console.log(
+                    `User ${decoded.id} (${socket.userRole}) authenticated on ${socket.id}` +
+                    (socket.departmentId ? ` dept=${socket.departmentId}` : '')
+                );
             } catch (err) {
                 socket.emit('authenticated', { success: false, message: 'Invalid token' });
-
             }
         });
 
         socket.on('joinMatch', async (matchId) => {
-            matchId = parseInt(matchId);
+            matchId = parseInt(matchId, 10);
+            if (!matchId) return;
             const roomName = `match_${matchId}`;
 
             if (socket.matchRooms) {
-                socket.matchRooms.forEach(room => {
-                    if (room.startsWith('match_')) {
-                        socket.leave(room);
-                    }
+                socket.matchRooms.forEach((room) => {
+                    if (room.startsWith('match_')) socket.leave(room);
                 });
             }
 
@@ -51,9 +80,7 @@ module.exports = (io) => {
             if (!socket.matchRooms) socket.matchRooms = new Set();
             socket.matchRooms.add(roomName);
 
-            if (!matchRooms.has(matchId)) {
-                matchRooms.set(matchId, new Set());
-            }
+            if (!matchRooms.has(matchId)) matchRooms.set(matchId, new Set());
             matchRooms.get(matchId).add(socket.id);
 
             try {
@@ -96,7 +123,7 @@ module.exports = (io) => {
                     match: match[0] || null,
                     scores,
                     result: result[0] || null,
-                    watchers: matchRooms.get(matchId)?.size || 0
+                    watchers: matchRooms.get(matchId)?.size || 0,
                 });
             } catch (err) {
                 console.error('Error fetching match state:', err);
@@ -107,53 +134,51 @@ module.exports = (io) => {
         });
 
         socket.on('leaveMatch', (matchId) => {
-            matchId = parseInt(matchId);
+            matchId = parseInt(matchId, 10);
             const roomName = `match_${matchId}`;
             socket.leave(roomName);
-            if (socket.matchRooms) {
-                socket.matchRooms.delete(roomName);
-            }
+            if (socket.matchRooms) socket.matchRooms.delete(roomName);
             if (matchRooms.has(matchId)) {
                 matchRooms.get(matchId).delete(socket.id);
-                if (matchRooms.get(matchId).size === 0) {
-                    matchRooms.delete(matchId);
-                }
+                if (matchRooms.get(matchId).size === 0) matchRooms.delete(matchId);
             }
         });
 
         socket.on('joinTournament', (tournamentId) => {
-            tournamentId = parseInt(tournamentId);
+            tournamentId = parseInt(tournamentId, 10);
+            if (!tournamentId) return;
             const roomName = `tournament_${tournamentId}`;
             socket.join(roomName);
             if (!socket.tournamentRooms) socket.tournamentRooms = new Set();
             socket.tournamentRooms.add(roomName);
 
-            if (!tournamentRooms.has(tournamentId)) {
-                tournamentRooms.set(tournamentId, new Set());
-            }
+            if (!tournamentRooms.has(tournamentId)) tournamentRooms.set(tournamentId, new Set());
             tournamentRooms.get(tournamentId).add(socket.id);
 
             console.log(`Socket ${socket.id} joined tournament ${tournamentId}`);
         });
 
         socket.on('leaveTournament', (tournamentId) => {
-            tournamentId = parseInt(tournamentId);
+            tournamentId = parseInt(tournamentId, 10);
             const roomName = `tournament_${tournamentId}`;
             socket.leave(roomName);
-            if (socket.tournamentRooms) {
-                socket.tournamentRooms.delete(roomName);
-            }
+            if (socket.tournamentRooms) socket.tournamentRooms.delete(roomName);
             if (tournamentRooms.has(tournamentId)) {
                 tournamentRooms.get(tournamentId).delete(socket.id);
-                if (tournamentRooms.get(tournamentId).size === 0) {
-                    tournamentRooms.delete(tournamentId);
-                }
+                if (tournamentRooms.get(tournamentId).size === 0) tournamentRooms.delete(tournamentId);
             }
         });
 
-        socket.on('joinLeaderboard', () => {
+        // Accept all client join names
+        const joinLb = () => {
             socket.join('leaderboard');
             console.log(`Socket ${socket.id} joined leaderboard`);
+        };
+        socket.on('joinLeaderboard', joinLb);
+        socket.on('join:leaderboard', joinLb);
+        socket.on('join', (room) => {
+            if (room === 'leaderboard' || room === 'live') joinLb();
+            if (room === 'notifications') socket.join('notifications');
         });
 
         socket.on('leaveLeaderboard', () => {
@@ -236,26 +261,21 @@ module.exports = (io) => {
         });
 
         socket.on('disconnect', () => {
-
             if (socket.matchRooms) {
-                socket.matchRooms.forEach(room => {
-                    const matchId = parseInt(room.split('_')[1]);
+                socket.matchRooms.forEach((room) => {
+                    const matchId = parseInt(room.split('_')[1], 10);
                     if (matchRooms.has(matchId)) {
                         matchRooms.get(matchId).delete(socket.id);
-                        if (matchRooms.get(matchId).size === 0) {
-                            matchRooms.delete(matchId);
-                        }
+                        if (matchRooms.get(matchId).size === 0) matchRooms.delete(matchId);
                     }
                 });
             }
             if (socket.tournamentRooms) {
-                socket.tournamentRooms.forEach(room => {
-                    const tournamentId = parseInt(room.split('_')[1]);
+                socket.tournamentRooms.forEach((room) => {
+                    const tournamentId = parseInt(room.split('_')[1], 10);
                     if (tournamentRooms.has(tournamentId)) {
                         tournamentRooms.get(tournamentId).delete(socket.id);
-                        if (tournamentRooms.get(tournamentId).size === 0) {
-                            tournamentRooms.delete(tournamentId);
-                        }
+                        if (tournamentRooms.get(tournamentId).size === 0) tournamentRooms.delete(tournamentId);
                     }
                 });
             }
@@ -264,6 +284,7 @@ module.exports = (io) => {
             console.log(`Client disconnected: ${socket.id}`);
         });
     });
+
     const emitToMatch = (matchId, event, data) => {
         io.to(`match_${matchId}`).emit(event, data);
     };
@@ -276,14 +297,49 @@ module.exports = (io) => {
     const emitToAll = (event, data) => {
         io.emit(event, data);
     };
+    const emitToUser = (userId, event, data) => {
+        if (userId) io.to(`user_${userId}`).emit(event, data);
+    };
+    const emitToRole = (role, event, data) => {
+        if (role) io.to(`role_${role}`).emit(event, data);
+    };
+    const emitToDepartment = (departmentId, event, data) => {
+        if (departmentId) io.to(`dept_${departmentId}`).emit(event, data);
+    };
+
+    /** Route notification to the right room(s) only */
+    const emitNotification = (row) => {
+        if (!row) return;
+        const event = 'notification:new';
+        if (row.user_id) {
+            emitToUser(row.user_id, event, row);
+            return;
+        }
+        if (row.department_id) {
+            emitToDepartment(row.department_id, event, row);
+            return;
+        }
+        if (row.role) {
+            emitToRole(row.role, event, row);
+            return;
+        }
+        // Global
+        io.to('notifications').emit(event, row);
+        io.emit(event, row);
+    };
+
     return {
         emitToMatch,
         emitToTournament,
         emitToLeaderboard,
         emitToAll,
+        emitToUser,
+        emitToRole,
+        emitToDepartment,
+        emitNotification,
         getMatchWatchers: (matchId) => matchRooms.get(matchId)?.size || 0,
         getTournamentWatchers: (tournamentId) => tournamentRooms.get(tournamentId)?.size || 0,
         getConnectedUsers: () => userSessions.size,
-        io
+        io,
     };
 };

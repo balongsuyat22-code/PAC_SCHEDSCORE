@@ -142,7 +142,7 @@ const NotificationEngine = (function () {
                     severity: 'success',
                     icon: '✅',
                     title: 'Result finalized',
-                    message: `${label} is complete${m.winner_side ? '' : ''}.`,
+                    message: `${label} is complete.`,
                     link: opts.resultsLink || link,
                 });
             } else if (m.status === 'cancelled' && opts.showCancelled) {
@@ -284,7 +284,8 @@ const NotificationEngine = (function () {
                     quietApi('/teams'),
                     quietApi('/tournaments'),
                     quietApi('/players/pending'),
-                    quietApi('/leaderboard/champion'),
+                    // FIXED: was /leaderboard/champion (404)
+                    quietApi('/leaderboard/overall-champion'),
                     sportsById(),
                 ]);
                 fromMatches(out, matches.data, {
@@ -320,14 +321,14 @@ const NotificationEngine = (function () {
                 fromPendingPlayers(out, pending.data, {
                     scope: 'dean',
                     link: '/dean/players',
-                    message: `${pending.data.length} of your players ${pending.data.length > 1 ? 'are' : 'is'} waiting on admin approval.`,
+                    message: `${(pending.data || []).length} of your players ${(pending.data || []).length > 1 ? 'are' : 'is'} waiting on admin approval.`,
                 });
 
             } else {
-
                 const [live, champ] = await Promise.all([
                     quietApi('/matches/live'),
-                    quietApi('/leaderboard/champion'),
+                    // FIXED
+                    quietApi('/leaderboard/overall-champion'),
                 ]);
                 fromMatches(out, live.data, { showCompleted: false, matchLink: () => '/live' });
                 fromSeasonStatus(out, champ.data, { link: '/leaderboard' });

@@ -1,42 +1,9 @@
-
 const { pool } = require('../config/database');
 const { logActivity } = require('../utils/logger');
-const { getActiveSportFestId } = require('../utils/season');
+const { resolveSportFestId } = require('../utils/season');
 
 const VALID_SCORING = ['points', 'time', 'sets', 'binary', 'custom'];
 const VALID_CATEGORY = ['individual', 'team'];
-
-/**
- * Resolve which sport_fest_id to use when counting/listing tournaments.
- * @param {string|undefined} seasonIdQuery  req.query.season_id
- * @returns {Promise<{ sportFestId: number|null, unscoped: boolean }>}
- */
-async function resolveSportFestId(seasonIdQuery) {
-    if (seasonIdQuery === 'all') {
-        return { sportFestId: null, unscoped: true };
-    }
-    if (seasonIdQuery) {
-        const id = parseInt(seasonIdQuery, 10);
-        if (Number.isInteger(id) && id > 0) {
-            return { sportFestId: id, unscoped: false };
-        }
-    }
-
-    const activeId = await getActiveSportFestId();
-    if (activeId != null) {
-        return { sportFestId: activeId, unscoped: false };
-    }
-
-    const [latest] = await pool.execute(
-        `SELECT id FROM sport_fest_events
-         ORDER BY year DESC, id DESC
-         LIMIT 1`
-    );
-    return {
-        sportFestId: latest[0]?.id ?? null,
-        unscoped: false,
-    };
-}
 
 const getAll = async (req, res, next) => {
     try {

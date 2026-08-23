@@ -1,39 +1,6 @@
-
 const { pool } = require('../config/database');
 const { logActivity } = require('../utils/logger');
-const { getActiveSportFestId } = require('../utils/season');
-
-/**
- * Resolve which sport_fest_id to use for scores/teams/members.
- * @param {string|undefined} seasonIdQuery  
- * @returns {Promise<{ sportFestId: number|null, unscoped: boolean }>}
- */
-async function resolveSportFestId(seasonIdQuery) {
-    if (seasonIdQuery === 'all') {
-        return { sportFestId: null, unscoped: true };
-    }
-    if (seasonIdQuery) {
-        const id = parseInt(seasonIdQuery, 10);
-        if (Number.isInteger(id) && id > 0) {
-            return { sportFestId: id, unscoped: false };
-        }
-    }
-
-    const activeId = await getActiveSportFestId();
-    if (activeId != null) {
-        return { sportFestId: activeId, unscoped: false };
-    }
-
-    const [latest] = await pool.execute(
-        `SELECT id FROM sport_fest_events
-         ORDER BY year DESC, id DESC
-         LIMIT 1`
-    );
-    return {
-        sportFestId: latest[0]?.id ?? null,
-        unscoped: false,
-    };
-}
+const { resolveSportFestId } = require('../utils/season');
 
 const getAll = async (req, res, next) => {
     try {
@@ -48,7 +15,7 @@ const getAll = async (req, res, next) => {
 
         const params = unscoped ? [] : [sportFestId, sportFestId];
 
-        const [rows] = await pool.query(
+        const [rows] = await pool.execute(
             `
   SELECT
     d.id,
@@ -199,6 +166,7 @@ const getPlayers = async (req, res, next) => {
         }
 
         const { status, season_id } = req.query;
+        const { sportFestId, unscoped } = await resolveSportFestId(season_id);
 
         let query = `
             SELECT p.*,
@@ -211,17 +179,9 @@ const getPlayers = async (req, res, next) => {
         `;
         const params = [deptId];
 
-        if (season_id === 'all') {
-            // no filter
-        } else if (season_id) {
+        if (!unscoped && sportFestId != null) {
             query += ' AND p.sport_fest_id = ?';
-            params.push(season_id);
-        } else {
-            const { sportFestId } = await resolveSportFestId(undefined);
-            if (sportFestId != null) {
-                query += ' AND p.sport_fest_id = ?';
-                params.push(sportFestId);
-            }
+            params.push(sportFestId);
         }
 
         if (status) {
@@ -299,10 +259,28 @@ const update = async (req, res, next) => {
     try {
         const { name, code, description, color, logo_url, short_name, is_active } = req.body;
 
-        let finalLogoUrl = logo_url;
+        const [existing] = await pool.execute(
+            'SELECT id, name, code, description, color, logo_url, short_name, is_active FROM departments WHERE id = ?',
+            [req.params.id]
+        );
+        if (!existing.length) {
+            return res.status(404).json({ success: false, message: 'Department not found.' });
+        }
+        const cur = existing[0];
+
+        let finalLogoUrl = logo_url !== undefined ? logo_url : cur.logo_url;
         if (req.file) {
             finalLogoUrl = `/uploads/departments/${req.file.filename}`;
         }
+
+        const finalName = name != null && String(name).trim() !== '' ? name : cur.name;
+        const finalCode = code != null && String(code).trim() !== ''
+            ? String(code).toUpperCase()
+            : cur.code;
+        const finalDescription = description !== undefined ? (description || null) : cur.description;
+        const finalColor = color != null && String(color).trim() !== '' ? color : (cur.color || '#3B82F6');
+        const finalShortName = short_name !== undefined ? (short_name || null) : cur.short_name;
+        const finalActive = is_active !== undefined ? (is_active ? 1 : 0) : cur.is_active;
 
         await pool.execute(
             `UPDATE departments
@@ -316,13 +294,13 @@ const update = async (req, res, next) => {
                  updated_at = NOW()
              WHERE id = ?`,
             [
-                name,
-                code ? code.toUpperCase() : null,
-                description || null,
-                color || '#3B82F6',
+                finalName,
+                finalCode,
+                finalDescription,
+                finalColor,
                 finalLogoUrl || null,
-                short_name || null,
-                is_active !== undefined ? is_active : 1,
+                finalShortName,
+                finalActive,
                 req.params.id,
             ]
         );
@@ -332,7 +310,7 @@ const update = async (req, res, next) => {
             'DEPARTMENT_UPDATED',
             'department',
             req.params.id,
-            `Department updated: ${name}`
+            `Department updated: ${finalName}`
         );
 
         return res.json({ success: true, message: 'Department updated successfully.' });

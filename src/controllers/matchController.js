@@ -1,4 +1,3 @@
-
 const { pool } = require('../config/database');
 const { progressBracket } = require('../services/matchService');
 const { logActivity } = require('../utils/logger');
@@ -8,8 +7,9 @@ const {
     emitToTournament,
     emitToLeaderboard,
     emitToAll,
-    getMatchWatchers
+    getMatchWatchers,
 } = require('../utils/socketEmit');
+const { createNotification } = require('./notificationController');
 
 const safeFK = (val) => { const n = parseInt(val); return Number.isInteger(n) && n > 0 ? n : null; };
 const safeDate = (val) => { if (!val) return null; return String(val).split('T')[0]; };
@@ -18,6 +18,181 @@ const canReschedule = (status) => ['pending', 'scheduled'].includes(status);
 const canStart = (status) => ['pending', 'scheduled'].includes(status);
 const canScore = (status) => status === 'ongoing';
 const canComplete = (status) => status === 'ongoing';
+
+/** Load names for notification messages */
+async function loadMatchLabel(matchId) {
+    const [rows] = await pool.execute(
+        `SELECT m.id, m.participant_a_department_id, m.participant_b_department_id,
+                m.referee_id, m.tournament_id, m.scheduled_date, m.scheduled_time,
+                da.name AS dept_a_name, db.name AS dept_b_name,
+                s.name AS sport_name, t.name AS tournament_name, t.format AS tournament_format
+         FROM matches m
+         LEFT JOIN departments da ON m.participant_a_department_id = da.id
+         LEFT JOIN departments db ON m.participant_b_department_id = db.id
+         LEFT JOIN sports s ON m.sport_id = s.id
+         LEFT JOIN tournaments t ON m.tournament_id = t.id
+         WHERE m.id = ?`,
+        [matchId]
+    );
+    return rows[0] || null;
+}
+
+function matchupFromRow(m) {
+    if (!m) return 'Match';
+    const f = (m.tournament_format || '').toLowerCase();
+    if (f === 'free_for_all' || f === 'team_ranking') {
+        return m.tournament_name || m.sport_name || 'FFA Event';
+    }
+    const a = m.dept_a_name || 'Side A';
+    const b = m.dept_b_name || 'Side B';
+    return `${a} vs ${b}`;
+}
+
+/**
+ * Fire notifications for match lifecycle events.
+ * Never throws — failures are logged only.
+ */
+async function notifyMatchEvent(kind, matchId, extra = {}, createdBy = null) {
+    try {
+        const m = await loadMatchLabel(matchId);
+        if (!m) return;
+        const label = matchupFromRow(m);
+        const sport = m.sport_name ? ` (${m.sport_name})` : '';
+
+        if (kind === 'scheduled') {
+            const when = [extra.scheduled_date, extra.scheduled_time].filter(Boolean).join(' ');
+            const msg = `${label}${sport} scheduled${when ? ` for ${when}` : ''}.`;
+            const depts = [m.participant_a_department_id, m.participant_b_department_id].filter(Boolean);
+            for (const department_id of depts) {
+                await createNotification({
+                    department_id,
+                    type: 'schedule',
+                    severity: 'info',
+                    title: 'Match scheduled',
+                    message: msg,
+                    link: '/dean/schedule',
+                    entity_type: 'match',
+                    entity_id: matchId,
+                    created_by: createdBy,
+                });
+            }
+            if (extra.referee_id) {
+                await createNotification({
+                    user_id: extra.referee_id,
+                    type: 'schedule',
+                    severity: 'info',
+                    title: 'You were assigned a match',
+                    message: msg,
+                    link: '/referee/scoring.html',
+                    entity_type: 'match',
+                    entity_id: matchId,
+                    created_by: createdBy,
+                });
+            }
+            await createNotification({
+                role: 'sgo_president',
+                type: 'schedule',
+                severity: 'info',
+                title: 'Match scheduled',
+                message: msg,
+                link: '/president/schedule.html',
+                entity_type: 'match',
+                entity_id: matchId,
+                created_by: createdBy,
+            });
+            return;
+        }
+
+        if (kind === 'started') {
+            const msg = `${label}${sport} is now live.`;
+            await createNotification({
+                role: 'sgo_president',
+                type: 'score',
+                severity: 'live',
+                title: 'Match started',
+                message: msg,
+                link: '/president/live-scores.html',
+                entity_type: 'match',
+                entity_id: matchId,
+                created_by: createdBy,
+            });
+            for (const department_id of [m.participant_a_department_id, m.participant_b_department_id].filter(Boolean)) {
+                await createNotification({
+                    department_id,
+                    type: 'score',
+                    severity: 'live',
+                    title: 'Your match is live',
+                    message: msg,
+                    link: '/dean/live',
+                    entity_type: 'match',
+                    entity_id: matchId,
+                    created_by: createdBy,
+                });
+            }
+            return;
+        }
+
+        if (kind === 'completed') {
+            const score = extra.final_score_display ? ` — ${extra.final_score_display}` : '';
+            const msg = `${label}${sport} finished${score}.`;
+            await createNotification({
+                role: 'sgo_president',
+                type: 'result',
+                severity: 'success',
+                title: 'Match completed',
+                message: msg,
+                link: '/president/live-scores.html',
+                entity_type: 'match',
+                entity_id: matchId,
+                created_by: createdBy,
+            });
+            for (const department_id of [m.participant_a_department_id, m.participant_b_department_id].filter(Boolean)) {
+                await createNotification({
+                    department_id,
+                    type: 'result',
+                    severity: 'success',
+                    title: 'Match result recorded',
+                    message: msg,
+                    link: '/dean/matches',
+                    entity_type: 'match',
+                    entity_id: matchId,
+                    created_by: createdBy,
+                });
+            }
+            return;
+        }
+
+        if (kind === 'ffa_completed') {
+            const msg = `${label}${sport} FFA event completed.`;
+            await createNotification({
+                role: 'sgo_president',
+                type: 'result',
+                severity: 'success',
+                title: 'FFA event completed',
+                message: msg,
+                link: '/president/live-scores.html',
+                entity_type: 'match',
+                entity_id: matchId,
+                created_by: createdBy,
+            });
+            await createNotification({
+                role: 'dean_adviser',
+                type: 'result',
+                severity: 'success',
+                title: 'FFA event completed',
+                message: msg,
+                link: '/dean/matches',
+                entity_type: 'match',
+                entity_id: matchId,
+                created_by: createdBy,
+            });
+        }
+    } catch (err) {
+        console.error('[notifyMatchEvent]', err.message);
+    }
+}
+
+
 
 const getMatchStatus = async (matchId) => {
     const [[row]] = await pool.execute('SELECT status FROM matches WHERE id = ?', [matchId]);
@@ -363,7 +538,6 @@ const schedule = async (req, res, next) => {
             });
         }
 
-
         if (finalReferee) {
             const [officerCheck] = await pool.execute(
                 'SELECT id FROM users WHERE id = ? AND role = "sgo_officer" AND is_active = 1',
@@ -384,7 +558,6 @@ const schedule = async (req, res, next) => {
                 return res.status(409).json({ success: false, message: 'Selected officer is already assigned to another match at this time.' });
             }
         }
-
 
         if (finalVenue && finalDate && finalTime) {
             const [vConflicts] = await pool.execute(
@@ -411,9 +584,7 @@ const schedule = async (req, res, next) => {
 
         await logActivity(req.user.id, 'MATCH_SCHEDULED', 'match', matchId, `Match ${matchId} scheduled`);
 
-
         const [[m]] = await pool.execute('SELECT tournament_id FROM matches WHERE id = ?', [matchId]);
-
 
         emitToTournament(m.tournament_id, 'match:scheduled', {
             match_id: matchId,
@@ -422,6 +593,13 @@ const schedule = async (req, res, next) => {
             venue_id: finalVenue,
             referee_id: finalReferee,
         });
+
+        // Real-time + persisted notifications
+        await notifyMatchEvent('scheduled', matchId, {
+            scheduled_date: finalDate,
+            scheduled_time: finalTime,
+            referee_id: finalReferee,
+        }, req.user.id);
 
         return res.json({ success: true, message: 'Match scheduled successfully.' });
     } catch (err) {
@@ -433,7 +611,6 @@ const schedule = async (req, res, next) => {
 const startMatch = async (req, res, next) => {
     try {
         const matchId = parseInt(req.params.id);
-
 
         if (req.user.role === 'sgo_officer') {
             const [assigned] = await pool.execute(
@@ -467,7 +644,6 @@ const startMatch = async (req, res, next) => {
 
         const [[m]] = await pool.execute('SELECT tournament_id FROM matches WHERE id = ?', [matchId]);
 
-
         const [matchDetails] = await pool.execute(
             `SELECT m.*, da.name AS dept_a_name, db.name AS dept_b_name, s.name AS sport_name
              FROM matches m
@@ -482,18 +658,21 @@ const startMatch = async (req, res, next) => {
             match_id: matchId,
             match: matchDetails[0],
             started_at: new Date(),
-            watchers: 0
+            watchers: 0,
+            dept_a: matchDetails[0]?.dept_a_name,
+            dept_b: matchDetails[0]?.dept_b_name,
         };
-
 
         emitToMatch(matchId, 'match:started', startData);
         emitToTournament(m.tournament_id, 'match:started', startData);
         emitToAll('live:matchStarted', startData);
 
+        await notifyMatchEvent('started', matchId, {}, req.user.id);
+
         return res.json({
             success: true,
             message: 'Match started.',
-            data: startData
+            data: startData,
         });
     } catch (err) {
         next(err);
@@ -640,7 +819,6 @@ const completeMatch = async (req, res, next) => {
         } = req.body;
         const userId = req.user.id;
 
-
         if (req.user.role === 'sgo_officer') {
             const [assigned] = await pool.execute(
                 'SELECT id FROM matches WHERE id = ? AND referee_id = ?',
@@ -667,7 +845,7 @@ const completeMatch = async (req, res, next) => {
             });
         }
 
-
+        // ——— BINARY ———
         if (match.scoring_type === 'binary') {
             if (!winner_side || !['a', 'b', 'draw'].includes(winner_side)) {
                 return res.status(400).json({
@@ -747,36 +925,39 @@ const completeMatch = async (req, res, next) => {
                 `Binary match ${matchId} — winner_side: ${winner_side}`
             );
 
-
             const resultData = {
                 match_id: matchId,
                 winner_side,
                 winner_department_id: winner_dept_id,
                 final_score_display: binaryScoreDisplay,
                 completed_at: new Date(),
-                watchers: getMatchWatchers(matchId)
+                watchers: getMatchWatchers(matchId),
             };
 
             emitToMatch(matchId, 'match:completed', resultData);
             emitToTournament(match.tournament_id, 'bracket:updated', {
                 match_id: matchId,
-                winner_department_id: winner_dept_id
+                winner_department_id: winner_dept_id,
             });
             emitToLeaderboard('leaderboard:changed', {
                 reason: 'match_completed',
                 match_id: matchId,
-                tournament_id: match.tournament_id
+                tournament_id: match.tournament_id,
             });
+
+            await notifyMatchEvent('completed', matchId, {
+                final_score_display: binaryScoreDisplay,
+                winner_side,
+            }, userId);
 
             return res.json({ success: true, message: 'Match completed (winner only).' });
         }
 
-
+        // ——— POINTS / SETS / TIME ———
         const [[totals]] = await pool.execute(
             'SELECT COALESCE(SUM(score_a),0) AS total_a, COALESCE(SUM(score_b),0) AS total_b FROM match_scores WHERE match_id = ?',
             [matchId]
         );
-
 
         if (!winner_side) {
             winner_side = (match.scoring_type === 'time')
@@ -841,12 +1022,10 @@ const completeMatch = async (req, res, next) => {
             `Match ${matchId} completed — winner: ${winner_side}${safeMvpName ? `, MVP: ${safeMvpName}` : ''}`
         );
 
-
         const [allScores] = await pool.execute(
             `SELECT * FROM match_scores WHERE match_id = ? ORDER BY period`,
             [matchId]
         );
-
 
         const resultData = {
             match_id: matchId,
@@ -862,24 +1041,24 @@ const completeMatch = async (req, res, next) => {
             highlights: safeHighlights,
             all_scores: allScores,
             completed_at: new Date(),
-            watchers: getMatchWatchers(matchId)
+            watchers: getMatchWatchers(matchId),
         };
 
-
         emitToMatch(matchId, 'match:completed', resultData);
-
-
         emitToTournament(match.tournament_id, 'bracket:updated', {
             match_id: matchId,
-            winner_department_id: winner_dept_id
+            winner_department_id: winner_dept_id,
         });
-
-
         emitToLeaderboard('leaderboard:changed', {
             reason: 'match_completed',
             match_id: matchId,
-            tournament_id: match.tournament_id
+            tournament_id: match.tournament_id,
         });
+
+        await notifyMatchEvent('completed', matchId, {
+            final_score_display: scoreDisplay,
+            winner_side,
+        }, userId);
 
         return res.json({ success: true, message: 'Match completed.' });
     } catch (err) {
@@ -1025,7 +1204,6 @@ const _reRankFFA = async (conn, tournamentId) => {
     }
 };
 
-
 const completeFFAMatch = async (req, res, next) => {
     try {
         const { matchId } = req.params;
@@ -1058,6 +1236,8 @@ const completeFFAMatch = async (req, res, next) => {
         emitToMatch(matchId, 'match:completed', { match_id: matchId, format: 'ffa' });
         if (m) emitToTournament(m.tournament_id, 'bracket:updated', { match_id: matchId });
         emitToLeaderboard('leaderboard:changed', { reason: 'ffa_completed', match_id: matchId });
+
+        await notifyMatchEvent('ffa_completed', matchId, {}, userId);
 
         return res.json({ success: true, message: 'FFA event completed.' });
     } catch (err) {
