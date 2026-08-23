@@ -71,10 +71,21 @@ router.get(
 );
 
 router.get(
+    '/current-season/tournaments',
+    authorize('admin', 'sgo_president'),
+    rc.getCurrentSeasonTournaments
+);
+
+router.get(
+    '/sportfest/export',
+    authorize('admin', 'sgo_president'),
+    rc.getSportFestExport
+);
+
+router.get(
     '/activity-log',
     authorize('admin'),
     rc.getActivityLog
 );
-router.get('/reports/current-season/tournaments', auth, reportController.getCurrentSeasonTournaments);
-router.get('/reports/sportfest/export', auth, reportController.getSportFestExport);
+
 module.exports = router;
