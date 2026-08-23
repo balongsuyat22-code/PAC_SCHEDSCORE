@@ -10,13 +10,15 @@
         rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
     <link rel="stylesheet" href="../../css/sgo_president.css">
+    <!-- PDF export (renders the .sheet element to a downloadable PDF) -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
     <style>
         .export-toolbar {
             display: flex;
             gap: 10px;
             flex-wrap: wrap;
             align-items: center;
-            margin-bottom: 20px;
+            margin-bottom: 16px;
         }
 
         .export-toolbar select {
@@ -29,6 +31,65 @@
             color: var(--text);
             font-family: 'Barlow', sans-serif;
             font-size: 14px;
+        }
+
+        .mode-toggle {
+            display: inline-flex;
+            background: var(--bg3);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            padding: 4px;
+            gap: 4px;
+            margin-bottom: 16px;
+        }
+
+        .mode-btn {
+            border: none;
+            background: transparent;
+            color: var(--muted);
+            font-family: 'Barlow Condensed', sans-serif;
+            font-weight: 700;
+            font-size: 13px;
+            letter-spacing: .3px;
+            text-transform: uppercase;
+            padding: 9px 16px;
+            border-radius: 7px;
+            cursor: pointer;
+            transition: all .15s;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .mode-btn.active {
+            background: var(--gold, #f5b800);
+            color: #000;
+        }
+
+        .season-banner {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 10px;
+            flex-wrap: wrap;
+            background: var(--bg3);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            padding: 10px 16px;
+            margin-bottom: 16px;
+            font-size: 13px;
+            color: var(--muted);
+        }
+
+        .season-banner strong {
+            color: var(--text);
+        }
+
+        .download-bar {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+            margin-bottom: 16px;
         }
 
         .sheet {
@@ -75,6 +136,11 @@
             background: #16a34a;
             padding: 6px 14px;
             border-radius: 100px;
+            white-space: nowrap;
+        }
+
+        .sheet-badge.pending {
+            background: #a16207;
         }
 
         .sheet-body {
@@ -137,6 +203,98 @@
             font-weight: 800;
         }
 
+        .champion-card {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            background: linear-gradient(135deg, #fff7e0, #fff);
+            border: 2px solid #f5b800;
+            border-radius: 12px;
+            padding: 18px 20px;
+        }
+
+        .champion-card .badge-circle {
+            width: 56px;
+            height: 56px;
+            border-radius: 50%;
+            flex-shrink: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-family: 'Barlow Condensed', sans-serif;
+            font-weight: 900;
+            font-size: 20px;
+            color: #fff;
+        }
+
+        .champion-card .champ-name {
+            font-family: 'Barlow Condensed', sans-serif;
+            font-size: 24px;
+            font-weight: 900;
+        }
+
+        .champion-card .champ-sub {
+            font-size: 12px;
+            color: #666;
+            margin-top: 2px;
+        }
+
+        .champion-card.unofficial {
+            border-color: #ccc;
+            background: #f7f7f7;
+        }
+
+        .tourney-block {
+            border: 1px solid #ddd;
+            border-radius: 10px;
+            padding: 14px 16px;
+            margin-bottom: 12px;
+        }
+
+        .tourney-block-head {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 10px;
+            flex-wrap: wrap;
+            margin-bottom: 8px;
+        }
+
+        .tourney-block-head h3 {
+            font-family: 'Barlow Condensed', sans-serif;
+            font-size: 16px;
+            font-weight: 800;
+        }
+
+        .tourney-block-head .tag {
+            font-size: 10.5px;
+            text-transform: uppercase;
+            letter-spacing: .5px;
+            color: #666;
+            background: #f2f2f2;
+            padding: 3px 8px;
+            border-radius: 100px;
+        }
+
+        .tourney-status-tag {
+            font-size: 10.5px;
+            text-transform: uppercase;
+            letter-spacing: .5px;
+            font-weight: 700;
+            padding: 3px 8px;
+            border-radius: 100px;
+        }
+
+        .tourney-status-tag.completed {
+            background: #dcfce7;
+            color: #166534;
+        }
+
+        .tourney-status-tag.other {
+            background: #fef3c7;
+            color: #92400e;
+        }
+
         .sheet-footer {
             margin-top: 26px;
             padding-top: 14px;
@@ -171,8 +329,25 @@
             .sidebar,
             .topbar,
             .export-toolbar,
+            .mode-toggle,
+            .season-banner,
+            .download-bar,
             .page-header {
                 display: none !important;
+            }
+        }
+
+        @media (max-width: 640px) {
+
+            .sheet-header,
+            .sheet-body {
+                padding-left: 18px;
+                padding-right: 18px;
+            }
+
+            .champion-card {
+                flex-direction: column;
+                text-align: center;
             }
         }
     </style>
@@ -193,7 +368,7 @@
                 <div class="topbar-title">Export Results</div>
             </div>
             <div class="topbar-right">
-                <button class="btn btn-primary btn-sm" id="btn-print" style="display:none" onclick="window.print()">
+                <button class="btn btn-secondary btn-sm" id="btn-print" style="display:none" onclick="window.print()">
                     <i class="fa-solid fa-print"></i> Print
                 </button>
             </div>
@@ -201,21 +376,43 @@
         <div class="content">
             <div class="page-header">
                 <div class="page-title">Export Finalized Results</div>
-                <div class="page-sub">Pick a finalized tournament to print or save a full match-by-match results
-                    sheet with the winner and standings.</div>
+                <div class="page-sub">Export the overall Sport Fest champion report, or pick a single finalized
+                    tournament — current season only.</div>
             </div>
 
-            <div class="export-toolbar">
-                <select id="t-select" onchange="loadExport()">
+            <div id="season-banner" class="season-banner">Loading current season…</div>
+
+            <div class="mode-toggle" role="tablist">
+                <button class="mode-btn active" id="mode-season" onclick="switchMode('season')">
+                    <i class="fa-solid fa-trophy"></i> Season Champion Report
+                </button>
+                <button class="mode-btn" id="mode-single" onclick="switchMode('single')">
+                    <i class="fa-solid fa-list-check"></i> Individual Tournament
+                </button>
+            </div>
+
+            <div class="export-toolbar" id="single-toolbar" style="display:none">
+                <select id="t-select" onchange="loadSingleExport()">
                     <option value="">Select a finalized tournament...</option>
                 </select>
                 <button class="btn btn-secondary btn-sm" onclick="loadTournamentList()">Refresh List</button>
             </div>
 
+            <div class="download-bar" id="download-bar" style="display:none">
+                <button class="btn btn-secondary btn-sm" onclick="window.print()">
+                    <i class="fa-solid fa-print"></i> Print
+                </button>
+                <button class="btn btn-primary btn-sm" onclick="downloadPdf(event)">
+                    <i class="fa-solid fa-file-pdf"></i> Download PDF
+                </button>
+                <button class="btn btn-secondary btn-sm" onclick="downloadWord()">
+                    <i class="fa-solid fa-file-word"></i> Download Word
+                </button>
+            </div>
+
             <div id="sheet-host">
                 <div class="empty-state">
-                    <div class="empty-text">Select a finalized tournament above to preview
-                        its results sheet.</div>
+                    <div class="empty-text">Loading season report...</div>
                 </div>
             </div>
         </div>
@@ -224,48 +421,113 @@
     <script src="../../js/api.js"></script>
     <script src="../../js/sgo_president.js"></script>
     <script>
+        let currentMode = 'season';
+        let currentSheetTitle = 'export';
+
         document.addEventListener('DOMContentLoaded', async () => {
 
             const allowedRoles = ['admin', 'sgo_president'];
             const user = (typeof Auth !== 'undefined' && Auth.getUser) ? Auth.getUser() : null;
             if (!user || !allowedRoles.includes(user.role)) {
-
                 Auth.requireAuth('sgo_president');
                 return;
             }
             if (typeof renderSidebar === 'function') renderSidebar('reports');
+
             await loadTournamentList();
 
             const qsId = new URLSearchParams(window.location.search).get('tournament_id');
             if (qsId) {
+                switchMode('single');
                 document.getElementById('t-select').value = qsId;
-                await loadExport();
+                await loadSingleExport();
+            } else {
+                await loadSeasonExport();
             }
         });
 
-        async function loadTournamentList() {
-            const res = await api('/tournaments?all=true');
-            const sel = document.getElementById('t-select');
-            const current = sel.value;
-            if (!res.success) return;
+        function switchMode(mode) {
+            currentMode = mode;
+            document.getElementById('mode-season').classList.toggle('active', mode === 'season');
+            document.getElementById('mode-single').classList.toggle('active', mode === 'single');
+            document.getElementById('single-toolbar').style.display = mode === 'single' ? 'flex' : 'none';
 
-            const finalized = (res.data || []).filter(t => t.status === 'completed');
-            sel.innerHTML = '<option value="">Select a finalized tournament...</option>' +
-                finalized.map(t => `<option value="${t.id}">${t.name} — ${t.sport_name}</option>`).join('');
-            if (current) sel.value = current;
-
-            if (!finalized.length) {
-                document.getElementById('sheet-host').innerHTML =
-                    `<div class="empty-state"><div class="empty-text">No finalized tournaments yet. Finalize a tournament from Game Setup first, then come back here to export it.</div></div>`;
+            if (mode === 'season') {
+                loadSeasonExport();
+            } else {
+                const id = document.getElementById('t-select').value;
+                if (id) {
+                    loadSingleExport();
+                } else {
+                    document.getElementById('sheet-host').innerHTML =
+                        `<div class="empty-state"><div class="empty-text">Select a finalized tournament above to preview its results sheet.</div></div>`;
+                    document.getElementById('download-bar').style.display = 'none';
+                    document.getElementById('btn-print').style.display = 'none';
+                }
             }
         }
 
-        async function loadExport() {
+        // ── Current-season-only tournament list for the individual picker ──
+        async function loadTournamentList() {
+            const res = await api('/reports/current-season/tournaments');
+            const sel = document.getElementById('t-select');
+            const banner = document.getElementById('season-banner');
+            const current = sel.value;
+
+            if (!res.success) {
+                banner.textContent = 'Could not load the current season.';
+                return;
+            }
+
+            const rows = res.data || [];
+            sel.innerHTML = '<option value="">Select a finalized tournament...</option>' +
+                rows.map(t => `<option value="${t.id}">${t.name} — ${t.sport_name}</option>`).join('');
+            if (current) sel.value = current;
+
+            if (!res.meta || !res.meta.sport_fest_id) {
+                banner.innerHTML = `<span><i class="fa-solid fa-circle-exclamation"></i> No active Sport Fest season found. Start a season first.</span>`;
+            } else if (!rows.length) {
+                banner.innerHTML = `<span>No finalized tournaments in the current season yet.</span>`;
+            }
+        }
+
+        // ── Mode 1: Full season / overall champion report ──
+        async function loadSeasonExport() {
+            const host = document.getElementById('sheet-host');
+            const printBtn = document.getElementById('btn-print');
+            const downloadBar = document.getElementById('download-bar');
+            const banner = document.getElementById('season-banner');
+
+            host.innerHTML = `<div class="empty-state"><div class="empty-text">Loading...</div></div>`;
+            downloadBar.style.display = 'none';
+            printBtn.style.display = 'none';
+
+            const res = await api('/reports/sportfest/export');
+            if (!res.success) {
+                host.innerHTML = `<div class="empty-state"><div class="empty-text">${res.message || 'Failed to load the season report.'}</div></div>`;
+                banner.innerHTML = `<span><i class="fa-solid fa-circle-exclamation"></i> ${res.message || 'No active season found.'}</span>`;
+                return;
+            }
+
+            const fest = res.data.sport_fest;
+            banner.innerHTML = `Current season: <strong>${fest.name}${fest.year ? ' (' + fest.year + ')' : ''}</strong>`;
+
+            currentSheetTitle = `${fest.name}-season-report`.replace(/[^a-z0-9\-]+/gi, '_');
+            host.innerHTML = renderSeasonSheet(res.data);
+            downloadBar.style.display = 'flex';
+            printBtn.style.display = '';
+        }
+
+        // ── Mode 2: Single tournament (current season only, enforced server-side too) ──
+        async function loadSingleExport() {
             const id = document.getElementById('t-select').value;
             const host = document.getElementById('sheet-host');
             const printBtn = document.getElementById('btn-print');
+            const downloadBar = document.getElementById('download-bar');
+
             if (!id) {
                 host.innerHTML = `<div class="empty-state"><div class="empty-text">Select a finalized tournament above to preview its results sheet.</div></div>`;
+                downloadBar.style.display = 'none';
                 printBtn.style.display = 'none';
                 return;
             }
@@ -274,11 +536,14 @@
             const res = await api(`/reports/tournaments/${id}/export`);
             if (!res.success) {
                 host.innerHTML = `<div class="empty-state"><div class="empty-text">${res.message || 'Failed to load export.'}</div></div>`;
+                downloadBar.style.display = 'none';
                 printBtn.style.display = 'none';
                 return;
             }
 
+            currentSheetTitle = `${res.data.tournament.name}-results`.replace(/[^a-z0-9\-]+/gi, '_');
             host.innerHTML = renderSheet(res.data);
+            downloadBar.style.display = 'flex';
             printBtn.style.display = '';
         }
 
@@ -291,6 +556,95 @@
             return '';
         }
 
+        function initialsOf(name = '') {
+            return name.split(' ').map(w => w[0] || '').slice(0, 2).join('').toUpperCase() || '?';
+        }
+
+        // ── Full season sheet: champion + leaderboard + every tournament in the current season ──
+        function renderSeasonSheet(data) {
+            const fest = data.sport_fest;
+            const champ = data.champion;
+
+            const leaderboardRows = (data.leaderboard || []).map((d, i) => `
+                <tr>
+                    <td>${i + 1}</td>
+                    <td>${d.name}</td>
+                    <td class="medal-gold">${d.gold_medals}</td>
+                    <td class="medal-silver">${d.silver_medals}</td>
+                    <td class="medal-bronze">${d.bronze_medals}</td>
+                    <td><strong>${d.total_points}</strong></td>
+                </tr>`).join('') || `<tr><td colspan="6" style="text-align:center;color:#888">No department scores recorded.</td></tr>`;
+
+            const tourneyBlocks = (data.tournaments || []).map(t => {
+                const isDone = t.status === 'completed';
+                const standingRows = (t.standings || []).slice(0, 5).map(s => `
+                    <tr>
+                        <td>${s.rank}</td>
+                        <td>${s.department_name}${s.team_name ? ' — ' + s.team_name : ''}</td>
+                        <td class="${medalClass(s.medal)}">${s.medal || '—'}</td>
+                        <td>${s.sport_fest_points ?? 0}</td>
+                    </tr>`).join('') || `<tr><td colspan="4" style="text-align:center;color:#888">${isDone ? 'No standings recorded.' : 'Not finalized yet.'}</td></tr>`;
+
+                return `
+                <div class="tourney-block">
+                    <div class="tourney-block-head">
+                        <h3>${t.name}</h3>
+                        <div style="display:flex;gap:6px;align-items:center">
+                            <span class="tag">${t.sport_name}</span>
+                            <span class="tourney-status-tag ${isDone ? 'completed' : 'other'}">${t.status}</span>
+                        </div>
+                    </div>
+                    <table class="sheet-table">
+                        <thead><tr><th>Rank</th><th>Department</th><th>Medal</th><th>Points</th></tr></thead>
+                        <tbody>${standingRows}</tbody>
+                    </table>
+                </div>`;
+            }).join('') || `<div class="empty-state"><div class="empty-text">No tournaments have been added to this season yet.</div></div>`;
+
+            const champColor = champ?.color || '#f5b800';
+
+            return `
+            <div class="sheet">
+                <div class="sheet-header">
+                    <div>
+                        <h1>${fest.name}${fest.year ? ' — ' + fest.year : ''}</h1>
+                        <div class="sub">Overall Sport Fest Results ${fest.theme ? '· ' + fest.theme : ''}</div>
+                    </div>
+                    <div class="sheet-badge ${data.champion_finalized ? '' : 'pending'}">
+                        ${data.champion_finalized ? 'Champion Declared' : 'In Progress'}
+                    </div>
+                </div>
+                <div class="sheet-body">
+                    <div class="sheet-section-title">Overall Champion</div>
+                    ${champ ? `
+                    <div class="champion-card ${data.champion_finalized ? '' : 'unofficial'}">
+                        <div class="badge-circle" style="background:${champColor}">${initialsOf(champ.name)}</div>
+                        <div>
+                            <div class="champ-name">🏆 ${champ.name}</div>
+                            <div class="champ-sub">${data.champion_finalized
+                        ? 'Officially declared Sport Fest Champion'
+                        : `Currently leading with ${champ.total_points ?? 0} pts — champion not yet officially declared`}</div>
+                        </div>
+                    </div>` : `<div class="empty-state"><div class="empty-text">No department scores recorded yet.</div></div>`}
+
+                    <div class="sheet-section-title">Department Standings</div>
+                    <table class="sheet-table">
+                        <thead><tr><th>Rank</th><th>Department</th><th>🥇</th><th>🥈</th><th>🥉</th><th>Points</th></tr></thead>
+                        <tbody>${leaderboardRows}</tbody>
+                    </table>
+
+                    <div class="sheet-section-title">Tournaments This Season (${data.totals?.total_tournaments ?? (data.tournaments || []).length})</div>
+                    ${tourneyBlocks}
+
+                    <div class="sheet-footer">
+                        <span>Exported by ${data.exported_by || '—'}</span>
+                        <span>Generated ${new Date(data.exported_at).toLocaleString('en-PH')}</span>
+                    </div>
+                </div>
+            </div>`;
+        }
+
+        // ── Single-tournament sheet (unchanged behaviour, current season enforced server-side) ──
         function renderSheet(data) {
             const t = data.tournament;
             const champion = data.standings?.find(s => s.rank === 1);
@@ -359,6 +713,63 @@
                     </div>
                 </div>
             </div>`;
+        }
+
+        // ── Downloads ──────────────────────────────────────────────────────
+        function downloadPdf(evt) {
+            const sheet = document.querySelector('#sheet-host .sheet');
+            if (!sheet) return;
+            const btn = evt?.target?.closest('button');
+            const originalHtml = btn ? btn.innerHTML : null;
+            if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Generating...'; }
+
+            html2pdf()
+                .set({
+                    margin: 0.3,
+                    filename: `${currentSheetTitle}.pdf`,
+                    image: { type: 'jpeg', quality: 0.98 },
+                    html2canvas: { scale: 2, useCORS: true },
+                    jsPDF: { unit: 'in', format: 'letter', orientation: 'portrait' },
+                    pagebreak: { mode: ['avoid-all', 'css', 'legacy'] },
+                })
+                .from(sheet)
+                .save()
+                .finally(() => {
+                    if (btn) { btn.disabled = false; btn.innerHTML = originalHtml; }
+                });
+        }
+
+        // Lightweight "export to Word" using the classic MS-Word HTML wrapper —
+        // no extra libraries needed, opens natively in Microsoft Word.
+        function downloadWord() {
+            const sheet = document.querySelector('#sheet-host .sheet');
+            if (!sheet) return;
+
+            const preface = `<html xmlns:o="urn:schemas-microsoft-com:office:office"
+                  xmlns:w="urn:schemas-microsoft-com:office:word"
+                  xmlns="http://www.w3.org/TR/REC-html40">
+                <head><meta charset="utf-8"><title>${currentSheetTitle}</title>
+                <!--[if gte mso 9]>
+                <xml><w:WordDocument><w:View>Print</w:View><w:Zoom>90</w:Zoom></w:WordDocument></xml>
+                <![endif]-->
+                <style>
+                    body { font-family: Calibri, Arial, sans-serif; }
+                    table { border-collapse: collapse; width: 100%; }
+                    th, td { border: 1px solid #ddd; padding: 6px 8px; font-size: 12px; }
+                    th { background: #f2f2f2; }
+                </style></head><body>`;
+            const postface = `</body></html>`;
+            const html = preface + sheet.outerHTML + postface;
+
+            const blob = new Blob(['\ufeff', html], { type: 'application/msword' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `${currentSheetTitle}.doc`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
         }
     </script>
 </body>

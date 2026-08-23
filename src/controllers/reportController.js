@@ -1,4 +1,3 @@
-
 const { pool } = require('../config/database');
 const { getActiveSportFestId } = require('../utils/season');
 const cache = require('../utils/cache');
@@ -578,6 +577,27 @@ const getTournamentExport = async (req, res, next) => {
             return res.status(404).json({ success: false, message: 'Tournament not found.' });
         }
 
+        // Only tournaments belonging to the CURRENT/active Sport Fest season can be
+        // exported here — past/archived seasons are out of scope for this report.
+        const activeSportFestId = await getActiveSportFestId();
+        if (!activeSportFestId) {
+            return res.status(400).json({
+                success: false,
+                message: 'No active Sport Fest season found.',
+            });
+        }
+        const [link] = await pool.execute(
+            `SELECT 1 FROM sport_fest_tournaments
+             WHERE tournament_id = ? AND sport_fest_id = ? LIMIT 1`,
+            [tid, activeSportFestId]
+        );
+        if (!link.length) {
+            return res.status(403).json({
+                success: false,
+                message: 'This tournament is not part of the current season and cannot be exported here.',
+            });
+        }
+
         if (tourney[0].status !== 'completed') {
             return res.status(400).json({
                 success: false,
@@ -652,6 +672,153 @@ const getTournamentExport = async (req, res, next) => {
     }
 };
 
+// List of the CURRENT season's tournaments only (past/archived seasons are
+// intentionally excluded). Used to populate the "Individual Tournament" picker
+// on the export page.
+const getCurrentSeasonTournaments = async (req, res, next) => {
+    try {
+        const sportFestId = await getActiveSportFestId();
+        if (!sportFestId) {
+            return res.json({ success: true, data: [], meta: { sport_fest_id: null } });
+        }
+
+        const [rows] = await pool.execute(
+            `SELECT t.id, t.name, t.status, t.format, t.gender,
+                    s.name AS sport_name, s.category
+             FROM sport_fest_tournaments sft
+             JOIN tournaments t ON sft.tournament_id = t.id
+             JOIN sports s ON t.sport_id = s.id
+             WHERE sft.sport_fest_id = ?
+               AND t.status = 'completed'
+             ORDER BY s.name ASC, t.name ASC`,
+            [sportFestId]
+        );
+
+        res.json({ success: true, data: rows, meta: { sport_fest_id: sportFestId } });
+    } catch (err) {
+        next(err);
+    }
+};
+
+// Full season / Sport Fest export: overall champion + department leaderboard +
+// every tournament finalized within the CURRENT season, each with its own
+// standings. Never includes tournaments from past/archived seasons.
+const getSportFestExport = async (req, res, next) => {
+    try {
+        const sportFestId = await getActiveSportFestId();
+        if (!sportFestId) {
+            return res.status(400).json({
+                success: false,
+                message: 'No active Sport Fest season found. Start a season first.',
+            });
+        }
+
+        const [festRows] = await pool.execute(
+            `SELECT sf.*, d.name AS champion_name, d.color AS champion_color, d.code AS champion_code
+             FROM sport_fest_events sf
+             LEFT JOIN departments d ON sf.champion_department_id = d.id
+             WHERE sf.id = ?`,
+            [sportFestId]
+        );
+        if (!festRows.length) {
+            return res.status(404).json({ success: false, message: 'Sport Fest season not found.' });
+        }
+        const fest = festRows[0];
+
+        const [leaderboard] = await pool.execute(
+            `SELECT d.id, d.name, d.code, d.color,
+                    COALESCE(ds.total_points, 0) AS total_points,
+                    COALESCE(ds.gold_medals, 0) AS gold_medals,
+                    COALESCE(ds.silver_medals, 0) AS silver_medals,
+                    COALESCE(ds.bronze_medals, 0) AS bronze_medals
+             FROM departments d
+             LEFT JOIN department_scores ds
+               ON d.id = ds.department_id AND ds.sport_fest_id = ?
+             WHERE d.is_active = 1
+             ORDER BY total_points DESC, gold_medals DESC, silver_medals DESC, bronze_medals DESC`,
+            [sportFestId]
+        );
+
+        // Tournaments linked to THIS season only.
+        const [tournaments] = await pool.execute(
+            `SELECT t.id, t.name, t.status, t.format, t.gender,
+                    s.name AS sport_name, s.category
+             FROM sport_fest_tournaments sft
+             JOIN tournaments t ON sft.tournament_id = t.id
+             JOIN sports s ON t.sport_id = s.id
+             WHERE sft.sport_fest_id = ?
+             ORDER BY s.name ASC, t.name ASC`,
+            [sportFestId]
+        );
+
+        let resultsByTournament = {};
+        if (tournaments.length) {
+            const ids = tournaments.map((t) => t.id);
+            const placeholders = ids.map(() => '?').join(',');
+            const [allResults] = await pool.execute(
+                `SELECT tr.tournament_id, tr.\`rank\`, tr.medal, tr.sport_fest_points,
+                        d.name AS department_name, d.color, te.name AS team_name
+                 FROM tournament_results tr
+                 JOIN departments d ON tr.department_id = d.id
+                 LEFT JOIN teams te ON tr.team_id = te.id
+                 WHERE tr.tournament_id IN (${placeholders})
+                 ORDER BY tr.tournament_id ASC, tr.\`rank\` ASC`,
+                ids
+            );
+            resultsByTournament = allResults.reduce((acc, r) => {
+                (acc[r.tournament_id] = acc[r.tournament_id] || []).push(r);
+                return acc;
+            }, {});
+        }
+
+        const tournamentsWithResults = tournaments.map((t) => ({
+            ...t,
+            standings: resultsByTournament[t.id] || [],
+        }));
+
+        // Prefer the officially declared champion; fall back to the current
+        // leaderboard leader (clearly flagged as unofficial/in-progress) so the
+        // report is still useful before "Declare Champion" has been run.
+        const champion = fest.champion_department_id
+            ? {
+                id: fest.champion_department_id,
+                name: fest.champion_name,
+                color: fest.champion_color,
+                code: fest.champion_code,
+            }
+            : leaderboard[0]
+                ? { ...leaderboard[0] }
+                : null;
+
+        res.json({
+            success: true,
+            data: {
+                sport_fest: fest,
+                champion,
+                champion_finalized: !!fest.champion_department_id,
+                leaderboard,
+                tournaments: tournamentsWithResults,
+                totals: {
+                    total_tournaments: tournaments.length,
+                    completed_tournaments: tournaments.filter((t) => t.status === 'completed').length,
+                },
+                exported_at: new Date().toISOString(),
+                exported_by: await (async () => {
+                    if (!req.user) return null;
+                    const [[u]] = await pool.query(
+                        'SELECT first_name, last_name, username FROM users WHERE id = ?',
+                        [req.user.id]
+                    );
+                    if (!u) return null;
+                    return `${u.first_name || ''} ${u.last_name || ''}`.trim() || u.username;
+                })(),
+            },
+        });
+    } catch (err) {
+        next(err);
+    }
+};
+
 const getActivityLog = async (req, res, next) => {
     try {
         const limitNum = Math.max(1, parseInt(req.query.limit, 10) || 50);
@@ -686,5 +853,7 @@ module.exports = {
     getDepartmentReport,
     getTournamentReport,
     getTournamentExport,
+    getCurrentSeasonTournaments,
+    getSportFestExport,
     getActivityLog,
 };

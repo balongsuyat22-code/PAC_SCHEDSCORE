@@ -75,5 +75,6 @@ router.get(
     authorize('admin'),
     rc.getActivityLog
 );
-
+router.get('/reports/current-season/tournaments', auth, reportController.getCurrentSeasonTournaments);
+router.get('/reports/sportfest/export', auth, reportController.getSportFestExport);
 module.exports = router;
