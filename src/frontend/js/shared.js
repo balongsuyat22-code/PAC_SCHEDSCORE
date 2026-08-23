@@ -134,19 +134,86 @@ function filterTable(tableId, query) {
 }
 
 const Toast = {
+    _ensureStyles() {
+        if (document.getElementById('sf-toast-styles')) return;
+        const s = document.createElement('style');
+        s.id = 'sf-toast-styles';
+        s.textContent = `
+#sf-toast {
+  position: fixed;
+  top: max(72px, calc(env(safe-area-inset-top, 0px) + 56px));
+  left: 50%;
+  transform: translateX(-50%) translateY(-8px);
+  z-index: 10000;
+  min-width: 200px;
+  max-width: min(400px, calc(100vw - 24px));
+  padding: 12px 16px;
+  border-radius: 12px;
+  font-size: 14px;
+  line-height: 1.35;
+  font-family: 'Barlow', system-ui, sans-serif;
+  box-shadow: 0 12px 36px rgba(0,0,0,.45);
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transition: opacity .2s ease, transform .2s ease, visibility .2s;
+  background: #1e293b;
+  color: #e2e8f0;
+  border: 1px solid rgba(255,255,255,.12);
+  text-align: center;
+}
+#sf-toast.show {
+  opacity: 1;
+  visibility: visible;
+  pointer-events: auto;
+  transform: translateX(-50%) translateY(0);
+}
+#sf-toast.success {
+  background: #14532d;
+  color: #bbf7d0;
+  border-color: rgba(34,197,94,.5);
+}
+#sf-toast.error {
+  background: #7f1d1d;
+  color: #fecaca;
+  border-color: rgba(232,50,59,.5);
+}
+#sf-toast.info {
+  background: #1e3a5f;
+  color: #bfdbfe;
+  border-color: rgba(59,130,246,.5);
+}`;
+        document.head.appendChild(s);
+    },
+
     show(msg, type = 'success', duration = 3000) {
+        this._ensureStyles();
         let t = document.getElementById('sf-toast');
         if (!t) {
             t = document.createElement('div');
             t.id = 'sf-toast';
-            t.className = 'toast';
             document.body.appendChild(t);
         }
         const icons = { success: 'OK', error: 'ERR', info: 'i' };
-        t.innerHTML = `<span style="font-weight:800;margin-right:6px">${icons[type] || '•'}</span> ${msg}`;
+        t.innerHTML =
+            `<span style="font-weight:800;margin-right:6px">${icons[type] || '•'}</span> ${msg}`;
         t.className = `toast ${type} show`;
         clearTimeout(t._timer);
-        t._timer = setTimeout(() => t.classList.remove('show'), duration);
+        t._timer = setTimeout(() => {
+            t.classList.remove('show');
+            // fully clear after fade so it can't sit empty on the page
+            setTimeout(() => {
+                if (!t.classList.contains('show')) t.innerHTML = '';
+            }, 250);
+        }, Math.max(1200, duration || 3000));
+    },
+
+    hide() {
+        const t = document.getElementById('sf-toast');
+        if (!t) return;
+        t.classList.remove('show');
+        clearTimeout(t._timer);
+        t.innerHTML = '';
     }
 };
 

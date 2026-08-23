@@ -284,7 +284,14 @@
             renderStats();
             renderMatchTable();
         }
-
+        function fmtScoreLabel(n, scoringType) {
+            const x = Number(n);
+            if (!Number.isFinite(x)) return '—';
+            if (String(scoringType || '').toLowerCase() === 'time') {
+                return String(parseFloat(x.toFixed(2)));
+            }
+            return String(Math.round(x));
+        }
         function renderStats() {
             const d = allAssignedMatches;
             document.getElementById('stat-total').textContent = d.length;
