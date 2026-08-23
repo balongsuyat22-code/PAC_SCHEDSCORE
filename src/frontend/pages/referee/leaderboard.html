@@ -14,34 +14,37 @@
             display: flex;
             justify-content: center;
             align-items: flex-end;
-            gap: 16px;
-            margin-bottom: 36px;
-            padding: 24px 16px 0;
-            flex-wrap: wrap;
+            gap: 12px;
+            margin-bottom: 28px;
+            padding: 20px 12px 0;
+            flex-wrap: nowrap;
         }
 
         .podium-place {
             display: flex;
             flex-direction: column;
             align-items: center;
-            width: 120px;
+            width: clamp(78px, 24vw, 120px);
+            flex-shrink: 1;
+            min-width: 0;
         }
 
         .podium-avatar {
-            width: 60px;
-            height: 60px;
+            width: clamp(42px, 12vw, 60px);
+            height: clamp(42px, 12vw, 60px);
             border-radius: 50%;
             border: 3px solid var(--border);
             display: flex;
             align-items: center;
             justify-content: center;
             font-family: 'Barlow Condensed', sans-serif;
-            font-size: 22px;
+            font-size: clamp(16px, 4vw, 22px);
             font-weight: 900;
             background: var(--bg3);
-            margin-bottom: 10px;
+            margin-bottom: 8px;
             transition: transform 0.2s;
             color: var(--text);
+            flex-shrink: 0;
         }
 
         .podium-place:hover .podium-avatar {
@@ -78,42 +81,42 @@
         }
 
         .bar-1 {
-            height: 120px;
+            height: 96px;
             background: linear-gradient(to top, #e6a800, #ffd700);
             order: 2;
         }
 
         .bar-2 {
-            height: 85px;
+            height: 68px;
             background: linear-gradient(to top, #999, #d4d4d4);
             order: 1;
         }
 
         .bar-3 {
-            height: 60px;
+            height: 50px;
             background: linear-gradient(to top, #a05c1e, #d4894a);
             order: 3;
         }
 
         .podium-bar-pts {
-            font-size: 20px;
+            font-size: clamp(14px, 4vw, 20px);
             font-weight: 900;
         }
 
         .podium-bar-label {
-            font-size: 11px;
+            font-size: 10px;
             font-weight: 700;
             opacity: 0.7;
         }
 
         .podium-name {
             font-family: 'Barlow Condensed', sans-serif;
-            font-size: 13px;
+            font-size: 12px;
             font-weight: 700;
             text-align: center;
             margin-top: 8px;
             color: var(--text);
-            max-width: 120px;
+            max-width: 100%;
             overflow: hidden;
             text-overflow: ellipsis;
             white-space: nowrap;
@@ -121,19 +124,19 @@
 
         .lb-section-title {
             font-family: 'Barlow Condensed', sans-serif;
-            font-size: 13px;
+            font-size: 12px;
             font-weight: 700;
             letter-spacing: 1.5px;
             text-transform: uppercase;
             color: var(--muted);
-            padding: 0 20px 12px;
+            padding: 4px 18px 10px;
         }
 
         .lb-row {
             display: flex;
             align-items: center;
-            gap: 14px;
-            padding: 14px 20px;
+            gap: 12px;
+            padding: 13px 18px;
             border-bottom: 1px solid var(--border);
             transition: background 0.12s;
         }
@@ -157,23 +160,33 @@
 
         .lb-rank {
             font-family: 'Barlow Condensed', sans-serif;
-            font-size: 20px;
+            font-size: 16px;
             font-weight: 900;
-            min-width: 36px;
+            width: 28px;
+            height: 28px;
+            flex-shrink: 0;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
             text-align: center;
             color: var(--muted);
+            background: var(--bg3);
         }
 
         .lb-rank.rank-1 {
-            color: #ffd700;
+            color: #1a1400;
+            background: linear-gradient(145deg, #ffe066, #ffd700);
         }
 
         .lb-rank.rank-2 {
-            color: #c0c0c0;
+            color: #1a1a1a;
+            background: linear-gradient(145deg, #e6e6e6, #c0c0c0);
         }
 
         .lb-rank.rank-3 {
-            color: #cd7f32;
+            color: #2a1400;
+            background: linear-gradient(145deg, #e0a468, #cd7f32);
         }
 
         .lb-color-dot {
@@ -190,17 +203,20 @@
 
         .lb-dept-name {
             font-family: 'Barlow Condensed', sans-serif;
-            font-size: 16px;
+            font-size: 15px;
             font-weight: 800;
             color: var(--text);
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
         }
 
         .lb-dept-medals {
-            font-size: 12px;
+            font-size: 11px;
             color: var(--muted);
             margin-top: 2px;
             display: flex;
-            gap: 10px;
+            gap: 9px;
             flex-wrap: wrap;
         }
 
@@ -231,67 +247,72 @@
         }
 
         @media (max-width: 640px) {
+            .content {
+                padding-left: 10px !important;
+                padding-right: 10px !important;
+            }
+
             .podium-wrap {
-                gap: 10px;
-                padding: 16px 8px 0;
-                margin-bottom: 24px;
+                gap: 8px;
+                padding: 14px 6px 0;
+                margin-bottom: 18px;
             }
 
-            .podium-place {
-                width: 100px;
-            }
-
-            .podium-avatar {
-                width: 48px;
-                height: 48px;
-                font-size: 18px;
-            }
-
-            .bar-1 {
-                height: 90px;
-            }
-
-            .bar-2 {
-                height: 65px;
-            }
-
-            .bar-3 {
-                height: 48px;
+            .lb-section-title {
+                padding: 0 16px 10px;
+                font-size: 12px;
             }
 
             .lb-row {
-                padding: 12px 14px;
-                gap: 10px;
+                padding: 11px 14px;
+                gap: 9px;
             }
 
-            .lb-rank {
-                font-size: 18px;
-                min-width: 28px;
+            .lb-color-dot {
+                width: 8px;
+                height: 8px;
             }
 
             .lb-dept-name {
-                font-size: 15px;
+                font-size: 14px;
             }
 
             .lb-pts {
-                font-size: 20px;
+                font-size: 19px;
+            }
+
+            .lb-pts-label {
+                font-size: 9px;
             }
 
             .page-header {
-                flex-direction: column;
-                align-items: flex-start !important;
-                gap: 10px;
+                flex-direction: row !important;
+                align-items: center !important;
+                justify-content: space-between !important;
+                gap: 8px;
+            }
+
+            .page-title {
+                font-size: 18px !important;
+            }
+
+            .page-sub {
+                display: none;
+            }
+
+            .btn.btn-secondary.btn-sm {
+                padding: 8px 12px;
+                font-size: 12px;
             }
         }
 
         @media (max-width: 400px) {
-            .podium-place {
-                width: 88px;
+            .lb-dept-medals {
+                gap: 6px;
             }
 
-            .podium-name {
-                font-size: 12px;
-                max-width: 88px;
+            .medal-stat {
+                font-size: 10px;
             }
         }
     </style>
@@ -330,7 +351,7 @@
                 </button>
             </div>
 
-            <div class="card" style="max-width:860px; margin:0 auto;">
+            <div class="card" style="max-width:720px; margin:0 auto; padding:20px 0 6px; overflow:hidden;">
                 <div id="podium" class="podium-wrap"></div>
                 <div class="lb-section-title">Full Rankings</div>
                 <div id="leaderboard-list">
