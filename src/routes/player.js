@@ -11,9 +11,10 @@ router.post('/', authorize('dean_adviser', 'admin'), pc.registerPlayer);
 router.post('/import', authorize('dean_adviser', 'admin'), pc.importPlayers);
 
 router.get('/', pc.getAllPlayers);
-router.get('/pending', authorize('admin', 'dean_adviser'), pc.getPendingPlayers);
-router.get('/rejected', authorize('admin', 'dean_adviser'), pc.getRejectedPlayers);
-router.get('/check-duplicate', authorize('dean_adviser', 'admin'), pc.checkDuplicate); // NEW
+// President needs read access for alerts / oversight
+router.get('/pending', authorize('admin', 'dean_adviser', 'sgo_president'), pc.getPendingPlayers);
+router.get('/rejected', authorize('admin', 'dean_adviser', 'sgo_president'), pc.getRejectedPlayers);
+router.get('/check-duplicate', authorize('dean_adviser', 'admin'), pc.checkDuplicate);
 router.get('/by-department/:departmentId', authorize('admin', 'sgo_president', 'sgo_officer'), pc.getPlayersByDepartment);
 router.get('/by-team/:teamId', pc.getTeamPlayers);
 router.get('/:id', pc.getPlayerById);

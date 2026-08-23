@@ -54,7 +54,7 @@ router.get(
 
 router.get(
     '/departments/:id',
-    authorize('admin', 'dean_adviser'),
+    authorize('admin', 'dean_adviser', 'sgo_president'),
     rc.getDepartmentReport
 );
 
