@@ -3,8 +3,11 @@ const router = express.Router();
 const pc = require('../controllers/playerController');
 const { authenticate, authorize } = require('../middleware/auth');
 
+// ---- Public routes (no login required) — must stay above router.use(authenticate) ----
 router.get('/approved', pc.getApprovedPlayers);
 router.get('/by-sport/:sportId', pc.getPlayersBySport);
+router.post('/public-register', pc.publicRegisterPlayer);
+
 router.use(authenticate);
 
 router.post('/', authorize('dean_adviser', 'admin'), pc.registerPlayer);
@@ -24,6 +27,5 @@ router.put('/:id', authorize('dean_adviser', 'admin'), pc.updatePlayer);
 router.patch('/:id/status', authorize('dean_adviser', 'admin'), pc.updatePlayerStatus);
 router.patch('/:id/remove-from-team', authorize('dean_adviser', 'admin'), pc.removeFromTeam);
 router.delete('/:id', authorize('admin'), pc.deletePlayer);
-router.post('/players/public-register', playerController.publicRegisterPlayer);
 
 module.exports = router;

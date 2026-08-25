@@ -51,6 +51,7 @@ initSocket(socketHelpers);
 app.set('io', io);
 
 const frontendRoot = path.join(__dirname, 'frontend');
+const frontendPages = path.join(__dirname, 'frontend', 'pages'); // same folder login.html lives in
 const frontendAdmin = path.join(__dirname, 'frontend', 'pages', 'admin');
 const frontendReferee = path.join(__dirname, 'frontend', 'pages', 'referee');
 const frontendVisitor = path.join(__dirname, 'frontend', 'pages', 'visitor');
@@ -100,7 +101,8 @@ app.get('/socket-status', (req, res) => {
     });
 });
 
-app.get('/player-registration', sendPageFrom(frontendRoot, 'player_registration.html'));
+// player_registration.html lives alongside login.html in frontend/pages/
+app.get('/player-registration', sendPageFrom(frontendPages, 'player_registration.html'));
 
 app.get('/live', sendPageFrom(frontendVisitor, 'index.html'));
 app.get('/live/scores', sendPageFrom(frontendVisitor, 'index.html'));
