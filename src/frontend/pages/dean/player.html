@@ -4,164 +4,72 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Player Registration — PAC SCHED-SCORE</title>
+    <title>PAC SCHED-SCORE — Player Registration</title>
     <link
         href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;600;700;800;900&family=Barlow:wght@300;400;500;600&display=swap"
         rel="stylesheet">
-    <link rel="stylesheet" href="../css/shared.css">
+    <link rel="stylesheet" href="../../css/shared.css">
+    <link rel="stylesheet" href="../../css/dean.css">
     <style>
-        body {
+        .tab-bar {
             display: flex;
-            justify-content: center;
-            padding: 28px 16px 72px;
-            min-height: 100vh;
-            box-sizing: border-box;
-            background: var(--bg)
-        }
-
-        .reg-wrap {
-            width: 100%;
-            max-width: 480px
-        }
-
-        .reg-header {
-            text-align: center;
-            margin-bottom: 20px
-        }
-
-        .reg-dept-badge {
-            width: 72px;
-            height: 72px;
-            border-radius: 18px;
-            margin: 0 auto 14px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-family: 'Barlow Condensed', sans-serif;
-            font-weight: 900;
-            font-size: 24px;
-            overflow: hidden;
-            box-shadow: 0 4px 16px rgba(0, 0, 0, .18)
-        }
-
-        .reg-dept-badge img {
-            width: 100%;
-            height: 100%;
-            object-fit: cover
-        }
-
-        .reg-title {
-            font-family: 'Barlow Condensed', sans-serif;
-            font-weight: 900;
-            font-size: 26px;
-            letter-spacing: .4px;
-            line-height: 1.15
-        }
-
-        .reg-subtitle {
-            color: var(--muted);
-            font-size: 13.5px;
-            margin-top: 6px;
-            line-height: 1.4
-        }
-
-        .reg-card {
+            gap: 4px;
+            margin-bottom: 20px;
             background: var(--bg2);
             border: 1px solid var(--border);
-            border-radius: 18px;
-            padding: 24px 22px;
-            box-shadow: 0 8px 28px rgba(0, 0, 0, .12)
+            border-radius: 10px;
+            padding: 4px
         }
 
-        .reg-section {
-            margin-bottom: 18px
-        }
-
-        .reg-section:last-of-type {
-            margin-bottom: 0
-        }
-
-        .reg-section-label {
-            font-size: 11px;
-            font-weight: 700;
-            text-transform: uppercase;
-            letter-spacing: .8px;
-            color: var(--muted);
-            margin-bottom: 8px
-        }
-
-        .avatar-block {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            gap: 10px;
-            margin-bottom: 20px;
-            padding-bottom: 18px;
-            border-bottom: 1px solid var(--border)
-        }
-
-        #avatar-preview {
-            width: 84px;
-            height: 84px;
-            border-radius: 20px;
-            background: var(--bg3);
-            border: 2px dashed var(--border);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 22px;
-            font-weight: 900;
+        .tab-pill {
+            flex: 1;
+            text-align: center;
+            padding: 8px 12px;
+            border-radius: 8px;
             cursor: pointer;
-            overflow: hidden;
-            transition: border-color .15s
-        }
-
-        #avatar-preview:hover {
-            border-color: var(--gold)
-        }
-
-        .avatar-hint {
-            font-size: 12px;
-            color: var(--muted)
-        }
-
-        .name-row {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 10px
-        }
-
-        .field {
-            margin-bottom: 12px
-        }
-
-        .field label {
-            display: block;
-            font-size: 12.5px;
+            font-size: 13px;
             font-weight: 600;
-            color: var(--text2);
-            margin-bottom: 5px
-        }
-
-        .field label .opt {
-            font-weight: 400;
             color: var(--muted);
-            font-size: 11.5px
+            transition: all .15s
         }
 
+        .tab-pill.active {
+            background: var(--bg3);
+            color: var(--text);
+            box-shadow: 0 1px 4px rgba(0, 0, 0, .2)
+        }
+
+        .import-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 8px;
+            padding: 8px;
+            background: var(--bg3);
+            border-radius: 6px;
+            margin-bottom: 6px;
+            font-size: 13px;
+            align-items: center
+        }
+
+        .import-row-error {
+            background: rgba(232, 50, 59, .08);
+            border: 1px solid rgba(232, 50, 59, .2)
+        }
+
+        /* --- multi-sport chip picker --- */
         .chip-select {
             display: flex;
             flex-wrap: wrap;
-            gap: 8px
+            gap: 6px
         }
 
         .chip {
-            border: 1.5px solid var(--border);
+            border: 1px solid var(--border);
             background: var(--bg3);
             color: var(--text2);
-            padding: 9px 16px;
+            padding: 6px 12px;
             border-radius: 999px;
-            font-size: 13px;
+            font-size: 12.5px;
             font-weight: 600;
             cursor: pointer;
             transition: all .15s;
@@ -169,457 +77,980 @@
         }
 
         .chip:hover {
-            border-color: var(--gold);
-            color: var(--text)
+            border-color: var(--gold)
         }
 
         .chip.chip-active {
             background: var(--gold);
             color: #000;
-            border-color: var(--gold);
-            box-shadow: 0 2px 8px rgba(212, 175, 55, .35)
+            border-color: var(--gold)
         }
 
-        .chip.chip-done {
-            opacity: .4;
-            cursor: default;
-            text-decoration: line-through
+        .chip-hint {
+            color: var(--muted);
+            font-weight: 400;
+            text-transform: none;
+            letter-spacing: 0;
+            font-size: 12px
         }
 
-        .gender-pills {
+        /* --- quick add roster grid --- */
+        .mode-switch {
             display: flex;
-            gap: 8px
+            gap: 4px;
+            background: var(--bg2);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            padding: 4px;
+            margin-bottom: 16px
         }
 
-        .gender-pill {
+        .mode-switch-btn {
             flex: 1;
             text-align: center;
-            padding: 11px 12px;
-            border-radius: 10px;
-            border: 1.5px solid var(--border);
-            background: var(--bg3);
-            color: var(--text2);
-            font-weight: 700;
-            font-size: 13.5px;
+            padding: 8px 10px;
+            border-radius: 8px;
             cursor: pointer;
-            transition: all .15s;
-            user-select: none
-        }
-
-        .gender-pill:hover {
-            border-color: var(--gold)
-        }
-
-        .gender-pill.active {
-            border-color: var(--gold);
-            background: rgba(212, 175, 55, .12);
-            color: var(--text)
-        }
-
-        .team-option {
-            border: 1.5px solid var(--border);
-            background: var(--bg3);
-            border-radius: 12px;
-            padding: 12px 14px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            cursor: pointer;
-            margin-bottom: 8px;
-            font-size: 13.5px;
-            transition: all .15s
-        }
-
-        .team-option:last-child {
-            margin-bottom: 0
-        }
-
-        .team-option:not(.full):hover {
-            border-color: var(--gold)
-        }
-
-        .team-option.selected {
-            border-color: var(--gold);
-            background: rgba(212, 175, 55, .1);
-            box-shadow: 0 0 0 1px rgba(212, 175, 55, .2)
-        }
-
-        .team-option.full {
-            opacity: .4;
-            cursor: not-allowed
-        }
-
-        .team-slots {
-            font-size: 11.5px;
-            color: var(--muted);
-            font-weight: 600;
-            white-space: nowrap
-        }
-
-        .joined-banner {
-            background: rgba(74, 222, 128, .08);
-            border: 1px solid rgba(74, 222, 128, .22);
-            border-radius: 12px;
-            padding: 11px 14px;
-            margin-bottom: 18px;
             font-size: 12.5px;
-            line-height: 1.4
+            font-weight: 700;
+            color: var(--muted);
         }
 
-        .submit-btn {
+        .mode-switch-btn.active {
+            background: var(--bg3);
+            color: var(--text);
+            box-shadow: 0 1px 4px rgba(0, 0, 0, .2)
+        }
+
+        .quick-table {
             width: 100%;
-            margin-top: 6px;
-            padding: 14px 16px;
+            border-collapse: collapse;
+            font-size: 12.5px
+        }
+
+        .quick-table th {
+            text-align: left;
+            color: var(--muted);
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: .5px;
+            font-size: 10.5px;
+            padding: 0 6px 6px
+        }
+
+        .quick-table td {
+            padding: 3px
+        }
+
+        .quick-table input,
+        .quick-table select {
+            width: 100%;
+            background: var(--bg3);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            color: var(--text);
+            font-size: 12.5px;
+            padding: 6px 7px
+        }
+
+        .quick-row-remove {
+            background: transparent;
+            border: none;
+            color: var(--red);
+            cursor: pointer;
             font-weight: 800;
-            font-size: 14.5px;
-            letter-spacing: .3px;
-            border-radius: 12px
+            font-size: 14px;
+            padding: 4px 6px
         }
 
-        .success-screen {
-            text-align: center;
-            padding: 28px 8px 12px
+        .paste-box {
+            width: 100%;
+            min-height: 70px;
+            background: var(--bg3);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            color: var(--text);
+            font-size: 12.5px;
+            padding: 10px;
+            font-family: monospace;
+            resize: vertical
         }
 
-        .success-icon {
-            width: 68px;
-            height: 68px;
-            border-radius: 50%;
-            background: rgba(74, 222, 128, .12);
-            color: var(--green);
+        /* Registration share banner */
+        .reg-link-banner {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            background: linear-gradient(135deg, rgba(212, 175, 55, .08), rgba(59, 130, 246, .06));
+            border: 1px solid rgba(212, 175, 55, .25);
+            border-radius: 12px;
+            padding: 14px 16px;
+            margin-bottom: 16px;
+            flex-wrap: wrap
+        }
+
+        .reg-link-banner-icon {
+            width: 40px;
+            height: 40px;
+            border-radius: 10px;
+            background: rgba(212, 175, 55, .15);
+            color: var(--gold);
             display: flex;
             align-items: center;
             justify-content: center;
-            margin: 0 auto 16px;
-            font-size: 28px;
-            font-weight: 900;
-            animation: popIn .35s ease-out
+            flex-shrink: 0;
+            font-size: 18px;
+            font-weight: 900
         }
 
-        @keyframes popIn {
+        .reg-link-banner-text {
+            flex: 1;
+            min-width: 180px
+        }
+
+        .reg-link-banner-title {
+            font-size: 13.5px;
+            font-weight: 700;
+            color: var(--text);
+            margin-bottom: 2px
+        }
+
+        .reg-link-banner-sub {
+            font-size: 12.5px;
+            color: var(--text2);
+            line-height: 1.4
+        }
+
+        .reg-link-actions {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            flex-shrink: 0
+        }
+
+        .reg-link-copied {
+            display: none;
+            align-items: center;
+            gap: 6px;
+            font-size: 12.5px;
+            font-weight: 600;
+            color: var(--green);
+            padding: 6px 10px;
+            background: rgba(74, 222, 128, .1);
+            border: 1px solid rgba(74, 222, 128, .25);
+            border-radius: 8px;
+            white-space: nowrap
+        }
+
+        .reg-link-copied.show {
+            display: inline-flex
+        }
+
+        .reg-link-url {
+            display: none;
+            font-size: 11px;
+            color: var(--muted);
+            font-family: monospace;
+            background: var(--bg3);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            padding: 6px 10px;
+            max-width: 280px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            margin-top: 8px;
+            width: 100%
+        }
+
+        .reg-link-url.show {
+            display: block
+        }
+
+        /* ---- compact toast (overrides shared Toast if present) ---- */
+        .toast-container,
+        #toast-container,
+        .toasts,
+        .toast-wrap {
+            position: fixed !important;
+            bottom: 20px !important;
+            top: auto !important;
+            left: 50% !important;
+            right: auto !important;
+            transform: translateX(-50%) !important;
+            z-index: 9999 !important;
+            display: flex !important;
+            flex-direction: column !important;
+            align-items: center !important;
+            gap: 8px !important;
+            pointer-events: none !important;
+            width: auto !important;
+            max-width: min(360px, calc(100vw - 32px)) !important;
+            padding: 0 !important;
+        }
+
+        .toast,
+        .toast-item,
+        [class*="toast"]:not(.reg-link-copied):not(.tab-pill) {
+            font-size: 13px !important;
+            font-weight: 600 !important;
+            padding: 10px 16px !important;
+            border-radius: 10px !important;
+            max-width: min(360px, calc(100vw - 32px)) !important;
+            width: max-content !important;
+            min-width: 0 !important;
+            min-height: 0 !important;
+            line-height: 1.35 !important;
+            box-shadow: 0 6px 20px rgba(0, 0, 0, .25) !important;
+            pointer-events: auto !important;
+        }
+
+        /* Our own compact toast */
+        #pac-toast-root {
+            position: fixed;
+            bottom: 22px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 10000;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 8px;
+            pointer-events: none;
+            width: max-content;
+            max-width: min(340px, calc(100vw - 28px));
+        }
+
+        .pac-toast {
+            pointer-events: auto;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 9px 14px;
+            border-radius: 10px;
+            font-size: 13px;
+            font-weight: 600;
+            line-height: 1.3;
+            color: #fff;
+            background: #1f2937;
+            border: 1px solid rgba(255, 255, 255, .08);
+            box-shadow: 0 8px 24px rgba(0, 0, 0, .35);
+            animation: pacToastIn .22s ease-out;
+            max-width: 100%;
+        }
+
+        .pac-toast.success {
+            background: #065f46;
+            border-color: rgba(74, 222, 128, .35);
+            color: #ecfdf5;
+        }
+
+        .pac-toast.error {
+            background: #7f1d1d;
+            border-color: rgba(248, 113, 113, .35);
+            color: #fef2f2;
+        }
+
+        .pac-toast.info {
+            background: #1e3a5f;
+            border-color: rgba(96, 165, 250, .3);
+            color: #eff6ff;
+        }
+
+        .pac-toast-icon {
+            flex-shrink: 0;
+            font-size: 14px;
+            font-weight: 800;
+            line-height: 1;
+        }
+
+        .pac-toast-msg {
+            flex: 1;
+            min-width: 0;
+        }
+
+        @keyframes pacToastIn {
             from {
-                transform: scale(.55);
-                opacity: 0
+                opacity: 0;
+                transform: translateY(8px) scale(.96);
             }
 
             to {
-                transform: scale(1);
-                opacity: 1
+                opacity: 1;
+                transform: translateY(0) scale(1);
             }
         }
 
-        .error-screen {
-            text-align: center;
-            padding: 36px 12px;
-            color: var(--muted);
-            font-size: 14px;
-            line-height: 1.5
-        }
-
-        .empty-sports {
-            font-size: 13px;
-            color: var(--muted);
-            padding: 8px 0
-        }
-
-        .optional-row {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 10px
-        }
-
-        @media (max-width: 420px) {
-
-            .name-row,
-            .optional-row {
-                grid-template-columns: 1fr
+        @keyframes pacToastOut {
+            from {
+                opacity: 1;
+                transform: translateY(0);
             }
 
-            .reg-card {
-                padding: 20px 16px
+            to {
+                opacity: 0;
+                transform: translateY(6px);
             }
         }
     </style>
 </head>
 
 <body>
-    <div class="reg-wrap">
-        <div class="reg-header">
-            <div id="dept-badge" class="reg-dept-badge" style="background:var(--bg3);border:2px dashed var(--border)">
+    <main class="main">
+        <div class="topbar">
+            <div class="topbar-title" style="display:flex;align-items:center;gap:8px">
+                <span class="icon icon-md"><svg viewBox="0 0 24 24">
+                        <path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2" />
+                        <circle cx="12" cy="7" r="4" />
+                    </svg></span>
+                Player Registration
             </div>
-            <div class="reg-title" id="dept-title">Player Registration</div>
-            <div class="reg-subtitle" id="dept-subtitle">Loading...</div>
+            <div class="topbar-actions">
+                <button class="btn btn-secondary btn-sm" onclick="loadPage()">Refresh</button>
+                <button class="btn btn-secondary btn-sm" onclick="openQuickAdd()">+ Quick Add Roster</button>
+                <button class="btn btn-primary btn-sm" onclick="openRegister()">+ Register Player</button>
+            </div>
         </div>
+        <div class="content">
+            <div class="reg-link-banner">
+                <div class="reg-link-banner-icon">↗</div>
+                <div class="reg-link-banner-text">
+                    <div class="reg-link-banner-title">Student self-registration</div>
+                    <div class="reg-link-banner-sub">Share this link — students pick sport(s) &amp; team; you only
+                        approve. Players you register yourself are auto-approved.</div>
+                    <div class="reg-link-url" id="reg-link-url"></div>
+                </div>
+                <div class="reg-link-actions">
+                    <span class="reg-link-copied" id="reg-link-copied">✓ Copied</span>
+                    <button class="btn btn-primary btn-sm" id="btn-copy-reg-link" onclick="copyRegistrationLink()">Copy
+                        Link</button>
+                </div>
+            </div>
+            <div class="stat-strip" id="reg-stats"></div>
+            <div class="tab-bar">
+                <div class="tab-pill active" onclick="switchTab('all',this)">All Players</div>
+                <div class="tab-pill" onclick="switchTab('pending',this)">Pending</div>
+                <div class="tab-pill" onclick="switchTab('approved',this)">Approved</div>
+                <div class="tab-pill" onclick="switchTab('rejected',this)">Rejected</div>
+            </div>
+            <div class="filter-bar">
+                <select id="f-sport" class="form-select filter-field" onchange="applyFilters()">
+                    <option value="">All Sports</option>
+                </select>
+                <select id="f-gender" class="form-select filter-field" onchange="applyFilters()">
+                    <option value="">All Genders</option>
+                    <option value="Male">Male</option>
+                    <option value="Female">Female</option>
+                </select>
+                <input id="f-search" class="form-input filter-field-grow" placeholder="Search name, jersey..."
+                    oninput="applyFilters()">
+            </div>
+            <div id="player-grid" class="player-grid">
+                <div class="empty-state" style="grid-column:1/-1">
+                    <div class="empty-text">Loading...</div>
+                </div>
+            </div>
+        </div>
+    </main>
 
-        <div class="reg-card" id="reg-card">
-            <div class="empty-sports" style="text-align:center">Loading registration form...</div>
+    <div class="modal-overlay" id="modal-register" onclick="if(event.target===this)Modal.close('modal-register')">
+        <div class="modal" style="max-width:560px">
+            <div class="modal-header">
+                <div class="modal-title" id="reg-modal-title">Register Player</div>
+                <button class="modal-close" onclick="Modal.close('modal-register')">X</button>
+            </div>
+            <div class="modal-body">
+                <input type="hidden" id="edit-player-id">
+                <div style="display:flex;flex-direction:column;align-items:center;gap:12px;margin-bottom:20px">
+                    <div id="avatar-preview"
+                        style="width:88px;height:88px;border-radius:18px;background:var(--bg3);border:2px dashed var(--border);display:flex;align-items:center;justify-content:center;font-size:22px;font-weight:900;cursor:pointer;overflow:hidden"
+                        onclick="document.getElementById('avatar-file').click()">?</div>
+                    <input type="file" id="avatar-file" accept="image/*" style="display:none"
+                        onchange="previewAvatar(this)">
+                    <div style="display:flex;gap:8px;align-items:center;width:100%">
+                        <input type="url" id="p-image-url" class="form-input" placeholder="Or paste image URL...">
+                        <button class="btn btn-secondary btn-sm" onclick="applyAvatarUrl()">Preview</button>
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group"><label class="form-label">First Name *</label><input type="text"
+                            id="p-first" class="form-input" placeholder="e.g. Juan"></div>
+                    <div class="form-group"><label class="form-label">Last Name *</label><input type="text" id="p-last"
+                            class="form-input" placeholder="e.g. Dela Cruz"></div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group"><label class="form-label">Gender *</label>
+                        <select id="p-gender" class="form-select">
+                            <option value="">Select...</option>
+                            <option value="Male">Male</option>
+                            <option value="Female">Female</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label class="form-label" id="p-sport-label">Sport(s) * <span class="chip-hint">tap to select
+                            one or more — the player will be registered in each</span></label>
+                    <div id="p-sport-chips" class="chip-select"></div>
+                    <div id="p-sport-readonly" style="display:none;font-size:13px;color:var(--text2);padding:8px 0">
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group" id="p-team-group"><label class="form-label">Team <span
+                                style="color:var(--muted);font-weight:400;text-transform:none;letter-spacing:0">optional</span></label>
+                        <select id="p-team" class="form-select">
+                            <option value="">No team (Individual)</option>
+                        </select>
+                    </div>
+                    <div class="form-group"><label class="form-label">Jersey #</label><input type="text" id="p-jersey"
+                            class="form-input" placeholder="e.g. 23"></div>
+                </div>
+                <div class="form-group"><label class="form-label">Position</label><input type="text" id="p-position"
+                        class="form-input" placeholder="e.g. Point Guard"></div>
+                <div id="elig-check"
+                    style="display:none;padding:10px 14px;border-radius:8px;font-size:13px;margin-top:4px"></div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="Modal.close('modal-register')">Cancel</button>
+                <button class="btn btn-primary" onclick="savePlayer()">Save Player</button>
+            </div>
         </div>
     </div>
 
-    <script src="../js/shared.js"></script>
+    <div class="modal-overlay" id="modal-import" onclick="if(event.target===this)Modal.close('modal-import')">
+        <div class="modal" style="max-width:760px">
+            <div class="modal-header">
+                <div class="modal-title">Quick Add Roster</div>
+                <button class="modal-close" onclick="Modal.close('modal-import')">X</button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label class="form-label">Register into <span class="chip-hint">select one or more sports —
+                            applies to every name below</span></label>
+                    <div id="quick-sport-chips" class="chip-select"></div>
+                </div>
+
+                <div class="mode-switch">
+                    <div class="mode-switch-btn active" id="mode-btn-manual" onclick="switchImportMode('manual')">Type
+                        / Paste Names</div>
+                    <div class="mode-switch-btn" id="mode-btn-csv" onclick="switchImportMode('csv')">Upload CSV</div>
+                </div>
+
+                <div id="import-mode-manual">
+                    <div class="form-group">
+                        <label class="form-label">Paste from a spreadsheet <span class="chip-hint">one player per
+                                line: First, Last, Gender, Jersey#, Position — jersey/position optional</span></label>
+                        <textarea id="paste-box" class="paste-box"
+                            placeholder="Juan, Dela Cruz, Male, 23, Guard&#10;Maria, Santos, Female"></textarea>
+                        <div style="display:flex;justify-content:flex-end;margin-top:6px">
+                            <button class="btn btn-secondary btn-sm" onclick="parsePasteBox()">Fill Table Below</button>
+                        </div>
+                    </div>
+                    <div style="max-height:280px;overflow-y:auto;margin-top:6px">
+                        <table class="quick-table" id="quick-table">
+                            <thead>
+                                <tr>
+                                    <th style="width:22%">First Name</th>
+                                    <th style="width:22%">Last Name</th>
+                                    <th style="width:16%">Gender</th>
+                                    <th style="width:14%">Jersey #</th>
+                                    <th style="width:20%">Position</th>
+                                    <th style="width:6%"></th>
+                                </tr>
+                            </thead>
+                            <tbody id="quick-rows"></tbody>
+                        </table>
+                    </div>
+                    <div style="display:flex;justify-content:space-between;align-items:center;margin-top:10px">
+                        <button class="btn btn-secondary btn-sm" onclick="addQuickRow()">+ Add Row</button>
+                        <span class="chip-hint" id="quick-row-count">0 rows</span>
+                    </div>
+                </div>
+
+                <div id="import-mode-csv" style="display:none">
+                    <div
+                        style="background:var(--bg3);border-radius:8px;padding:12px 14px;font-size:12px;color:var(--muted);margin-bottom:16px">
+                        CSV format: <code>first_name, last_name, gender, sport_code, jersey_number, position</code><br>
+                        Gender: <code>Male</code> or <code>Female</code> · Sport code, if included, overrides the
+                        sport(s) selected above for that row.
+                    </div>
+                    <div class="import-zone" id="import-zone" onclick="document.getElementById('csv-file').click()"
+                        ondragover="dragOver(event)" ondrop="dropFile(event)">
+                        <div class="import-zone-icon" style="font-size:28px;font-weight:900;color:var(--muted)">CSV
+                        </div>
+                        <div class="import-zone-text">Click or drag &amp; drop a CSV file here</div>
+                        <input type="file" id="csv-file" accept=".csv,.txt" style="display:none"
+                            onchange="parseCSV(this)">
+                    </div>
+                    <div id="import-preview" style="margin-top:16px;display:none">
+                        <div
+                            style="font-family:'Barlow Condensed',sans-serif;font-size:14px;font-weight:800;color:var(--muted);margin-bottom:10px;text-transform:uppercase;letter-spacing:1px">
+                            PREVIEW (<span id="import-count">0</span> players)</div>
+                        <div id="import-list"
+                            style="max-height:220px;overflow-y:auto;display:flex;flex-direction:column;gap:4px"></div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="Modal.close('modal-import')">Cancel</button>
+                <button class="btn btn-primary" id="quick-submit-btn" onclick="submitQuickAdd()">Register All</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal-overlay" id="modal-elig" onclick="if(event.target===this)Modal.close('modal-elig')">
+        <div class="modal" style="max-width:480px">
+            <div class="modal-header">
+                <div class="modal-title">Eligibility Check</div>
+                <button class="modal-close" onclick="Modal.close('modal-elig')">X</button>
+            </div>
+            <div class="modal-body" id="elig-modal-body"></div>
+            <div class="modal-footer"><button class="btn btn-secondary"
+                    onclick="Modal.close('modal-elig')">Close</button></div>
+        </div>
+    </div>
+
+    <script src="../../js/shared.js"></script>
+    <script src="../../js/dean-sidebar.js"></script>
     <script>
-        // Public, no-login page. Do NOT call Auth.requireAuth() here.
-        const params = new URLSearchParams(window.location.search);
-        const deptId = parseInt(params.get('dept')) || null;
+        let allPlayers = [], allSports = [], allTeams = [], currentTab = 'all', importRows = [];
+        let selectedSportIds = [];       // Register modal (single player, multi-sport)
+        let quickSelectedSportIds = [];  // Quick Add Roster modal (batch, multi-sport)
+        let quickRowSeq = 0;
+        const user = Auth.getUser(), deptId = user?.department_id;
 
-        let department = null;
-        let allSports = [];
-        let selectedSportIds = [];
-        let teamsForSport = [];
-        let selectedTeamId = null;
-        let registeredSportIds = [];
-        let lastIdentity = null;
-        let selectedGender = '';
 
-        document.addEventListener('DOMContentLoaded', init);
-
-        async function init() {
-            if (!deptId) return showError('This registration link is missing a department. Please ask your department adviser for the correct link.');
-
-            try {
-                const [dRes, sRes] = await Promise.all([api(`/departments/${deptId}`), api('/sports')]);
-                if (!dRes.success || !dRes.data) return showError('This registration link is invalid. Please check with your department adviser.');
-                department = dRes.data;
-                if (department.is_active === 0 || department.is_active === false) {
-                    return showError('Registration for this department is currently closed.');
-                }
-                // Only sports that have tournaments registered this season
-                allSports = (sRes.data || []).filter(s => Number(s.total_tournaments) > 0);
-            } catch (e) {
-                return showError('Could not load the registration form. Please check your connection and try again.');
+        // Compact toast — replaces bulky shared Toast on this page
+        function pacToast(message, type = 'info', ms = 2800) {
+            let root = document.getElementById('pac-toast-root');
+            if (!root) {
+                root = document.createElement('div');
+                root.id = 'pac-toast-root';
+                document.body.appendChild(root);
             }
-
-            document.getElementById('dept-title').textContent = `Join ${department.name}`;
-            document.getElementById('dept-subtitle').textContent = 'Pick your sport(s) — your adviser will review and approve.';
-            const badge = document.getElementById('dept-badge');
-            const color = department.color || '#3B82F6';
-            badge.style.background = color + '22';
-            badge.style.border = `2px solid ${color}55`;
-            badge.innerHTML = department.logo_url
-                ? `<img src="${department.logo_url}">`
-                : `<span style="color:${color}">${(department.short_name || department.code || department.name || '?').slice(0, 3).toUpperCase()}</span>`;
-
-            renderForm();
+            const el = document.createElement('div');
+            el.className = `pac-toast ${type || 'info'}`;
+            const icon = type === 'success' ? '✓' : type === 'error' ? '!' : '•';
+            el.innerHTML = `<span class="pac-toast-icon">${icon}</span><span class="pac-toast-msg"></span>`;
+            el.querySelector('.pac-toast-msg').textContent = message || '';
+            root.appendChild(el);
+            const hide = () => {
+                el.style.animation = 'pacToastOut .18s ease-in forwards';
+                setTimeout(() => el.remove(), 180);
+            };
+            const t = setTimeout(hide, ms);
+            el.addEventListener('click', () => { clearTimeout(t); hide(); });
+            // Keep stack small
+            while (root.children.length > 3) root.firstChild.remove();
         }
-
-        function showError(msg) {
-            document.getElementById('dept-subtitle').textContent = '';
-            document.getElementById('reg-card').innerHTML = `<div class="error-screen">${msg}</div>`;
-        }
-
-        function renderForm() {
-            const joinedHtml = registeredSportIds.length ? `
-<div class="joined-banner">
-<strong style="color:var(--green)">Already joined:</strong>
-${registeredSportIds.map(id => allSports.find(s => s.id === id)?.name).filter(Boolean).join(', ')}
-— add more sports below without retyping your info.
-</div>` : '';
-
-            document.getElementById('reg-card').innerHTML = `
-${joinedHtml}
-<div class="avatar-block">
-<div id="avatar-preview" onclick="document.getElementById('avatar-file').click()">?</div>
-<input type="file" id="avatar-file" accept="image/*" style="display:none" onchange="previewAvatar(this)">
-<input type="url" id="p-image-url" class="form-input" placeholder="Or paste photo URL (optional)" style="max-width:280px;text-align:center;font-size:12.5px">
-<div class="avatar-hint">Tap circle to add a photo</div>
-</div>
-
-<div class="name-row">
-<div class="field"><label>First name *</label><input type="text" id="p-first" class="form-input" placeholder="Juan" autocomplete="given-name"></div>
-<div class="field"><label>Last name *</label><input type="text" id="p-last" class="form-input" placeholder="Dela Cruz" autocomplete="family-name"></div>
-</div>
-
-<div class="field">
-<label>Gender *</label>
-<div class="gender-pills">
-<div class="gender-pill" id="g-male" onclick="pickGender('Male')">Male</div>
-<div class="gender-pill" id="g-female" onclick="pickGender('Female')">Female</div>
-</div>
-<input type="hidden" id="p-gender" value="">
-</div>
-
-<div class="reg-section">
-<div class="reg-section-label">Sport(s) * — tap all you want to join</div>
-<div id="sport-chips" class="chip-select"></div>
-</div>
-
-<div class="reg-section" id="team-group" style="display:none">
-<div class="reg-section-label">Join a team <span style="text-transform:none;letter-spacing:0;font-weight:400">(optional)</span></div>
-<div id="team-list"></div>
-</div>
-
-<div class="optional-row">
-<div class="field"><label>Jersey # <span class="opt">optional</span></label><input type="text" id="p-jersey" class="form-input" placeholder="23"></div>
-<div class="field"><label>Position <span class="opt">optional</span></label><input type="text" id="p-position" class="form-input" placeholder="Point Guard"></div>
-</div>
-
-<button class="btn btn-primary submit-btn" onclick="submitRegistration()">Submit Registration</button>
-`;
-
-            if (lastIdentity) {
-                document.getElementById('p-first').value = lastIdentity.first_name || '';
-                document.getElementById('p-last').value = lastIdentity.last_name || '';
-                if (lastIdentity.gender) pickGender(lastIdentity.gender);
-                document.getElementById('p-image-url').value = lastIdentity.image_url || '';
-                if (lastIdentity.image_url) {
-                    document.getElementById('avatar-preview').innerHTML =
-                        `<img src="${lastIdentity.image_url}" style="width:100%;height:100%;object-fit:cover;border-radius:18px">`;
+        // Prefer compact toast over shared Toast if present
+        (function patchToast() {
+            const apply = () => {
+                if (typeof Toast !== 'undefined' && Toast && typeof Toast.show === 'function') {
+                    Toast.show = function (msg, type) { pacToast(msg, type || 'info'); };
+                } else {
+                    window.Toast = { show: (msg, type) => pacToast(msg, type || 'info') };
                 }
-            }
-            renderSportChips();
+            };
+            apply();
+            document.addEventListener('DOMContentLoaded', apply);
+        })();
+
+
+        document.addEventListener('DOMContentLoaded', async () => {
+            Auth.requireAuth('dean_adviser'); renderSidebar('players');
+            const sRes = await api('/sports');
+            // Only sports that have at least one tournament in the active season
+            allSports = (sRes.data || []).filter(s => Number(s.total_tournaments) > 0);
+            const sportOpts = allSports.map(s => `<option value="${s.id}" data-code="${s.code}">${s.name}</option>`).join('');
+            document.getElementById('f-sport').innerHTML += sportOpts;
+            renderChipPicker('p-sport-chips', selectedSportIds, toggleRegisterSport);
+            renderChipPicker('quick-sport-chips', quickSelectedSportIds, toggleQuickSport);
+            const tab = new URLSearchParams(window.location.search).get('tab');
+            if (tab) switchTab(tab, document.querySelector(`[onclick*="'${tab}'"]`));
+            await loadPage();
+        });
+
+        // ---- shared chip-picker helper (used by Register modal & Quick Add modal) ----
+        function renderChipPicker(containerId, selectedArr, toggleFn) {
+            const wrap = document.getElementById(containerId);
+            if (!wrap) return;
+            wrap.innerHTML = allSports.map(s =>
+                `<div class="chip ${selectedArr.includes(s.id) ? 'chip-active' : ''}" onclick="${toggleFn.name}(${s.id})">${s.name}</div>`
+            ).join('') || '<span class="chip-hint">No sports with tournaments open for registration.</span>';
         }
 
-        function pickGender(g) {
-            selectedGender = g;
-            document.getElementById('p-gender').value = g;
-            document.getElementById('g-male').classList.toggle('active', g === 'Male');
-            document.getElementById('g-female').classList.toggle('active', g === 'Female');
-            onGenderOrSportChange();
-        }
+        function copyRegistrationLink() {
+            if (!deptId) { Toast.show('No department found for your account.', 'error'); return }
+            // Always point at the actual server route (defined in app.js), never derive it
+            // from the current page's URL — Express serves clean routes like /dean/players,
+            // which don't reflect where the registration page actually lives on disk.
+            const link = `${window.location.origin}/player-registration?dept=${deptId}`;
+            const urlEl = document.getElementById('reg-link-url');
+            const copiedEl = document.getElementById('reg-link-copied');
+            const btn = document.getElementById('btn-copy-reg-link');
 
-        function renderSportChips() {
-            const el = document.getElementById('sport-chips');
-            if (!allSports.length) {
-                el.innerHTML = '<div class="empty-sports">No sports with open tournaments right now. Check back later.</div>';
-                return;
-            }
-            el.innerHTML = allSports.map(s => {
-                if (registeredSportIds.includes(s.id)) {
-                    return `<div class="chip chip-done">${s.name} ✓</div>`;
+            const showCopied = () => {
+                if (urlEl) { urlEl.textContent = link; urlEl.classList.add('show'); }
+                if (copiedEl) {
+                    copiedEl.classList.add('show');
+                    clearTimeout(copiedEl._hideT);
+                    copiedEl._hideT = setTimeout(() => copiedEl.classList.remove('show'), 2500);
                 }
-                return `<div class="chip ${selectedSportIds.includes(s.id) ? 'chip-active' : ''}" onclick="toggleSport(${s.id})">${s.name}</div>`;
+                if (btn) {
+                    const prev = btn.textContent;
+                    btn.textContent = 'Copied!';
+                    btn.disabled = true;
+                    setTimeout(() => { btn.textContent = prev; btn.disabled = false; }, 2000);
+                }
+            };
+
+            navigator.clipboard.writeText(link)
+                .then(showCopied)
+                .catch(() => {
+                    // Clipboard API can fail (e.g. non-HTTPS or blocked permission) — show URL inline + prompt fallback.
+                    showCopied();
+                    window.prompt('Copy this registration link:', link);
+                });
+        }
+
+        async function loadPage() {
+            if (!deptId) return;
+            const res = await api(`/players?department_id=${deptId}`); allPlayers = res.data || [];
+            const tRes = await api(`/teams?department_id=${deptId}`); allTeams = tRes.data || [];
+            renderStats(); applyFilters();
+        }
+
+        function renderStats() {
+            const total = allPlayers.length;
+            const approved = allPlayers.filter(p => p.status === 'approved').length;
+            const pending = allPlayers.filter(p => p.status === 'pending').length;
+            const rejected = allPlayers.filter(p => p.status === 'rejected').length;
+            document.getElementById('reg-stats').innerHTML = [
+                { val: total, lbl: 'Total Registered', color: 'var(--gold)' },
+                { val: approved, lbl: 'Approved', color: 'var(--green)' },
+                { val: pending, lbl: 'Pending Review', color: '#FBBF24' },
+                { val: rejected, lbl: 'Rejected', color: 'var(--red)' },
+            ].map(s => `<div class="stat-strip-card"><div><div class="stat-strip-val" style="color:${s.color}">${s.val}</div><div class="stat-strip-lbl">${s.lbl}</div></div></div>`).join('');
+        }
+
+        function switchTab(tab, el) {
+            currentTab = tab;
+            document.querySelectorAll('.tab-pill').forEach(t => t.classList.remove('active'));
+            if (el) el.classList.add('active'); else document.querySelector(`[onclick*="'${tab}'"]`)?.classList.add('active');
+            applyFilters();
+        }
+
+        function applyFilters() {
+            const sport = document.getElementById('f-sport').value;
+            const gender = document.getElementById('f-gender').value;
+            const q = document.getElementById('f-search').value.toLowerCase();
+            let filtered = allPlayers;
+            if (currentTab !== 'all') filtered = filtered.filter(p => p.status === currentTab);
+            if (sport) filtered = filtered.filter(p => String(p.sport_id) === sport);
+            if (gender) filtered = filtered.filter(p => p.gender === gender);
+            if (q) filtered = filtered.filter(p => (`${p.first_name} ${p.last_name} ${p.jersey_number || ''}`).toLowerCase().includes(q));
+            renderGrid(filtered);
+        }
+
+        function renderGrid(players) {
+            const el = document.getElementById('player-grid');
+            if (!players.length) { el.innerHTML = `<div class="empty-state" style="grid-column:1/-1"><div class="empty-text">No players found</div></div>`; return }
+            el.innerHTML = players.map(p => {
+                const initials = `${p.first_name?.[0] || '?'}${p.last_name?.[0] || ''}`.toUpperCase();
+                const avatarBg = p.gender === 'Female' ? '#EC4899' : '#3B82F6';
+                const avatarHtml = p.image_url ? `<img src="${p.image_url}" style="width:100%;height:100%;object-fit:cover;border-radius:12px" onerror="this.style.display='none'">` : `<span>${initials}</span>`;
+                const statusClass = { approved: 'pill-approved', pending: 'pill-pending', rejected: 'pill-rejected' }[p.status] || 'pill-pending';
+                return `<div class="player-card">
+<div class="player-card-accent" style="background:${avatarBg}"></div>
+<div class="player-card-body">
+<div class="player-avatar-lg" style="background:${avatarBg}20;border:2px solid ${avatarBg}40">${avatarHtml}</div>
+<div class="player-card-info">
+<div class="player-card-name">${p.first_name} ${p.last_name}</div>
+<div class="player-card-meta">
+<span>${p.sport_name || '—'}</span>
+${p.jersey_number ? `<span>#${p.jersey_number}</span>` : ''}
+${p.position ? `<span>${p.position}</span>` : ''}
+</div>
+<div style="margin-top:6px">
+<span class="pill ${statusClass}">${p.status}</span>
+${p.team_name ? `<span class="pill" style="background:rgba(59,130,246,0.1);color:#60A5FA;margin-left:4px">${p.team_name}</span>` : ''}
+</div></div></div>
+<div class="player-card-footer">
+<button class="btn btn-secondary btn-sm" style="flex:1" onclick="openEdit(${p.id})">Edit</button>
+<button class="btn btn-secondary btn-sm" onclick="checkElig(${p.id})">Eligibility</button>
+${p.status === 'pending' ? `
+<button class="btn btn-sm" style="background:var(--green);color:#000;font-weight:800;flex:1" onclick="changeStatus(${p.id},'approved')">Approve</button>
+<button class="btn btn-sm" style="background:rgba(232,50,59,0.12);color:var(--red);border:1px solid rgba(232,50,59,0.3)" onclick="changeStatus(${p.id},'rejected')">Reject</button>
+`: p.status === 'approved' ? `
+<button class="btn btn-sm btn-secondary" style="flex:1" onclick="changeStatus(${p.id},'pending')">Revoke</button>
+`: `
+<button class="btn btn-sm" style="background:var(--green);color:#000;font-weight:800;flex:1" onclick="changeStatus(${p.id},'approved')">Re-approve</button>
+`}
+</div></div>`;
             }).join('');
         }
 
-        function toggleSport(sportId) {
-            if (registeredSportIds.includes(sportId)) return;
+        function openRegister() {
+            document.getElementById('reg-modal-title').textContent = 'Register Player';
+            document.getElementById('edit-player-id').value = '';
+            ['p-first', 'p-last', 'p-jersey', 'p-position', 'p-image-url'].forEach(id => document.getElementById(id).value = '');
+            document.getElementById('p-gender').value = '';
+            selectedSportIds = [];
+            document.getElementById('p-sport-chips').style.display = '';
+            document.getElementById('p-sport-readonly').style.display = 'none';
+            renderChipPicker('p-sport-chips', selectedSportIds, toggleRegisterSport);
+            document.getElementById('p-team').innerHTML = '<option value="">No team (Individual)</option>';
+            document.getElementById('p-team-group').style.display = '';
+            document.getElementById('avatar-preview').textContent = '?';
+            document.getElementById('elig-check').style.display = 'none';
+            Modal.open('modal-register');
+        }
+
+        function toggleRegisterSport(sportId) {
             const idx = selectedSportIds.indexOf(sportId);
             if (idx > -1) selectedSportIds.splice(idx, 1); else selectedSportIds.push(sportId);
-            renderSportChips();
-            onGenderOrSportChange();
-        }
-
-        async function onGenderOrSportChange() {
-            const teamGroup = document.getElementById('team-group');
-            selectedTeamId = null;
-            if (selectedSportIds.length !== 1) {
-                teamGroup.style.display = 'none';
-                return;
-            }
-            const gender = selectedGender || document.getElementById('p-gender').value;
-            if (!gender) {
-                teamGroup.style.display = 'none';
-                return;
-            }
-            teamGroup.style.display = '';
-            document.getElementById('team-list').innerHTML = '<div class="empty-sports">Loading teams...</div>';
-            try {
-                const res = await api(`/teams?department_id=${deptId}&sport_id=${selectedSportIds[0]}`);
-                teamsForSport = (res.data || []).filter(t => {
-                    const mapped = gender === 'Male' ? 'Men' : 'Women';
-                    return t.gender === 'Mixed' || t.gender === mapped;
-                });
-                renderTeamList();
-            } catch (e) {
-                document.getElementById('team-list').innerHTML = '<div class="empty-sports">Could not load teams — you can still register without one.</div>';
+            renderChipPicker('p-sport-chips', selectedSportIds, toggleRegisterSport);
+            // A specific team only makes sense when exactly one sport is selected.
+            if (selectedSportIds.length === 1) {
+                document.getElementById('p-team-group').style.display = '';
+                loadTeamsForSport(selectedSportIds[0]);
+            } else {
+                document.getElementById('p-team-group').style.display = 'none';
+                document.getElementById('p-team').innerHTML = '<option value="">No team (Individual)</option>';
             }
         }
 
-        function renderTeamList() {
-            const list = document.getElementById('team-list');
-            if (!teamsForSport.length) {
-                list.innerHTML = '<div class="empty-sports">No teams yet — register and your adviser will place you.</div>';
-                return;
-            }
-            list.innerHTML = teamsForSport.map(t => {
-                const max = t.sport_max_players;
-                const count = t.approved_count || 0;
-                const full = max != null && count >= max;
-                const isSel = selectedTeamId === t.id;
-                return `<div class="team-option ${isSel ? 'selected' : ''} ${full ? 'full' : ''}" onclick="${full ? '' : `pickTeam(${t.id})`}">
-<span><strong>${t.name}</strong> <span style="color:var(--muted);font-size:12px">(${t.gender})</span></span>
-<span class="team-slots">${full ? 'FULL' : (max != null ? `${count}/${max}` : `${count} joined`)}</span>
-</div>`;
-            }).join('');
+        function openEdit(id) {
+            const p = allPlayers.find(x => x.id === id); if (!p) return;
+            document.getElementById('reg-modal-title').textContent = `Edit — ${p.first_name} ${p.last_name}`;
+            document.getElementById('edit-player-id').value = id;
+            document.getElementById('p-first').value = p.first_name || '';
+            document.getElementById('p-last').value = p.last_name || '';
+            document.getElementById('p-gender').value = p.gender || '';
+            // Sport is fixed once a player is registered for it (register a new entry to add another sport),
+            // so editing shows it read-only instead of the multi-select chips.
+            document.getElementById('p-sport-chips').style.display = 'none';
+            const roLabel = document.getElementById('p-sport-readonly');
+            roLabel.style.display = '';
+            roLabel.textContent = p.sport_name || '—';
+            selectedSportIds = p.sport_id ? [p.sport_id] : [];
+            document.getElementById('p-team-group').style.display = '';
+            document.getElementById('p-jersey').value = p.jersey_number || '';
+            document.getElementById('p-position').value = p.position || '';
+            document.getElementById('p-image-url').value = p.image_url || '';
+            const prev = document.getElementById('avatar-preview');
+            if (p.image_url) prev.innerHTML = `<img src="${p.image_url}" style="width:100%;height:100%;object-fit:cover;border-radius:16px">`;
+            else prev.textContent = `${p.first_name?.[0] || '?'}${p.last_name?.[0] || ''}`.toUpperCase();
+            loadTeamsForSport(p.sport_id).then(() => { document.getElementById('p-team').value = p.team_id || '' });
+            Modal.open('modal-register');
         }
 
-        function pickTeam(teamId) {
-            selectedTeamId = selectedTeamId === teamId ? null : teamId;
-            renderTeamList();
+        async function loadTeamsForSport(sportId) {
+            const sel = document.getElementById('p-team');
+            sel.innerHTML = '<option value="">No team (Individual)</option>';
+            if (!sportId || !deptId) return;
+            const res = await api(`/teams?department_id=${deptId}&sport_id=${sportId}`);
+            (res.data || []).forEach(t => { const opt = document.createElement('option'); opt.value = t.id; opt.textContent = `${t.name} (${t.gender})`; sel.appendChild(opt) });
         }
 
         function previewAvatar(input) {
             const file = input.files[0]; if (!file) return;
             const reader = new FileReader();
-            reader.onload = e => {
-                document.getElementById('avatar-preview').innerHTML =
-                    `<img src="${e.target.result}" style="width:100%;height:100%;object-fit:cover;border-radius:18px">`;
-            };
+            reader.onload = e => { document.getElementById('avatar-preview').innerHTML = `<img src="${e.target.result}" style="width:100%;height:100%;object-fit:cover;border-radius:16px">` };
             reader.readAsDataURL(file);
         }
+        function applyAvatarUrl() {
+            const url = document.getElementById('p-image-url').value.trim(); if (!url) return;
+            document.getElementById('avatar-preview').innerHTML = `<img src="${url}" onerror="this.parentElement.textContent='ERR'" style="width:100%;height:100%;object-fit:cover;border-radius:16px">`;
+        }
 
-        async function submitRegistration() {
+        async function savePlayer() {
+            const id = document.getElementById('edit-player-id').value;
             const first = document.getElementById('p-first').value.trim();
             const last = document.getElementById('p-last').value.trim();
-            const gender = selectedGender || document.getElementById('p-gender').value;
+            const gender = document.getElementById('p-gender').value;
+            const team_id = parseInt(document.getElementById('p-team').value) || null;
             const jersey = document.getElementById('p-jersey').value.trim() || null;
             const position = document.getElementById('p-position').value.trim() || null;
             const image_url = document.getElementById('p-image-url').value.trim() || null;
+            if (!first || !last || !gender || !selectedSportIds.length) { Toast.show('First name, last name, gender and at least one sport are required.', 'error'); return }
 
-            if (!first || !last) return Toast.show('Please enter your first and last name.', 'error');
-            if (!gender) return Toast.show('Please select your gender.', 'error');
-            if (!selectedSportIds.length) return Toast.show('Please select at least one sport.', 'error');
+            let res;
+            if (id) {
+                // Editing an existing record only touches that one sport's row.
+                const body = { first_name: first, last_name: last, gender, team_id, jersey_number: jersey, position, image_url };
+                res = await api(`/players/${id}`, { method: 'PUT', body: JSON.stringify(body) });
+            } else {
+                const body = { first_name: first, last_name: last, gender, sport_ids: selectedSportIds, team_id, jersey_number: jersey, position, image_url, department_id: deptId };
+                res = await api('/players', { method: 'POST', body: JSON.stringify(body) });
+            }
+            const okMsg = id
+                ? 'Player updated!'
+                : (res.data?.auto_approved ? 'Player registered & approved!' : 'Player registered!');
+            Toast.show(res.message || (res.success ? okMsg : 'Error'), res.success ? 'success' : 'error');
+            if (res.success) { Modal.close('modal-register'); await loadPage() }
+        }
 
-            const body = {
-                first_name: first, last_name: last, gender,
-                sport_ids: selectedSportIds, team_id: selectedTeamId,
-                jersey_number: jersey, position, image_url,
-                department_id: deptId,
+        async function changeStatus(id, status) {
+            const res = await api(`/players/${id}/status`, { method: 'PATCH', body: JSON.stringify({ status }) });
+            Toast.show(res.message || (res.success ? `Player ${status}!` : 'Error'), res.success ? 'success' : 'error');
+            if (res.success) await loadPage();
+        }
+
+        async function checkElig(id) {
+            const res = await api(`/players/${id}/eligibility`);
+            const body = document.getElementById('elig-modal-body');
+            if (!res.success) { body.innerHTML = '<div style="color:var(--red)">Failed to check eligibility.</div>'; Modal.open('modal-elig'); return }
+            const d = res.data;
+            const color = d.is_eligible ? 'var(--green)' : '#FBBF24';
+            body.innerHTML = `<div style="text-align:center;margin-bottom:20px">
+<div style="font-family:'Barlow Condensed',sans-serif;font-size:22px;font-weight:900;color:${color}">${d.is_eligible ? 'ELIGIBLE' : 'ISSUES FOUND'}</div>
+<div style="font-size:14px;color:var(--muted);margin-top:4px">${d.name} · ${d.department}</div></div>
+${d.issues?.length ? `<div style="background:rgba(245,158,11,0.08);border:1px solid rgba(245,158,11,0.2);border-radius:10px;padding:14px">
+<div style="font-size:12px;font-weight:700;color:#FBBF24;text-transform:uppercase;letter-spacing:1px;margin-bottom:8px">Issues</div>
+${d.issues.map(i => `<div style="font-size:13px;color:var(--text2);padding:4px 0">• ${i}</div>`).join('')}
+</div>`: `<div style="text-align:center;color:var(--muted);font-size:13px">No eligibility issues found.</div>`}`;
+            Modal.open('modal-elig');
+        }
+
+        function dragOver(e) { e.preventDefault(); document.getElementById('import-zone').classList.add('drag-over') }
+        function dropFile(e) { e.preventDefault(); document.getElementById('import-zone').classList.remove('drag-over'); const file = e.dataTransfer.files[0]; if (file) parseCSVFile(file) }
+        function parseCSV(input) { if (input.files[0]) parseCSVFile(input.files[0]) }
+        function parseCSVFile(file) {
+            const reader = new FileReader();
+            reader.onload = e => {
+                const lines = e.target.result.split('\n').map(l => l.trim()).filter(Boolean);
+                const header = lines[0].toLowerCase().includes('first') ? 1 : 0;
+                importRows = lines.slice(header).map(line => {
+                    const [first_name, last_name, gender, sport_code, jersey_number, position] = line.split(',').map(s => s?.trim());
+                    const sport = allSports.find(s => s.code?.toUpperCase() === sport_code?.toUpperCase());
+                    return { first_name, last_name, gender, sport_code, sport_id: sport?.id || null, jersey_number: jersey_number || null, position: position || null, _valid: !!(first_name && last_name && gender) };
+                });
+                document.getElementById('import-count').textContent = importRows.length;
+                document.getElementById('import-preview').style.display = '';
+                document.getElementById('import-list').innerHTML = importRows.map(r => `
+<div class="import-row ${r._valid ? '' : 'import-row-error'}">
+<span>${r._valid ? 'OK' : 'ERR'} ${r.first_name || '?'} ${r.last_name || '?'}</span>
+<span style="color:var(--muted)">${r.gender || '—'}</span>
+<span style="color:var(--muted)">${r.sport_code || '—'}${r.jersey_number ? ` · #${r.jersey_number}` : ''}</span>
+</div>`).join('');
             };
+            reader.readAsText(file);
+        }
 
-            const btn = document.querySelector('#reg-card .submit-btn');
-            if (btn) { btn.disabled = true; btn.textContent = 'Submitting...' }
+        // ================= Quick Add Roster (batch registration) =================
+        function openQuickAdd() {
+            quickSelectedSportIds = [];
+            renderChipPicker('quick-sport-chips', quickSelectedSportIds, toggleQuickSport);
+            importRows = [];
+            document.getElementById('paste-box').value = '';
+            document.getElementById('import-preview').style.display = 'none';
+            document.getElementById('csv-file').value = '';
+            document.getElementById('quick-rows').innerHTML = '';
+            quickRowSeq = 0;
+            addQuickRow(); addQuickRow(); addQuickRow(); // start with a few blank rows ready to type into
+            switchImportMode('manual');
+            Modal.open('modal-import');
+        }
 
-            const res = await api('/players/public-register', { method: 'POST', body: JSON.stringify(body) });
+        function toggleQuickSport(sportId) {
+            const idx = quickSelectedSportIds.indexOf(sportId);
+            if (idx > -1) quickSelectedSportIds.splice(idx, 1); else quickSelectedSportIds.push(sportId);
+            renderChipPicker('quick-sport-chips', quickSelectedSportIds, toggleQuickSport);
+        }
 
-            if (!res.success) {
-                Toast.show(res.message || 'Registration failed. Please try again.', 'error');
-                if (btn) { btn.disabled = false; btn.textContent = 'Submit Registration' }
-                return;
+        function switchImportMode(mode) {
+            document.getElementById('mode-btn-manual').classList.toggle('active', mode === 'manual');
+            document.getElementById('mode-btn-csv').classList.toggle('active', mode === 'csv');
+            document.getElementById('import-mode-manual').style.display = mode === 'manual' ? '' : 'none';
+            document.getElementById('import-mode-csv').style.display = mode === 'csv' ? '' : 'none';
+        }
+
+        function addQuickRow(data) {
+            const id = `qr-${++quickRowSeq}`;
+            const tr = document.createElement('tr');
+            tr.id = id;
+            tr.innerHTML = `
+<td><input type="text" class="q-first" placeholder="First name" value="${data?.first_name || ''}"></td>
+<td><input type="text" class="q-last" placeholder="Last name" value="${data?.last_name || ''}"></td>
+<td><select class="q-gender">
+<option value="">—</option>
+<option value="Male" ${data?.gender === 'Male' ? 'selected' : ''}>Male</option>
+<option value="Female" ${data?.gender === 'Female' ? 'selected' : ''}>Female</option>
+</select></td>
+<td><input type="text" class="q-jersey" placeholder="#" value="${data?.jersey_number || ''}"></td>
+<td><input type="text" class="q-position" placeholder="Position" value="${data?.position || ''}"></td>
+<td><button type="button" class="quick-row-remove" onclick="removeQuickRow('${id}')" title="Remove row">×</button></td>`;
+            document.getElementById('quick-rows').appendChild(tr);
+            const lastInput = tr.querySelector('.q-position');
+            lastInput.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); addQuickRow(); document.querySelector(`#quick-rows tr:last-child .q-first`)?.focus() } });
+            updateQuickRowCount();
+        }
+
+        function removeQuickRow(id) {
+            document.getElementById(id)?.remove();
+            updateQuickRowCount();
+        }
+
+        function updateQuickRowCount() {
+            const n = document.querySelectorAll('#quick-rows tr').length;
+            document.getElementById('quick-row-count').textContent = `${n} row${n === 1 ? '' : 's'}`;
+        }
+
+        // Paste tab- or comma-separated rows copied from Excel/Sheets and fill the table,
+        // so the admin doesn't have to type every name into the grid by hand.
+        function parsePasteBox() {
+            const raw = document.getElementById('paste-box').value;
+            const lines = raw.split('\n').map(l => l.trim()).filter(Boolean);
+            if (!lines.length) return;
+            document.getElementById('quick-rows').innerHTML = '';
+            lines.forEach(line => {
+                const sep = line.includes('\t') ? '\t' : ',';
+                const [first_name, last_name, gender, jersey_number, position] = line.split(sep).map(s => s?.trim());
+                const g = /^m/i.test(gender || '') ? 'Male' : /^f/i.test(gender || '') ? 'Female' : '';
+                addQuickRow({ first_name, last_name, gender: g, jersey_number, position });
+            });
+            document.getElementById('paste-box').value = '';
+            Toast.show(`${lines.length} row(s) added to the table below.`, 'success');
+        }
+
+        function collectQuickRows() {
+            return [...document.querySelectorAll('#quick-rows tr')].map(tr => ({
+                first_name: tr.querySelector('.q-first').value.trim(),
+                last_name: tr.querySelector('.q-last').value.trim(),
+                gender: tr.querySelector('.q-gender').value,
+                jersey_number: tr.querySelector('.q-jersey').value.trim() || null,
+                position: tr.querySelector('.q-position').value.trim() || null,
+            })).filter(r => r.first_name && r.last_name && r.gender);
+        }
+
+        async function submitQuickAdd() {
+            const csvMode = document.getElementById('import-mode-csv').style.display !== 'none';
+
+            if (!csvMode && !quickSelectedSportIds.length) {
+                Toast.show('Select at least one sport for this batch.', 'error'); return;
             }
 
-            lastIdentity = { first_name: first, last_name: last, gender, image_url };
-            const createdIds = (res.data?.created || []).map(c => c.sport_id);
-            registeredSportIds = [...new Set([...registeredSportIds, ...createdIds])];
+            const players = csvMode
+                ? importRows.filter(r => r._valid)
+                : collectQuickRows();
 
-            const sportsLeft = allSports.some(s => !registeredSportIds.includes(s.id));
+            if (!players.length) { Toast.show('No valid rows to register.', 'error'); return }
 
-            document.getElementById('reg-card').innerHTML = `
-<div class="success-screen">
-<div class="success-icon">✓</div>
-<div style="font-family:'Barlow Condensed',sans-serif;font-size:22px;font-weight:900;letter-spacing:.3px">You're registered!</div>
-<div style="color:var(--muted);font-size:13.5px;margin-top:10px;max-width:360px;margin-left:auto;margin-right:auto;line-height:1.45">${res.message}</div>
-<div style="display:flex;gap:10px;justify-content:center;margin-top:22px;flex-wrap:wrap">
-${sportsLeft ? `<button class="btn btn-primary" onclick="addAnotherSport()">+ Add Another Sport</button>` : ''}
-<button class="btn btn-secondary" onclick="startOver()">Register a Different Player</button>
-</div>
-</div>`;
-        }
+            const body = { players, department_id: deptId };
+            if (!csvMode) body.sport_ids = quickSelectedSportIds; // batch default applied to every row
 
-        function addAnotherSport() {
-            selectedSportIds = [];
-            selectedTeamId = null;
-            selectedGender = lastIdentity?.gender || '';
-            renderForm();
-        }
-
-        function startOver() {
-            selectedSportIds = [];
-            selectedTeamId = null;
-            registeredSportIds = [];
-            lastIdentity = null;
-            selectedGender = '';
-            renderForm();
+            const res = await api('/players/import', { method: 'POST', body: JSON.stringify(body) });
+            const okImport = res.data?.auto_approved
+                ? (res.message || 'Roster registered & approved!')
+                : (res.message || 'Roster registered!');
+            Toast.show(res.success ? okImport : (res.message || 'Error'), res.success ? 'success' : 'error');
+            if (res.success) {
+                Modal.close('modal-import');
+                importRows = [];
+                document.getElementById('import-preview').style.display = 'none';
+                await loadPage();
+            }
         }
     </script>
 </body>
