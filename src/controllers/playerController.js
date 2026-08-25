@@ -622,20 +622,26 @@ const updatePlayer = async (req, res, next) => {
         const playerId = parseInt(req.params.id);
         const { first_name, last_name, gender, jersey_number, position, team_id, image_url } = req.body;
 
+        // Load full row so we can find sibling registrations (same person, other sports).
         const [existing] = await conn.execute(
-            'SELECT id, department_id, status FROM players WHERE id = ?',
+            `SELECT id, first_name, last_name, gender, image_url,
+                    department_id, sport_fest_id, status
+             FROM players WHERE id = ?`,
             [playerId]
         );
         if (!existing.length) {
             return res.status(404).json({ success: false, message: 'Player not found.' });
         }
 
-        if (req.user.role === 'dean_adviser' && existing[0].department_id !== req.user.department_id) {
+        const current = existing[0];
+
+        if (req.user.role === 'dean_adviser' && current.department_id !== req.user.department_id) {
             return res.status(403).json({ success: false, message: 'You can only edit players in your department.' });
         }
 
         await conn.beginTransaction();
 
+        // Sport-specific fields only update this registration row.
         await conn.execute(
             `UPDATE players
              SET first_name    = COALESCE(?, first_name),
@@ -659,11 +665,67 @@ const updatePlayer = async (req, res, next) => {
             ]
         );
 
+        // Identity fields (name, gender, photo) should stay in sync across every sport
+        // this person is registered for in the same department + season.
+        // Match siblings by the *previous* name so a rename still finds the other rows.
+        const newFirst = (first_name != null && String(first_name).trim() !== '')
+            ? String(first_name).trim() : current.first_name;
+        const newLast = (last_name != null && String(last_name).trim() !== '')
+            ? String(last_name).trim() : current.last_name;
+        const newGender = (gender != null && String(gender).trim() !== '')
+            ? gender : current.gender;
+        // image_url: explicit null/empty clears; undefined keeps existing cascade value
+        const newImage = image_url !== undefined
+            ? (image_url || null)
+            : current.image_url;
+
+        const [sibResult] = await conn.execute(
+            `UPDATE players
+             SET first_name = ?,
+                 last_name  = ?,
+                 gender     = ?,
+                 image_url  = ?,
+                 updated_at = NOW()
+             WHERE department_id = ?
+               AND sport_fest_id <=> ?
+               AND LOWER(first_name) = LOWER(?)
+               AND LOWER(last_name)  = LOWER(?)
+               AND id != ?`,
+            [
+                newFirst,
+                newLast,
+                newGender,
+                newImage,
+                current.department_id,
+                current.sport_fest_id,
+                current.first_name,
+                current.last_name,
+                playerId,
+            ]
+        );
+
+        const siblingsUpdated = sibResult.affectedRows || 0;
+
         await conn.commit();
 
-        await logActivity(req.user.id, 'PLAYER_UPDATED', 'player', playerId, `Player updated: ID ${playerId}`);
+        await logActivity(
+            req.user.id,
+            'PLAYER_UPDATED',
+            'player',
+            playerId,
+            `Player updated: ID ${playerId}` +
+            (siblingsUpdated ? ` (+${siblingsUpdated} other sport registration(s) identity synced)` : '')
+        );
 
-        return res.json({ success: true, message: 'Player updated successfully.' });
+        const message = siblingsUpdated
+            ? `Player updated. Name/gender/photo also synced to ${siblingsUpdated} other sport registration(s).`
+            : 'Player updated successfully.';
+
+        return res.json({
+            success: true,
+            message,
+            data: { siblings_updated: siblingsUpdated },
+        });
 
     } catch (err) {
         await conn.rollback();

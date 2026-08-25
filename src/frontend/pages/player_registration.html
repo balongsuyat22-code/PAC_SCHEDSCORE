@@ -10,38 +10,93 @@
         rel="stylesheet">
     <link rel="stylesheet" href="../css/shared.css">
     <style>
+        :root {
+            --reg-radius: 16px;
+            --reg-gold: #D4AF37;
+            --reg-gold-soft: rgba(212, 175, 55, .14);
+            --reg-gold-line: rgba(212, 175, 55, .35);
+        }
+
+        * {
+            box-sizing: border-box
+        }
+
         body {
+            margin: 0;
+            min-height: 100vh;
             display: flex;
             justify-content: center;
-            padding: 28px 16px 72px;
-            min-height: 100vh;
-            box-sizing: border-box;
-            background: var(--bg)
+            align-items: flex-start;
+            padding: 32px 16px 80px;
+            font-family: 'Barlow', system-ui, sans-serif;
+            background:
+                radial-gradient(ellipse 80% 50% at 50% -10%, rgba(212, 175, 55, .12), transparent 55%),
+                radial-gradient(ellipse 60% 40% at 100% 100%, rgba(59, 130, 246, .06), transparent 50%),
+                var(--bg, #0c0e14);
+            color: var(--text, #e8eaef);
         }
 
         .reg-wrap {
             width: 100%;
-            max-width: 480px
+            max-width: 440px;
+            position: relative
         }
 
+        /* Brand strip */
+        .reg-brand {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            margin-bottom: 22px;
+            opacity: .7
+        }
+
+        .reg-brand-mark {
+            width: 22px;
+            height: 22px;
+            border-radius: 6px;
+            background: linear-gradient(135deg, var(--reg-gold), #b8860b);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-family: 'Barlow Condensed', sans-serif;
+            font-weight: 900;
+            font-size: 11px;
+            color: #111
+        }
+
+        .reg-brand-text {
+            font-family: 'Barlow Condensed', sans-serif;
+            font-weight: 700;
+            font-size: 12px;
+            letter-spacing: 1.5px;
+            text-transform: uppercase;
+            color: var(--muted, #8b92a5)
+        }
+
+        /* Header */
         .reg-header {
             text-align: center;
-            margin-bottom: 20px
+            margin-bottom: 18px
         }
 
         .reg-dept-badge {
-            width: 72px;
-            height: 72px;
-            border-radius: 18px;
+            width: 80px;
+            height: 80px;
+            border-radius: 22px;
             margin: 0 auto 14px;
             display: flex;
             align-items: center;
             justify-content: center;
             font-family: 'Barlow Condensed', sans-serif;
             font-weight: 900;
-            font-size: 24px;
+            font-size: 26px;
             overflow: hidden;
-            box-shadow: 0 4px 16px rgba(0, 0, 0, .18)
+            box-shadow:
+                0 0 0 3px rgba(255, 255, 255, .04),
+                0 10px 28px rgba(0, 0, 0, .35);
+            position: relative
         }
 
         .reg-dept-badge img {
@@ -53,102 +108,217 @@
         .reg-title {
             font-family: 'Barlow Condensed', sans-serif;
             font-weight: 900;
-            font-size: 26px;
-            letter-spacing: .4px;
-            line-height: 1.15
+            font-size: 28px;
+            letter-spacing: .3px;
+            line-height: 1.1;
+            margin: 0
         }
 
         .reg-subtitle {
-            color: var(--muted);
+            color: var(--muted, #8b92a5);
             font-size: 13.5px;
-            margin-top: 6px;
-            line-height: 1.4
+            margin-top: 8px;
+            line-height: 1.45;
+            max-width: 320px;
+            margin-left: auto;
+            margin-right: auto
         }
 
+        /* Card */
         .reg-card {
-            background: var(--bg2);
-            border: 1px solid var(--border);
-            border-radius: 18px;
-            padding: 24px 22px;
-            box-shadow: 0 8px 28px rgba(0, 0, 0, .12)
+            background: linear-gradient(180deg, var(--bg2, #151821) 0%, var(--bg2, #12151c) 100%);
+            border: 1px solid var(--border, #2a2f3a);
+            border-radius: 20px;
+            padding: 0;
+            overflow: hidden;
+            box-shadow:
+                0 1px 0 rgba(255, 255, 255, .04) inset,
+                0 16px 40px rgba(0, 0, 0, .28)
         }
 
-        .reg-section {
-            margin-bottom: 18px
+        .reg-card-accent {
+            height: 3px;
+            background: linear-gradient(90deg, transparent, var(--reg-gold), transparent);
+            opacity: .85
         }
 
-        .reg-section:last-of-type {
-            margin-bottom: 0
+        .reg-card-body {
+            padding: 22px 20px 24px
         }
 
-        .reg-section-label {
-            font-size: 11px;
-            font-weight: 700;
-            text-transform: uppercase;
-            letter-spacing: .8px;
-            color: var(--muted);
-            margin-bottom: 8px
-        }
-
+        /* Avatar */
         .avatar-block {
             display: flex;
             flex-direction: column;
             align-items: center;
             gap: 10px;
-            margin-bottom: 20px;
-            padding-bottom: 18px;
-            border-bottom: 1px solid var(--border)
+            margin-bottom: 22px;
+            padding-bottom: 20px;
+            border-bottom: 1px solid var(--border, #2a2f3a)
         }
 
         #avatar-preview {
-            width: 84px;
-            height: 84px;
-            border-radius: 20px;
-            background: var(--bg3);
-            border: 2px dashed var(--border);
+            width: 92px;
+            height: 92px;
+            border-radius: 24px;
+            background:
+                linear-gradient(145deg, var(--bg3, #1c212b), var(--bg2, #151821));
+            border: 2px dashed rgba(212, 175, 55, .35);
             display: flex;
             align-items: center;
             justify-content: center;
-            font-size: 22px;
+            font-family: 'Barlow Condensed', sans-serif;
+            font-size: 26px;
             font-weight: 900;
+            color: var(--reg-gold);
             cursor: pointer;
             overflow: hidden;
-            transition: border-color .15s
+            transition: border-color .2s, box-shadow .2s, transform .15s;
+            position: relative
         }
 
         #avatar-preview:hover {
-            border-color: var(--gold)
+            border-color: var(--reg-gold);
+            border-style: solid;
+            box-shadow: 0 0 0 4px var(--reg-gold-soft);
+            transform: translateY(-1px)
+        }
+
+        #avatar-preview img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            border-radius: 22px
         }
 
         .avatar-hint {
             font-size: 12px;
-            color: var(--muted)
+            color: var(--muted, #8b92a5)
         }
 
-        .name-row {
+        .avatar-url {
+            width: 100%;
+            max-width: 260px;
+            text-align: center;
+            font-size: 12.5px !important;
+            background: var(--bg3, #1c212b) !important;
+            border: 1px solid var(--border, #2a2f3a) !important;
+            border-radius: 10px !important;
+            padding: 8px 12px !important;
+            color: var(--text, #e8eaef) !important
+        }
+
+        /* Fields */
+        .name-row,
+        .optional-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px
+        }
+
+        .field {
+            margin-bottom: 14px
+        }
+
+        .field label {
+            display: block;
+            font-size: 12px;
+            font-weight: 600;
+            color: var(--text2, #b0b6c3);
+            margin-bottom: 6px;
+            letter-spacing: .2px
+        }
+
+        .field label .opt {
+            font-weight: 400;
+            color: var(--muted, #8b92a5);
+            font-size: 11px;
+            margin-left: 4px
+        }
+
+        .field .form-input,
+        .field .form-select {
+            width: 100%;
+            background: var(--bg3, #1c212b) !important;
+            border: 1.5px solid var(--border, #2a2f3a) !important;
+            border-radius: 11px !important;
+            color: var(--text, #e8eaef) !important;
+            font-size: 14px !important;
+            padding: 11px 13px !important;
+            transition: border-color .15s, box-shadow .15s
+        }
+
+        .field .form-input:focus,
+        .field .form-select:focus,
+        .avatar-url:focus {
+            outline: none !important;
+            border-color: var(--reg-gold) !important;
+            box-shadow: 0 0 0 3px var(--reg-gold-soft) !important
+        }
+
+        .field .form-input::placeholder {
+            color: var(--muted, #6b7280)
+        }
+
+        /* Gender pills */
+        .gender-pills {
             display: grid;
             grid-template-columns: 1fr 1fr;
             gap: 10px
         }
 
-        .field {
-            margin-bottom: 12px
+        .gender-pill {
+            text-align: center;
+            padding: 12px 10px;
+            border-radius: 12px;
+            border: 1.5px solid var(--border, #2a2f3a);
+            background: var(--bg3, #1c212b);
+            color: var(--text2, #b0b6c3);
+            font-weight: 700;
+            font-size: 14px;
+            cursor: pointer;
+            transition: all .15s;
+            user-select: none
         }
 
-        .field label {
-            display: block;
-            font-size: 12.5px;
-            font-weight: 600;
-            color: var(--text2);
-            margin-bottom: 5px
+        .gender-pill:hover {
+            border-color: var(--reg-gold-line);
+            color: var(--text, #e8eaef)
         }
 
-        .field label .opt {
+        .gender-pill.active {
+            border-color: var(--reg-gold);
+            background: var(--reg-gold-soft);
+            color: var(--reg-gold);
+            box-shadow: 0 0 0 1px rgba(212, 175, 55, .15)
+        }
+
+        /* Sections */
+        .reg-section {
+            margin-bottom: 18px
+        }
+
+        .reg-section-label {
+            display: flex;
+            align-items: baseline;
+            gap: 8px;
+            font-size: 11px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: var(--muted, #8b92a5);
+            margin-bottom: 10px
+        }
+
+        .reg-section-label span.hint {
+            text-transform: none;
+            letter-spacing: 0;
             font-weight: 400;
-            color: var(--muted);
-            font-size: 11.5px
+            font-size: 11.5px;
+            color: var(--muted, #6b7280)
         }
 
+        /* Chips */
         .chip-select {
             display: flex;
             flex-wrap: wrap;
@@ -156,10 +326,10 @@
         }
 
         .chip {
-            border: 1.5px solid var(--border);
-            background: var(--bg3);
-            color: var(--text2);
-            padding: 9px 16px;
+            border: 1.5px solid var(--border, #2a2f3a);
+            background: var(--bg3, #1c212b);
+            color: var(--text2, #b0b6c3);
+            padding: 9px 15px;
             border-radius: 999px;
             font-size: 13px;
             font-weight: 600;
@@ -169,65 +339,39 @@
         }
 
         .chip:hover {
-            border-color: var(--gold);
-            color: var(--text)
+            border-color: var(--reg-gold-line);
+            color: var(--text, #e8eaef)
         }
 
         .chip.chip-active {
-            background: var(--gold);
-            color: #000;
-            border-color: var(--gold);
-            box-shadow: 0 2px 8px rgba(212, 175, 55, .35)
+            background: linear-gradient(135deg, #e0c050, var(--reg-gold));
+            color: #111;
+            border-color: transparent;
+            box-shadow: 0 4px 14px rgba(212, 175, 55, .35);
+            font-weight: 700
         }
 
         .chip.chip-done {
-            opacity: .4;
+            opacity: .45;
             cursor: default;
-            text-decoration: line-through
+            text-decoration: line-through;
+            pointer-events: none
         }
 
-        .gender-pills {
-            display: flex;
-            gap: 8px
-        }
-
-        .gender-pill {
-            flex: 1;
-            text-align: center;
-            padding: 11px 12px;
-            border-radius: 10px;
-            border: 1.5px solid var(--border);
-            background: var(--bg3);
-            color: var(--text2);
-            font-weight: 700;
-            font-size: 13.5px;
-            cursor: pointer;
-            transition: all .15s;
-            user-select: none
-        }
-
-        .gender-pill:hover {
-            border-color: var(--gold)
-        }
-
-        .gender-pill.active {
-            border-color: var(--gold);
-            background: rgba(212, 175, 55, .12);
-            color: var(--text)
-        }
-
+        /* Teams */
         .team-option {
-            border: 1.5px solid var(--border);
-            background: var(--bg3);
+            border: 1.5px solid var(--border, #2a2f3a);
+            background: var(--bg3, #1c212b);
             border-radius: 12px;
-            padding: 12px 14px;
+            padding: 13px 14px;
             display: flex;
             justify-content: space-between;
             align-items: center;
             cursor: pointer;
             margin-bottom: 8px;
             font-size: 13.5px;
-            transition: all .15s
+            transition: all .15s;
+            gap: 10px
         }
 
         .team-option:last-child {
@@ -235,12 +379,13 @@
         }
 
         .team-option:not(.full):hover {
-            border-color: var(--gold)
+            border-color: var(--reg-gold-line);
+            background: rgba(212, 175, 55, .04)
         }
 
         .team-option.selected {
-            border-color: var(--gold);
-            background: rgba(212, 175, 55, .1);
+            border-color: var(--reg-gold);
+            background: var(--reg-gold-soft);
             box-shadow: 0 0 0 1px rgba(212, 175, 55, .2)
         }
 
@@ -251,54 +396,82 @@
 
         .team-slots {
             font-size: 11.5px;
-            color: var(--muted);
+            color: var(--muted, #8b92a5);
             font-weight: 600;
-            white-space: nowrap
+            white-space: nowrap;
+            flex-shrink: 0
         }
 
+        .team-option.selected .team-slots {
+            color: var(--reg-gold)
+        }
+
+        /* Joined banner */
         .joined-banner {
             background: rgba(74, 222, 128, .08);
             border: 1px solid rgba(74, 222, 128, .22);
             border-radius: 12px;
-            padding: 11px 14px;
+            padding: 12px 14px;
             margin-bottom: 18px;
             font-size: 12.5px;
-            line-height: 1.4
+            line-height: 1.45;
+            color: var(--text2, #b0b6c3)
         }
 
+        /* Submit */
         .submit-btn {
             width: 100%;
-            margin-top: 6px;
-            padding: 14px 16px;
-            font-weight: 800;
-            font-size: 14.5px;
-            letter-spacing: .3px;
-            border-radius: 12px
+            margin-top: 8px;
+            padding: 14px 16px !important;
+            font-weight: 800 !important;
+            font-size: 15px !important;
+            letter-spacing: .4px;
+            border-radius: 12px !important;
+            border: none !important;
+            background: linear-gradient(135deg, #e0c050, var(--reg-gold)) !important;
+            color: #111 !important;
+            cursor: pointer;
+            box-shadow: 0 6px 20px rgba(212, 175, 55, .3);
+            transition: transform .15s, box-shadow .15s, filter .15s
         }
 
+        .submit-btn:hover:not(:disabled) {
+            filter: brightness(1.06);
+            box-shadow: 0 8px 24px rgba(212, 175, 55, .4);
+            transform: translateY(-1px)
+        }
+
+        .submit-btn:disabled {
+            opacity: .65;
+            cursor: not-allowed;
+            transform: none
+        }
+
+        /* Success / error */
         .success-screen {
             text-align: center;
-            padding: 28px 8px 12px
+            padding: 36px 16px 28px
         }
 
         .success-icon {
-            width: 68px;
-            height: 68px;
+            width: 72px;
+            height: 72px;
             border-radius: 50%;
             background: rgba(74, 222, 128, .12);
-            color: var(--green);
+            color: var(--green, #4ade80);
+            border: 2px solid rgba(74, 222, 128, .25);
             display: flex;
             align-items: center;
             justify-content: center;
-            margin: 0 auto 16px;
-            font-size: 28px;
+            margin: 0 auto 18px;
+            font-size: 30px;
             font-weight: 900;
-            animation: popIn .35s ease-out
+            animation: popIn .4s cubic-bezier(.22, 1.2, .36, 1)
         }
 
         @keyframes popIn {
             from {
-                transform: scale(.55);
+                transform: scale(.4);
                 opacity: 0
             }
 
@@ -310,22 +483,39 @@
 
         .error-screen {
             text-align: center;
-            padding: 36px 12px;
-            color: var(--muted);
+            padding: 40px 18px;
+            color: var(--muted, #8b92a5);
             font-size: 14px;
-            line-height: 1.5
+            line-height: 1.55
         }
 
         .empty-sports {
             font-size: 13px;
-            color: var(--muted);
-            padding: 8px 0
+            color: var(--muted, #8b92a5);
+            padding: 6px 0;
+            line-height: 1.4
         }
 
-        .optional-row {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 10px
+        .success-actions {
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+            margin-top: 24px;
+            flex-wrap: wrap
+        }
+
+        .success-actions .btn {
+            border-radius: 10px !important;
+            font-weight: 700 !important;
+            padding: 10px 16px !important
+        }
+
+        .reg-footer {
+            text-align: center;
+            margin-top: 20px;
+            font-size: 11.5px;
+            color: var(--muted, #6b7280);
+            letter-spacing: .3px
         }
 
         @media (max-width: 420px) {
@@ -335,8 +525,16 @@
                 grid-template-columns: 1fr
             }
 
-            .reg-card {
-                padding: 20px 16px
+            .reg-card-body {
+                padding: 18px 16px 20px
+            }
+
+            body {
+                padding: 20px 12px 64px
+            }
+
+            .reg-title {
+                font-size: 24px
             }
         }
     </style>
@@ -344,21 +542,30 @@
 
 <body>
     <div class="reg-wrap">
-        <div class="reg-header">
-            <div id="dept-badge" class="reg-dept-badge" style="background:var(--bg3);border:2px dashed var(--border)">
-            </div>
-            <div class="reg-title" id="dept-title">Player Registration</div>
-            <div class="reg-subtitle" id="dept-subtitle">Loading...</div>
+        <div class="reg-brand">
+            <div class="reg-brand-mark">P</div>
+            <div class="reg-brand-text">PAC Sched-Score</div>
         </div>
 
-        <div class="reg-card" id="reg-card">
-            <div class="empty-sports" style="text-align:center">Loading registration form...</div>
+        <div class="reg-header">
+            <div id="dept-badge" class="reg-dept-badge"
+                style="background:var(--bg3,#1c212b);border:2px solid var(--border,#2a2f3a)"></div>
+            <h1 class="reg-title" id="dept-title">Player Registration</h1>
+            <p class="reg-subtitle" id="dept-subtitle">Loading...</p>
         </div>
+
+        <div class="reg-card" id="reg-card-wrap">
+            <div class="reg-card-accent"></div>
+            <div class="reg-card-body" id="reg-card">
+                <div class="empty-sports" style="text-align:center;padding:24px 0">Loading registration form...</div>
+            </div>
+        </div>
+
+        <div class="reg-footer">Your registration stays pending until your adviser approves it.</div>
     </div>
 
     <script src="../js/shared.js"></script>
     <script>
-        // Public, no-login page. Do NOT call Auth.requireAuth() here.
         const params = new URLSearchParams(window.location.search);
         const deptId = parseInt(params.get('dept')) || null;
 
@@ -390,13 +597,13 @@
             }
 
             document.getElementById('dept-title').textContent = `Join ${department.name}`;
-            document.getElementById('dept-subtitle').textContent = 'Pick your sport(s) — your adviser will review and approve.';
+            document.getElementById('dept-subtitle').textContent = 'Select your sport(s) — your department adviser will review and approve.';
             const badge = document.getElementById('dept-badge');
-            const color = department.color || '#3B82F6';
-            badge.style.background = color + '22';
-            badge.style.border = `2px solid ${color}55`;
+            const color = department.color || '#D4AF37';
+            badge.style.background = color + '28';
+            badge.style.border = `2px solid ${color}66`;
             badge.innerHTML = department.logo_url
-                ? `<img src="${department.logo_url}">`
+                ? `<img src="${department.logo_url}" alt="">`
                 : `<span style="color:${color}">${(department.short_name || department.code || department.name || '?').slice(0, 3).toUpperCase()}</span>`;
 
             renderForm();
@@ -405,23 +612,25 @@
         function showError(msg) {
             document.getElementById('dept-subtitle').textContent = '';
             document.getElementById('reg-card').innerHTML = `<div class="error-screen">${msg}</div>`;
+            const foot = document.querySelector('.reg-footer');
+            if (foot) foot.style.display = 'none';
         }
 
         function renderForm() {
             const joinedHtml = registeredSportIds.length ? `
 <div class="joined-banner">
-<strong style="color:var(--green)">Already joined:</strong>
+<strong style="color:var(--green,#4ade80)">Already joined:</strong>
 ${registeredSportIds.map(id => allSports.find(s => s.id === id)?.name).filter(Boolean).join(', ')}
-— add more sports below without retyping your info.
+— add more below without retyping your info.
 </div>` : '';
 
             document.getElementById('reg-card').innerHTML = `
 ${joinedHtml}
 <div class="avatar-block">
-<div id="avatar-preview" onclick="document.getElementById('avatar-file').click()">?</div>
+<div id="avatar-preview" onclick="document.getElementById('avatar-file').click()" title="Add photo">?</div>
 <input type="file" id="avatar-file" accept="image/*" style="display:none" onchange="previewAvatar(this)">
-<input type="url" id="p-image-url" class="form-input" placeholder="Or paste photo URL (optional)" style="max-width:280px;text-align:center;font-size:12.5px">
-<div class="avatar-hint">Tap circle to add a photo</div>
+<input type="url" id="p-image-url" class="form-input avatar-url" placeholder="Or paste photo URL">
+<div class="avatar-hint">Tap the circle to upload a photo</div>
 </div>
 
 <div class="name-row">
@@ -439,21 +648,21 @@ ${joinedHtml}
 </div>
 
 <div class="reg-section">
-<div class="reg-section-label">Sport(s) * — tap all you want to join</div>
+<div class="reg-section-label">Sports * <span class="hint">tap all you want to join</span></div>
 <div id="sport-chips" class="chip-select"></div>
 </div>
 
 <div class="reg-section" id="team-group" style="display:none">
-<div class="reg-section-label">Join a team <span style="text-transform:none;letter-spacing:0;font-weight:400">(optional)</span></div>
+<div class="reg-section-label">Team <span class="hint">optional — skip if unsure</span></div>
 <div id="team-list"></div>
 </div>
 
 <div class="optional-row">
-<div class="field"><label>Jersey # <span class="opt">optional</span></label><input type="text" id="p-jersey" class="form-input" placeholder="23"></div>
+<div class="field"><label>Jersey # <span class="opt">optional</span></label><input type="text" id="p-jersey" class="form-input" placeholder="23" inputmode="numeric"></div>
 <div class="field"><label>Position <span class="opt">optional</span></label><input type="text" id="p-position" class="form-input" placeholder="Point Guard"></div>
 </div>
 
-<button class="btn btn-primary submit-btn" onclick="submitRegistration()">Submit Registration</button>
+<button type="button" class="btn btn-primary submit-btn" onclick="submitRegistration()">Submit Registration</button>
 `;
 
             if (lastIdentity) {
@@ -463,7 +672,7 @@ ${joinedHtml}
                 document.getElementById('p-image-url').value = lastIdentity.image_url || '';
                 if (lastIdentity.image_url) {
                     document.getElementById('avatar-preview').innerHTML =
-                        `<img src="${lastIdentity.image_url}" style="width:100%;height:100%;object-fit:cover;border-radius:18px">`;
+                        `<img src="${lastIdentity.image_url}" alt="">`;
                 }
             }
             renderSportChips();
@@ -501,6 +710,7 @@ ${joinedHtml}
 
         async function onGenderOrSportChange() {
             const teamGroup = document.getElementById('team-group');
+            if (!teamGroup) return;
             selectedTeamId = null;
             if (selectedSportIds.length !== 1) {
                 teamGroup.style.display = 'none';
@@ -537,7 +747,7 @@ ${joinedHtml}
                 const full = max != null && count >= max;
                 const isSel = selectedTeamId === t.id;
                 return `<div class="team-option ${isSel ? 'selected' : ''} ${full ? 'full' : ''}" onclick="${full ? '' : `pickTeam(${t.id})`}">
-<span><strong>${t.name}</strong> <span style="color:var(--muted);font-size:12px">(${t.gender})</span></span>
+<span><strong>${t.name}</strong> <span style="color:var(--muted);font-size:12px"> · ${t.gender}</span></span>
 <span class="team-slots">${full ? 'FULL' : (max != null ? `${count}/${max}` : `${count} joined`)}</span>
 </div>`;
             }).join('');
@@ -552,8 +762,7 @@ ${joinedHtml}
             const file = input.files[0]; if (!file) return;
             const reader = new FileReader();
             reader.onload = e => {
-                document.getElementById('avatar-preview').innerHTML =
-                    `<img src="${e.target.result}" style="width:100%;height:100%;object-fit:cover;border-radius:18px">`;
+                document.getElementById('avatar-preview').innerHTML = `<img src="${e.target.result}" alt="">`;
             };
             reader.readAsDataURL(file);
         }
@@ -591,17 +800,16 @@ ${joinedHtml}
             lastIdentity = { first_name: first, last_name: last, gender, image_url };
             const createdIds = (res.data?.created || []).map(c => c.sport_id);
             registeredSportIds = [...new Set([...registeredSportIds, ...createdIds])];
-
             const sportsLeft = allSports.some(s => !registeredSportIds.includes(s.id));
 
             document.getElementById('reg-card').innerHTML = `
 <div class="success-screen">
 <div class="success-icon">✓</div>
-<div style="font-family:'Barlow Condensed',sans-serif;font-size:22px;font-weight:900;letter-spacing:.3px">You're registered!</div>
-<div style="color:var(--muted);font-size:13.5px;margin-top:10px;max-width:360px;margin-left:auto;margin-right:auto;line-height:1.45">${res.message}</div>
-<div style="display:flex;gap:10px;justify-content:center;margin-top:22px;flex-wrap:wrap">
+<div style="font-family:'Barlow Condensed',sans-serif;font-size:24px;font-weight:900;letter-spacing:.3px">You're registered!</div>
+<div style="color:var(--muted);font-size:13.5px;margin-top:10px;max-width:340px;margin-left:auto;margin-right:auto;line-height:1.5">${res.message}</div>
+<div class="success-actions">
 ${sportsLeft ? `<button class="btn btn-primary" onclick="addAnotherSport()">+ Add Another Sport</button>` : ''}
-<button class="btn btn-secondary" onclick="startOver()">Register a Different Player</button>
+<button class="btn btn-secondary" onclick="startOver()">Different Player</button>
 </div>
 </div>`;
         }

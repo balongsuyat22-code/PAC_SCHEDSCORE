@@ -832,7 +832,17 @@ ${p.status === 'pending' ? `
             document.getElementById('p-sport-chips').style.display = 'none';
             const roLabel = document.getElementById('p-sport-readonly');
             roLabel.style.display = '';
-            roLabel.textContent = p.sport_name || '—';
+            // Count how many other sports this same person is in (same name + dept this season)
+            const siblings = allPlayers.filter(x =>
+                x.id !== p.id &&
+                (x.first_name || '').toLowerCase() === (p.first_name || '').toLowerCase() &&
+                (x.last_name || '').toLowerCase() === (p.last_name || '').toLowerCase()
+            );
+            const sibNote = siblings.length
+                ? ` · name/gender/photo also apply to ${siblings.length} other sport${siblings.length === 1 ? '' : 's'}`
+                : '';
+            roLabel.innerHTML = `${p.sport_name || '—'}` +
+                (sibNote ? `<span style="color:var(--muted);font-weight:400">${sibNote}</span>` : '');
             selectedSportIds = p.sport_id ? [p.sport_id] : [];
             document.getElementById('p-team-group').style.display = '';
             document.getElementById('p-jersey').value = p.jersey_number || '';
@@ -885,7 +895,9 @@ ${p.status === 'pending' ? `
                 res = await api('/players', { method: 'POST', body: JSON.stringify(body) });
             }
             const okMsg = id
-                ? 'Player updated!'
+                ? (res.data?.siblings_updated
+                    ? `Updated (+${res.data.siblings_updated} other sport${res.data.siblings_updated === 1 ? '' : 's'})`
+                    : 'Player updated!')
                 : (res.data?.auto_approved ? 'Player registered & approved!' : 'Player registered!');
             Toast.show(res.message || (res.success ? okMsg : 'Error'), res.success ? 'success' : 'error');
             if (res.success) { Modal.close('modal-register'); await loadPage() }
