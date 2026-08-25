@@ -13,33 +13,35 @@
         body {
             display: flex;
             justify-content: center;
-            padding: 24px 16px 60px;
+            padding: 28px 16px 72px;
             min-height: 100vh;
-            box-sizing: border-box
+            box-sizing: border-box;
+            background: var(--bg)
         }
 
         .reg-wrap {
             width: 100%;
-            max-width: 560px
+            max-width: 480px
         }
 
         .reg-header {
             text-align: center;
-            margin-bottom: 24px
+            margin-bottom: 20px
         }
 
         .reg-dept-badge {
-            width: 64px;
-            height: 64px;
-            border-radius: 16px;
-            margin: 0 auto 12px;
+            width: 72px;
+            height: 72px;
+            border-radius: 18px;
+            margin: 0 auto 14px;
             display: flex;
             align-items: center;
             justify-content: center;
             font-family: 'Barlow Condensed', sans-serif;
             font-weight: 900;
-            font-size: 22px;
-            overflow: hidden
+            font-size: 24px;
+            overflow: hidden;
+            box-shadow: 0 4px 16px rgba(0, 0, 0, .18)
         }
 
         .reg-dept-badge img {
@@ -51,34 +53,113 @@
         .reg-title {
             font-family: 'Barlow Condensed', sans-serif;
             font-weight: 900;
-            font-size: 24px;
-            letter-spacing: .5px
+            font-size: 26px;
+            letter-spacing: .4px;
+            line-height: 1.15
         }
 
         .reg-subtitle {
             color: var(--muted);
             font-size: 13.5px;
-            margin-top: 4px
+            margin-top: 6px;
+            line-height: 1.4
         }
 
         .reg-card {
             background: var(--bg2);
             border: 1px solid var(--border);
-            border-radius: 16px;
-            padding: 22px
+            border-radius: 18px;
+            padding: 24px 22px;
+            box-shadow: 0 8px 28px rgba(0, 0, 0, .12)
+        }
+
+        .reg-section {
+            margin-bottom: 18px
+        }
+
+        .reg-section:last-of-type {
+            margin-bottom: 0
+        }
+
+        .reg-section-label {
+            font-size: 11px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: .8px;
+            color: var(--muted);
+            margin-bottom: 8px
+        }
+
+        .avatar-block {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 20px;
+            padding-bottom: 18px;
+            border-bottom: 1px solid var(--border)
+        }
+
+        #avatar-preview {
+            width: 84px;
+            height: 84px;
+            border-radius: 20px;
+            background: var(--bg3);
+            border: 2px dashed var(--border);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 22px;
+            font-weight: 900;
+            cursor: pointer;
+            overflow: hidden;
+            transition: border-color .15s
+        }
+
+        #avatar-preview:hover {
+            border-color: var(--gold)
+        }
+
+        .avatar-hint {
+            font-size: 12px;
+            color: var(--muted)
+        }
+
+        .name-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px
+        }
+
+        .field {
+            margin-bottom: 12px
+        }
+
+        .field label {
+            display: block;
+            font-size: 12.5px;
+            font-weight: 600;
+            color: var(--text2);
+            margin-bottom: 5px
+        }
+
+        .field label .opt {
+            font-weight: 400;
+            color: var(--muted);
+            font-size: 11.5px
         }
 
         .chip-select {
             display: flex;
             flex-wrap: wrap;
-            gap: 6px
+            gap: 8px
         }
 
         .chip {
-            border: 1px solid var(--border);
+            border: 1.5px solid var(--border);
             background: var(--bg3);
             color: var(--text2);
-            padding: 8px 14px;
+            padding: 9px 16px;
             border-radius: 999px;
             font-size: 13px;
             font-weight: 600;
@@ -88,60 +169,121 @@
         }
 
         .chip:hover {
-            border-color: var(--gold)
+            border-color: var(--gold);
+            color: var(--text)
         }
 
         .chip.chip-active {
             background: var(--gold);
             color: #000;
+            border-color: var(--gold);
+            box-shadow: 0 2px 8px rgba(212, 175, 55, .35)
+        }
+
+        .chip.chip-done {
+            opacity: .4;
+            cursor: default;
+            text-decoration: line-through
+        }
+
+        .gender-pills {
+            display: flex;
+            gap: 8px
+        }
+
+        .gender-pill {
+            flex: 1;
+            text-align: center;
+            padding: 11px 12px;
+            border-radius: 10px;
+            border: 1.5px solid var(--border);
+            background: var(--bg3);
+            color: var(--text2);
+            font-weight: 700;
+            font-size: 13.5px;
+            cursor: pointer;
+            transition: all .15s;
+            user-select: none
+        }
+
+        .gender-pill:hover {
             border-color: var(--gold)
         }
 
-        .chip-hint {
-            color: var(--muted);
-            font-weight: 400;
-            text-transform: none;
-            letter-spacing: 0;
-            font-size: 12px
+        .gender-pill.active {
+            border-color: var(--gold);
+            background: rgba(212, 175, 55, .12);
+            color: var(--text)
         }
 
         .team-option {
-            border: 1px solid var(--border);
+            border: 1.5px solid var(--border);
             background: var(--bg3);
-            border-radius: 10px;
-            padding: 10px 14px;
+            border-radius: 12px;
+            padding: 12px 14px;
             display: flex;
             justify-content: space-between;
             align-items: center;
             cursor: pointer;
-            margin-bottom: 6px;
-            font-size: 13px
+            margin-bottom: 8px;
+            font-size: 13.5px;
+            transition: all .15s
+        }
+
+        .team-option:last-child {
+            margin-bottom: 0
+        }
+
+        .team-option:not(.full):hover {
+            border-color: var(--gold)
         }
 
         .team-option.selected {
             border-color: var(--gold);
-            background: rgba(212, 175, 55, .08)
+            background: rgba(212, 175, 55, .1);
+            box-shadow: 0 0 0 1px rgba(212, 175, 55, .2)
         }
 
         .team-option.full {
-            opacity: .45;
+            opacity: .4;
             cursor: not-allowed
         }
 
         .team-slots {
             font-size: 11.5px;
             color: var(--muted);
-            font-weight: 600
+            font-weight: 600;
+            white-space: nowrap
+        }
+
+        .joined-banner {
+            background: rgba(74, 222, 128, .08);
+            border: 1px solid rgba(74, 222, 128, .22);
+            border-radius: 12px;
+            padding: 11px 14px;
+            margin-bottom: 18px;
+            font-size: 12.5px;
+            line-height: 1.4
+        }
+
+        .submit-btn {
+            width: 100%;
+            margin-top: 6px;
+            padding: 14px 16px;
+            font-weight: 800;
+            font-size: 14.5px;
+            letter-spacing: .3px;
+            border-radius: 12px
         }
 
         .success-screen {
             text-align: center;
-            padding: 30px 10px
+            padding: 28px 8px 12px
         }
 
         .success-icon {
-            width: 64px;
-            height: 64px;
+            width: 68px;
+            height: 68px;
             border-radius: 50%;
             background: rgba(74, 222, 128, .12);
             color: var(--green);
@@ -149,23 +291,14 @@
             align-items: center;
             justify-content: center;
             margin: 0 auto 16px;
-            font-size: 30px;
-            font-weight: 900
-        }
-
-        .error-screen {
-            text-align: center;
-            padding: 40px 10px;
-            color: var(--muted)
-        }
-
-        .success-screen .success-icon {
+            font-size: 28px;
+            font-weight: 900;
             animation: popIn .35s ease-out
         }
 
         @keyframes popIn {
             from {
-                transform: scale(.6);
+                transform: scale(.55);
                 opacity: 0
             }
 
@@ -175,19 +308,36 @@
             }
         }
 
-        #reg-card .btn-primary {
-            margin-top: 12px;
-            padding: 12px 16px;
-            font-weight: 700;
-            letter-spacing: .3px
+        .error-screen {
+            text-align: center;
+            padding: 36px 12px;
+            color: var(--muted);
+            font-size: 14px;
+            line-height: 1.5
         }
 
-        .team-option {
-            transition: border-color .15s, background .15s
+        .empty-sports {
+            font-size: 13px;
+            color: var(--muted);
+            padding: 8px 0
         }
 
-        .team-option:not(.full):hover {
-            border-color: var(--gold)
+        .optional-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px
+        }
+
+        @media (max-width: 420px) {
+
+            .name-row,
+            .optional-row {
+                grid-template-columns: 1fr
+            }
+
+            .reg-card {
+                padding: 20px 16px
+            }
         }
     </style>
 </head>
@@ -202,13 +352,13 @@
         </div>
 
         <div class="reg-card" id="reg-card">
-            <div class="empty-text" style="text-align:center;color:var(--muted)">Loading registration form...</div>
+            <div class="empty-sports" style="text-align:center">Loading registration form...</div>
         </div>
     </div>
 
     <script src="../js/shared.js"></script>
     <script>
-        // Public, no-login page. Do NOT call Auth.requireAuth() here — anyone with the link can open this.
+        // Public, no-login page. Do NOT call Auth.requireAuth() here.
         const params = new URLSearchParams(window.location.search);
         const deptId = parseInt(params.get('dept')) || null;
 
@@ -217,8 +367,9 @@
         let selectedSportIds = [];
         let teamsForSport = [];
         let selectedTeamId = null;
-        let registeredSportIds = [];   // sports this player has already successfully joined this session
-        let lastIdentity = null;       // {first_name,last_name,gender,image_url} — reused for "Add Another Sport"
+        let registeredSportIds = [];
+        let lastIdentity = null;
+        let selectedGender = '';
 
         document.addEventListener('DOMContentLoaded', init);
 
@@ -232,19 +383,21 @@
                 if (department.is_active === 0 || department.is_active === false) {
                     return showError('Registration for this department is currently closed.');
                 }
-                allSports = sRes.data || [];
+                // Only sports that have tournaments registered this season
+                allSports = (sRes.data || []).filter(s => Number(s.total_tournaments) > 0);
             } catch (e) {
                 return showError('Could not load the registration form. Please check your connection and try again.');
             }
 
             document.getElementById('dept-title').textContent = `Join ${department.name}`;
-            document.getElementById('dept-subtitle').textContent = 'Register yourself for a sport — your department adviser will review and approve it.';
+            document.getElementById('dept-subtitle').textContent = 'Pick your sport(s) — your adviser will review and approve.';
             const badge = document.getElementById('dept-badge');
-            badge.style.background = (department.color || '#3B82F6') + '20';
-            badge.style.border = `2px solid ${(department.color || '#3B82F6')}60`;
+            const color = department.color || '#3B82F6';
+            badge.style.background = color + '22';
+            badge.style.border = `2px solid ${color}55`;
             badge.innerHTML = department.logo_url
                 ? `<img src="${department.logo_url}">`
-                : `<span style="color:${department.color || '#3B82F6'}">${(department.short_name || department.code || department.name || '?').slice(0, 3).toUpperCase()}</span>`;
+                : `<span style="color:${color}">${(department.short_name || department.code || department.name || '?').slice(0, 3).toUpperCase()}</span>`;
 
             renderForm();
         }
@@ -255,65 +408,91 @@
         }
 
         function renderForm() {
+            const joinedHtml = registeredSportIds.length ? `
+<div class="joined-banner">
+<strong style="color:var(--green)">Already joined:</strong>
+${registeredSportIds.map(id => allSports.find(s => s.id === id)?.name).filter(Boolean).join(', ')}
+— add more sports below without retyping your info.
+</div>` : '';
+
             document.getElementById('reg-card').innerHTML = `
-${registeredSportIds.length ? `
-<div style="background:rgba(74,222,128,.08);border:1px solid rgba(74,222,128,.25);border-radius:10px;padding:10px 14px;margin-bottom:16px;font-size:12.5px">
-<strong style="color:var(--green)">Already joined:</strong> ${registeredSportIds.map(id => allSports.find(s => s.id === id)?.name).filter(Boolean).join(', ')} — pick more sports below to add them, no need to retype your info.
-</div>` : ''}
-<div style="display:flex;flex-direction:column;align-items:center;gap:12px;margin-bottom:20px">
-<div id="avatar-preview" style="width:80px;height:80px;border-radius:16px;background:var(--bg3);border:2px dashed var(--border);display:flex;align-items:center;justify-content:center;font-size:20px;font-weight:900;cursor:pointer;overflow:hidden" onclick="document.getElementById('avatar-file').click()">?</div>
+${joinedHtml}
+<div class="avatar-block">
+<div id="avatar-preview" onclick="document.getElementById('avatar-file').click()">?</div>
 <input type="file" id="avatar-file" accept="image/*" style="display:none" onchange="previewAvatar(this)">
-<div style="display:flex;gap:8px;align-items:center;width:100%">
-<input type="url" id="p-image-url" class="form-input" placeholder="Or paste a photo URL (optional)...">
+<input type="url" id="p-image-url" class="form-input" placeholder="Or paste photo URL (optional)" style="max-width:280px;text-align:center;font-size:12.5px">
+<div class="avatar-hint">Tap circle to add a photo</div>
 </div>
+
+<div class="name-row">
+<div class="field"><label>First name *</label><input type="text" id="p-first" class="form-input" placeholder="Juan" autocomplete="given-name"></div>
+<div class="field"><label>Last name *</label><input type="text" id="p-last" class="form-input" placeholder="Dela Cruz" autocomplete="family-name"></div>
 </div>
-<div class="form-row">
-<div class="form-group"><label class="form-label">First Name *</label><input type="text" id="p-first" class="form-input" placeholder="e.g. Juan"></div>
-<div class="form-group"><label class="form-label">Last Name *</label><input type="text" id="p-last" class="form-input" placeholder="e.g. Dela Cruz"></div>
+
+<div class="field">
+<label>Gender *</label>
+<div class="gender-pills">
+<div class="gender-pill" id="g-male" onclick="pickGender('Male')">Male</div>
+<div class="gender-pill" id="g-female" onclick="pickGender('Female')">Female</div>
 </div>
-<div class="form-group"><label class="form-label">Gender *</label>
-<select id="p-gender" class="form-select" onchange="onGenderOrSportChange()">
-<option value="">Select...</option>
-<option value="Male">Male</option>
-<option value="Female">Female</option>
-</select>
+<input type="hidden" id="p-gender" value="">
 </div>
-<div class="form-group">
-<label class="form-label">Sport(s) *  <span class="chip-hint">tap all the sports you want to join</span></label>
+
+<div class="reg-section">
+<div class="reg-section-label">Sport(s) * — tap all you want to join</div>
 <div id="sport-chips" class="chip-select"></div>
 </div>
-<div class="form-group" id="team-group" style="display:none">
-<label class="form-label">Join a Team <span class="chip-hint">optional — pick one, or skip and your adviser will place you later</span></label>
+
+<div class="reg-section" id="team-group" style="display:none">
+<div class="reg-section-label">Join a team <span style="text-transform:none;letter-spacing:0;font-weight:400">(optional)</span></div>
 <div id="team-list"></div>
 </div>
-<div class="form-row">
-<div class="form-group"><label class="form-label">Jersey # <span class="chip-hint">optional</span></label><input type="text" id="p-jersey" class="form-input" placeholder="e.g. 23"></div>
-<div class="form-group"><label class="form-label">Position <span class="chip-hint">optional</span></label><input type="text" id="p-position" class="form-input" placeholder="e.g. Point Guard"></div>
+
+<div class="optional-row">
+<div class="field"><label>Jersey # <span class="opt">optional</span></label><input type="text" id="p-jersey" class="form-input" placeholder="23"></div>
+<div class="field"><label>Position <span class="opt">optional</span></label><input type="text" id="p-position" class="form-input" placeholder="Point Guard"></div>
 </div>
-<button class="btn btn-primary" style="width:100%;margin-top:8px" onclick="submitRegistration()">Submit Registration</button>
+
+<button class="btn btn-primary submit-btn" onclick="submitRegistration()">Submit Registration</button>
 `;
+
             if (lastIdentity) {
                 document.getElementById('p-first').value = lastIdentity.first_name || '';
                 document.getElementById('p-last').value = lastIdentity.last_name || '';
-                document.getElementById('p-gender').value = lastIdentity.gender || '';
+                if (lastIdentity.gender) pickGender(lastIdentity.gender);
                 document.getElementById('p-image-url').value = lastIdentity.image_url || '';
                 if (lastIdentity.image_url) {
-                    document.getElementById('avatar-preview').innerHTML = `<img src="${lastIdentity.image_url}" style="width:100%;height:100%;object-fit:cover;border-radius:14px">`;
+                    document.getElementById('avatar-preview').innerHTML =
+                        `<img src="${lastIdentity.image_url}" style="width:100%;height:100%;object-fit:cover;border-radius:18px">`;
                 }
             }
             renderSportChips();
         }
 
+        function pickGender(g) {
+            selectedGender = g;
+            document.getElementById('p-gender').value = g;
+            document.getElementById('g-male').classList.toggle('active', g === 'Male');
+            document.getElementById('g-female').classList.toggle('active', g === 'Female');
+            onGenderOrSportChange();
+        }
+
         function renderSportChips() {
-            document.getElementById('sport-chips').innerHTML = allSports.map(s => {
-                const done = registeredSportIds.includes(s.id);
-                if (done) return `<div class="chip" style="opacity:.45;cursor:default;text-decoration:line-through">${s.name} ✓</div>`;
+            const el = document.getElementById('sport-chips');
+            if (!allSports.length) {
+                el.innerHTML = '<div class="empty-sports">No sports with open tournaments right now. Check back later.</div>';
+                return;
+            }
+            el.innerHTML = allSports.map(s => {
+                if (registeredSportIds.includes(s.id)) {
+                    return `<div class="chip chip-done">${s.name} ✓</div>`;
+                }
                 return `<div class="chip ${selectedSportIds.includes(s.id) ? 'chip-active' : ''}" onclick="toggleSport(${s.id})">${s.name}</div>`;
-            }).join('') || '<span class="chip-hint">No sports are open for registration right now.</span>';
+            }).join('');
         }
 
         function toggleSport(sportId) {
-            if (registeredSportIds.includes(sportId)) return; // already joined this sport, nothing to toggle
+            if (registeredSportIds.includes(sportId)) return;
             const idx = selectedSportIds.indexOf(sportId);
             if (idx > -1) selectedSportIds.splice(idx, 1); else selectedSportIds.push(sportId);
             renderSportChips();
@@ -323,18 +502,17 @@ ${registeredSportIds.length ? `
         async function onGenderOrSportChange() {
             const teamGroup = document.getElementById('team-group');
             selectedTeamId = null;
-            // A team choice only makes sense when joining exactly one sport at a time.
             if (selectedSportIds.length !== 1) {
                 teamGroup.style.display = 'none';
                 return;
             }
-            const gender = document.getElementById('p-gender').value;
+            const gender = selectedGender || document.getElementById('p-gender').value;
             if (!gender) {
                 teamGroup.style.display = 'none';
                 return;
             }
             teamGroup.style.display = '';
-            document.getElementById('team-list').innerHTML = '<span class="chip-hint">Loading teams...</span>';
+            document.getElementById('team-list').innerHTML = '<div class="empty-sports">Loading teams...</div>';
             try {
                 const res = await api(`/teams?department_id=${deptId}&sport_id=${selectedSportIds[0]}`);
                 teamsForSport = (res.data || []).filter(t => {
@@ -343,14 +521,14 @@ ${registeredSportIds.length ? `
                 });
                 renderTeamList();
             } catch (e) {
-                document.getElementById('team-list').innerHTML = '<span class="chip-hint">Could not load teams — you can still register without one.</span>';
+                document.getElementById('team-list').innerHTML = '<div class="empty-sports">Could not load teams — you can still register without one.</div>';
             }
         }
 
         function renderTeamList() {
             const list = document.getElementById('team-list');
             if (!teamsForSport.length) {
-                list.innerHTML = '<span class="chip-hint">No teams yet for this sport — register and your adviser will place you on one.</span>';
+                list.innerHTML = '<div class="empty-sports">No teams yet — register and your adviser will place you.</div>';
                 return;
             }
             list.innerHTML = teamsForSport.map(t => {
@@ -359,7 +537,7 @@ ${registeredSportIds.length ? `
                 const full = max != null && count >= max;
                 const isSel = selectedTeamId === t.id;
                 return `<div class="team-option ${isSel ? 'selected' : ''} ${full ? 'full' : ''}" onclick="${full ? '' : `pickTeam(${t.id})`}">
-<span>${t.name} <span class="chip-hint">(${t.gender})</span></span>
+<span><strong>${t.name}</strong> <span style="color:var(--muted);font-size:12px">(${t.gender})</span></span>
 <span class="team-slots">${full ? 'FULL' : (max != null ? `${count}/${max}` : `${count} joined`)}</span>
 </div>`;
             }).join('');
@@ -373,14 +551,17 @@ ${registeredSportIds.length ? `
         function previewAvatar(input) {
             const file = input.files[0]; if (!file) return;
             const reader = new FileReader();
-            reader.onload = e => { document.getElementById('avatar-preview').innerHTML = `<img src="${e.target.result}" style="width:100%;height:100%;object-fit:cover;border-radius:14px">` };
+            reader.onload = e => {
+                document.getElementById('avatar-preview').innerHTML =
+                    `<img src="${e.target.result}" style="width:100%;height:100%;object-fit:cover;border-radius:18px">`;
+            };
             reader.readAsDataURL(file);
         }
 
         async function submitRegistration() {
             const first = document.getElementById('p-first').value.trim();
             const last = document.getElementById('p-last').value.trim();
-            const gender = document.getElementById('p-gender').value;
+            const gender = selectedGender || document.getElementById('p-gender').value;
             const jersey = document.getElementById('p-jersey').value.trim() || null;
             const position = document.getElementById('p-position').value.trim() || null;
             const image_url = document.getElementById('p-image-url').value.trim() || null;
@@ -396,7 +577,7 @@ ${registeredSportIds.length ? `
                 department_id: deptId,
             };
 
-            const btn = document.querySelector('#reg-card .btn-primary');
+            const btn = document.querySelector('#reg-card .submit-btn');
             if (btn) { btn.disabled = true; btn.textContent = 'Submitting...' }
 
             const res = await api('/players/public-register', { method: 'POST', body: JSON.stringify(body) });
@@ -407,8 +588,6 @@ ${registeredSportIds.length ? `
                 return;
             }
 
-            // Remember this player's info and which sports actually went through, so
-            // "Add Another Sport" can skip retyping the name/gender/photo entirely.
             lastIdentity = { first_name: first, last_name: last, gender, image_url };
             const createdIds = (res.data?.created || []).map(c => c.sport_id);
             registeredSportIds = [...new Set([...registeredSportIds, ...createdIds])];
@@ -419,7 +598,7 @@ ${registeredSportIds.length ? `
 <div class="success-screen">
 <div class="success-icon">✓</div>
 <div style="font-family:'Barlow Condensed',sans-serif;font-size:22px;font-weight:900;letter-spacing:.3px">You're registered!</div>
-<div style="color:var(--muted);font-size:13.5px;margin-top:10px;max-width:380px;margin-left:auto;margin-right:auto;line-height:1.45">${res.message}</div>
+<div style="color:var(--muted);font-size:13.5px;margin-top:10px;max-width:360px;margin-left:auto;margin-right:auto;line-height:1.45">${res.message}</div>
 <div style="display:flex;gap:10px;justify-content:center;margin-top:22px;flex-wrap:wrap">
 ${sportsLeft ? `<button class="btn btn-primary" onclick="addAnotherSport()">+ Add Another Sport</button>` : ''}
 <button class="btn btn-secondary" onclick="startOver()">Register a Different Player</button>
@@ -428,10 +607,9 @@ ${sportsLeft ? `<button class="btn btn-primary" onclick="addAnotherSport()">+ Ad
         }
 
         function addAnotherSport() {
-            // Keep lastIdentity + registeredSportIds; just reset the sport/team pickers
-            // so the same player can join more sports without retyping anything.
             selectedSportIds = [];
             selectedTeamId = null;
+            selectedGender = lastIdentity?.gender || '';
             renderForm();
         }
 
@@ -440,6 +618,7 @@ ${sportsLeft ? `<button class="btn btn-primary" onclick="addAnotherSport()">+ Ad
             selectedTeamId = null;
             registeredSportIds = [];
             lastIdentity = null;
+            selectedGender = '';
             renderForm();
         }
     </script>
