@@ -158,6 +158,37 @@
             padding: 40px 10px;
             color: var(--muted)
         }
+
+        .success-screen .success-icon {
+            animation: popIn .35s ease-out
+        }
+
+        @keyframes popIn {
+            from {
+                transform: scale(.6);
+                opacity: 0
+            }
+
+            to {
+                transform: scale(1);
+                opacity: 1
+            }
+        }
+
+        #reg-card .btn-primary {
+            margin-top: 12px;
+            padding: 12px 16px;
+            font-weight: 700;
+            letter-spacing: .3px
+        }
+
+        .team-option {
+            transition: border-color .15s, background .15s
+        }
+
+        .team-option:not(.full):hover {
+            border-color: var(--gold)
+        }
     </style>
 </head>
 
@@ -386,10 +417,10 @@ ${registeredSportIds.length ? `
 
             document.getElementById('reg-card').innerHTML = `
 <div class="success-screen">
-<div class="success-icon">OK</div>
-<div style="font-family:'Barlow Condensed',sans-serif;font-size:20px;font-weight:900">You're registered!</div>
-<div style="color:var(--muted);font-size:13.5px;margin-top:8px;max-width:380px;margin-left:auto;margin-right:auto">${res.message}</div>
-<div style="display:flex;gap:10px;justify-content:center;margin-top:20px;flex-wrap:wrap">
+<div class="success-icon">✓</div>
+<div style="font-family:'Barlow Condensed',sans-serif;font-size:22px;font-weight:900;letter-spacing:.3px">You're registered!</div>
+<div style="color:var(--muted);font-size:13.5px;margin-top:10px;max-width:380px;margin-left:auto;margin-right:auto;line-height:1.45">${res.message}</div>
+<div style="display:flex;gap:10px;justify-content:center;margin-top:22px;flex-wrap:wrap">
 ${sportsLeft ? `<button class="btn btn-primary" onclick="addAnotherSport()">+ Add Another Sport</button>` : ''}
 <button class="btn btn-secondary" onclick="startOver()">Register a Different Player</button>
 </div>

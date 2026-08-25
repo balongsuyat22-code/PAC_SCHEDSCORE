@@ -92,6 +92,11 @@ const registerPlayer = async (req, res, next) => {
 
         await conn.beginTransaction();
 
+        // Staff (dean/adviser or admin) registrations are auto-approved — the person
+        // entering the roster is trusted. Public self-registration stays pending.
+        const autoApprove = ['dean_adviser', 'admin'].includes(req.user.role);
+        const insertStatus = autoApprove ? 'approved' : 'pending';
+
         // A team assignment only makes sense when the player is being placed into
         // exactly one sport this submit; for multi-sport registrations the dean/adviser
         // assigns each team separately afterwards from the roster screen.
@@ -131,7 +136,7 @@ const registerPlayer = async (req, res, next) => {
                 `INSERT INTO players
                  (first_name, last_name, gender, image_url, department_id,
                   sport_id, team_id, jersey_number, position, status, registered_by, sport_fest_id)
-                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending', ?, ?)`,
+                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
                 [
                     first_name.trim(),
                     last_name.trim(),
@@ -142,6 +147,7 @@ const registerPlayer = async (req, res, next) => {
                     validatedTeamId,
                     jersey_number || null,
                     position || null,
+                    insertStatus,
                     req.user.id,
                     sportFestId,
                 ]
@@ -164,18 +170,19 @@ const registerPlayer = async (req, res, next) => {
             'PLAYER_REGISTERED',
             'player',
             created[0].id,
-            `Player registered: ${first_name} ${last_name} — ${created.length} sport(s) (pending approval)`
+            `Player registered: ${first_name} ${last_name} — ${created.length} sport(s)${autoApprove ? ' (auto-approved)' : ' (pending approval)'}`
         );
 
         return res.status(201).json({
             success: true,
             message: skipped.length
-                ? `Player registered for ${created.length} sport(s), waiting for approval. Already registered for ${skipped.length} of the selected sport(s), so those were skipped.`
-                : `Player registered for ${created.length} sport(s). Waiting for approval.`,
+                ? `Player registered for ${created.length} sport(s)${autoApprove ? ' and auto-approved' : ', waiting for approval'}. Already registered for ${skipped.length} of the selected sport(s), so those were skipped.`
+                : `Player registered for ${created.length} sport(s)${autoApprove ? ' and auto-approved.' : '. Waiting for approval.'}`,
             data: {
                 id: created[0]?.id,
                 created,
                 skipped_sport_ids: skipped,
+                auto_approved: autoApprove,
             },
         });
 
@@ -841,6 +848,10 @@ const importPlayers = async (req, res, next) => {
 
         await conn.beginTransaction();
 
+        // Dean/adviser (and admin) bulk imports are auto-approved, same as single register.
+        const autoApprove = ['dean_adviser', 'admin'].includes(req.user.role);
+        const insertStatus = autoApprove ? 'approved' : 'pending';
+
         const results = { inserted: 0, skipped: 0, errors: [], possible_duplicates: [] };
 
         for (const p of players) {
@@ -877,12 +888,12 @@ const importPlayers = async (req, res, next) => {
                     `INSERT INTO players
                      (first_name, last_name, gender, department_id, sport_id,
                       team_id, jersey_number, position, status, registered_by, sport_fest_id)
-                     VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'pending', ?, ?)`,
+                     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
                     [
                         p.first_name.trim(), p.last_name.trim(), p.gender,
                         department_id, sid,
                         teamIdForRow, p.jersey_number || null, p.position || null,
-                        req.user.id, sportFestId,
+                        insertStatus, req.user.id, sportFestId,
                     ]
                 );
                 results.inserted++;
@@ -896,13 +907,13 @@ const importPlayers = async (req, res, next) => {
             'PLAYERS_IMPORTED',
             'player',
             null,
-            `Bulk import: ${results.inserted} inserted, ${results.skipped} skipped`
+            `Bulk import: ${results.inserted} inserted${autoApprove ? ' (auto-approved)' : ''}, ${results.skipped} skipped`
         );
 
         return res.status(201).json({
             success: true,
-            message: `Import complete: ${results.inserted} registration(s) added, ${results.skipped} skipped.`,
-            data: results,
+            message: `Import complete: ${results.inserted} registration(s) added${autoApprove ? ' and auto-approved' : ''}, ${results.skipped} skipped.`,
+            data: { ...results, auto_approved: autoApprove },
         });
 
     } catch (err) {

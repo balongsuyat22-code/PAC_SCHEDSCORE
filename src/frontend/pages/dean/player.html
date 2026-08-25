@@ -175,6 +175,97 @@
             font-family: monospace;
             resize: vertical
         }
+
+        /* Registration share banner */
+        .reg-link-banner {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            background: linear-gradient(135deg, rgba(212, 175, 55, .08), rgba(59, 130, 246, .06));
+            border: 1px solid rgba(212, 175, 55, .25);
+            border-radius: 12px;
+            padding: 14px 16px;
+            margin-bottom: 16px;
+            flex-wrap: wrap
+        }
+
+        .reg-link-banner-icon {
+            width: 40px;
+            height: 40px;
+            border-radius: 10px;
+            background: rgba(212, 175, 55, .15);
+            color: var(--gold);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+            font-size: 18px;
+            font-weight: 900
+        }
+
+        .reg-link-banner-text {
+            flex: 1;
+            min-width: 180px
+        }
+
+        .reg-link-banner-title {
+            font-size: 13.5px;
+            font-weight: 700;
+            color: var(--text);
+            margin-bottom: 2px
+        }
+
+        .reg-link-banner-sub {
+            font-size: 12.5px;
+            color: var(--text2);
+            line-height: 1.4
+        }
+
+        .reg-link-actions {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            flex-shrink: 0
+        }
+
+        .reg-link-copied {
+            display: none;
+            align-items: center;
+            gap: 6px;
+            font-size: 12.5px;
+            font-weight: 600;
+            color: var(--green);
+            padding: 6px 10px;
+            background: rgba(74, 222, 128, .1);
+            border: 1px solid rgba(74, 222, 128, .25);
+            border-radius: 8px;
+            white-space: nowrap
+        }
+
+        .reg-link-copied.show {
+            display: inline-flex
+        }
+
+        .reg-link-url {
+            display: none;
+            font-size: 11px;
+            color: var(--muted);
+            font-family: monospace;
+            background: var(--bg3);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            padding: 6px 10px;
+            max-width: 280px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            margin-top: 8px;
+            width: 100%
+        }
+
+        .reg-link-url.show {
+            display: block
+        }
     </style>
 </head>
 
@@ -195,13 +286,19 @@
             </div>
         </div>
         <div class="content">
-            <div
-                style="display:flex;justify-content:space-between;align-items:center;gap:12px;background:var(--bg2);border:1px solid var(--border);border-radius:10px;padding:12px 16px;margin-bottom:16px;flex-wrap:wrap">
-                <div style="font-size:13px;color:var(--text2)">
-                    Share your registration link with students so they can sign themselves up —
-                    they pick their sport(s) and team, you just approve.
+            <div class="reg-link-banner">
+                <div class="reg-link-banner-icon">↗</div>
+                <div class="reg-link-banner-text">
+                    <div class="reg-link-banner-title">Student self-registration</div>
+                    <div class="reg-link-banner-sub">Share this link — students pick sport(s) &amp; team; you only
+                        approve. Players you register yourself are auto-approved.</div>
+                    <div class="reg-link-url" id="reg-link-url"></div>
                 </div>
-                <button class="btn btn-primary btn-sm" onclick="copyRegistrationLink()">Copy Registration Link</button>
+                <div class="reg-link-actions">
+                    <span class="reg-link-copied" id="reg-link-copied">✓ Copied</span>
+                    <button class="btn btn-primary btn-sm" id="btn-copy-reg-link" onclick="copyRegistrationLink()">Copy
+                        Link</button>
+                </div>
             </div>
             <div class="stat-strip" id="reg-stats"></div>
             <div class="tab-bar">
@@ -422,10 +519,30 @@
             // from the current page's URL — Express serves clean routes like /dean/players,
             // which don't reflect where the registration page actually lives on disk.
             const link = `${window.location.origin}/player-registration?dept=${deptId}`;
+            const urlEl = document.getElementById('reg-link-url');
+            const copiedEl = document.getElementById('reg-link-copied');
+            const btn = document.getElementById('btn-copy-reg-link');
+
+            const showCopied = () => {
+                if (urlEl) { urlEl.textContent = link; urlEl.classList.add('show'); }
+                if (copiedEl) {
+                    copiedEl.classList.add('show');
+                    clearTimeout(copiedEl._hideT);
+                    copiedEl._hideT = setTimeout(() => copiedEl.classList.remove('show'), 2500);
+                }
+                if (btn) {
+                    const prev = btn.textContent;
+                    btn.textContent = 'Copied!';
+                    btn.disabled = true;
+                    setTimeout(() => { btn.textContent = prev; btn.disabled = false; }, 2000);
+                }
+            };
+
             navigator.clipboard.writeText(link)
-                .then(() => Toast.show('Registration link copied! Share it with your students.', 'success'))
+                .then(showCopied)
                 .catch(() => {
-                    // Clipboard API can fail (e.g. non-HTTPS or blocked permission) — fall back to a prompt so it's still copyable.
+                    // Clipboard API can fail (e.g. non-HTTPS or blocked permission) — show URL inline + prompt fallback.
+                    showCopied();
                     window.prompt('Copy this registration link:', link);
                 });
         }
@@ -601,7 +718,10 @@ ${p.status === 'pending' ? `
                 const body = { first_name: first, last_name: last, gender, sport_ids: selectedSportIds, team_id, jersey_number: jersey, position, image_url, department_id: deptId };
                 res = await api('/players', { method: 'POST', body: JSON.stringify(body) });
             }
-            Toast.show(res.message || (res.success ? (id ? 'Player updated!' : 'Player registered!') : 'Error'), res.success ? 'success' : 'error');
+            const okMsg = id
+                ? 'Player updated!'
+                : (res.data?.auto_approved ? 'Player registered & approved!' : 'Player registered!');
+            Toast.show(res.message || (res.success ? okMsg : 'Error'), res.success ? 'success' : 'error');
             if (res.success) { Modal.close('modal-register'); await loadPage() }
         }
 
@@ -755,7 +875,10 @@ ${d.issues.map(i => `<div style="font-size:13px;color:var(--text2);padding:4px 0
             if (!csvMode) body.sport_ids = quickSelectedSportIds; // batch default applied to every row
 
             const res = await api('/players/import', { method: 'POST', body: JSON.stringify(body) });
-            Toast.show(res.message || (res.success ? 'Roster registered!' : 'Error'), res.success ? 'success' : 'error');
+            const okImport = res.data?.auto_approved
+                ? (res.message || 'Roster registered & approved!')
+                : (res.message || 'Roster registered!');
+            Toast.show(res.success ? okImport : (res.message || 'Error'), res.success ? 'success' : 'error');
             if (res.success) {
                 Modal.close('modal-import');
                 importRows = [];
