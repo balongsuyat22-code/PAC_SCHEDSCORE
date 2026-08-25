@@ -1889,55 +1889,59 @@
             if (a) a.style.transform = opening ? 'rotate(180deg)' : 'rotate(0deg)';
             if (!opening) return;
 
-            // Load every approved player for this department + tournament sport
             const sportId = currentTournament?.sport_id;
             const deptId = id;
-            if (!sportId || !deptId) return;
+            const part = (currentTournament.participants || []).find(x => String(x.department_id) === String(deptId));
+            const localPlayers = part?.players || [];
+            const col = part ? (participantNames(part).color) : '#555';
+            const req = Math.max(1, Number(currentTournament.min_players || 1));
+            const knownCount = localPlayers.length;
 
-            const label = p.querySelector('.participant-players-label');
-            const existingRows = p.querySelectorAll('.player-row');
-            // Only re-fetch once per open session unless empty
-            if (p.dataset.fullLoaded === '1' && existingRows.length) return;
+            // Already expanded with a full merge — keep it
+            if (p.dataset.fullLoaded === '1' && p.querySelectorAll('.player-row').length >= knownCount) return;
 
-            const host = document.createElement('div');
-            host.innerHTML = `<div style="font-size:12px;color:var(--muted);padding:8px 0"><i class="fa-solid fa-spinner fa-spin"></i> Loading all approved athletes…</div>`;
-            // Keep label, replace body
-            const labelHtml = label ? label.outerHTML : '';
-            p.innerHTML = labelHtml + host.innerHTML;
-
-            try {
-                const res = await api(`/players?department_id=${deptId}&sport_id=${sportId}&status=approved`);
-                let list = (res.data || []).filter(pl => !pl.status || pl.status === 'approved');
-                // Sort: approved first, then name
-                list.sort((a, b) => `${a.last_name} ${a.first_name}`.localeCompare(`${b.last_name} ${b.first_name}`));
-
-                const part = (currentTournament.participants || []).find(x => String(x.department_id) === String(deptId));
-                const col = part ? (participantNames(part).color) : '#555';
-                const req = Math.max(1, Number(currentTournament.min_players || 1));
-
-                if (label) {
-                    // refresh label text after reload
-                }
+            const renderList = (list) => {
+                const n = Math.max(list.length, knownCount);
                 p.innerHTML = `
-                    <div class="participant-players-label">All approved athletes (${list.length}) · minimum ${req}</div>
+                    <div class="participant-players-label">Athletes (${list.length}${list.length < knownCount ? ` · showing ${list.length}` : ''}) · minimum ${req}</div>
                     ${list.length ? list.map(pl => `<div class="player-row">
                         <div class="player-avatar" style="background:${col}">${(pl.first_name || '?')[0]}</div>
                         <div class="player-name">${pl.first_name || ''} ${pl.last_name || ''}${pl.team_name ? ` <span style="color:var(--muted);font-weight:400;font-size:11px">· ${pl.team_name}</span>` : ''}</div>
                         ${pl.jersey_number != null && pl.jersey_number !== '' ? `<span class="player-jersey">#${pl.jersey_number}</span>` : ''}
-                    </div>`).join('') : `<div style="font-size:12px;color:var(--muted);padding:8px 0">No approved players for this sport.</div>`}`;
-                p.dataset.fullLoaded = '1';
-
-                // Update badge on the card header if present
+                    </div>`).join('') : `<div style="font-size:12px;color:var(--muted);padding:8px 0">No players registered.</div>`}`;
                 const card = p.closest('.participant-card');
                 const badge = card?.querySelector('.player-count-badge');
                 if (badge) {
-                    const enough = list.length >= req;
+                    const count = Math.max(list.filter(x => !x.status || x.status === 'approved').length, list.length, knownCount);
+                    const enough = count >= req;
                     badge.className = `player-count-badge ${enough ? 'player-count-ok' : 'player-count-warning'}`;
                     badge.title = 'Approved players / minimum required';
-                    badge.textContent = `${list.length} approved · min ${req}`;
+                    badge.textContent = `${count} approved · min ${req}`;
                 }
+            };
+
+            // Show local list immediately so the dropdown never "shrinks" while loading
+            renderList(localPlayers);
+
+            if (!sportId || !deptId) {
+                p.dataset.fullLoaded = '1';
+                return;
+            }
+
+            try {
+                const [resApproved, resAll] = await Promise.all([
+                    api(`/players?department_id=${deptId}&sport_id=${sportId}&status=approved`),
+                    api(`/players?department_id=${deptId}&sport_id=${sportId}`),
+                ]);
+                let list = mergePlayerLists(localPlayers, resApproved.data || [], resAll.data || []);
+                // Never end up with fewer names than the participant payload already had
+                if (list.length < knownCount) list = mergePlayerLists(localPlayers, list);
+                list.sort((a, b) => `${a.last_name || ''} ${a.first_name || ''}`.localeCompare(`${b.last_name || ''} ${b.first_name || ''}`));
+                renderList(list);
+                p.dataset.fullLoaded = '1';
             } catch (e) {
-                // leave whatever was rendered
+                renderList(localPlayers);
+                p.dataset.fullLoaded = '1';
             }
         }
 
@@ -2390,6 +2394,38 @@
             }).join('');
         }
 
+        function mergePlayerLists(...lists) {
+            const byKey = new Map();
+            lists.flat().forEach(p => {
+                if (!p) return;
+                const key = p.id != null
+                    ? `id:${p.id}`
+                    : `n:${(p.first_name || '').toLowerCase()}|${(p.last_name || '').toLowerCase()}`;
+                const prev = byKey.get(key);
+                // Prefer the richer record (has jersey / team / status)
+                if (!prev || ((p.jersey_number || p.team_name || p.status) && !prev.jersey_number)) {
+                    byKey.set(key, p);
+                }
+            });
+            return [...byKey.values()].sort((a, b) =>
+                `${a.last_name || ''} ${a.first_name || ''}`.localeCompare(`${b.last_name || ''} ${b.first_name || ''}`)
+            );
+        }
+
+        function renderEligPlayersHtml(players) {
+            if (!players.length) {
+                return `<div class="elig-empty-players"><i class="fa-solid fa-triangle-exclamation"></i> No players registered for this sport yet.</div>`;
+            }
+            return players.map(p => `
+              <div class="elig-player-row">
+                <i class="fa-solid fa-user" style="width:14px;color:var(--muted);font-size:11px"></i>
+                <span>${p.first_name || ''} ${p.last_name || ''}</span>
+                ${p.jersey_number != null && p.jersey_number !== '' ? `<span style="color:var(--muted)">#${p.jersey_number}</span>` : ''}
+                ${p.team_name ? `<span style="color:var(--muted)">${p.team_name}</span>` : ''}
+                <span class="elig-player-status" style="color:${statusColor(p.status || 'approved')}">${p.status || 'approved'}</span>
+              </div>`).join('');
+        }
+
         async function toggleEligRow(idx) {
             const playersEl = document.getElementById(`players-${idx}`);
             const caret = document.getElementById(`caret-${idx}`);
@@ -2399,52 +2435,76 @@
             caret?.classList.toggle('open', opening);
             if (!opening) return;
 
-            // Always refresh with the full approved roster for this department + sport
-            // (eligibility payload may only include a sample / min set of players).
             const d = eligibilityData[idx];
             if (!d) return;
+
+            // Keep whatever eligibility already gave us — never drop players on expand.
+            const localPlayers = d.players || [];
+            const knownCount = Math.max(Number(d.approved_count) || 0, localPlayers.length);
+
+            // If we already merged a full list once, just show it.
+            if (d._allPlayers && d._allPlayers.length >= knownCount) {
+                playersEl.innerHTML = renderEligPlayersHtml(d._allPlayers);
+                return;
+            }
+
             const sportId = eligibilityMeta?.sport_id || currentTournament?.sport_id;
-            if (!sportId || !d.department_id) return;
+            if (!sportId || !d.department_id) {
+                playersEl.innerHTML = renderEligPlayersHtml(localPlayers);
+                return;
+            }
 
-            playersEl.innerHTML = `<div class="elig-empty-players"><i class="fa-solid fa-spinner fa-spin"></i> Loading all approved players…</div>`;
+            // Soft loading indicator without wiping the list if fetch fails/short
+            const prevHtml = playersEl.innerHTML;
+
             try {
-                const res = await api(`/players?department_id=${d.department_id}&sport_id=${sportId}&status=approved`);
-                const list = (res.data || []).filter(p => !p.status || p.status === 'approved');
-                // Prefer API list; fall back to eligibility payload
-                const players = list.length ? list : (d.players || []).filter(p => !p.status || p.status === 'approved');
-                d._allApprovedPlayers = players;
-                d.approved_count = players.length;
+                // Pull approved + any status for this dept/sport, then prefer approved in display order
+                const [resApproved, resAll] = await Promise.all([
+                    api(`/players?department_id=${d.department_id}&sport_id=${sportId}&status=approved`),
+                    api(`/players?department_id=${d.department_id}&sport_id=${sportId}`),
+                ]);
+                const fromApproved = resApproved.data || [];
+                const fromAll = resAll.data || [];
+                // Merge eligibility payload + API results so we never lose names the server already sent
+                let players = mergePlayerLists(localPlayers, fromApproved, fromAll);
 
-                // Update count badge on the row head
+                // If still short of the known approved_count, keep local and don't shrink the badge
+                if (players.length < knownCount && localPlayers.length >= knownCount) {
+                    players = mergePlayerLists(localPlayers, players);
+                }
+
+                d._allPlayers = players;
+                const approvedOnly = players.filter(p => !p.status || p.status === 'approved');
+                const displayCount = Math.max(approvedOnly.length, Number(d.approved_count) || 0, players.length);
+
                 const row = playersEl.closest('.elig-row');
                 const countEl = row?.querySelector('.elig-count');
                 if (countEl) {
                     const req = d.required ?? eligibilityMeta?.required_players ?? '—';
-                    countEl.textContent = `${players.length}/${req}`;
-                    countEl.classList.toggle('ok', players.length >= Number(req || 0));
-                    countEl.classList.toggle('short', players.length < Number(req || 0));
+                    // Never show a lower count than eligibility originally reported
+                    const shown = Math.max(displayCount, Number(d.approved_count) || 0);
+                    countEl.textContent = `${shown}/${req}`;
+                    countEl.classList.toggle('ok', shown >= Number(req || 0));
+                    countEl.classList.toggle('short', shown < Number(req || 0));
                 }
 
-                playersEl.innerHTML = players.length
-                    ? players.map(p => `
-              <div class="elig-player-row">
-                <i class="fa-solid fa-user" style="width:14px;color:var(--muted);font-size:11px"></i>
-                <span>${p.first_name || ''} ${p.last_name || ''}</span>
-                ${p.jersey_number != null && p.jersey_number !== '' ? `<span style="color:var(--muted)">#${p.jersey_number}</span>` : ''}
-                ${p.team_name ? `<span style="color:var(--muted)">${p.team_name}</span>` : ''}
-                <span class="elig-player-status" style="color:${statusColor(p.status || 'approved')}">${p.status || 'approved'}</span>
-              </div>`).join('')
-                    : `<div class="elig-empty-players"><i class="fa-solid fa-triangle-exclamation"></i> No approved players for this sport yet.</div>`;
+                // Show all players (approved first); don't hide non-approved that eligibility included
+                const ordered = [
+                    ...players.filter(p => !p.status || p.status === 'approved'),
+                    ...players.filter(p => p.status && p.status !== 'approved'),
+                ];
+                // dedupe while preserving order
+                const seen = new Set();
+                const finalList = ordered.filter(p => {
+                    const k = p.id != null ? `id:${p.id}` : `n:${p.first_name}|${p.last_name}`;
+                    if (seen.has(k)) return false;
+                    seen.add(k);
+                    return true;
+                });
+
+                playersEl.innerHTML = renderEligPlayersHtml(finalList.length ? finalList : localPlayers);
             } catch (e) {
-                const players = (d.players || []);
-                playersEl.innerHTML = players.length
-                    ? players.map(p => `
-              <div class="elig-player-row">
-                <i class="fa-solid fa-user" style="width:14px;color:var(--muted);font-size:11px"></i>
-                <span>${p.first_name || ''} ${p.last_name || ''}</span>
-                <span class="elig-player-status" style="color:${statusColor(p.status)}">${p.status}</span>
-              </div>`).join('')
-                    : `<div class="elig-empty-players">Could not load full roster.</div>`;
+                playersEl.innerHTML = prevHtml || renderEligPlayersHtml(localPlayers);
             }
         }
 
