@@ -323,6 +323,20 @@
     <script>
         let ffaDataCache = {};
 
+        /** Strip trailing .00 — 20.00 → 20, 12.50 → 12.5 */
+        function fmtScore(n) {
+            if (n == null || n === '') return '—';
+            if (typeof n === 'string' && /[–-]/.test(n) && !/^[\d.+-]+$/.test(n.trim())) {
+                return n.replace(/\d+\.?\d*/g, (tok) => fmtScore(tok));
+            }
+            const x = Number(n);
+            if (!Number.isFinite(x)) return String(n);
+            if (Number.isInteger(x) || Math.abs(x - Math.round(x)) < 1e-9) {
+                return String(Math.round(x));
+            }
+            return x.toFixed(2).replace(/\.?0+$/, '');
+        }
+
         function isFFAMatch(match) {
             const format = (match.tournament_format || '').toLowerCase();
             return format === 'free_for_all' ||
@@ -382,17 +396,17 @@
         function formatTag(scoringType) {
             if (scoringType === 'sets') return '<span class="format-tag">Sets</span>';
             if (scoringType === 'binary') return '<span class="format-tag">Win/Loss</span>';
+            if (scoringType === 'time') return '<span class="format-tag">Time</span>';
             return '';
         }
 
         function renderPointsScore(m) {
             const scoreA = m.total_score_a != null ? m.total_score_a : (m.final_score_a != null ? m.final_score_a : 0);
             const scoreB = m.total_score_b != null ? m.total_score_b : (m.final_score_b != null ? m.final_score_b : 0);
-            return `<span class="score-display">${scoreA} – ${scoreB}</span>`;
+            return `<span class="score-display">${fmtScore(scoreA)} – ${fmtScore(scoreB)}</span>`;
         }
 
         function renderSetsScore(m) {
-
             const sets = m.set_scores || m.sets || [];
             if (Array.isArray(sets) && sets.length) {
                 const pills = sets.map(s => {
@@ -400,18 +414,18 @@
                     const b = s.score_b ?? s.b ?? 0;
                     const cls = a > b ? 'won-a' : (b > a ? 'won-b' : '');
                     const label = s.label || s.period_label || `S${s.period || s.set || ''}`;
-                    return `<span class="set-pill ${cls}">${label}: ${a}–${b}</span>`;
+                    return `<span class="set-pill ${cls}">${label}: ${fmtScore(a)}–${fmtScore(b)}</span>`;
                 }).join('');
                 const setsA = m.sets_won_a ?? sets.filter(s => (s.score_a ?? s.a) > (s.score_b ?? s.b)).length;
                 const setsB = m.sets_won_b ?? sets.filter(s => (s.score_b ?? s.b) > (s.score_a ?? s.a)).length;
                 return `
                     <div class="score-sets">${pills}</div>
-                    <div class="sets-summary">${setsA} – ${setsB} sets</div>`;
+                    <div class="sets-summary">${fmtScore(setsA)} – ${fmtScore(setsB)} sets</div>`;
             }
 
             const setsA = m.sets_won_a ?? m.total_score_a ?? '—';
             const setsB = m.sets_won_b ?? m.total_score_b ?? '—';
-            return `<span class="score-display">${setsA} – ${setsB}</span><div class="sets-summary">sets</div>`;
+            return `<span class="score-display">${fmtScore(setsA)} – ${fmtScore(setsB)}</span><div class="sets-summary">sets</div>`;
         }
 
         function renderBinaryScore(m) {
@@ -424,7 +438,7 @@
                 return `<span class="score-display" style="font-size:15px;">${escapeHtml(name)} won</span>`;
             }
             if (m.final_score_display) {
-                return `<span class="score-display" style="font-size:14px;">${escapeHtml(m.final_score_display)}</span>`;
+                return `<span class="score-display" style="font-size:14px;">${escapeHtml(fmtScore(m.final_score_display))}</span>`;
             }
             return `<span class="score-display" style="color:var(--muted);">—</span>`;
         }
@@ -497,7 +511,7 @@
                     else if (rank === 2) rankClass = 'top-2';
                     else if (rank === 3) rankClass = 'top-3';
                     const hasScore = p.ffa_result_value !== null && p.ffa_result_value !== undefined;
-                    const scoreDisplay = hasScore ? `${p.ffa_result_value}${unit}` : '—';
+                    const scoreDisplay = hasScore ? `${fmtScore(p.ffa_result_value)}${unit}` : '—';
                     participantsHtml += `
                         <span class="ffa-participant ${rankClass}">
                             ${rank}. ${escapeHtml(p.department_name || p.team_name || 'Unknown')}: ${scoreDisplay}
@@ -511,14 +525,13 @@
 
             const winner = participants[0];
             const winnerName = winner?.department_name || winner?.team_name || 'TBD';
-            const winnerScore = (winner?.ffa_result_value != null) ? `${winner.ffa_result_value}${unit}` : '—';
 
             const resultHtml = isCompleted && winner
                 ? `<span class="result-decided">Winner: ${escapeHtml(winnerName)}</span>`
                 : `<span class="result-draw">${isCompleted ? 'Completed' : 'In Progress'}</span>`;
 
             const top3Html = topParticipants.slice(0, 3).map((p, idx) => {
-                const score = (p.ffa_result_value != null) ? `${p.ffa_result_value}${unit}` : '—';
+                const score = (p.ffa_result_value != null) ? `${fmtScore(p.ffa_result_value)}${unit}` : '—';
                 return `<div style="font-size:12px; margin-bottom:2px;">
                     <span style="color:var(--muted);">${idx + 1}.</span>
                     ${escapeHtml(p.department_name || p.team_name || 'Unknown')}:
@@ -552,8 +565,25 @@
                 </tr>`;
         }
 
-        async function loadHistory() {
+        function renderRegularCard(m) {
+            const teamA = m.team_a_name || m.dept_a_name || 'TBD';
+            const teamB = m.team_b_name || m.dept_b_name || 'TBD';
+            const scoringType = getScoringType(m);
+            let scoreHtml;
+            if (scoringType === 'sets') scoreHtml = renderSetsScore(m);
+            else if (scoringType === 'binary') scoreHtml = renderBinaryScore(m);
+            else scoreHtml = renderPointsScore(m);
+            return `
+                <div class="hist-card">
+                    <div class="hc-date">${formatMatchDate(m.scheduled_date)}</div>
+                    <div class="hc-sport">${escapeHtml(m.sport_name || 'Sport')}${formatTag(scoringType)}</div>
+                    <div class="hc-matchup">${escapeHtml(teamA)} vs ${escapeHtml(teamB)}</div>
+                    <div class="hc-score">${scoreHtml}</div>
+                    <div class="hc-footer">${renderResultCell(m, scoringType)}</div>
+                </div>`;
+        }
 
+        async function loadHistory() {
             const user = Auth.getUser();
             if (!user) {
                 window.location.href = '/login';
@@ -561,19 +591,23 @@
             }
 
             const tbody = document.getElementById('history-body');
+            const cards = document.getElementById('hist-cards');
             tbody.innerHTML = `<tr><td colspan="5"><div class="empty-state">
                 <div class="empty-icon"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg></div>
                 <div class="empty-text">Loading history...</div>
             </div></td></tr>`;
+            if (cards) cards.innerHTML = '';
 
             try {
                 const res = await api(`/matches?status=completed`);
 
                 if (!res.success || !res.data?.length) {
-                    tbody.innerHTML = `<tr><td colspan="5"><div class="empty-state">
+                    const empty = `<div class="empty-state">
                         <div class="empty-icon"><svg viewBox="0 0 24 24"><polyline points="22 12 16 12 14 15 10 15 8 12 2 12"/><path d="M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"/></svg></div>
                         <div class="empty-text">No completed matches available.</div>
-                    </div></td></tr>`;
+                    </div>`;
+                    tbody.innerHTML = `<tr><td colspan="5">${empty}</td></tr>`;
+                    if (cards) cards.innerHTML = empty;
                     document.getElementById('stat-total').textContent = '0';
                     document.getElementById('stat-decided').textContent = '0';
                     document.getElementById('stat-draws').textContent = '0';
@@ -599,23 +633,28 @@
                 document.getElementById('stat-draws').textContent = draws.length;
 
                 if (!userMatches.length) {
-                    tbody.innerHTML = `<tr><td colspan="5"><div class="empty-state">
+                    const empty = `<div class="empty-state">
                         <div class="empty-icon"><svg viewBox="0 0 24 24"><polyline points="22 12 16 12 14 15 10 15 8 12 2 12"/><path d="M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"/></svg></div>
                         <div class="empty-text">No completed matches assigned to you yet.</div>
-                    </div></td></tr>`;
+                    </div>`;
+                    tbody.innerHTML = `<tr><td colspan="5">${empty}</td></tr>`;
+                    if (cards) cards.innerHTML = empty;
                     return;
                 }
 
                 let rowsHtml = '';
+                let cardsHtml = '';
                 for (const match of userMatches) {
                     if (isFFAMatch(match)) {
                         const ffaData = match.tournament_id ? ffaDataCache[match.tournament_id] : null;
                         rowsHtml += renderFFAMatchRow(match, ffaData);
                     } else {
                         rowsHtml += renderRegularMatchRow(match);
+                        cardsHtml += renderRegularCard(match);
                     }
                 }
                 tbody.innerHTML = rowsHtml;
+                if (cards) cards.innerHTML = cardsHtml;
 
             } catch (err) {
                 console.error('Error loading history:', err);
