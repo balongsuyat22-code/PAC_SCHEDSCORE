@@ -1,4 +1,3 @@
-
 const { pool } = require('../config/database');
 const { getActiveSportFestId } = require('../utils/season');
 const { recordResultsAndRebuild, DEFAULT_MEDAL_POINTS } = require('../utils/scoring');
@@ -427,7 +426,6 @@ const addParticipants = async (req, res, next) => {
     }
 };
 
-// ── Bracket (matches for tournament) ──────────────────────────
 const getBracket = async (req, res, next) => {
     try {
         const [rows] = await pool.execute(
@@ -626,6 +624,131 @@ const update = async (req, res, next) => {
     } catch (err) {
         console.error('update error:', err);
         next(err);
+    }
+};
+
+/**
+ * DELETE /tournaments/:id
+ * Allowed only when NO match has started (ongoing/completed).
+ * Cascades related rows safely inside a transaction.
+ */
+const remove = async (req, res, next) => {
+    const conn = await pool.getConnection();
+    try {
+        const id = parseInt(req.params.id, 10);
+        if (!id) {
+            conn.release();
+            return res.status(400).json({ success: false, message: 'Invalid tournament id' });
+        }
+
+        const t = await getTournamentWithSport(id);
+        if (!t) {
+            conn.release();
+            return res.status(404).json({ success: false, message: 'Tournament not found' });
+        }
+
+        if (t.status === 'completed') {
+            conn.release();
+            return res.status(400).json({
+                success: false,
+                message: 'Cannot delete a finalized tournament. Finalized results are locked.',
+            });
+        }
+
+        // Block if any match has actually started or finished
+        const [started] = await pool.execute(
+            `SELECT COUNT(*) AS c FROM matches
+             WHERE tournament_id = ?
+               AND status IN ('ongoing', 'completed', 'in_progress')`,
+            [id]
+        );
+        const startedCount = Number(started[0]?.c || 0);
+        if (startedCount > 0) {
+            conn.release();
+            return res.status(400).json({
+                success: false,
+                message: `Cannot delete — ${startedCount} match(es) have already started or been completed.`,
+            });
+        }
+
+        await conn.beginTransaction();
+
+        // Match IDs for this tournament (scheduled / pending only at this point)
+        const [matchRows] = await conn.execute(
+            `SELECT id FROM matches WHERE tournament_id = ?`,
+            [id]
+        );
+        const matchIds = matchRows.map((r) => r.id);
+
+        if (matchIds.length) {
+            const ph = matchIds.map(() => '?').join(',');
+
+            // Child tables that may reference matches — ignore if table missing
+            const childDeletes = [
+                `DELETE FROM match_results WHERE match_id IN (${ph})`,
+                `DELETE FROM match_set_scores WHERE match_id IN (${ph})`,
+                `DELETE FROM match_events WHERE match_id IN (${ph})`,
+                `DELETE FROM match_period_scores WHERE match_id IN (${ph})`,
+                `DELETE FROM ffa_results WHERE match_id IN (${ph})`,
+            ];
+            for (const sql of childDeletes) {
+                try {
+                    await conn.execute(sql, matchIds);
+                } catch (e) {
+                    // Unknown table / column — skip (schema variants)
+                    if (e.code !== 'ER_NO_SUCH_TABLE' && e.code !== 'ER_BAD_FIELD_ERROR') {
+                        throw e;
+                    }
+                }
+            }
+
+            await conn.execute(`DELETE FROM matches WHERE tournament_id = ?`, [id]);
+        }
+
+        // Tournament-level related rows
+        const tournamentChildDeletes = [
+            `DELETE FROM tournament_participants WHERE tournament_id = ?`,
+            `DELETE FROM sport_fest_tournaments WHERE tournament_id = ?`,
+            `DELETE FROM round_robin_standings WHERE tournament_id = ?`,
+            `DELETE FROM tournament_standings WHERE tournament_id = ?`,
+            `DELETE FROM ffa_results WHERE tournament_id = ?`,
+            `DELETE FROM tournament_results WHERE tournament_id = ?`,
+        ];
+        for (const sql of tournamentChildDeletes) {
+            try {
+                await conn.execute(sql, [id]);
+            } catch (e) {
+                if (e.code !== 'ER_NO_SUCH_TABLE' && e.code !== 'ER_BAD_FIELD_ERROR') {
+                    throw e;
+                }
+            }
+        }
+
+        const [del] = await conn.execute(`DELETE FROM tournaments WHERE id = ?`, [id]);
+        if (!del.affectedRows) {
+            await conn.rollback();
+            conn.release();
+            return res.status(404).json({ success: false, message: 'Tournament not found' });
+        }
+
+        await conn.commit();
+
+        cache.clearPrefix('leaderboard:');
+
+        res.json({
+            success: true,
+            message: `Tournament "${t.name}" deleted.`,
+            data: {
+                id,
+                matches_removed: matchIds.length,
+            },
+        });
+    } catch (err) {
+        try { await conn.rollback(); } catch (_) { }
+        console.error('remove tournament error:', err);
+        next(err);
+    } finally {
+        conn.release();
     }
 };
 
@@ -1025,6 +1148,7 @@ module.exports = {
     getBracket,
     create,
     update,
+    remove,
     generateBracket,
     promoteKnockout,
     scheduleRoundRobin,

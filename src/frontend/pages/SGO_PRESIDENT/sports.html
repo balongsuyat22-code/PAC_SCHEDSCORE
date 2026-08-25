@@ -145,7 +145,6 @@
             color: var(--gold);
         }
 
-        /* Confirm modal tweaks */
         .confirm-modal .modal {
             max-width: 420px;
         }
@@ -191,6 +190,137 @@
         .btn-danger:hover {
             background: #dc2626;
         }
+
+        /* Compact toast — especially on phone */
+        .toast-container,
+        #toast-container,
+        .toasts,
+        .toast-wrap {
+            position: fixed !important;
+            bottom: 16px !important;
+            top: auto !important;
+            left: 50% !important;
+            right: auto !important;
+            transform: translateX(-50%) !important;
+            z-index: 9999 !important;
+            display: flex !important;
+            flex-direction: column !important;
+            align-items: center !important;
+            gap: 6px !important;
+            pointer-events: none !important;
+            width: auto !important;
+            max-width: min(320px, calc(100vw - 24px)) !important;
+            padding: 0 !important;
+        }
+
+        .toast,
+        .toast-item,
+        [class*="toast"]:not(.sport-card):not(.tab) {
+            font-size: 12.5px !important;
+            font-weight: 600 !important;
+            padding: 8px 12px !important;
+            border-radius: 10px !important;
+            max-width: min(320px, calc(100vw - 24px)) !important;
+            width: max-content !important;
+            min-width: 0 !important;
+            min-height: 0 !important;
+            line-height: 1.35 !important;
+            box-shadow: 0 6px 18px rgba(0, 0, 0, .28) !important;
+            pointer-events: auto !important;
+            word-break: break-word !important;
+        }
+
+        #pac-toast-root {
+            position: fixed;
+            bottom: 18px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 10000;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 6px;
+            pointer-events: none;
+            width: max-content;
+            max-width: min(300px, calc(100vw - 24px));
+        }
+
+        .pac-toast {
+            pointer-events: auto;
+            display: flex;
+            align-items: center;
+            gap: 7px;
+            padding: 8px 12px;
+            border-radius: 10px;
+            font-size: 12.5px;
+            font-weight: 600;
+            line-height: 1.3;
+            color: #fff;
+            background: #1f2937;
+            border: 1px solid rgba(255, 255, 255, .08);
+            box-shadow: 0 6px 18px rgba(0, 0, 0, .3);
+            animation: pacToastIn .2s ease-out;
+            max-width: 100%;
+        }
+
+        .pac-toast.success {
+            background: #065f46;
+            border-color: rgba(74, 222, 128, .3);
+            color: #ecfdf5;
+        }
+
+        .pac-toast.error {
+            background: #7f1d1d;
+            border-color: rgba(248, 113, 113, .3);
+            color: #fef2f2;
+        }
+
+        .pac-toast.info {
+            background: #1e3a5f;
+            border-color: rgba(96, 165, 250, .25);
+            color: #eff6ff;
+        }
+
+        .pac-toast-icon {
+            flex-shrink: 0;
+            font-size: 13px;
+            font-weight: 800;
+        }
+
+        .pac-toast-msg {
+            flex: 1;
+            min-width: 0;
+        }
+
+        @keyframes pacToastIn {
+            from {
+                opacity: 0;
+                transform: translateY(6px) scale(.97);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0) scale(1);
+            }
+        }
+
+        @media (max-width: 640px) {
+
+            #pac-toast-root,
+            .toast-container,
+            #toast-container {
+                max-width: calc(100vw - 20px) !important;
+                bottom: 12px !important;
+            }
+
+            .pac-toast,
+            .toast,
+            .toast-item {
+                font-size: 12px !important;
+                padding: 7px 11px !important;
+                max-width: calc(100vw - 20px) !important;
+            }
+        }
     </style>
 </head>
 
@@ -225,7 +355,6 @@
         </div>
     </main>
 
-    <!-- Create / Edit Sport Modal -->
     <div class="modal-overlay" id="modal-sport">
         <div class="modal">
             <div class="modal-header">
@@ -312,7 +441,6 @@
         </div>
     </div>
 
-    <!-- Deactivate Confirmation Modal -->
     <div class="modal-overlay confirm-modal" id="modal-confirm-deactivate">
         <div class="modal">
             <div class="modal-header">
@@ -348,6 +476,42 @@
             'fa-solid fa-person-swimming', 'fa-solid fa-baseball', 'fa-solid fa-gamepad',
             'fa-solid fa-medal', 'fa-solid fa-dumbbell', 'fa-solid fa-flag-checkered',
         ];
+
+        function pacToast(message, type = 'info', ms = 2600) {
+            let root = document.getElementById('pac-toast-root');
+            if (!root) {
+                root = document.createElement('div');
+                root.id = 'pac-toast-root';
+                document.body.appendChild(root);
+            }
+            const el = document.createElement('div');
+            el.className = 'pac-toast ' + (type || 'info');
+            const icon = type === 'success' ? '✓' : type === 'error' ? '!' : '•';
+            el.innerHTML = '<span class="pac-toast-icon">' + icon + '</span><span class="pac-toast-msg"></span>';
+            el.querySelector('.pac-toast-msg').textContent = message || '';
+            root.appendChild(el);
+            const hide = () => {
+                el.style.opacity = '0';
+                el.style.transform = 'translateY(4px)';
+                el.style.transition = 'all .15s';
+                setTimeout(() => el.remove(), 160);
+            };
+            const t = setTimeout(hide, ms);
+            el.addEventListener('click', () => { clearTimeout(t); hide(); });
+            while (root.children.length > 3) root.firstChild.remove();
+        }
+
+        (function patchToast() {
+            const apply = () => {
+                if (typeof Toast !== 'undefined' && Toast && typeof Toast.show === 'function') {
+                    Toast.show = function (msg, type) { pacToast(msg, type || 'info'); };
+                } else {
+                    window.Toast = { show: (msg, type) => pacToast(msg, type || 'info') };
+                }
+            };
+            apply();
+            document.addEventListener('DOMContentLoaded', apply);
+        })();
 
         document.addEventListener('DOMContentLoaded', async () => {
             Auth.requireAuth('sgo_president');

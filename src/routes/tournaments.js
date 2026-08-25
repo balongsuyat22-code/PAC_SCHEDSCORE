@@ -9,10 +9,12 @@ router.get('/', authenticate, ctrl.getAll);
 router.get('/:id', authenticate, ctrl.getOne);
 router.get('/:id/participants', authenticate, ctrl.getParticipants);
 router.get('/:id/eligibility', authenticate, ctrl.getEligibility);
-router.get('/:id/points-config', authenticate, authorize('sgo_president', 'admin'), ctrl.getPointsConfig); // NEW
+router.get('/:id/points-config', authenticate, authorize('sgo_president', 'admin'), ctrl.getPointsConfig);
 
 router.post('/', authenticate, authorize('sgo_president', 'admin'), ctrl.create);
 router.put('/:id', authenticate, authorize('sgo_president', 'admin'), ctrl.update);
+router.delete('/:id', authenticate, authorize('sgo_president', 'admin'), ctrl.remove);
+
 router.post('/:id/participants', authenticate, authorize('sgo_president', 'admin'), ctrl.addParticipants);
 router.delete('/:id/participants/:departmentId', authenticate, authorize('sgo_president', 'admin'), ctrl.removeParticipant);
 router.post('/:id/generate', authenticate, authorize('sgo_president', 'admin'), ctrl.generateBracket);

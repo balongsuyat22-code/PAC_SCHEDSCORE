@@ -1028,6 +1028,11 @@
                         onclick="exportCurrentTournament()">
                         <i class="fa-solid fa-print"></i> Print / Export
                     </button>
+                    <button class="btn btn-sm" id="btn-delete-tournament"
+                        style="display:none;margin-left:auto;background:#ef4444;color:#fff;border:none"
+                        onclick="openDeleteTournament()">
+                        <i class="fa-solid fa-trash"></i> Delete
+                    </button>
                 </div>
 
                 <div id="ws-hero"></div>
@@ -1309,6 +1314,34 @@
 
     <script src="../../js/api.js"></script>
     <script src="../../js/sgo_president.js"></script>
+
+    <div class="modal-overlay" id="modal-delete-tournament">
+        <div class="modal" style="max-width:440px">
+            <div class="modal-header">
+                <div class="modal-title"><i class="fa-solid fa-trash" style="color:#ef4444"></i> Delete Tournament</div>
+                <button class="modal-close" onclick="Modal.close('modal-delete-tournament')"><i
+                        class="fa-solid fa-xmark"></i></button>
+            </div>
+            <div class="modal-body" style="text-align:center;padding:24px 20px 12px">
+                <div
+                    style="width:56px;height:56px;border-radius:50%;background:rgba(239,68,68,.12);color:#ef4444;display:flex;align-items:center;justify-content:center;font-size:24px;margin:0 auto 14px">
+                    <i class="fa-solid fa-triangle-exclamation"></i>
+                </div>
+                <div style="font-family:'Barlow Condensed',sans-serif;font-size:20px;font-weight:800;margin-bottom:8px"
+                    id="delete-tn-title">Delete this tournament?</div>
+                <div style="font-size:13.5px;color:var(--muted);line-height:1.5;text-align:left" id="delete-tn-body">
+                </div>
+            </div>
+            <div class="modal-footer" style="justify-content:center;gap:10px">
+                <button class="btn btn-secondary" onclick="Modal.close('modal-delete-tournament')">Cancel</button>
+                <button class="btn" style="background:#ef4444;color:#fff;border:none" id="btn-confirm-delete-tn"
+                    onclick="confirmDeleteTournament()">
+                    <i class="fa-solid fa-trash"></i> Delete Permanently
+                </button>
+            </div>
+        </div>
+    </div>
+
     <script src="../../js/bracket-design.js"></script>
     <script>
 
@@ -1381,10 +1414,23 @@
             };
         }
 
+        function fmtScore(n) {
+            if (n == null || n === '') return '—';
+            if (typeof n === 'string' && /[–-]/.test(n) && !/^[\d.+-]+$/.test(n.trim())) {
+                return n.replace(/\d+\.?\d*/g, (tok) => fmtScore(tok));
+            }
+            const x = Number(n);
+            if (!Number.isFinite(x)) return String(n);
+            if (Number.isInteger(x) || Math.abs(x - Math.round(x)) < 1e-9) return String(Math.round(x));
+            return x.toFixed(2).replace(/\.?0+$/, '');
+        }
+
         function matchScoreText(m) {
             if (m.status !== 'completed') return '';
-            return m.final_score_display
-                || `${m.total_score_a ?? '—'}–${m.total_score_b ?? '—'}`;
+            if (m.final_score_display) return fmtScore(m.final_score_display);
+            const a = m.total_score_a, b = m.total_score_b;
+            if (a == null && b == null) return '';
+            return `${fmtScore(a)} – ${fmtScore(b)}`;
         }
 
         function deptDot(color) {
@@ -1638,6 +1684,7 @@
             if (!tourneyRes.success) return;
             currentTournament = tourneyRes.data;
             currentBracketMatches = bracketRes.data || [];
+            updateDeleteButtonVisibility();
 
             const isLocked = !['draft', 'registration'].includes(currentTournament.status);
             const isFinalized = currentTournament.status === 'completed';
@@ -1674,6 +1721,7 @@
             renderHeroBar();
             renderDatesBar();
             renderWsTabs();
+            updateDeleteButtonVisibility();
             renderActiveTab();
         }
 
@@ -2695,6 +2743,75 @@
         function exportCurrentTournament() {
             if (!currentTournamentId) return;
             window.open(`/president/tournament-export?tournament_id=${currentTournamentId}`, '_blank');
+        }
+
+        function tournamentHasStartedMatches() {
+            const matches = currentBracketMatches || [];
+            return matches.some(m => ['ongoing', 'completed', 'in_progress'].includes(String(m.status || '').toLowerCase()));
+        }
+
+        function tournamentHasAnyMatches() {
+            return (currentBracketMatches || []).length > 0;
+        }
+
+        function updateDeleteButtonVisibility() {
+            const btn = document.getElementById('btn-delete-tournament');
+            if (!btn) return;
+            if (!currentTournament || currentTournament.status === 'completed') {
+                btn.style.display = 'none';
+                return;
+            }
+            btn.style.display = tournamentHasStartedMatches() ? 'none' : '';
+        }
+
+        function openDeleteTournament() {
+            if (!currentTournamentId || !currentTournament) return;
+            if (tournamentHasStartedMatches()) {
+                Toast.show('Cannot delete — one or more matches have already started or been completed.', 'error');
+                return;
+            }
+            const name = currentTournament.name || 'this tournament';
+            const hasMatches = tournamentHasAnyMatches();
+            const partCount = (currentTournament.participants || []).length;
+            const matchCount = (currentBracketMatches || []).length;
+            document.getElementById('delete-tn-title').textContent = 'Delete “' + name + '”?';
+            let warnings = '<p style="margin:0 0 10px"><strong style="color:var(--text)">This cannot be undone.</strong></p>';
+            warnings += '<ul style="margin:0;padding-left:18px;color:var(--muted)">';
+            warnings += '<li>The tournament record will be permanently removed.</li>';
+            if (partCount) warnings += '<li><strong style="color:var(--text)">' + partCount + '</strong> department participant(s) will be removed from this tournament.</li>';
+            if (hasMatches) warnings += '<li><strong style="color:#f59e0b">' + matchCount + '</strong> scheduled match slot(s) will be deleted (none have started yet).</li>';
+            else warnings += '<li>No bracket/matches have been generated yet.</li>';
+            warnings += '<li>Any related scores or standings for this tournament will be removed.</li></ul>';
+            warnings += '<p style="margin:12px 0 0;font-size:12px;color:#f59e0b"><i class="fa-solid fa-triangle-exclamation"></i> Only tournaments with <em>no started matches</em> can be deleted.</p>';
+            document.getElementById('delete-tn-body').innerHTML = warnings;
+            Modal.open('modal-delete-tournament');
+        }
+
+        async function confirmDeleteTournament() {
+            if (!currentTournamentId) return;
+            if (tournamentHasStartedMatches()) {
+                Toast.show('Cannot delete — matches have already started.', 'error');
+                Modal.close('modal-delete-tournament');
+                return;
+            }
+            const btn = document.getElementById('btn-confirm-delete-tn');
+            if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Deleting…'; }
+            try {
+                const res = await api('/tournaments/' + currentTournamentId, { method: 'DELETE' });
+                Toast.show(res.message || (res.success ? 'Tournament deleted.' : 'Could not delete tournament'), res.success ? 'success' : 'error');
+                if (res.success) {
+                    Modal.close('modal-delete-tournament');
+                    currentTournamentId = null;
+                    currentTournament = null;
+                    currentBracketMatches = [];
+                    backToList();
+                    if (typeof loadTournaments === 'function') loadTournaments();
+                }
+            } catch (e) {
+                Toast.show('Delete failed. The server may not allow removing this tournament.', 'error');
+            } finally {
+                if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fa-solid fa-trash"></i> Delete Permanently'; }
+            }
         }
     </script>
 </body>
