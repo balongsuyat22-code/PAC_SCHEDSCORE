@@ -144,6 +144,53 @@
             background: var(--gold-bg);
             color: var(--gold);
         }
+
+        /* Confirm modal tweaks */
+        .confirm-modal .modal {
+            max-width: 420px;
+        }
+
+        .confirm-modal .modal-body {
+            text-align: center;
+            padding: 28px 24px 12px;
+        }
+
+        .confirm-icon {
+            width: 56px;
+            height: 56px;
+            border-radius: 50%;
+            background: rgba(239, 68, 68, .12);
+            color: #ef4444;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+            margin: 0 auto 16px;
+        }
+
+        .confirm-title {
+            font-family: 'Barlow Condensed', sans-serif;
+            font-size: 22px;
+            font-weight: 800;
+            text-transform: uppercase;
+            margin-bottom: 8px;
+        }
+
+        .confirm-text {
+            font-size: 14px;
+            color: var(--muted);
+            line-height: 1.5;
+        }
+
+        .btn-danger {
+            background: #ef4444;
+            color: #fff;
+            border: none;
+        }
+
+        .btn-danger:hover {
+            background: #dc2626;
+        }
     </style>
 </head>
 
@@ -178,6 +225,7 @@
         </div>
     </main>
 
+    <!-- Create / Edit Sport Modal -->
     <div class="modal-overlay" id="modal-sport">
         <div class="modal">
             <div class="modal-header">
@@ -260,6 +308,32 @@
             <div class="modal-footer">
                 <button class="btn btn-secondary" onclick="Modal.close('modal-sport')">Cancel</button>
                 <button class="btn btn-primary" id="sport-save-btn" onclick="saveSport()">Create</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Deactivate Confirmation Modal -->
+    <div class="modal-overlay confirm-modal" id="modal-confirm-deactivate">
+        <div class="modal">
+            <div class="modal-header">
+                <div class="modal-title"><i class="fa-solid fa-ban"></i> Deactivate Sport</div>
+                <button class="modal-close" onclick="Modal.close('modal-confirm-deactivate')"><i
+                        class="fa-solid fa-xmark"></i></button>
+            </div>
+            <div class="modal-body">
+                <div class="confirm-icon"><i class="fa-solid fa-ban"></i></div>
+                <div class="confirm-title">Deactivate this sport?</div>
+                <div class="confirm-text">
+                    The sport will be marked inactive and hidden from new tournaments.
+                    Existing history and past results stay intact.
+                </div>
+                <input type="hidden" id="deactivate-sport-id">
+            </div>
+            <div class="modal-footer" style="justify-content:center; gap:10px">
+                <button class="btn btn-secondary" onclick="Modal.close('modal-confirm-deactivate')">Cancel</button>
+                <button class="btn btn-danger" onclick="confirmDeactivate()">
+                    <i class="fa-solid fa-ban"></i> Deactivate
+                </button>
             </div>
         </div>
     </div>
@@ -447,8 +521,17 @@
             if (res.success) { Modal.close('modal-sport'); await loadPage(); }
         }
 
-        async function deactivateSport(id) {
-            if (!confirm('Deactivate this sport? History stays intact.')) return;
+        function deactivateSport(id) {
+            document.getElementById('deactivate-sport-id').value = id;
+            Modal.open('modal-confirm-deactivate');
+        }
+
+        async function confirmDeactivate() {
+            const id = document.getElementById('deactivate-sport-id').value;
+            if (!id) return;
+
+            Modal.close('modal-confirm-deactivate');
+
             const res = await api(`/sports/${id}`, { method: 'DELETE' });
             Toast.show(res.message || (res.success ? 'Sport deactivated' : 'Error'), res.success ? 'success' : 'error');
             if (res.success) await loadPage();
