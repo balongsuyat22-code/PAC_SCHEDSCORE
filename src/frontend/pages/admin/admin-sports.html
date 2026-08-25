@@ -183,15 +183,6 @@
             border-color: var(--gold);
         }
 
-        .modal-body .icon-picker .icon-choice {
-            font-size: 14px;
-        }
-
-        .modal-body .icon-picker .icon-choice .icon {
-            width: 16px;
-            height: 16px;
-        }
-
         .linked-tourney-row {
             display: flex;
             align-items: center;
@@ -206,18 +197,9 @@
             color: var(--gold);
         }
 
-        /* Responsive */
         @media (max-width: 768px) {
             .sport-grid {
                 grid-template-columns: 1fr;
-            }
-
-            .sport-stats {
-                flex-wrap: wrap;
-            }
-
-            .sport-stat-pill {
-                min-width: 60px;
             }
 
             .sport-actions {
@@ -236,33 +218,112 @@
                 gap: 8px;
             }
 
-            .topbar-title {
-                font-size: 16px;
-            }
-
-            .topbar-actions {
-                flex-wrap: wrap;
-            }
-
             .content {
                 padding: 16px;
             }
         }
 
-        @media (max-width: 480px) {
-            .sport-card-banner {
-                flex-wrap: wrap;
+        /* Compact toast */
+        .toast-container,
+        #toast-container,
+        .toasts {
+            position: fixed !important;
+            bottom: 16px !important;
+            top: auto !important;
+            left: 50% !important;
+            transform: translateX(-50%) !important;
+            z-index: 10000 !important;
+            width: auto !important;
+            max-width: min(300px, calc(100vw - 24px)) !important;
+            display: flex !important;
+            flex-direction: column !important;
+            align-items: center !important;
+            gap: 6px !important;
+            pointer-events: none !important;
+        }
+
+        .toast,
+        .toast-item {
+            font-size: 12.5px !important;
+            padding: 8px 12px !important;
+            border-radius: 10px !important;
+            max-width: min(300px, calc(100vw - 24px)) !important;
+            width: max-content !important;
+            min-width: 0 !important;
+            line-height: 1.35 !important;
+            box-shadow: 0 6px 18px rgba(0, 0, 0, .28) !important;
+            pointer-events: auto !important;
+            word-break: break-word !important;
+        }
+
+        #pac-toast-root {
+            position: fixed;
+            bottom: 18px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 10001;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 6px;
+            pointer-events: none;
+            max-width: min(300px, calc(100vw - 24px));
+        }
+
+        .pac-toast {
+            pointer-events: auto;
+            display: flex;
+            align-items: center;
+            gap: 7px;
+            padding: 8px 12px;
+            border-radius: 10px;
+            font-size: 12.5px;
+            font-weight: 600;
+            line-height: 1.3;
+            color: #fff;
+            background: #1f2937;
+            border: 1px solid rgba(255, 255, 255, .08);
+            box-shadow: 0 6px 18px rgba(0, 0, 0, .3);
+            max-width: 100%;
+        }
+
+        .pac-toast.success {
+            background: #065f46;
+            border-color: rgba(74, 222, 128, .3);
+            color: #ecfdf5;
+        }
+
+        .pac-toast.error {
+            background: #7f1d1d;
+            border-color: rgba(248, 113, 113, .3);
+            color: #fef2f2;
+        }
+
+        .pac-toast.info {
+            background: #1e3a5f;
+            border-color: rgba(96, 165, 250, .25);
+            color: #eff6ff;
+        }
+
+        @media (max-width: 640px) {
+
+            #pac-toast-root,
+            .toast-container {
+                max-width: calc(100vw - 20px) !important;
+                bottom: 12px !important;
             }
 
-            .sport-name {
-                font-size: 18px;
+            .pac-toast,
+            .toast {
+                font-size: 12px !important;
+                padding: 7px 11px !important;
+                max-width: calc(100vw - 20px) !important;
             }
         }
     </style>
 </head>
 
 <body>
-    <!-- Sidebar will be injected here by renderSidebar() -->
     <main class="main">
         <div class="topbar">
             <button class="burger-menu" id="burger-menu" aria-label="Toggle navigation menu" type="button">
@@ -273,62 +334,31 @@
                     </svg></span>
             </button>
             <div class="topbar-title">
-                <span class="icon" style="width:20px;height:20px;color:var(--gold);">
-                    <svg viewBox="0 0 24 24">
+                <span class="icon" style="width:20px;height:20px;color:var(--gold);"><svg viewBox="0 0 24 24">
                         <circle cx="12" cy="12" r="10"></circle>
                         <circle cx="12" cy="12" r="6"></circle>
                         <circle cx="12" cy="12" r="2"></circle>
-                    </svg>
-                </span>
+                    </svg></span>
                 Sports
             </div>
             <div class="topbar-actions">
-                <button class="btn btn-secondary btn-sm" onclick="loadPage()">
-                    <span class="icon" style="width:14px;height:14px;"><svg viewBox="0 0 24 24">
-                            <polyline points="23 4 23 10 17 10"></polyline>
-                            <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"></path>
-                        </svg></span>
-                    Refresh
-                </button>
-                <button class="btn btn-primary btn-sm" onclick="openCreate()">
-                    <span class="icon" style="width:14px;height:14px;"><svg viewBox="0 0 24 24">
-                            <line x1="12" y1="5" x2="12" y2="19"></line>
-                            <line x1="5" y1="12" x2="19" y2="12"></line>
-                        </svg></span>
-                    New Sport
-                </button>
+                <button class="btn btn-secondary btn-sm" onclick="loadPage()">Refresh</button>
+                <button class="btn btn-primary btn-sm" onclick="openCreate()">New Sport</button>
             </div>
         </div>
         <div class="content">
             <div class="sport-grid" id="sport-grid">
                 <div class="empty-state" style="grid-column:1/-1">
-                    <div class="empty-icon">
-                        <span class="icon" style="width:44px;height:44px;color:var(--muted);">
-                            <svg viewBox="0 0 24 24">
-                                <circle cx="12" cy="12" r="10"></circle>
-                                <circle cx="12" cy="12" r="6"></circle>
-                                <circle cx="12" cy="12" r="2"></circle>
-                            </svg>
-                        </span>
-                    </div>
                     <div class="empty-text">Loading...</div>
                 </div>
             </div>
         </div>
     </main>
 
-    <!-- Create/Edit Modal -->
     <div class="modal-overlay" id="modal-sport" onclick="if(event.target===this)Modal.close('modal-sport')">
         <div class="modal">
             <div class="modal-header">
-                <div class="modal-title" id="sport-modal-title">
-                    <span class="icon" style="width:18px;height:18px;color:var(--gold);"><svg viewBox="0 0 24 24">
-                            <circle cx="12" cy="12" r="10"></circle>
-                            <circle cx="12" cy="12" r="6"></circle>
-                            <circle cx="12" cy="12" r="2"></circle>
-                        </svg></span>
-                    New Sport
-                </div>
+                <div class="modal-title" id="sport-modal-title">New Sport</div>
                 <button class="modal-close" onclick="Modal.close('modal-sport')">✕</button>
             </div>
             <div class="modal-body">
@@ -360,9 +390,6 @@
                             <option value="3">Best of 5 (first to 3 sets)</option>
                             <option value="4">Best of 7 (first to 4 sets)</option>
                         </select>
-                        <div style="font-size:11px;color:var(--muted);margin-top:4px">
-                            Referee scores each set from 0, saves it, then the next set resets to 0-0 automatically.
-                        </div>
                     </div>
                 </div>
                 <div class="form-row">
@@ -395,26 +422,18 @@
         </div>
     </div>
 
-    <!-- Tournaments Modal -->
     <div class="modal-overlay" id="modal-sport-tourneys"
         onclick="if(event.target===this)Modal.close('modal-sport-tourneys')">
         <div class="modal">
             <div class="modal-header">
-                <div class="modal-title" id="sport-tourneys-title">
-                    <span class="icon" style="width:18px;height:18px;color:var(--gold);"><svg viewBox="0 0 24 24">
-                            <circle cx="12" cy="8" r="7"></circle>
-                            <polyline points="8.21 13.89 7 23 12 20 17 23 15.79 13.88"></polyline>
-                        </svg></span>
-                    Tournaments
-                </div>
+                <div class="modal-title" id="sport-tourneys-title">Tournaments</div>
                 <button class="modal-close" onclick="Modal.close('modal-sport-tourneys')">✕</button>
             </div>
             <div class="modal-body">
                 <div class="card" id="sport-tourneys-list"></div>
             </div>
-            <div class="modal-footer">
-                <button class="btn btn-secondary" onclick="Modal.close('modal-sport-tourneys')">Close</button>
-            </div>
+            <div class="modal-footer"><button class="btn btn-secondary"
+                    onclick="Modal.close('modal-sport-tourneys')">Close</button></div>
         </div>
     </div>
 
@@ -423,14 +442,36 @@
     <script>
         let allSports = [];
         const ICON_CHOICES = ['🏀', '⚽', '🏐', '🏸', '🎾', '🏓', '🏊', '🏃', '🥊', '🏈', '⚾', '🏉', '🎳', '🤸', '🏹', '♟️'];
-
-        // SVG icon mappings for scoring types
         const SCORING_ICONS = {
             points: `<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="16"></line><line x1="8" y1="12" x2="16" y2="12"></line></svg>`,
             sets: `<svg viewBox="0 0 24 24"><rect x="2" y="2" width="20" height="20" rx="2.18"></rect><line x1="8" y1="2" x2="8" y2="22"></line><line x1="16" y1="2" x2="16" y2="22"></line></svg>`,
             binary: `<svg viewBox="0 0 24 24"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>`,
             time: `<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>`
         };
+
+        function pacToast(message, type, ms) {
+            type = type || 'info'; ms = ms || 2600;
+            let root = document.getElementById('pac-toast-root');
+            if (!root) { root = document.createElement('div'); root.id = 'pac-toast-root'; document.body.appendChild(root); }
+            const el = document.createElement('div');
+            el.className = 'pac-toast ' + type;
+            const icon = type === 'success' ? '✓' : type === 'error' ? '!' : '•';
+            el.innerHTML = '<span style="flex-shrink:0;font-weight:800">' + icon + '</span><span style="flex:1;min-width:0"></span>';
+            el.lastChild.textContent = message || '';
+            root.appendChild(el);
+            const hide = () => { el.style.opacity = '0'; el.style.transition = 'opacity .15s'; setTimeout(() => el.remove(), 160); };
+            const t = setTimeout(hide, ms);
+            el.addEventListener('click', () => { clearTimeout(t); hide(); });
+            while (root.children.length > 3) root.firstChild.remove();
+        }
+        (function () {
+            const apply = () => {
+                if (typeof Toast !== 'undefined' && Toast) Toast.show = function (msg, type) { pacToast(msg, type || 'info'); };
+                else window.Toast = { show: (msg, type) => pacToast(msg, type || 'info') };
+            };
+            apply();
+            document.addEventListener('DOMContentLoaded', apply);
+        })();
 
         document.addEventListener('DOMContentLoaded', async () => {
             Auth.requireAuth('admin');
@@ -440,54 +481,40 @@
         });
 
         function buildIconPicker() {
-            const el = document.getElementById('sp-icon-picker');
-            el.innerHTML = ICON_CHOICES.map(ic =>
+            document.getElementById('sp-icon-picker').innerHTML = ICON_CHOICES.map(ic =>
                 `<div class="icon-choice" data-icon="${ic}" onclick="pickIcon('${ic}')">${ic}</div>`
             ).join('');
         }
-
         function pickIcon(icon) {
             document.getElementById('sp-icon').value = icon;
-            document.querySelectorAll('.icon-choice').forEach(el => {
-                el.classList.toggle('selected', el.dataset.icon === icon);
-            });
+            document.querySelectorAll('.icon-choice').forEach(el => el.classList.toggle('selected', el.dataset.icon === icon));
         }
-
         function onScoringTypeChange() {
-            const type = document.getElementById('sp-scoring').value;
-            document.getElementById('sp-sets-group').style.display = (type === 'sets') ? '' : 'none';
+            document.getElementById('sp-sets-group').style.display = document.getElementById('sp-scoring').value === 'sets' ? '' : 'none';
         }
-
         async function loadPage() {
             const res = await api('/sports');
             if (!res.success) return;
             allSports = res.data || [];
             renderGrid();
         }
-
         function renderGrid() {
             const el = document.getElementById('sport-grid');
             if (!allSports.length) {
-                el.innerHTML = `<div class="empty-state" style="grid-column:1/-1"><div class="empty-icon"><span class="icon" style="width:44px;height:44px;color:var(--muted);"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"></circle><circle cx="12" cy="12" r="6"></circle><circle cx="12" cy="12" r="2"></circle></svg></span></div><div class="empty-text">No sports yet. Click "New Sport" to add your first one.</div></div>`;
+                el.innerHTML = `<div class="empty-state" style="grid-column:1/-1"><div class="empty-text">No sports yet. Click "New Sport" to add your first one.</div></div>`;
                 return;
             }
             el.innerHTML = allSports.map(s => {
-                const isAvailable = s.is_available === undefined || !!s.is_available;
-                const scoringLabel = s.scoring_type === 'sets'
-                    ? `Best of ${(s.sets_to_win || 2) * 2 - 1}`
+                const scoringLabel = s.scoring_type === 'sets' ? `Best of ${(s.sets_to_win || 2) * 2 - 1}`
                     : (s.scoring_type === 'binary' ? 'Winner only' : (s.scoring_type || 'points'));
                 const scoringIconHtml = SCORING_ICONS[s.scoring_type] || SCORING_ICONS.points;
                 const statusClass = s.is_active ? 'open' : 'full';
                 const statusLabel = s.is_active ? 'Open' : 'Full';
-
                 return `
             <div class="sport-card ${s.is_active ? '' : 'is-inactive'}">
                 <div class="sport-card-banner">
                     <div class="sport-icon-badge">${s.icon || '🏅'}</div>
-                    <div>
-                        <div class="sport-name">${s.name}</div>
-                        <div class="sport-code">${s.code}</div>
-                    </div>
+                    <div><div class="sport-name">${s.name}</div><div class="sport-code">${s.code}</div></div>
                 </div>
                 <div class="sport-card-body">
                     <div class="sport-meta-row">
@@ -500,25 +527,16 @@
                         <div class="sport-stat-pill"><div class="sport-stat-val">${s.total_tournaments || 0}</div><div class="sport-stat-lbl">Tourneys</div></div>
                     </div>
                     <div class="sport-actions">
-                        <button class="btn btn-secondary btn-sm" style="flex:1" onclick="viewTourneys(${s.id})">
-                            <span class="icon" style="width:14px;height:14px;"><svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="7"></circle><polyline points="8.21 13.89 7 23 12 20 17 23 15.79 13.88"></polyline></svg></span>
-                            Tournaments
-                        </button>
-                        <button class="btn btn-primary btn-sm" style="flex:1" onclick="openEdit(${s.id})">
-                            <span class="icon" style="width:14px;height:14px;"><svg viewBox="0 0 24 24"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg></span>
-                            Edit
-                        </button>
-                        ${s.is_active ? `<button class="btn btn-secondary btn-sm" onclick="deactivateSport(${s.id})">
-                            <span class="icon" style="width:14px;height:14px;"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"></circle><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"></line></svg></span>
-                        </button>` : ''}
+                        <button class="btn btn-secondary btn-sm" style="flex:1" onclick="viewTourneys(${s.id})">Tournaments</button>
+                        <button class="btn btn-primary btn-sm" style="flex:1" onclick="openEdit(${s.id})">Edit</button>
+                        ${s.is_active ? `<button class="btn btn-secondary btn-sm" onclick="deactivateSport(${s.id})">Deactivate</button>` : ''}
                     </div>
                 </div>
             </div>`;
             }).join('');
         }
-
         function openCreate() {
-            document.getElementById('sport-modal-title').innerHTML = `<span class="icon" style="width:18px;height:18px;color:var(--gold);"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"></circle><circle cx="12" cy="12" r="6"></circle><circle cx="12" cy="12" r="2"></circle></svg></span> New Sport`;
+            document.getElementById('sport-modal-title').textContent = 'New Sport';
             document.getElementById('sport-save-btn').textContent = 'Create';
             document.getElementById('sp-edit-id').value = '';
             ['sp-name', 'sp-code', 'sp-category', 'sp-desc', 'sp-icon'].forEach(id => document.getElementById(id).value = '');
@@ -532,10 +550,9 @@
             onScoringTypeChange();
             Modal.open('modal-sport');
         }
-
         function openEdit(id) {
             const s = allSports.find(x => x.id === id); if (!s) return;
-            document.getElementById('sport-modal-title').innerHTML = `<span class="icon" style="width:18px;height:18px;color:var(--gold);"><svg viewBox="0 0 24 24"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg></span> ${s.name}`;
+            document.getElementById('sport-modal-title').textContent = s.name;
             document.getElementById('sport-save-btn').textContent = 'Save Changes';
             document.getElementById('sp-edit-id').value = id;
             document.getElementById('sp-name').value = s.name;
@@ -550,24 +567,18 @@
             document.getElementById('sp-desc').value = s.description || '';
             document.getElementById('sp-active').value = s.is_active ? '1' : '0';
             document.getElementById('sp-active-group').style.display = '';
-            document.querySelectorAll('.icon-choice').forEach(el => {
-                el.classList.toggle('selected', el.dataset.icon === s.icon);
-            });
+            document.querySelectorAll('.icon-choice').forEach(el => el.classList.toggle('selected', el.dataset.icon === s.icon));
             onScoringTypeChange();
             Modal.open('modal-sport');
         }
-
         async function saveSport() {
             const id = document.getElementById('sp-edit-id').value;
             const name = document.getElementById('sp-name').value.trim();
             const code = document.getElementById('sp-code').value.trim();
             if (!name || !code) { Toast.show('Name and code are required', 'error'); return; }
-
             const scoring_type = document.getElementById('sp-scoring').value;
-
             const body = {
-                name,
-                code,
+                name, code,
                 category: document.getElementById('sp-category').value.trim() || null,
                 scoring_type,
                 sets_to_win: scoring_type === 'sets' ? (parseInt(document.getElementById('sp-sets-to-win').value) || 2) : null,
@@ -578,37 +589,29 @@
                 description: document.getElementById('sp-desc').value.trim() || null,
             };
             if (id) body.is_active = document.getElementById('sp-active').value;
-
             const res = id
                 ? await api(`/sports/${id}`, { method: 'PUT', body: JSON.stringify(body) })
                 : await api('/sports', { method: 'POST', body: JSON.stringify(body) });
-
             Toast.show(res.message || (res.success ? 'Saved!' : 'Error'), res.success ? 'success' : 'error');
             if (res.success) { Modal.close('modal-sport'); await loadPage(); }
         }
-
         async function deactivateSport(id) {
             if (!confirm('Deactivate this sport? It will be hidden from active listings but its history stays intact.')) return;
             const res = await api(`/sports/${id}`, { method: 'DELETE' });
             Toast.show(res.message || (res.success ? 'Sport deactivated' : 'Error'), res.success ? 'success' : 'error');
             if (res.success) await loadPage();
         }
-
         async function viewTourneys(id) {
             const s = allSports.find(x => x.id === id);
-            document.getElementById('sport-tourneys-title').innerHTML =
-                `<span class="icon" style="width:18px;height:18px;color:var(--gold);"><svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="7"></circle><polyline points="8.21 13.89 7 23 12 20 17 23 15.79 13.88"></polyline></svg></span> ${s ? s.name : ''} Tournaments`;
+            document.getElementById('sport-tourneys-title').textContent = (s ? s.name : '') + ' Tournaments';
             const res = await api(`/sports/${id}/tournaments`);
             const list = document.getElementById('sport-tourneys-list');
             if (!res.success || !res.data.length) {
                 list.innerHTML = `<div style="padding:14px;color:var(--muted);font-size:13px">No tournaments for this sport yet.</div>`;
             } else {
                 list.innerHTML = res.data.map(t => {
-                    // Use the shared statusBadge function from shared.js
                     const statusHtml = typeof statusBadge === 'function' ? statusBadge(t.status) : `<span class="badge badge-muted">${t.status || 'draft'}</span>`;
-                    return `
-                    <div class="linked-tourney-row">
-                        <span class="icon" style="width:18px;height:18px;color:var(--gold);"><svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="7"></circle><polyline points="8.21 13.89 7 23 12 20 17 23 15.79 13.88"></polyline></svg></span>
+                    return `<div class="linked-tourney-row">
                         <div style="flex:1"><div style="font-weight:600">${t.name}</div><div style="font-size:11px;color:var(--muted)">${t.format || ''} · ${t.participant_count || 0} participants</div></div>
                         ${statusHtml}
                     </div>`;

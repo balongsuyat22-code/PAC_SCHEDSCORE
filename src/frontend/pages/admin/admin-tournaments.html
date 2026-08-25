@@ -699,6 +699,106 @@
                 align-items: flex-start;
             }
         }
+
+        /* Compact toast — especially on phone */
+        .toast-container,
+        #toast-container,
+        .toasts {
+            position: fixed !important;
+            bottom: 16px !important;
+            top: auto !important;
+            left: 50% !important;
+            transform: translateX(-50%) !important;
+            z-index: 10000 !important;
+            width: auto !important;
+            max-width: min(300px, calc(100vw - 24px)) !important;
+            display: flex !important;
+            flex-direction: column !important;
+            align-items: center !important;
+            gap: 6px !important;
+            pointer-events: none !important;
+        }
+
+        .toast,
+        .toast-item {
+            font-size: 12.5px !important;
+            padding: 8px 12px !important;
+            border-radius: 10px !important;
+            max-width: min(300px, calc(100vw - 24px)) !important;
+            width: max-content !important;
+            min-width: 0 !important;
+            line-height: 1.35 !important;
+            box-shadow: 0 6px 18px rgba(0, 0, 0, .28) !important;
+            pointer-events: auto !important;
+            word-break: break-word !important;
+        }
+
+        #pac-toast-root {
+            position: fixed;
+            bottom: 18px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 10001;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 6px;
+            pointer-events: none;
+            max-width: min(300px, calc(100vw - 24px));
+        }
+
+        .pac-toast {
+            pointer-events: auto;
+            display: flex;
+            align-items: center;
+            gap: 7px;
+            padding: 8px 12px;
+            border-radius: 10px;
+            font-size: 12.5px;
+            font-weight: 600;
+            line-height: 1.3;
+            color: #fff;
+            background: #1f2937;
+            border: 1px solid rgba(255, 255, 255, .08);
+            box-shadow: 0 6px 18px rgba(0, 0, 0, .3);
+            max-width: 100%;
+        }
+
+        .pac-toast.success {
+            background: #065f46;
+            border-color: rgba(74, 222, 128, .3);
+            color: #ecfdf5;
+        }
+
+        .pac-toast.error {
+            background: #7f1d1d;
+            border-color: rgba(248, 113, 113, .3);
+            color: #fef2f2;
+        }
+
+        .pac-toast.info {
+            background: #1e3a5f;
+            border-color: rgba(96, 165, 250, .25);
+            color: #eff6ff;
+        }
+
+        @media (max-width: 640px) {
+
+            #pac-toast-root,
+            .toast-container,
+            #toast-container {
+                max-width: calc(100vw - 20px) !important;
+                bottom: 12px !important;
+            }
+
+            .pac-toast,
+            .toast,
+            .toast-item {
+                font-size: 12px !important;
+                padding: 7px 11px !important;
+                max-width: calc(100vw - 20px) !important;
+            }
+        }
     </style>
 </head>
 
@@ -1029,6 +1129,43 @@
         const IS_GROUP_STAGE = f => ['group_stage_se', 'group_stage_de', 'group_stage_ffa'].includes(f);
         const IS_FFA = f => ['free_for_all', 'team_ranking', 'group_stage_ffa'].includes(f);
 
+
+        function pacToast(message, type, ms) {
+            type = type || 'info';
+            ms = ms || 2600;
+            let root = document.getElementById('pac-toast-root');
+            if (!root) {
+                root = document.createElement('div');
+                root.id = 'pac-toast-root';
+                document.body.appendChild(root);
+            }
+            const el = document.createElement('div');
+            el.className = 'pac-toast ' + type;
+            const icon = type === 'success' ? '✓' : type === 'error' ? '!' : '•';
+            el.innerHTML = '<span style="flex-shrink:0;font-weight:800">' + icon + '</span><span style="flex:1;min-width:0"></span>';
+            el.lastChild.textContent = message || '';
+            root.appendChild(el);
+            const hide = () => {
+                el.style.opacity = '0';
+                el.style.transition = 'opacity .15s';
+                setTimeout(() => el.remove(), 160);
+            };
+            const t = setTimeout(hide, ms);
+            el.addEventListener('click', () => { clearTimeout(t); hide(); });
+            while (root.children.length > 3) root.firstChild.remove();
+        }
+        (function () {
+            const apply = () => {
+                if (typeof Toast !== 'undefined' && Toast) {
+                    Toast.show = function (msg, type) { pacToast(msg, type || 'info'); };
+                } else {
+                    window.Toast = { show: (msg, type) => pacToast(msg, type || 'info') };
+                }
+            };
+            apply();
+            document.addEventListener('DOMContentLoaded', apply);
+        })();
+
         const PAGE_ID = new URLSearchParams(window.location.search).get('id');
         let allTournaments = [], allSports = [], activeFilter = 'all', createSlots = [];
         let tournament = null, participants = [], matches = [], departments = [], venues = [], referees = [];
@@ -1327,6 +1464,9 @@
             const done = tournament.status === 'completed';
             const ongoing = tournament.status === 'ongoing';
             const fmt = tournament.format;
+            const canDelete = !done && !(matches || []).some(m =>
+                ['ongoing', 'completed', 'in_progress'].includes(String(m.status || '').toLowerCase())
+            );
             tb(tournament.name, `
                 <a href="/admin/tournaments" class="btn btn-secondary btn-sm">Back</a>
                 <button class="btn btn-secondary btn-sm" onclick="reloadDetail()">Refresh</button>
@@ -1334,6 +1474,7 @@
                 ${!done ? `<button class="btn btn-primary btn-sm" id="bracket-btn" onclick="genBracket()">${matches.length ? (IS_FFA(fmt) ? 'Re-Initialize Event' : 'Regenerate Bracket') : (IS_FFA(fmt) ? 'Initialize Event' : 'Generate Bracket')}</button>` : ''}
                 ${!done ? `<button class="btn btn-primary btn-sm" onclick="openScheduleConfig()">Auto-Schedule</button>` : ''}
                 ${ongoing || done ? `<button class="btn btn-sm" style="background:var(--green);color:#000" onclick="openFinalizeFlow()">Finalize</button>` : ''}
+                ${canDelete ? `<button class="btn btn-sm" style="background:#ef4444;color:#fff;border:none" onclick="openDeleteTournament()">Delete</button>` : ''}
             `);
 
             const tabs = [
@@ -2014,6 +2155,48 @@
             });
             Toast.show(res.message || (res.success ? 'Tournament finalized!' : 'Error'), res.success ? 'success' : 'error');
             if (res.success) await reloadDetail();
+        }
+
+        function openDeleteTournament() {
+            if (!PAGE_ID || !tournament) return;
+            const started = (matches || []).some(m =>
+                ['ongoing', 'completed', 'in_progress'].includes(String(m.status || '').toLowerCase())
+            );
+            if (started || tournament.status === 'completed') {
+                Toast.show('Cannot delete — matches have started or tournament is finalized.', 'error');
+                return;
+            }
+            const name = tournament.name || 'this tournament';
+            const matchCount = (matches || []).length;
+            const partCount = (participants || []).length;
+            const msg = 'Delete "' + name + '" permanently?\n\n'
+                + '• This cannot be undone\n'
+                + '• ' + partCount + ' participant(s) will be removed from this tournament\n'
+                + (matchCount
+                    ? '• ' + matchCount + ' scheduled match slot(s) will be deleted (none have started)\n'
+                    : '• No matches generated yet\n')
+                + '• Related scores/standings for this tournament will be removed';
+
+            if (typeof showConfirm === 'function') {
+                showConfirm(msg.replace(/\n/g, ' · '), async () => {
+                    await confirmDeleteTournament();
+                }, true);
+            } else if (confirm(msg)) {
+                confirmDeleteTournament();
+            }
+        }
+
+        async function confirmDeleteTournament() {
+            if (!PAGE_ID) return;
+            try {
+                const res = await api('/tournaments/' + PAGE_ID, { method: 'DELETE' });
+                Toast.show(res.message || (res.success ? 'Tournament deleted.' : 'Could not delete'), res.success ? 'success' : 'error');
+                if (res.success) {
+                    window.location.href = '/admin/tournaments';
+                }
+            } catch (e) {
+                Toast.show('Delete failed', 'error');
+            }
         }
 
         async function genBracket() {
