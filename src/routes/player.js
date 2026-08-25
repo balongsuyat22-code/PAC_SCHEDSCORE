@@ -24,5 +24,6 @@ router.put('/:id', authorize('dean_adviser', 'admin'), pc.updatePlayer);
 router.patch('/:id/status', authorize('dean_adviser', 'admin'), pc.updatePlayerStatus);
 router.patch('/:id/remove-from-team', authorize('dean_adviser', 'admin'), pc.removeFromTeam);
 router.delete('/:id', authorize('admin'), pc.deletePlayer);
+router.post('/players/public-register', playerController.publicRegisterPlayer);
 
 module.exports = router;

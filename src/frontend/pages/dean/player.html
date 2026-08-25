@@ -55,6 +55,126 @@
             background: rgba(232, 50, 59, .08);
             border: 1px solid rgba(232, 50, 59, .2)
         }
+
+        /* --- multi-sport chip picker --- */
+        .chip-select {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px
+        }
+
+        .chip {
+            border: 1px solid var(--border);
+            background: var(--bg3);
+            color: var(--text2);
+            padding: 6px 12px;
+            border-radius: 999px;
+            font-size: 12.5px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all .15s;
+            user-select: none
+        }
+
+        .chip:hover {
+            border-color: var(--gold)
+        }
+
+        .chip.chip-active {
+            background: var(--gold);
+            color: #000;
+            border-color: var(--gold)
+        }
+
+        .chip-hint {
+            color: var(--muted);
+            font-weight: 400;
+            text-transform: none;
+            letter-spacing: 0;
+            font-size: 12px
+        }
+
+        /* --- quick add roster grid --- */
+        .mode-switch {
+            display: flex;
+            gap: 4px;
+            background: var(--bg2);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            padding: 4px;
+            margin-bottom: 16px
+        }
+
+        .mode-switch-btn {
+            flex: 1;
+            text-align: center;
+            padding: 8px 10px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 12.5px;
+            font-weight: 700;
+            color: var(--muted);
+        }
+
+        .mode-switch-btn.active {
+            background: var(--bg3);
+            color: var(--text);
+            box-shadow: 0 1px 4px rgba(0, 0, 0, .2)
+        }
+
+        .quick-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 12.5px
+        }
+
+        .quick-table th {
+            text-align: left;
+            color: var(--muted);
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: .5px;
+            font-size: 10.5px;
+            padding: 0 6px 6px
+        }
+
+        .quick-table td {
+            padding: 3px
+        }
+
+        .quick-table input,
+        .quick-table select {
+            width: 100%;
+            background: var(--bg3);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            color: var(--text);
+            font-size: 12.5px;
+            padding: 6px 7px
+        }
+
+        .quick-row-remove {
+            background: transparent;
+            border: none;
+            color: var(--red);
+            cursor: pointer;
+            font-weight: 800;
+            font-size: 14px;
+            padding: 4px 6px
+        }
+
+        .paste-box {
+            width: 100%;
+            min-height: 70px;
+            background: var(--bg3);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            color: var(--text);
+            font-size: 12.5px;
+            padding: 10px;
+            font-family: monospace;
+            resize: vertical
+        }
     </style>
 </head>
 
@@ -70,11 +190,19 @@
             </div>
             <div class="topbar-actions">
                 <button class="btn btn-secondary btn-sm" onclick="loadPage()">Refresh</button>
-                <button class="btn btn-secondary btn-sm" onclick="Modal.open('modal-import')">Import List</button>
+                <button class="btn btn-secondary btn-sm" onclick="openQuickAdd()">+ Quick Add Roster</button>
                 <button class="btn btn-primary btn-sm" onclick="openRegister()">+ Register Player</button>
             </div>
         </div>
         <div class="content">
+            <div
+                style="display:flex;justify-content:space-between;align-items:center;gap:12px;background:var(--bg2);border:1px solid var(--border);border-radius:10px;padding:12px 16px;margin-bottom:16px;flex-wrap:wrap">
+                <div style="font-size:13px;color:var(--text2)">
+                    Share your registration link with students so they can sign themselves up —
+                    they pick their sport(s) and team, you just approve.
+                </div>
+                <button class="btn btn-primary btn-sm" onclick="copyRegistrationLink()">Copy Registration Link</button>
+            </div>
             <div class="stat-strip" id="reg-stats"></div>
             <div class="tab-bar">
                 <div class="tab-pill active" onclick="switchTab('all',this)">All Players</div>
@@ -135,14 +263,16 @@
                             <option value="Female">Female</option>
                         </select>
                     </div>
-                    <div class="form-group"><label class="form-label">Sport *</label>
-                        <select id="p-sport" class="form-select" onchange="loadTeamsForSport()">
-                            <option value="">Select Sport...</option>
-                        </select>
+                </div>
+                <div class="form-group">
+                    <label class="form-label" id="p-sport-label">Sport(s) * <span class="chip-hint">tap to select
+                            one or more — the player will be registered in each</span></label>
+                    <div id="p-sport-chips" class="chip-select"></div>
+                    <div id="p-sport-readonly" style="display:none;font-size:13px;color:var(--text2);padding:8px 0">
                     </div>
                 </div>
                 <div class="form-row">
-                    <div class="form-group"><label class="form-label">Team <span
+                    <div class="form-group" id="p-team-group"><label class="form-label">Team <span
                                 style="color:var(--muted);font-weight:400;text-transform:none;letter-spacing:0">optional</span></label>
                         <select id="p-team" class="form-select">
                             <option value="">No team (Individual)</option>
@@ -164,40 +294,82 @@
     </div>
 
     <div class="modal-overlay" id="modal-import" onclick="if(event.target===this)Modal.close('modal-import')">
-        <div class="modal" style="max-width:580px">
+        <div class="modal" style="max-width:760px">
             <div class="modal-header">
-                <div class="modal-title">Import Player List</div>
+                <div class="modal-title">Quick Add Roster</div>
                 <button class="modal-close" onclick="Modal.close('modal-import')">X</button>
             </div>
             <div class="modal-body">
-                <div
-                    style="background:var(--bg3);border-radius:8px;padding:12px 14px;font-size:12px;color:var(--muted);margin-bottom:16px">
-                    CSV format: <code>first_name, last_name, gender, sport_code, jersey_number, position</code><br>
-                    Gender: <code>Male</code> or <code>Female</code> · Sport code must match existing sports
+                <div class="form-group">
+                    <label class="form-label">Register into <span class="chip-hint">select one or more sports —
+                            applies to every name below</span></label>
+                    <div id="quick-sport-chips" class="chip-select"></div>
                 </div>
-                <div class="form-group"><label class="form-label">Default Sport (if not in CSV)</label>
-                    <select id="import-sport" class="form-select">
-                        <option value="">— Select —</option>
-                    </select>
+
+                <div class="mode-switch">
+                    <div class="mode-switch-btn active" id="mode-btn-manual" onclick="switchImportMode('manual')">Type
+                        / Paste Names</div>
+                    <div class="mode-switch-btn" id="mode-btn-csv" onclick="switchImportMode('csv')">Upload CSV</div>
                 </div>
-                <div class="import-zone" id="import-zone" onclick="document.getElementById('csv-file').click()"
-                    ondragover="dragOver(event)" ondrop="dropFile(event)">
-                    <div class="import-zone-icon" style="font-size:28px;font-weight:900;color:var(--muted)">CSV</div>
-                    <div class="import-zone-text">Click or drag &amp; drop a CSV file here</div>
-                    <input type="file" id="csv-file" accept=".csv,.txt" style="display:none" onchange="parseCSV(this)">
+
+                <div id="import-mode-manual">
+                    <div class="form-group">
+                        <label class="form-label">Paste from a spreadsheet <span class="chip-hint">one player per
+                                line: First, Last, Gender, Jersey#, Position — jersey/position optional</span></label>
+                        <textarea id="paste-box" class="paste-box"
+                            placeholder="Juan, Dela Cruz, Male, 23, Guard&#10;Maria, Santos, Female"></textarea>
+                        <div style="display:flex;justify-content:flex-end;margin-top:6px">
+                            <button class="btn btn-secondary btn-sm" onclick="parsePasteBox()">Fill Table Below</button>
+                        </div>
+                    </div>
+                    <div style="max-height:280px;overflow-y:auto;margin-top:6px">
+                        <table class="quick-table" id="quick-table">
+                            <thead>
+                                <tr>
+                                    <th style="width:22%">First Name</th>
+                                    <th style="width:22%">Last Name</th>
+                                    <th style="width:16%">Gender</th>
+                                    <th style="width:14%">Jersey #</th>
+                                    <th style="width:20%">Position</th>
+                                    <th style="width:6%"></th>
+                                </tr>
+                            </thead>
+                            <tbody id="quick-rows"></tbody>
+                        </table>
+                    </div>
+                    <div style="display:flex;justify-content:space-between;align-items:center;margin-top:10px">
+                        <button class="btn btn-secondary btn-sm" onclick="addQuickRow()">+ Add Row</button>
+                        <span class="chip-hint" id="quick-row-count">0 rows</span>
+                    </div>
                 </div>
-                <div id="import-preview" style="margin-top:16px;display:none">
+
+                <div id="import-mode-csv" style="display:none">
                     <div
-                        style="font-family:'Barlow Condensed',sans-serif;font-size:14px;font-weight:800;color:var(--muted);margin-bottom:10px;text-transform:uppercase;letter-spacing:1px">
-                        PREVIEW (<span id="import-count">0</span> players)</div>
-                    <div id="import-list"
-                        style="max-height:280px;overflow-y:auto;display:flex;flex-direction:column;gap:4px"></div>
+                        style="background:var(--bg3);border-radius:8px;padding:12px 14px;font-size:12px;color:var(--muted);margin-bottom:16px">
+                        CSV format: <code>first_name, last_name, gender, sport_code, jersey_number, position</code><br>
+                        Gender: <code>Male</code> or <code>Female</code> · Sport code, if included, overrides the
+                        sport(s) selected above for that row.
+                    </div>
+                    <div class="import-zone" id="import-zone" onclick="document.getElementById('csv-file').click()"
+                        ondragover="dragOver(event)" ondrop="dropFile(event)">
+                        <div class="import-zone-icon" style="font-size:28px;font-weight:900;color:var(--muted)">CSV
+                        </div>
+                        <div class="import-zone-text">Click or drag &amp; drop a CSV file here</div>
+                        <input type="file" id="csv-file" accept=".csv,.txt" style="display:none"
+                            onchange="parseCSV(this)">
+                    </div>
+                    <div id="import-preview" style="margin-top:16px;display:none">
+                        <div
+                            style="font-family:'Barlow Condensed',sans-serif;font-size:14px;font-weight:800;color:var(--muted);margin-bottom:10px;text-transform:uppercase;letter-spacing:1px">
+                            PREVIEW (<span id="import-count">0</span> players)</div>
+                        <div id="import-list"
+                            style="max-height:220px;overflow-y:auto;display:flex;flex-direction:column;gap:4px"></div>
+                    </div>
                 </div>
             </div>
             <div class="modal-footer">
                 <button class="btn btn-secondary" onclick="Modal.close('modal-import')">Cancel</button>
-                <button class="btn btn-primary" id="import-btn" onclick="submitImport()" style="display:none">Import
-                    All</button>
+                <button class="btn btn-primary" id="quick-submit-btn" onclick="submitQuickAdd()">Register All</button>
             </div>
         </div>
     </div>
@@ -218,17 +390,42 @@
     <script src="../../js/dean-sidebar.js"></script>
     <script>
         let allPlayers = [], allSports = [], allTeams = [], currentTab = 'all', importRows = [];
+        let selectedSportIds = [];       // Register modal (single player, multi-sport)
+        let quickSelectedSportIds = [];  // Quick Add Roster modal (batch, multi-sport)
+        let quickRowSeq = 0;
         const user = Auth.getUser(), deptId = user?.department_id;
 
         document.addEventListener('DOMContentLoaded', async () => {
             Auth.requireAuth('dean_adviser'); renderSidebar('players');
             const sRes = await api('/sports'); allSports = sRes.data || [];
             const sportOpts = allSports.map(s => `<option value="${s.id}" data-code="${s.code}">${s.name}</option>`).join('');
-            ['f-sport', 'p-sport', 'import-sport'].forEach(id => { const el = document.getElementById(id); if (el) el.innerHTML += sportOpts });
+            document.getElementById('f-sport').innerHTML += sportOpts;
+            renderChipPicker('p-sport-chips', selectedSportIds, toggleRegisterSport);
+            renderChipPicker('quick-sport-chips', quickSelectedSportIds, toggleQuickSport);
             const tab = new URLSearchParams(window.location.search).get('tab');
             if (tab) switchTab(tab, document.querySelector(`[onclick*="'${tab}'"]`));
             await loadPage();
         });
+
+        // ---- shared chip-picker helper (used by Register modal & Quick Add modal) ----
+        function renderChipPicker(containerId, selectedArr, toggleFn) {
+            const wrap = document.getElementById(containerId);
+            if (!wrap) return;
+            wrap.innerHTML = allSports.map(s =>
+                `<div class="chip ${selectedArr.includes(s.id) ? 'chip-active' : ''}" onclick="${toggleFn.name}(${s.id})">${s.name}</div>`
+            ).join('') || '<span class="chip-hint">No sports configured yet.</span>';
+        }
+
+        function copyRegistrationLink() {
+            if (!deptId) { Toast.show('No department found for your account.', 'error'); return }
+            const link = `${window.location.origin}${window.location.pathname.replace(/\/[^/]*$/, '')}/register.html?dept=${deptId}`;
+            navigator.clipboard.writeText(link)
+                .then(() => Toast.show('Registration link copied! Share it with your students.', 'success'))
+                .catch(() => {
+                    // Clipboard API can fail (e.g. non-HTTPS or blocked permission) — fall back to a prompt so it's still copyable.
+                    window.prompt('Copy this registration link:', link);
+                });
+        }
 
         async function loadPage() {
             if (!deptId) return;
@@ -311,11 +508,30 @@ ${p.status === 'pending' ? `
             document.getElementById('reg-modal-title').textContent = 'Register Player';
             document.getElementById('edit-player-id').value = '';
             ['p-first', 'p-last', 'p-jersey', 'p-position', 'p-image-url'].forEach(id => document.getElementById(id).value = '');
-            document.getElementById('p-gender').value = ''; document.getElementById('p-sport').value = '';
+            document.getElementById('p-gender').value = '';
+            selectedSportIds = [];
+            document.getElementById('p-sport-chips').style.display = '';
+            document.getElementById('p-sport-readonly').style.display = 'none';
+            renderChipPicker('p-sport-chips', selectedSportIds, toggleRegisterSport);
             document.getElementById('p-team').innerHTML = '<option value="">No team (Individual)</option>';
+            document.getElementById('p-team-group').style.display = '';
             document.getElementById('avatar-preview').textContent = '?';
             document.getElementById('elig-check').style.display = 'none';
             Modal.open('modal-register');
+        }
+
+        function toggleRegisterSport(sportId) {
+            const idx = selectedSportIds.indexOf(sportId);
+            if (idx > -1) selectedSportIds.splice(idx, 1); else selectedSportIds.push(sportId);
+            renderChipPicker('p-sport-chips', selectedSportIds, toggleRegisterSport);
+            // A specific team only makes sense when exactly one sport is selected.
+            if (selectedSportIds.length === 1) {
+                document.getElementById('p-team-group').style.display = '';
+                loadTeamsForSport(selectedSportIds[0]);
+            } else {
+                document.getElementById('p-team-group').style.display = 'none';
+                document.getElementById('p-team').innerHTML = '<option value="">No team (Individual)</option>';
+            }
         }
 
         function openEdit(id) {
@@ -325,19 +541,25 @@ ${p.status === 'pending' ? `
             document.getElementById('p-first').value = p.first_name || '';
             document.getElementById('p-last').value = p.last_name || '';
             document.getElementById('p-gender').value = p.gender || '';
-            document.getElementById('p-sport').value = p.sport_id || '';
+            // Sport is fixed once a player is registered for it (register a new entry to add another sport),
+            // so editing shows it read-only instead of the multi-select chips.
+            document.getElementById('p-sport-chips').style.display = 'none';
+            const roLabel = document.getElementById('p-sport-readonly');
+            roLabel.style.display = '';
+            roLabel.textContent = p.sport_name || '—';
+            selectedSportIds = p.sport_id ? [p.sport_id] : [];
+            document.getElementById('p-team-group').style.display = '';
             document.getElementById('p-jersey').value = p.jersey_number || '';
             document.getElementById('p-position').value = p.position || '';
             document.getElementById('p-image-url').value = p.image_url || '';
             const prev = document.getElementById('avatar-preview');
             if (p.image_url) prev.innerHTML = `<img src="${p.image_url}" style="width:100%;height:100%;object-fit:cover;border-radius:16px">`;
             else prev.textContent = `${p.first_name?.[0] || '?'}${p.last_name?.[0] || ''}`.toUpperCase();
-            loadTeamsForSport().then(() => { document.getElementById('p-team').value = p.team_id || '' });
+            loadTeamsForSport(p.sport_id).then(() => { document.getElementById('p-team').value = p.team_id || '' });
             Modal.open('modal-register');
         }
 
-        async function loadTeamsForSport() {
-            const sportId = document.getElementById('p-sport').value;
+        async function loadTeamsForSport(sportId) {
             const sel = document.getElementById('p-team');
             sel.innerHTML = '<option value="">No team (Individual)</option>';
             if (!sportId || !deptId) return;
@@ -361,14 +583,21 @@ ${p.status === 'pending' ? `
             const first = document.getElementById('p-first').value.trim();
             const last = document.getElementById('p-last').value.trim();
             const gender = document.getElementById('p-gender').value;
-            const sport_id = parseInt(document.getElementById('p-sport').value) || null;
             const team_id = parseInt(document.getElementById('p-team').value) || null;
             const jersey = document.getElementById('p-jersey').value.trim() || null;
             const position = document.getElementById('p-position').value.trim() || null;
             const image_url = document.getElementById('p-image-url').value.trim() || null;
-            if (!first || !last || !gender || !sport_id) { Toast.show('First name, last name, gender and sport are required.', 'error'); return }
-            const body = { first_name: first, last_name: last, gender, sport_id, team_id, jersey_number: jersey, position, image_url, department_id: deptId };
-            const res = id ? await api(`/players/${id}`, { method: 'PUT', body: JSON.stringify(body) }) : await api('/players', { method: 'POST', body: JSON.stringify(body) });
+            if (!first || !last || !gender || !selectedSportIds.length) { Toast.show('First name, last name, gender and at least one sport are required.', 'error'); return }
+
+            let res;
+            if (id) {
+                // Editing an existing record only touches that one sport's row.
+                const body = { first_name: first, last_name: last, gender, team_id, jersey_number: jersey, position, image_url };
+                res = await api(`/players/${id}`, { method: 'PUT', body: JSON.stringify(body) });
+            } else {
+                const body = { first_name: first, last_name: last, gender, sport_ids: selectedSportIds, team_id, jersey_number: jersey, position, image_url, department_id: deptId };
+                res = await api('/players', { method: 'POST', body: JSON.stringify(body) });
+            }
             Toast.show(res.message || (res.success ? (id ? 'Player updated!' : 'Player registered!') : 'Error'), res.success ? 'success' : 'error');
             if (res.success) { Modal.close('modal-register'); await loadPage() }
         }
@@ -410,7 +639,6 @@ ${d.issues.map(i => `<div style="font-size:13px;color:var(--text2);padding:4px 0
                 });
                 document.getElementById('import-count').textContent = importRows.length;
                 document.getElementById('import-preview').style.display = '';
-                document.getElementById('import-btn').style.display = '';
                 document.getElementById('import-list').innerHTML = importRows.map(r => `
 <div class="import-row ${r._valid ? '' : 'import-row-error'}">
 <span>${r._valid ? 'OK' : 'ERR'} ${r.first_name || '?'} ${r.last_name || '?'}</span>
@@ -421,13 +649,116 @@ ${d.issues.map(i => `<div style="font-size:13px;color:var(--text2);padding:4px 0
             reader.readAsText(file);
         }
 
-        async function submitImport() {
-            const defaultSport = parseInt(document.getElementById('import-sport').value) || null;
-            const validRows = importRows.filter(r => r._valid).map(r => ({ ...r, sport_id: r.sport_id || defaultSport }));
-            if (!validRows.length) { Toast.show('No valid rows to import.', 'error'); return }
-            const res = await api('/players/import', { method: 'POST', body: JSON.stringify({ players: validRows, department_id: deptId }) });
-            Toast.show(res.message || (res.success ? 'Import complete!' : 'Error'), res.success ? 'success' : 'error');
-            if (res.success) { Modal.close('modal-import'); importRows = []; document.getElementById('import-preview').style.display = 'none'; document.getElementById('import-btn').style.display = 'none'; await loadPage() }
+        // ================= Quick Add Roster (batch registration) =================
+        function openQuickAdd() {
+            quickSelectedSportIds = [];
+            renderChipPicker('quick-sport-chips', quickSelectedSportIds, toggleQuickSport);
+            importRows = [];
+            document.getElementById('paste-box').value = '';
+            document.getElementById('import-preview').style.display = 'none';
+            document.getElementById('csv-file').value = '';
+            document.getElementById('quick-rows').innerHTML = '';
+            quickRowSeq = 0;
+            addQuickRow(); addQuickRow(); addQuickRow(); // start with a few blank rows ready to type into
+            switchImportMode('manual');
+            Modal.open('modal-import');
+        }
+
+        function toggleQuickSport(sportId) {
+            const idx = quickSelectedSportIds.indexOf(sportId);
+            if (idx > -1) quickSelectedSportIds.splice(idx, 1); else quickSelectedSportIds.push(sportId);
+            renderChipPicker('quick-sport-chips', quickSelectedSportIds, toggleQuickSport);
+        }
+
+        function switchImportMode(mode) {
+            document.getElementById('mode-btn-manual').classList.toggle('active', mode === 'manual');
+            document.getElementById('mode-btn-csv').classList.toggle('active', mode === 'csv');
+            document.getElementById('import-mode-manual').style.display = mode === 'manual' ? '' : 'none';
+            document.getElementById('import-mode-csv').style.display = mode === 'csv' ? '' : 'none';
+        }
+
+        function addQuickRow(data) {
+            const id = `qr-${++quickRowSeq}`;
+            const tr = document.createElement('tr');
+            tr.id = id;
+            tr.innerHTML = `
+<td><input type="text" class="q-first" placeholder="First name" value="${data?.first_name || ''}"></td>
+<td><input type="text" class="q-last" placeholder="Last name" value="${data?.last_name || ''}"></td>
+<td><select class="q-gender">
+<option value="">—</option>
+<option value="Male" ${data?.gender === 'Male' ? 'selected' : ''}>Male</option>
+<option value="Female" ${data?.gender === 'Female' ? 'selected' : ''}>Female</option>
+</select></td>
+<td><input type="text" class="q-jersey" placeholder="#" value="${data?.jersey_number || ''}"></td>
+<td><input type="text" class="q-position" placeholder="Position" value="${data?.position || ''}"></td>
+<td><button type="button" class="quick-row-remove" onclick="removeQuickRow('${id}')" title="Remove row">×</button></td>`;
+            document.getElementById('quick-rows').appendChild(tr);
+            const lastInput = tr.querySelector('.q-position');
+            lastInput.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); addQuickRow(); document.querySelector(`#quick-rows tr:last-child .q-first`)?.focus() } });
+            updateQuickRowCount();
+        }
+
+        function removeQuickRow(id) {
+            document.getElementById(id)?.remove();
+            updateQuickRowCount();
+        }
+
+        function updateQuickRowCount() {
+            const n = document.querySelectorAll('#quick-rows tr').length;
+            document.getElementById('quick-row-count').textContent = `${n} row${n === 1 ? '' : 's'}`;
+        }
+
+        // Paste tab- or comma-separated rows copied from Excel/Sheets and fill the table,
+        // so the admin doesn't have to type every name into the grid by hand.
+        function parsePasteBox() {
+            const raw = document.getElementById('paste-box').value;
+            const lines = raw.split('\n').map(l => l.trim()).filter(Boolean);
+            if (!lines.length) return;
+            document.getElementById('quick-rows').innerHTML = '';
+            lines.forEach(line => {
+                const sep = line.includes('\t') ? '\t' : ',';
+                const [first_name, last_name, gender, jersey_number, position] = line.split(sep).map(s => s?.trim());
+                const g = /^m/i.test(gender || '') ? 'Male' : /^f/i.test(gender || '') ? 'Female' : '';
+                addQuickRow({ first_name, last_name, gender: g, jersey_number, position });
+            });
+            document.getElementById('paste-box').value = '';
+            Toast.show(`${lines.length} row(s) added to the table below.`, 'success');
+        }
+
+        function collectQuickRows() {
+            return [...document.querySelectorAll('#quick-rows tr')].map(tr => ({
+                first_name: tr.querySelector('.q-first').value.trim(),
+                last_name: tr.querySelector('.q-last').value.trim(),
+                gender: tr.querySelector('.q-gender').value,
+                jersey_number: tr.querySelector('.q-jersey').value.trim() || null,
+                position: tr.querySelector('.q-position').value.trim() || null,
+            })).filter(r => r.first_name && r.last_name && r.gender);
+        }
+
+        async function submitQuickAdd() {
+            const csvMode = document.getElementById('import-mode-csv').style.display !== 'none';
+
+            if (!csvMode && !quickSelectedSportIds.length) {
+                Toast.show('Select at least one sport for this batch.', 'error'); return;
+            }
+
+            const players = csvMode
+                ? importRows.filter(r => r._valid)
+                : collectQuickRows();
+
+            if (!players.length) { Toast.show('No valid rows to register.', 'error'); return }
+
+            const body = { players, department_id: deptId };
+            if (!csvMode) body.sport_ids = quickSelectedSportIds; // batch default applied to every row
+
+            const res = await api('/players/import', { method: 'POST', body: JSON.stringify(body) });
+            Toast.show(res.message || (res.success ? 'Roster registered!' : 'Error'), res.success ? 'success' : 'error');
+            if (res.success) {
+                Modal.close('modal-import');
+                importRows = [];
+                document.getElementById('import-preview').style.display = 'none';
+                await loadPage();
+            }
         }
     </script>
 </body>

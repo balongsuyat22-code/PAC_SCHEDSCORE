@@ -1,7 +1,46 @@
-
 const { pool } = require('../config/database');
 const { logActivity } = require('../utils/logger');
 const { getActiveSportFestId } = require('../utils/season');
+
+/**
+ * Confirms a team is a legal fit for a player before we attach them at
+ * registration time: same department, same sport, same season, gender
+ * matches the team's roster type, and there's still an open slot.
+ * Used by both the staff registration form and the public self-registration link.
+ */
+async function validateTeamForPlayer(conn, teamId, { department_id, sport_id, sport_fest_id, gender }) {
+    const [rows] = await conn.execute(
+        `SELECT t.id, t.department_id, t.sport_id, t.sport_fest_id, t.gender AS team_gender,
+                s.max_players,
+                (SELECT COUNT(*) FROM players WHERE team_id = t.id AND status = 'approved') AS approved_count
+         FROM teams t
+         LEFT JOIN sports s ON t.sport_id = s.id
+         WHERE t.id = ?`,
+        [teamId]
+    );
+    if (!rows.length) return { ok: false, message: 'Selected team was not found.' };
+    const team = rows[0];
+
+    if (team.department_id !== department_id) {
+        return { ok: false, message: 'That team does not belong to this department.' };
+    }
+    if (team.sport_id !== sport_id) {
+        return { ok: false, message: 'That team is not registered for the selected sport.' };
+    }
+    if (team.sport_fest_id !== sport_fest_id) {
+        return { ok: false, message: 'That team belongs to a different season.' };
+    }
+    const genderOk = team.team_gender === 'Mixed'
+        || (team.team_gender === 'Men' && gender === 'Male')
+        || (team.team_gender === 'Women' && gender === 'Female');
+    if (!genderOk) {
+        return { ok: false, message: `The "${team.team_gender}" team doesn't match the selected gender.` };
+    }
+    if (team.max_players != null && team.approved_count >= team.max_players) {
+        return { ok: false, message: 'That team is already at its maximum roster size.' };
+    }
+    return { ok: true };
+}
 
 const registerPlayer = async (req, res, next) => {
     const conn = await pool.getConnection();
@@ -16,14 +55,23 @@ const registerPlayer = async (req, res, next) => {
 
         const {
             first_name, last_name, gender,
-            department_id, sport_id, team_id,
+            department_id, sport_id, sport_ids, team_id,
             jersey_number, position, image_url,
         } = req.body;
 
-        if (!first_name || !last_name || !gender || !department_id || !sport_id) {
+        // A player can now be entered into more than one sport in a single submit.
+        // `sport_ids` (array) takes priority; `sport_id` (single value) is kept for
+        // backward compatibility with older clients / the CSV import format.
+        const sportIdList = [...new Set(
+            (Array.isArray(sport_ids) ? sport_ids : (sport_id != null ? [sport_id] : []))
+                .map(id => parseInt(id, 10))
+                .filter(id => Number.isInteger(id) && id > 0)
+        )];
+
+        if (!first_name || !last_name || !gender || !department_id || !sportIdList.length) {
             return res.status(400).json({
                 success: false,
-                message: 'first_name, last_name, gender, department_id, and sport_id are required.',
+                message: 'first_name, last_name, gender, department_id, and at least one sport are required.',
             });
         }
 
@@ -43,50 +91,71 @@ const registerPlayer = async (req, res, next) => {
         }
 
         await conn.beginTransaction();
-        const [duplicate] = await conn.execute(
-            `SELECT id FROM players
-             WHERE LOWER(first_name) = LOWER(?) AND LOWER(last_name) = LOWER(?)
-               AND department_id = ? AND sport_id = ? AND sport_fest_id = ?`,
-            [first_name.trim(), last_name.trim(), department_id, sport_id, sportFestId]
-        );
-        if (duplicate.length) {
+
+        // A team assignment only makes sense when the player is being placed into
+        // exactly one sport this submit; for multi-sport registrations the dean/adviser
+        // assigns each team separately afterwards from the roster screen.
+        const teamIdForInsert = sportIdList.length === 1 ? (team_id || null) : null;
+
+        const created = [];
+        const skipped = [];
+
+        for (const sid of sportIdList) {
+            const [duplicate] = await conn.execute(
+                `SELECT id FROM players
+                 WHERE LOWER(first_name) = LOWER(?) AND LOWER(last_name) = LOWER(?)
+                   AND department_id = ? AND sport_id = ? AND sport_fest_id = ?`,
+                [first_name.trim(), last_name.trim(), department_id, sid, sportFestId]
+            );
+            if (duplicate.length) {
+                skipped.push(sid);
+                continue;
+            }
+
+            let validatedTeamId = null;
+            if (teamIdForInsert) {
+                const teamCheck = await validateTeamForPlayer(conn, teamIdForInsert, {
+                    department_id: parseInt(department_id, 10),
+                    sport_id: sid,
+                    sport_fest_id: sportFestId,
+                    gender,
+                });
+                if (!teamCheck.ok) {
+                    await conn.rollback();
+                    return res.status(400).json({ success: false, message: teamCheck.message });
+                }
+                validatedTeamId = teamIdForInsert;
+            }
+
+            const [result] = await conn.execute(
+                `INSERT INTO players
+                 (first_name, last_name, gender, image_url, department_id,
+                  sport_id, team_id, jersey_number, position, status, registered_by, sport_fest_id)
+                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending', ?, ?)`,
+                [
+                    first_name.trim(),
+                    last_name.trim(),
+                    gender,
+                    image_url || null,
+                    department_id,
+                    sid,
+                    validatedTeamId,
+                    jersey_number || null,
+                    position || null,
+                    req.user.id,
+                    sportFestId,
+                ]
+            );
+            created.push({ id: result.insertId, sport_id: sid });
+        }
+
+        if (!created.length) {
             await conn.rollback();
             return res.status(409).json({
                 success: false,
-                message: 'A player with this name is already registered for this sport in this department this season.',
+                message: 'This player is already registered for the selected sport(s) in this department this season.',
             });
         }
-
-        const [possibleMatches] = await conn.execute(
-            `SELECT p.id, p.status, p.team_id, s.name AS sport_name, t.name AS team_name
-             FROM players p
-             LEFT JOIN sports s ON p.sport_id = s.id
-             LEFT JOIN teams  t ON p.team_id  = t.id
-             WHERE LOWER(p.first_name) = LOWER(?) AND LOWER(p.last_name) = LOWER(?)
-               AND p.department_id = ? AND p.sport_fest_id = ?
-               AND p.sport_id != ?`,
-            [first_name.trim(), last_name.trim(), department_id, sportFestId, sport_id]
-        );
-
-        const [result] = await conn.execute(
-            `INSERT INTO players
-             (first_name, last_name, gender, image_url, department_id,
-              sport_id, team_id, jersey_number, position, status, registered_by, sport_fest_id)
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending', ?, ?)`,
-            [
-                first_name.trim(),
-                last_name.trim(),
-                gender,
-                image_url || null,
-                department_id,
-                sport_id,
-                team_id || null,
-                jersey_number || null,
-                position || null,
-                req.user.id,
-                sportFestId,
-            ]
-        );
 
         await conn.commit();
 
@@ -94,23 +163,166 @@ const registerPlayer = async (req, res, next) => {
             req.user.id,
             'PLAYER_REGISTERED',
             'player',
-            result.insertId,
-            `Player registered: ${first_name} ${last_name} (pending approval)`
+            created[0].id,
+            `Player registered: ${first_name} ${last_name} — ${created.length} sport(s) (pending approval)`
         );
 
         return res.status(201).json({
             success: true,
-            message: possibleMatches.length
-                ? `Player registered successfully. Waiting for approval. Heads up: someone with this name is already registered in ${possibleMatches.length} other sport(s)/team(s) this season — confirm this is the same student joining another sport, not a duplicate entry.`
-                : 'Player registered successfully. Waiting for approval.',
+            message: skipped.length
+                ? `Player registered for ${created.length} sport(s), waiting for approval. Already registered for ${skipped.length} of the selected sport(s), so those were skipped.`
+                : `Player registered for ${created.length} sport(s). Waiting for approval.`,
             data: {
-                id: result.insertId,
-                possible_duplicates: possibleMatches.map(m => ({
-                    player_id: m.id,
-                    sport: m.sport_name,
-                    team: m.team_name,
-                    status: m.status,
-                })),
+                id: created[0]?.id,
+                created,
+                skipped_sport_ids: skipped,
+            },
+        });
+
+    } catch (err) {
+        await conn.rollback();
+        next(err);
+    } finally {
+        conn.release();
+    }
+};
+
+/**
+ * PUBLIC self-registration — no login required.
+ * A dean/adviser shares a link like /register.html?dept=<department_id> with their
+ * students; the student fills in their own info, picks their sport(s) and (optionally)
+ * an existing team to join, and submits. The record still lands as 'pending' so the
+ * dean/adviser only has to review and approve it from the Players screen — they never
+ * have to type the player's details themselves.
+ */
+const publicRegisterPlayer = async (req, res, next) => {
+    const conn = await pool.getConnection();
+    try {
+        const {
+            first_name, last_name, gender,
+            department_id, sport_id, sport_ids, team_id,
+            jersey_number, position, image_url,
+        } = req.body;
+
+        const sportIdList = [...new Set(
+            (Array.isArray(sport_ids) ? sport_ids : (sport_id != null ? [sport_id] : []))
+                .map(id => parseInt(id, 10))
+                .filter(id => Number.isInteger(id) && id > 0)
+        )];
+
+        if (!first_name || !last_name || !gender || !department_id || !sportIdList.length) {
+            return res.status(400).json({
+                success: false,
+                message: 'First name, last name, gender, and at least one sport are required.',
+            });
+        }
+        if (!['Male', 'Female'].includes(gender)) {
+            return res.status(400).json({ success: false, message: 'Gender must be Male or Female.' });
+        }
+
+        const [dept] = await pool.execute(
+            'SELECT id, name, is_active FROM departments WHERE id = ?',
+            [department_id]
+        );
+        if (!dept.length || !dept[0].is_active) {
+            return res.status(404).json({
+                success: false,
+                message: 'This registration link is invalid or no longer active. Please check the link with your department adviser.',
+            });
+        }
+
+        const sportFestId = await getActiveSportFestId();
+        if (!sportFestId) {
+            return res.status(400).json({
+                success: false,
+                message: 'Registration is currently closed — there is no active Sport Fest season yet.',
+            });
+        }
+
+        await conn.beginTransaction();
+
+        // Same rule as staff registration: a specific team only applies when
+        // exactly one sport is being joined in this submission.
+        const teamIdForInsert = sportIdList.length === 1 ? (team_id || null) : null;
+
+        const created = [];
+        const skipped = [];
+
+        for (const sid of sportIdList) {
+            const [duplicate] = await conn.execute(
+                `SELECT id FROM players
+                 WHERE LOWER(first_name) = LOWER(?) AND LOWER(last_name) = LOWER(?)
+                   AND department_id = ? AND sport_id = ? AND sport_fest_id = ?`,
+                [first_name.trim(), last_name.trim(), department_id, sid, sportFestId]
+            );
+            if (duplicate.length) {
+                skipped.push(sid);
+                continue;
+            }
+
+            let validatedTeamId = null;
+            if (teamIdForInsert) {
+                const teamCheck = await validateTeamForPlayer(conn, teamIdForInsert, {
+                    department_id: parseInt(department_id, 10),
+                    sport_id: sid,
+                    sport_fest_id: sportFestId,
+                    gender,
+                });
+                if (!teamCheck.ok) {
+                    await conn.rollback();
+                    return res.status(400).json({ success: false, message: teamCheck.message });
+                }
+                validatedTeamId = teamIdForInsert;
+            }
+
+            const [result] = await conn.execute(
+                `INSERT INTO players
+                 (first_name, last_name, gender, image_url, department_id,
+                  sport_id, team_id, jersey_number, position, status, registered_by, sport_fest_id)
+                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending', NULL, ?)`,
+                [
+                    first_name.trim(),
+                    last_name.trim(),
+                    gender,
+                    image_url || null,
+                    department_id,
+                    sid,
+                    validatedTeamId,
+                    jersey_number || null,
+                    position || null,
+                    sportFestId,
+                ]
+            );
+            created.push({ id: result.insertId, sport_id: sid });
+        }
+
+        if (!created.length) {
+            await conn.rollback();
+            return res.status(409).json({
+                success: false,
+                message: 'You already have a pending or approved registration for the selected sport(s) this season.',
+            });
+        }
+
+        await conn.commit();
+
+        await logActivity(
+            null,
+            'PLAYER_SELF_REGISTERED',
+            'player',
+            created[0].id,
+            `Player self-registered via link: ${first_name} ${last_name} — ${dept[0].name} — ${created.length} sport(s) (pending approval)`
+        );
+
+        return res.status(201).json({
+            success: true,
+            message: skipped.length
+                ? `You're registered for ${created.length} sport(s) and waiting on your department adviser's approval. You were already registered for ${skipped.length} of the sport(s) you picked, so those were skipped.`
+                : `You're registered for ${created.length} sport(s)! Your department adviser will review and approve it soon.`,
+            data: {
+                created,
+                skipped_sport_ids: skipped,
+                department_name: dept[0].name,
             },
         });
 
@@ -604,6 +816,14 @@ const importPlayers = async (req, res, next) => {
             ? req.user.department_id
             : req.body.department_id;
 
+        // Optional batch-level default: sport(s) to apply to any row that doesn't
+        // specify its own sport_id / sport_ids. Lets the "Quick Add Roster" UI pick
+        // one or more sports once and enter names without retyping the sport per row.
+        const { sport_ids: batchSportIds } = req.body;
+        const defaultSportIds = Array.isArray(batchSportIds)
+            ? batchSportIds.map(id => parseInt(id, 10)).filter(id => Number.isInteger(id) && id > 0)
+            : [];
+
         if (!Array.isArray(players) || !players.length) {
             return res.status(400).json({ success: false, message: 'players array is required.' });
         }
@@ -624,50 +844,49 @@ const importPlayers = async (req, res, next) => {
         const results = { inserted: 0, skipped: 0, errors: [], possible_duplicates: [] };
 
         for (const p of players) {
-            if (!p.first_name || !p.last_name || !p.gender || !p.sport_id) {
+            const rowSportIds = [...new Set(
+                (Array.isArray(p.sport_ids) && p.sport_ids.length
+                    ? p.sport_ids
+                    : (p.sport_id != null ? [p.sport_id] : defaultSportIds)
+                ).map(id => parseInt(id, 10)).filter(id => Number.isInteger(id) && id > 0)
+            )];
+
+            if (!p.first_name || !p.last_name || !p.gender || !rowSportIds.length) {
                 results.errors.push(`Skipped: missing fields for ${p.first_name || 'unknown'} ${p.last_name || ''}`);
                 results.skipped++;
                 continue;
             }
 
-            const [dup] = await conn.execute(
-                `SELECT id FROM players
-                 WHERE LOWER(first_name)=LOWER(?) AND LOWER(last_name)=LOWER(?)
-                   AND department_id=? AND sport_id=? AND sport_fest_id=?`,
-                [p.first_name.trim(), p.last_name.trim(), department_id, p.sport_id, sportFestId]
-            );
-            if (dup.length) {
-                results.skipped++;
-                results.errors.push(`Duplicate skipped: ${p.first_name} ${p.last_name}`);
-                continue;
-            }
+            // A team only applies when the row targets a single sport.
+            const teamIdForRow = rowSportIds.length === 1 ? (p.team_id || null) : null;
 
-            const [crossSport] = await conn.execute(
-                `SELECT s.name AS sport_name FROM players p
-                 LEFT JOIN sports s ON p.sport_id = s.id
-                 WHERE LOWER(p.first_name)=LOWER(?) AND LOWER(p.last_name)=LOWER(?)
-                   AND p.department_id=? AND p.sport_fest_id=? AND p.sport_id != ?`,
-                [p.first_name.trim(), p.last_name.trim(), department_id, sportFestId, p.sport_id]
-            );
-            if (crossSport.length) {
-                results.possible_duplicates.push(
-                    `${p.first_name} ${p.last_name} — already registered for: ${crossSport.map(c => c.sport_name).join(', ')}`
+            for (const sid of rowSportIds) {
+                const [dup] = await conn.execute(
+                    `SELECT id FROM players
+                     WHERE LOWER(first_name)=LOWER(?) AND LOWER(last_name)=LOWER(?)
+                       AND department_id=? AND sport_id=? AND sport_fest_id=?`,
+                    [p.first_name.trim(), p.last_name.trim(), department_id, sid, sportFestId]
                 );
-            }
+                if (dup.length) {
+                    results.skipped++;
+                    results.errors.push(`Duplicate skipped: ${p.first_name} ${p.last_name}`);
+                    continue;
+                }
 
-            await conn.execute(
-                `INSERT INTO players
-                 (first_name, last_name, gender, department_id, sport_id,
-                  team_id, jersey_number, position, status, registered_by, sport_fest_id)
-                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'pending', ?, ?)`,
-                [
-                    p.first_name.trim(), p.last_name.trim(), p.gender,
-                    department_id, p.sport_id,
-                    p.team_id || null, p.jersey_number || null, p.position || null,
-                    req.user.id, sportFestId,
-                ]
-            );
-            results.inserted++;
+                await conn.execute(
+                    `INSERT INTO players
+                     (first_name, last_name, gender, department_id, sport_id,
+                      team_id, jersey_number, position, status, registered_by, sport_fest_id)
+                     VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'pending', ?, ?)`,
+                    [
+                        p.first_name.trim(), p.last_name.trim(), p.gender,
+                        department_id, sid,
+                        teamIdForRow, p.jersey_number || null, p.position || null,
+                        req.user.id, sportFestId,
+                    ]
+                );
+                results.inserted++;
+            }
         }
 
         await conn.commit();
@@ -682,8 +901,7 @@ const importPlayers = async (req, res, next) => {
 
         return res.status(201).json({
             success: true,
-            message: `Import complete: ${results.inserted} players added, ${results.skipped} skipped.` +
-                (results.possible_duplicates.length ? ` ${results.possible_duplicates.length} possible cross-sport duplicate(s) flagged — check the response.` : ''),
+            message: `Import complete: ${results.inserted} registration(s) added, ${results.skipped} skipped.`,
             data: results,
         });
 
@@ -792,6 +1010,7 @@ const checkDuplicate = async (req, res, next) => {
 
 module.exports = {
     registerPlayer,
+    publicRegisterPlayer,
     getAllPlayers,
     getPendingPlayers,
     getApprovedPlayers,
