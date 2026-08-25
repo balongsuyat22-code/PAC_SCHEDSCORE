@@ -1880,13 +1880,65 @@
             }).join('');
         }
 
-        function toggleP(id) {
+        async function toggleP(id) {
             const p = document.getElementById(`pls-${id}`);
             const a = document.getElementById(`exp-${id}`);
             if (!p) return;
             const opening = p.style.display === 'none' || !p.style.display;
             p.style.display = opening ? 'block' : 'none';
             if (a) a.style.transform = opening ? 'rotate(180deg)' : 'rotate(0deg)';
+            if (!opening) return;
+
+            // Load every approved player for this department + tournament sport
+            const sportId = currentTournament?.sport_id;
+            const deptId = id;
+            if (!sportId || !deptId) return;
+
+            const label = p.querySelector('.participant-players-label');
+            const existingRows = p.querySelectorAll('.player-row');
+            // Only re-fetch once per open session unless empty
+            if (p.dataset.fullLoaded === '1' && existingRows.length) return;
+
+            const host = document.createElement('div');
+            host.innerHTML = `<div style="font-size:12px;color:var(--muted);padding:8px 0"><i class="fa-solid fa-spinner fa-spin"></i> Loading all approved athletes…</div>`;
+            // Keep label, replace body
+            const labelHtml = label ? label.outerHTML : '';
+            p.innerHTML = labelHtml + host.innerHTML;
+
+            try {
+                const res = await api(`/players?department_id=${deptId}&sport_id=${sportId}&status=approved`);
+                let list = (res.data || []).filter(pl => !pl.status || pl.status === 'approved');
+                // Sort: approved first, then name
+                list.sort((a, b) => `${a.last_name} ${a.first_name}`.localeCompare(`${b.last_name} ${b.first_name}`));
+
+                const part = (currentTournament.participants || []).find(x => String(x.department_id) === String(deptId));
+                const col = part ? (participantNames(part).color) : '#555';
+                const req = Math.max(1, Number(currentTournament.min_players || 1));
+
+                if (label) {
+                    // refresh label text after reload
+                }
+                p.innerHTML = `
+                    <div class="participant-players-label">All approved athletes (${list.length}) · minimum ${req}</div>
+                    ${list.length ? list.map(pl => `<div class="player-row">
+                        <div class="player-avatar" style="background:${col}">${(pl.first_name || '?')[0]}</div>
+                        <div class="player-name">${pl.first_name || ''} ${pl.last_name || ''}${pl.team_name ? ` <span style="color:var(--muted);font-weight:400;font-size:11px">· ${pl.team_name}</span>` : ''}</div>
+                        ${pl.jersey_number != null && pl.jersey_number !== '' ? `<span class="player-jersey">#${pl.jersey_number}</span>` : ''}
+                    </div>`).join('') : `<div style="font-size:12px;color:var(--muted);padding:8px 0">No approved players for this sport.</div>`}`;
+                p.dataset.fullLoaded = '1';
+
+                // Update badge on the card header if present
+                const card = p.closest('.participant-card');
+                const badge = card?.querySelector('.player-count-badge');
+                if (badge) {
+                    const enough = list.length >= req;
+                    badge.className = `player-count-badge ${enough ? 'player-count-ok' : 'player-count-warning'}`;
+                    badge.title = 'Approved players / minimum required';
+                    badge.textContent = `${list.length} approved · min ${req}`;
+                }
+            } catch (e) {
+                // leave whatever was rendered
+            }
         }
 
         function tabParticipants() {
@@ -1911,8 +1963,8 @@
                 const count = approved.length || pls.length;
                 const hasEnough = count >= req;
                 const badge = hasEnough
-                    ? `<span class="player-count-badge player-count-ok">${count}/${req}</span>`
-                    : `<span class="player-count-badge player-count-warning">${count}/${req}</span>`;
+                    ? `<span class="player-count-badge player-count-ok" title="Approved players / minimum required">${count} approved · min ${req}</span>`
+                    : `<span class="player-count-badge player-count-warning" title="Approved players / minimum required">${count} approved · min ${req}</span>`;
                 const pid = p.department_id || p.id;
 
                 const playersHtml = pls.length
@@ -2285,9 +2337,13 @@
             }
             eligibilityData = res.data || [];
             eligibilityMeta = res.meta || {};
+            // Ensure sport_id is available for full roster loads
+            if (!eligibilityMeta.sport_id && currentTournament?.sport_id) {
+                eligibilityMeta.sport_id = currentTournament.sport_id;
+            }
             const type = eligibilityMeta.is_team_sport ? 'Team sport' : 'Individual sport';
-            meta.innerHTML = `<strong>${eligibilityMeta.sport_name || 'Sport'}</strong> · ${type} ·
-        minimum <strong>${eligibilityMeta.required_players ?? '—'}</strong> approved player(s) required to enter`;
+            meta.innerHTML = `<strong>${eligibilityMeta.sport_name || currentTournament?.sport_name || 'Sport'}</strong> · ${type} ·
+        minimum <strong>${eligibilityMeta.required_players ?? '—'}</strong> approved player(s) required — expand a row to see <em>all</em> approved athletes`;
             renderDeptChecklist();
         }
 
@@ -2334,9 +2390,62 @@
             }).join('');
         }
 
-        function toggleEligRow(idx) {
-            document.getElementById(`players-${idx}`)?.classList.toggle('open');
-            document.getElementById(`caret-${idx}`)?.classList.toggle('open');
+        async function toggleEligRow(idx) {
+            const playersEl = document.getElementById(`players-${idx}`);
+            const caret = document.getElementById(`caret-${idx}`);
+            if (!playersEl) return;
+            const opening = !playersEl.classList.contains('open');
+            playersEl.classList.toggle('open', opening);
+            caret?.classList.toggle('open', opening);
+            if (!opening) return;
+
+            // Always refresh with the full approved roster for this department + sport
+            // (eligibility payload may only include a sample / min set of players).
+            const d = eligibilityData[idx];
+            if (!d) return;
+            const sportId = eligibilityMeta?.sport_id || currentTournament?.sport_id;
+            if (!sportId || !d.department_id) return;
+
+            playersEl.innerHTML = `<div class="elig-empty-players"><i class="fa-solid fa-spinner fa-spin"></i> Loading all approved players…</div>`;
+            try {
+                const res = await api(`/players?department_id=${d.department_id}&sport_id=${sportId}&status=approved`);
+                const list = (res.data || []).filter(p => !p.status || p.status === 'approved');
+                // Prefer API list; fall back to eligibility payload
+                const players = list.length ? list : (d.players || []).filter(p => !p.status || p.status === 'approved');
+                d._allApprovedPlayers = players;
+                d.approved_count = players.length;
+
+                // Update count badge on the row head
+                const row = playersEl.closest('.elig-row');
+                const countEl = row?.querySelector('.elig-count');
+                if (countEl) {
+                    const req = d.required ?? eligibilityMeta?.required_players ?? '—';
+                    countEl.textContent = `${players.length}/${req}`;
+                    countEl.classList.toggle('ok', players.length >= Number(req || 0));
+                    countEl.classList.toggle('short', players.length < Number(req || 0));
+                }
+
+                playersEl.innerHTML = players.length
+                    ? players.map(p => `
+              <div class="elig-player-row">
+                <i class="fa-solid fa-user" style="width:14px;color:var(--muted);font-size:11px"></i>
+                <span>${p.first_name || ''} ${p.last_name || ''}</span>
+                ${p.jersey_number != null && p.jersey_number !== '' ? `<span style="color:var(--muted)">#${p.jersey_number}</span>` : ''}
+                ${p.team_name ? `<span style="color:var(--muted)">${p.team_name}</span>` : ''}
+                <span class="elig-player-status" style="color:${statusColor(p.status || 'approved')}">${p.status || 'approved'}</span>
+              </div>`).join('')
+                    : `<div class="elig-empty-players"><i class="fa-solid fa-triangle-exclamation"></i> No approved players for this sport yet.</div>`;
+            } catch (e) {
+                const players = (d.players || []);
+                playersEl.innerHTML = players.length
+                    ? players.map(p => `
+              <div class="elig-player-row">
+                <i class="fa-solid fa-user" style="width:14px;color:var(--muted);font-size:11px"></i>
+                <span>${p.first_name || ''} ${p.last_name || ''}</span>
+                <span class="elig-player-status" style="color:${statusColor(p.status)}">${p.status}</span>
+              </div>`).join('')
+                    : `<div class="elig-empty-players">Could not load full roster.</div>`;
+            }
         }
 
         async function submitParticipants() {

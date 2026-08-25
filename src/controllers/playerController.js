@@ -42,6 +42,39 @@ async function validateTeamForPlayer(conn, teamId, { department_id, sport_id, sp
     return { ok: true };
 }
 
+
+/**
+ * Auto-pick a department team for a player by gender:
+ * Male → Men (preferred) or Mixed; Female → Women (preferred) or Mixed.
+ * Skips teams that are already at max approved roster.
+ * Returns team id or null if none available.
+ */
+async function findMatchingTeamId(conn, { department_id, sport_id, sport_fest_id, gender }) {
+    if (!department_id || !sport_id || !sport_fest_id) return null;
+    if (!['Male', 'Female'].includes(gender)) return null;
+
+    const preferred = gender === 'Male' ? 'Men' : 'Women';
+    const [rows] = await conn.execute(
+        `SELECT t.id, t.gender AS team_gender, s.max_players,
+                (SELECT COUNT(*) FROM players WHERE team_id = t.id AND status = 'approved') AS approved_count
+         FROM teams t
+         LEFT JOIN sports s ON t.sport_id = s.id
+         WHERE t.department_id = ?
+           AND t.sport_id = ?
+           AND t.sport_fest_id = ?
+           AND (t.gender = ? OR t.gender = 'Mixed')
+         ORDER BY CASE WHEN t.gender = ? THEN 0 ELSE 1 END, t.id ASC`,
+        [department_id, sport_id, sport_fest_id, preferred, preferred]
+    );
+
+    for (const team of rows) {
+        if (team.max_players == null || Number(team.approved_count) < Number(team.max_players)) {
+            return team.id;
+        }
+    }
+    return null;
+}
+
 const registerPlayer = async (req, res, next) => {
     const conn = await pool.getConnection();
     try {
@@ -97,10 +130,10 @@ const registerPlayer = async (req, res, next) => {
         const autoApprove = ['dean_adviser', 'admin'].includes(req.user.role);
         const insertStatus = autoApprove ? 'approved' : 'pending';
 
-        // A team assignment only makes sense when the player is being placed into
-        // exactly one sport this submit; for multi-sport registrations the dean/adviser
-        // assigns each team separately afterwards from the roster screen.
-        const teamIdForInsert = sportIdList.length === 1 ? (team_id || null) : null;
+        // Explicit team pick only applies when registering for exactly one sport.
+        // Otherwise (or when no team chosen) we auto-assign a gender-matching team
+        // per sport: Male→Men/Mixed, Female→Women/Mixed.
+        const explicitTeamId = sportIdList.length === 1 ? (team_id || null) : null;
 
         const created = [];
         const skipped = [];
@@ -118,8 +151,8 @@ const registerPlayer = async (req, res, next) => {
             }
 
             let validatedTeamId = null;
-            if (teamIdForInsert) {
-                const teamCheck = await validateTeamForPlayer(conn, teamIdForInsert, {
+            if (explicitTeamId) {
+                const teamCheck = await validateTeamForPlayer(conn, explicitTeamId, {
                     department_id: parseInt(department_id, 10),
                     sport_id: sid,
                     sport_fest_id: sportFestId,
@@ -129,7 +162,14 @@ const registerPlayer = async (req, res, next) => {
                     await conn.rollback();
                     return res.status(400).json({ success: false, message: teamCheck.message });
                 }
-                validatedTeamId = teamIdForInsert;
+                validatedTeamId = explicitTeamId;
+            } else {
+                validatedTeamId = await findMatchingTeamId(conn, {
+                    department_id: parseInt(department_id, 10),
+                    sport_id: sid,
+                    sport_fest_id: sportFestId,
+                    gender,
+                });
             }
 
             const [result] = await conn.execute(
@@ -248,9 +288,9 @@ const publicRegisterPlayer = async (req, res, next) => {
 
         await conn.beginTransaction();
 
-        // Same rule as staff registration: a specific team only applies when
-        // exactly one sport is being joined in this submission.
-        const teamIdForInsert = sportIdList.length === 1 ? (team_id || null) : null;
+        // Explicit team only when joining exactly one sport; otherwise auto-assign
+        // a gender-matching team per sport (Male→Men/Mixed, Female→Women/Mixed).
+        const explicitTeamId = sportIdList.length === 1 ? (team_id || null) : null;
 
         const created = [];
         const skipped = [];
@@ -268,8 +308,8 @@ const publicRegisterPlayer = async (req, res, next) => {
             }
 
             let validatedTeamId = null;
-            if (teamIdForInsert) {
-                const teamCheck = await validateTeamForPlayer(conn, teamIdForInsert, {
+            if (explicitTeamId) {
+                const teamCheck = await validateTeamForPlayer(conn, explicitTeamId, {
                     department_id: parseInt(department_id, 10),
                     sport_id: sid,
                     sport_fest_id: sportFestId,
@@ -279,7 +319,14 @@ const publicRegisterPlayer = async (req, res, next) => {
                     await conn.rollback();
                     return res.status(400).json({ success: false, message: teamCheck.message });
                 }
-                validatedTeamId = teamIdForInsert;
+                validatedTeamId = explicitTeamId;
+            } else {
+                validatedTeamId = await findMatchingTeamId(conn, {
+                    department_id: parseInt(department_id, 10),
+                    sport_id: sid,
+                    sport_fest_id: sportFestId,
+                    gender,
+                });
             }
 
             const [result] = await conn.execute(
@@ -930,8 +977,8 @@ const importPlayers = async (req, res, next) => {
                 continue;
             }
 
-            // A team only applies when the row targets a single sport.
-            const teamIdForRow = rowSportIds.length === 1 ? (p.team_id || null) : null;
+            // Explicit team only for single-sport rows; otherwise auto-match by gender.
+            const explicitTeamForRow = rowSportIds.length === 1 ? (p.team_id || null) : null;
 
             for (const sid of rowSportIds) {
                 const [dup] = await conn.execute(
@@ -944,6 +991,16 @@ const importPlayers = async (req, res, next) => {
                     results.skipped++;
                     results.errors.push(`Duplicate skipped: ${p.first_name} ${p.last_name}`);
                     continue;
+                }
+
+                let teamIdForRow = explicitTeamForRow;
+                if (!teamIdForRow) {
+                    teamIdForRow = await findMatchingTeamId(conn, {
+                        department_id: parseInt(department_id, 10),
+                        sport_id: sid,
+                        sport_fest_id: sportFestId,
+                        gender: p.gender,
+                    });
                 }
 
                 await conn.execute(
