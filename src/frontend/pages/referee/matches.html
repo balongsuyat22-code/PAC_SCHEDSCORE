@@ -120,6 +120,13 @@
             padding: 8px 16px;
         }
 
+        .mc-score {
+            font-family: 'Barlow Condensed', sans-serif;
+            font-size: 16px;
+            font-weight: 800;
+            color: var(--gold);
+        }
+
         @media (max-width: 720px) {
 
             thead th:nth-child(4),
@@ -284,14 +291,30 @@
             renderStats();
             renderMatchTable();
         }
+
+        /**
+         * Format a score for display:
+         * - non-time sports: whole numbers (12 not 12.00)
+         * - time sports: up to 2 decimals, trailing zeros stripped (12.5 not 12.50; 12 not 12.00)
+         */
         function fmtScoreLabel(n, scoringType) {
             const x = Number(n);
             if (!Number.isFinite(x)) return '—';
-            if (String(scoringType || '').toLowerCase() === 'time') {
-                return String(parseFloat(x.toFixed(2)));
+            const isTime = String(scoringType || '').toLowerCase() === 'time';
+            if (!isTime) {
+                return String(Math.round(x));
             }
-            return String(Math.round(x));
+            // time: keep meaningful decimals only
+            const fixed = x.toFixed(2);           // "12.00" | "12.50" | "12.34"
+            return fixed.replace(/\.?0+$/, '');    // "12" | "12.5" | "12.34"
         }
+
+        function scoringUrl(matchId) {
+            if (matchId == null || matchId === '') return '#';
+            // Clean app route — scoring.html is not registered under /referee/
+            return `/referee/scoring?id=${encodeURIComponent(matchId)}`;
+        }
+
         function renderStats() {
             const d = allAssignedMatches;
             document.getElementById('stat-total').textContent = d.length;
@@ -315,6 +338,14 @@
             const fmt = (m.tournament_format || '').toLowerCase();
             if (fmt === 'free_for_all' || fmt === 'team_ranking') return '<span class="format-hint">FFA</span>';
             return '';
+        }
+
+        function scoreLine(m) {
+            const a = m.total_score_a ?? m.score_a;
+            const b = m.total_score_b ?? m.score_b;
+            if (a == null && b == null) return '';
+            const st = m.scoring_type;
+            return `<span class="mc-score">${fmtScoreLabel(a, st)} – ${fmtScoreLabel(b, st)}</span>`;
         }
 
         function renderMatchTable() {
@@ -343,14 +374,18 @@
                     ? `<span class="matchup-primary">${m.tournament_name || 'FFA Event'}</span>`
                     : `<span class="matchup-primary">${teamA}</span><span class="matchup-vs">vs</span><span class="matchup-primary">${teamB}</span>`;
 
+                const matchId = m.match_id ?? m.id;
+                const href = scoringUrl(matchId);
                 const actionBtn = ['scheduled', 'ongoing'].includes(m.status)
-                    ? `<a href="scoring.html?id=${m.id}" class="btn btn-primary btn-sm">Score</a>`
-                    : `<a href="scoring.html?id=${m.id}" class="btn btn-secondary btn-sm">Review</a>`;
+                    ? `<a href="${href}" class="btn btn-primary btn-sm">Score</a>`
+                    : `<a href="${href}" class="btn btn-secondary btn-sm">Review</a>`;
+
+                const scoreHtml = scoreLine(m);
 
                 return `
                     <tr>
                         <td>${m.sport_name || '—'}${formatHint(m)}</td>
-                        <td>${matchup}</td>
+                        <td>${matchup}${scoreHtml ? `<div style="margin-top:4px">${scoreHtml}</div>` : ''}</td>
                         <td style="font-size:12px; color:var(--muted); white-space:nowrap;">
                             ${typeof formatDate === 'function' ? formatDate(m.scheduled_date) : (m.scheduled_date || 'TBD')}<br>
                             <span style="color:var(--text2);">${typeof formatTime === 'function' ? formatTime(m.scheduled_time) : (m.scheduled_time || '')}</span>
@@ -368,14 +403,18 @@
                     const teamA = m.team_a_name || m.dept_a_name || 'TBD';
                     const teamB = m.team_b_name || m.dept_b_name || 'TBD';
                     const matchup = isFFA ? (m.tournament_name || 'FFA Event') : `${teamA} vs ${teamB}`;
+                    const matchId = m.match_id ?? m.id;
+                    const href = scoringUrl(matchId);
                     const actionBtn = ['scheduled', 'ongoing'].includes(m.status)
-                        ? `<a href="scoring.html?id=${m.id}" class="btn btn-primary btn-sm">Score</a>`
-                        : `<a href="scoring.html?id=${m.id}" class="btn btn-secondary btn-sm">Review</a>`;
+                        ? `<a href="${href}" class="btn btn-primary btn-sm">Score</a>`
+                        : `<a href="${href}" class="btn btn-secondary btn-sm">Review</a>`;
                     const when = `${typeof formatDate === 'function' ? formatDate(m.scheduled_date) : (m.scheduled_date || 'TBD')} · ${typeof formatTime === 'function' ? formatTime(m.scheduled_time) : (m.scheduled_time || '')}`;
+                    const scoreHtml = scoreLine(m);
                     return `
                     <div class="match-card">
                         <div class="mc-sport">${m.sport_name || 'Sport'}${formatHint(m)}</div>
                         <div class="mc-matchup">${matchup}</div>
+                        ${scoreHtml ? `<div style="margin-bottom:8px">${scoreHtml}</div>` : ''}
                         <div class="mc-meta">
                             <span>${when}</span>
                             <span>${m.venue_name || 'TBD'}</span>

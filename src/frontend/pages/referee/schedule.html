@@ -319,6 +319,16 @@
             setInterval(tick, 1000);
         }
 
+        /**
+         * Build the scoring page URL using the app's clean route (no .html).
+         * Relative "scoring.html" resolves to /referee/scoring.html which is not registered.
+         * Prefer absolute path under /referee so it works from any nested referee URL.
+         */
+        function scoringUrl(matchId) {
+            if (matchId == null || matchId === '') return '#';
+            return `/referee/scoring?id=${encodeURIComponent(matchId)}`;
+        }
+
         async function loadSchedule() {
             const el = document.getElementById('schedule-timeline');
             el.innerHTML = `<div class="empty-state">
@@ -345,9 +355,12 @@
                         ? (m.tournament_name || 'FFA Event')
                         : `${nameA}<span class="timeline-vs">vs</span>${nameB}`;
                     const isLive = m.status === 'ongoing';
+                    // /schedules/today aliases m.id AS match_id — support both shapes
+                    const matchId = m.match_id ?? m.id;
+                    const href = scoringUrl(matchId);
                     const action = ['scheduled', 'ongoing'].includes(m.status)
-                        ? `<a href="scoring.html?id=${m.id}" class="btn btn-primary btn-sm">Score</a>`
-                        : `<a href="scoring.html?id=${m.id}" class="btn btn-secondary btn-sm">Review</a>`;
+                        ? `<a href="${href}" class="btn btn-primary btn-sm">Score</a>`
+                        : `<a href="${href}" class="btn btn-secondary btn-sm">Review</a>`;
 
                     return `
                         <div class="timeline-item">
