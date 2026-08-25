@@ -418,7 +418,10 @@
 
         function copyRegistrationLink() {
             if (!deptId) { Toast.show('No department found for your account.', 'error'); return }
-            const link = `${window.location.origin}${window.location.pathname.replace(/\/[^/]*$/, '')}/register.html?dept=${deptId}`;
+            // Always point at the actual server route (defined in app.js), never derive it
+            // from the current page's URL — Express serves clean routes like /dean/players,
+            // which don't reflect where the registration page actually lives on disk.
+            const link = `${window.location.origin}/player-registration?dept=${deptId}`;
             navigator.clipboard.writeText(link)
                 .then(() => Toast.show('Registration link copied! Share it with your students.', 'success'))
                 .catch(() => {
