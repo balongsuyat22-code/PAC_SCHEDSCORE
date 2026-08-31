@@ -886,16 +886,23 @@ const promoteKnockout = async (req, res, next) => {
     }
 };
 
+const AUTO_SCHEDULE_FORMATS = new Set([
+    'round_robin',
+    'single_elimination',
+    'double_elimination',
+]);
+
 const scheduleRoundRobin = async (req, res, next) => {
     try {
         const t = await getTournamentWithSport(req.params.id);
         if (!t) {
             return res.status(404).json({ success: false, message: 'Tournament not found' });
         }
-        if (t.format !== 'round_robin') {
+        const format = (t.format || '').trim();
+        if (!AUTO_SCHEDULE_FORMATS.has(format)) {
             return res.status(400).json({
                 success: false,
-                message: 'Auto-schedule is only for round_robin tournaments',
+                message: `Auto-schedule supports round robin, single elimination, and double elimination (got "${format || 'none'}").`,
             });
         }
 
@@ -912,7 +919,18 @@ const scheduleRoundRobin = async (req, res, next) => {
         }
 
         const [allMatches] = await pool.execute(
-            `SELECT id, status FROM matches WHERE tournament_id = ? ORDER BY match_number ASC, id ASC`,
+            `SELECT id, status, round_number, match_number, bracket_side, bracket_position
+             FROM matches
+             WHERE tournament_id = ?
+             ORDER BY
+               COALESCE(round_number, 0) ASC,
+               CASE
+                 WHEN bracket_side = 'lower' THEN 1
+                 WHEN bracket_side = 'grand_final' THEN 2
+                 ELSE 0
+               END ASC,
+               COALESCE(match_number, 0) ASC,
+               id ASC`,
             [req.params.id]
         );
         if (!allMatches.length) {
@@ -923,7 +941,6 @@ const scheduleRoundRobin = async (req, res, next) => {
         }
 
         const requiredSlots = allMatches.length;
-
         const matches = allMatches.filter((m) => ['pending', 'scheduled'].includes(m.status));
         const locked = allMatches.length - matches.length;
         if (!matches.length) {
@@ -933,17 +950,21 @@ const scheduleRoundRobin = async (req, res, next) => {
             });
         }
 
+        const sortedDates = [...dates].sort();
+        const sortedTimes = [...times].sort();
         const slots = [];
-        for (const d of dates) {
-            for (const tm of times) {
+        for (const d of sortedDates) {
+            for (const tm of sortedTimes) {
                 slots.push({ date: d, time: tm });
             }
         }
 
-        const ordered = [...matches];
-        for (let i = ordered.length - 1; i > 0; i--) {
-            const j = Math.floor(Math.random() * (i + 1));
-            [ordered[i], ordered[j]] = [ordered[j], ordered[i]];
+        let ordered = [...matches];
+        if (format === 'round_robin') {
+            for (let i = ordered.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [ordered[i], ordered[j]] = [ordered[j], ordered[i]];
+            }
         }
 
         let officers = [];
@@ -955,13 +976,12 @@ const scheduleRoundRobin = async (req, res, next) => {
             officers = officerRows.map((r) => r.id);
 
             if (officers.length) {
-
                 const [existingAssignments] = await pool.execute(
                     `SELECT referee_id, scheduled_date, scheduled_time
-             FROM matches
-             WHERE referee_id IS NOT NULL
-               AND status IN ('scheduled','ongoing')
-               AND scheduled_date IS NOT NULL AND scheduled_time IS NOT NULL`
+                     FROM matches
+                     WHERE referee_id IS NOT NULL
+                       AND status IN ('scheduled','ongoing')
+                       AND scheduled_date IS NOT NULL AND scheduled_time IS NOT NULL`
                 );
                 existingAssignments.forEach((r) => {
                     officerBusy.add(`${r.referee_id}|${r.scheduled_date}|${r.scheduled_time}`);
@@ -986,30 +1006,33 @@ const scheduleRoundRobin = async (req, res, next) => {
         let officersAssigned = 0;
         for (let i = 0; i < ordered.length; i++) {
             const slot = slots[i % slots.length];
-            const referee_id = assignOfficers ? pickOfficer(slot.date, slot.time) : undefined;
+            const referee_id = assignOfficers ? pickOfficer(slot.date, slot.time) : null;
             if (referee_id) officersAssigned++;
 
             await pool.execute(
                 `UPDATE matches
-         SET scheduled_date = ?, scheduled_time = ?, venue_id = COALESCE(?, venue_id),
-             referee_id = COALESCE(?, referee_id), updated_at = NOW()
-         WHERE id = ?`,
-                [slot.date, slot.time, venueId, referee_id || null, ordered[i].id]
+                 SET scheduled_date = ?, scheduled_time = ?, venue_id = COALESCE(?, venue_id),
+                     referee_id = COALESCE(?, referee_id), updated_at = NOW()
+                 WHERE id = ?`,
+                [slot.date, slot.time, venueId, referee_id, ordered[i].id]
             );
             updated++;
         }
 
+        const formatLabel = format.replace(/_/g, ' ');
         res.json({
             success: true,
-            message: `Scheduled ${updated} match(es) across ${slots.length} slot(s)` +
+            message:
+                `Scheduled ${updated} ${formatLabel} match(es) across ${slots.length} slot(s)` +
                 (assignOfficers ? `, ${officersAssigned} officer(s) auto-assigned` : '') +
-                (locked ? `; ${locked} already in progress or completed were left untouched` : ''),
+                (locked ? `; ${locked} locked match(es) left untouched` : ''),
             data: {
                 updated,
                 slots: slots.length,
                 required_slots: requiredSlots,
                 officers_assigned: officersAssigned,
                 skipped_locked: locked,
+                format,
             },
         });
     } catch (err) {

@@ -21,5 +21,6 @@ router.post('/:id/generate', authenticate, authorize('sgo_president', 'admin'), 
 router.post('/:id/promote-knockout', authenticate, authorize('sgo_president', 'admin'), ctrl.promoteKnockout);
 router.post('/:id/schedule-round-robin', authenticate, authorize('sgo_president', 'admin'), ctrl.scheduleRoundRobin);
 router.post('/:id/finalize', authenticate, authorize('sgo_president', 'admin'), ctrl.finalizeTournament);
+router.post('/:id/schedule-auto', authenticate, authorize('sgo_president', 'admin'), ctrl.scheduleRoundRobin);
 
 module.exports = router;

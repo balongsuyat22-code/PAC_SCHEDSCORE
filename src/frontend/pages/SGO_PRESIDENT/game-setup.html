@@ -213,6 +213,106 @@
             margin-top: 4px;
         }
 
+
+        /* ── Double / single elim auto-schedule UI ─────────────── */
+        .de-as-banner {
+            display: flex;
+            gap: 12px;
+            align-items: flex-start;
+            padding: 14px 16px;
+            margin-bottom: 14px;
+            border-radius: 12px;
+            border: 1px solid rgba(139, 92, 246, .35);
+            background: linear-gradient(135deg, rgba(139, 92, 246, .12), rgba(245, 184, 0, .06));
+        }
+
+        .de-as-banner .de-as-icon {
+            width: 40px;
+            height: 40px;
+            border-radius: 10px;
+            flex-shrink: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: rgba(139, 92, 246, .2);
+            color: #a78bfa;
+            font-size: 18px;
+        }
+
+        .de-as-banner strong {
+            color: var(--text);
+            display: block;
+            margin-bottom: 4px;
+            font-size: 13px;
+        }
+
+        .de-as-banner p {
+            margin: 0;
+            font-size: 12px;
+            color: var(--muted);
+            line-height: 1.45;
+        }
+
+        .de-as-steps {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 8px;
+            margin-bottom: 16px;
+        }
+
+        .de-as-step {
+            background: var(--bg3);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            padding: 10px 12px;
+            text-align: center;
+        }
+
+        .de-as-step .num {
+            font-family: 'Barlow Condensed', sans-serif;
+            font-weight: 900;
+            font-size: 18px;
+            color: #a78bfa;
+            line-height: 1;
+        }
+
+        .de-as-step .lbl {
+            font-size: 11px;
+            color: var(--muted);
+            margin-top: 4px;
+            text-transform: uppercase;
+            letter-spacing: .04em;
+            font-weight: 700;
+        }
+
+        .de-as-note {
+            display: flex;
+            gap: 8px;
+            align-items: flex-start;
+            font-size: 12px;
+            color: var(--gold);
+            background: rgba(255, 176, 32, .08);
+            border: 1px dashed rgba(255, 176, 32, .35);
+            border-radius: 8px;
+            padding: 10px 12px;
+            margin-top: 12px;
+            line-height: 1.4;
+        }
+
+        .modal.de-theme .modal-header {
+            border-bottom-color: rgba(139, 92, 246, .25);
+        }
+
+        .modal.de-theme .modal-title {
+            color: #c4b5fd;
+        }
+
+        @media (max-width: 560px) {
+            .de-as-steps {
+                grid-template-columns: 1fr;
+            }
+        }
+
         /* ── Free-For-All specific card ──────────────────────── */
         .ffa-card {
             border: 1px solid var(--border);
@@ -1181,16 +1281,19 @@
     </div>
 
     <div class="modal-overlay" id="modal-auto-schedule">
-        <div class="modal">
+        <div class="modal" id="as-modal-box">
             <div class="modal-header">
-                <div class="modal-title"><i class="fa-solid fa-dice"></i> Auto-Schedule Round Robin</div>
-                <button class="modal-close" onclick="Modal.close('modal-auto-schedule')"><i
-                        class="fa-solid fa-xmark"></i></button>
+                <div class="modal-title" id="as-modal-title">
+                    <i class="fa-solid fa-dice"></i> Auto-Schedule Matches
+                </div>
+                <button class="modal-close" onclick="Modal.close('modal-auto-schedule')" aria-label="Close">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
             </div>
             <div class="modal-body">
-                <p style="color:var(--text2);font-size:13px;margin-bottom:12px">
-                    Enter the dates and time slots available. Matches will be shuffled so no department plays two slots
-                    in a row.
+                <div id="as-format-intro"></div>
+                <p style="color:var(--text2);font-size:13px;margin-bottom:12px" id="as-modal-desc">
+                    Enter the dates and time slots available. Matches will be assigned across those slots.
                 </p>
 
                 <div class="slot-calc" id="slot-calc">
@@ -1203,33 +1306,39 @@
                 </div>
 
                 <div class="form-group">
-                    <label class="form-label">Dates</label>
+                    <label class="form-label"><i class="fa-solid fa-calendar" style="margin-right:4px;opacity:.7"></i>
+                        Dates</label>
                     <div id="as-dates" style="display:flex;flex-direction:column;gap:8px;margin-bottom:8px"></div>
-                    <button class="btn btn-secondary btn-sm" onclick="addDateInput()"><i class="fa-solid fa-plus"></i>
-                        Add Date</button>
+                    <button type="button" class="btn btn-secondary btn-sm" onclick="addDateInput()">
+                        <i class="fa-solid fa-plus"></i> Add Date
+                    </button>
                 </div>
                 <div class="form-group">
-                    <label class="form-label">Time Slots</label>
+                    <label class="form-label"><i class="fa-solid fa-clock" style="margin-right:4px;opacity:.7"></i> Time
+                        Slots</label>
                     <div id="as-times" style="display:flex;flex-direction:column;gap:8px;margin-bottom:8px"></div>
-                    <button class="btn btn-secondary btn-sm" onclick="addTimeInput()"><i class="fa-solid fa-plus"></i>
-                        Add Time Slot</button>
+                    <button type="button" class="btn btn-secondary btn-sm" onclick="addTimeInput()">
+                        <i class="fa-solid fa-plus"></i> Add Time Slot
+                    </button>
                 </div>
                 <div class="form-group">
-                    <label class="form-label">Venue (optional)</label>
+                    <label class="form-label"><i class="fa-solid fa-location-dot"
+                            style="margin-right:4px;opacity:.7"></i> Venue (optional)</label>
                     <select id="as-venue" class="form-select">
                         <option value="">No venue / assign later</option>
                     </select>
                 </div>
                 <div class="officer-toggle">
                     <input type="checkbox" id="as-assign-officers" checked>
-                    <label for="as-assign-officers">Auto-assign an available officer to each match (conflict-free —
-                        never double-books an officer at the same date/time)</label>
+                    <label for="as-assign-officers">Auto-assign SGO officers (skip busy slots)</label>
                 </div>
+                <div id="as-format-note"></div>
             </div>
             <div class="modal-footer">
                 <button class="btn btn-secondary" onclick="Modal.close('modal-auto-schedule')">Cancel</button>
-                <button class="btn btn-primary" onclick="submitAutoSchedule()"><i class="fa-solid fa-dice"></i> Shuffle
-                    &amp; Schedule</button>
+                <button class="btn btn-primary" id="as-submit-btn" onclick="submitAutoSchedule()">
+                    <i class="fa-solid fa-calendar-check"></i> Assign &amp; Schedule
+                </button>
             </div>
         </div>
     </div>
@@ -1706,7 +1815,7 @@
                     ? (isFfa ? '<i class="fa-solid fa-bolt"></i> Re-Initialize Event' : '<i class="fa-solid fa-bolt"></i> Regenerate Bracket')
                     : (isFfa ? '<i class="fa-solid fa-bolt"></i> Initialize Event' : '<i class="fa-solid fa-bolt"></i> Generate Bracket');
             }
-            if (btnAuto) btnAuto.style.display = (fmt === 'round_robin' && !isFinalized) ? '' : 'none';
+            if (btnAuto) btnAuto.style.display = (['round_robin', 'single_elimination', 'double_elimination'].includes(fmt) && !isFinalized) ? '' : 'none';
             if (btnPromo) btnPromo.style.display = (fmt.startsWith('group_stage_') && !isFinalized) ? '' : 'none';
             if (btnFin) btnFin.style.display = isFinalized ? 'none' : '';
 
@@ -1911,7 +2020,7 @@
                 return `<div class="card"><div class="card-body">
                     <div class="section-empty">
                         No scheduled matches yet.
-                        ${currentTournament.format === 'round_robin'
+                        ${['round_robin', 'single_elimination', 'double_elimination'].includes(currentTournament.format)
                         ? `<br><br><button class="btn btn-secondary btn-sm" onclick="openAutoSchedule()"><i class="fa-solid fa-dice"></i> Auto-Schedule</button>`
                         : ''}
                     </div>
@@ -2061,7 +2170,7 @@
 
             const matches = currentBracketMatches || [];
             const isFinalized = currentTournament.status === 'completed';
-            const canAuto = currentTournament.format === 'round_robin' && !isFinalized;
+            const canAuto = ['round_robin', 'single_elimination', 'double_elimination'].includes(currentTournament.format) && !isFinalized;
 
             if (!matches.length) {
                 return `<div class="card"><div class="card-body">
@@ -2608,23 +2717,47 @@
             updateSlotCalc();
         }
 
+        function isAutoSchedulableFormat(fmt) {
+            return ['round_robin', 'single_elimination', 'double_elimination'].includes(fmt);
+        }
+
+        function autoScheduleMatchCount() {
+            const matches = currentBracketMatches || [];
+            if (matches.length) {
+                const open = matches.filter(m =>
+                    ['pending', 'scheduled'].includes(String(m.status || '').toLowerCase())
+                );
+                return open.length || matches.length;
+            }
+            const n = currentTournament?.participants?.length || 0;
+            const fmt = currentTournament?.format || '';
+            if (fmt === 'round_robin' && n >= 2) return (n * (n - 1)) / 2;
+            if ((fmt === 'single_elimination' || fmt === 'double_elimination') && n >= 2) {
+                let size = 1;
+                while (size < n) size *= 2;
+                return fmt === 'double_elimination' ? (size - 1) * 2 + 1 : size - 1;
+            }
+            return 0;
+        }
+
         function updateSlotCalc() {
             const box = document.getElementById('slot-calc');
             if (!box) return;
-            const n = currentTournament?.participants?.length || 0;
-            const matchesNeeded = n >= 2 ? (n * (n - 1)) / 2 : 0;
+            const matchesNeeded = autoScheduleMatchCount();
 
             const dateCount = document.querySelectorAll('.as-date-input').length;
             const timeCount = document.querySelectorAll('.as-time-input').length;
             const slotsAvailable = dateCount * timeCount;
 
-            document.getElementById('slot-calc-matches').textContent = matchesNeeded || '—';
+            const numEl = document.getElementById('slot-calc-matches');
+            if (numEl) numEl.textContent = matchesNeeded || '—';
 
             const detail = document.getElementById('slot-calc-detail');
+            if (!detail) return;
             box.classList.remove('ok', 'short');
 
-            if (!n) {
-                detail.textContent = 'Add departments to this tournament first.';
+            if (!matchesNeeded) {
+                detail.textContent = 'Generate the bracket (or add departments) first so we know how many matches to place.';
                 return;
             }
             if (slotsAvailable === 0) {
@@ -2633,7 +2766,7 @@
             }
             if (slotsAvailable < matchesNeeded) {
                 box.classList.add('short');
-                detail.innerHTML = `${dateCount} date(s) × ${timeCount} time(s) = <strong>${slotsAvailable} slots</strong> — that's short by ${matchesNeeded - slotsAvailable}. Add more dates or time slots, e.g. ${matchesNeeded} dates × 1 time, or ${Math.ceil(matchesNeeded / timeCount)} dates × ${timeCount} time(s).`;
+                detail.innerHTML = `${dateCount} date(s) × ${timeCount} time(s) = <strong>${slotsAvailable} slots</strong> — short by ${matchesNeeded - slotsAvailable}. Add more dates or times (e.g. ${matchesNeeded} dates × 1 time, or ${Math.ceil(matchesNeeded / Math.max(timeCount, 1))} dates × ${timeCount || 1} time(s)).`;
             } else {
                 box.classList.add('ok');
                 const exact = slotsAvailable === matchesNeeded;
@@ -2641,7 +2774,87 @@
             }
         }
 
+        function renderAutoScheduleIntro(fmt) {
+            const intro = document.getElementById('as-format-intro');
+            const note = document.getElementById('as-format-note');
+            const box = document.getElementById('as-modal-box');
+            if (box) box.classList.toggle('de-theme', fmt === 'double_elimination');
+            if (!intro) return;
+
+            if (fmt === 'double_elimination') {
+                intro.innerHTML = `
+                    <div class="de-as-banner">
+                        <div class="de-as-icon"><i class="fa-solid fa-sitemap"></i></div>
+                        <div>
+                            <strong>Double Elimination — one calendar for the whole tree</strong>
+                            <p>Upper bracket, lower bracket, and grand final slots are dated now.
+                            Teams that lose twice are simply out — you do <em>not</em> re-run auto-schedule for them.
+                            Winners fill pre-created next-match seats as results come in.</p>
+                        </div>
+                    </div>
+                    <div class="de-as-steps">
+                        <div class="de-as-step"><div class="num">1</div><div class="lbl">Upper rounds</div></div>
+                        <div class="de-as-step"><div class="num">2</div><div class="lbl">Lower bracket</div></div>
+                        <div class="de-as-step"><div class="num">3</div><div class="lbl">Grand final</div></div>
+                    </div>`;
+                if (note) {
+                    note.innerHTML = `
+                        <div class="de-as-note">
+                            <i class="fa-solid fa-circle-info" style="margin-top:2px"></i>
+                            <span>Slots are assigned in bracket order so Round 1 lands on your earliest dates.
+                            Later rounds (and lower-bracket matches) receive later slots automatically.</span>
+                        </div>`;
+                }
+            } else if (fmt === 'single_elimination') {
+                intro.innerHTML = `
+                    <div class="de-as-banner" style="border-color:rgba(59,130,246,.35);background:linear-gradient(135deg,rgba(59,130,246,.12),transparent)">
+                        <div class="de-as-icon" style="background:rgba(59,130,246,.2);color:#60a5fa"><i class="fa-solid fa-diagram-project"></i></div>
+                        <div>
+                            <strong>Single Elimination</strong>
+                            <p>Matches are placed in round order — Round 1 first, then later rounds.
+                            You only schedule once; advancing winners reuse the same calendar slots.</p>
+                        </div>
+                    </div>`;
+                if (note) note.innerHTML = '';
+            } else {
+                intro.innerHTML = '';
+                if (note) note.innerHTML = '';
+            }
+        }
+
         function openAutoSchedule() {
+            const fmt = currentTournament?.format || 'round_robin';
+            const title = document.getElementById('as-modal-title');
+            const desc = document.getElementById('as-modal-desc');
+            const submitBtn = document.getElementById('as-submit-btn');
+
+            renderAutoScheduleIntro(fmt);
+
+            if (fmt === 'double_elimination') {
+                if (title) title.innerHTML = '<i class="fa-solid fa-sitemap"></i> Auto-Schedule Double Elimination';
+                if (desc) desc.textContent = 'Pick competition dates and daily time slots. Every open bracket match (upper, lower, grand final) gets a date — including TBD sides.';
+                if (submitBtn) submitBtn.innerHTML = '<i class="fa-solid fa-calendar-check"></i> Assign DE Schedule';
+            } else if (fmt === 'single_elimination') {
+                if (title) title.innerHTML = '<i class="fa-solid fa-diagram-project"></i> Auto-Schedule Single Elimination';
+                if (desc) desc.textContent = 'Pick dates and time slots. Matches are assigned in round order so earlier rounds get earlier dates.';
+                if (submitBtn) submitBtn.innerHTML = '<i class="fa-solid fa-calendar-check"></i> Assign &amp; Schedule';
+            } else {
+                if (title) title.innerHTML = '<i class="fa-solid fa-dice"></i> Auto-Schedule Round Robin';
+                if (desc) desc.textContent = 'Enter the dates and time slots available. Matches will be shuffled so the same departments are less likely to play two slots in a row.';
+                if (submitBtn) submitBtn.innerHTML = '<i class="fa-solid fa-dice"></i> Shuffle &amp; Schedule';
+            }
+
+            const datesHost = document.getElementById('as-dates');
+            if (datesHost && !datesHost.querySelector('.as-date-input')) {
+                const seed = (currentTournament?.start_date || '').toString().slice(0, 10);
+                addDateInput(seed);
+            }
+            if (!document.querySelector('.as-time-input')) {
+                addTimeInput('08:00');
+                addTimeInput('09:00');
+                addTimeInput('10:00');
+            }
+
             updateSlotCalc();
             Modal.open('modal-auto-schedule');
         }
@@ -2654,16 +2867,21 @@
             if (!dates.length) { Toast.show('Add at least one date', 'error'); return; }
             if (!times.length) { Toast.show('Add at least one time slot', 'error'); return; }
 
-            const n = currentTournament?.participants?.length || 0;
-            const matchesNeeded = n >= 2 ? (n * (n - 1)) / 2 : 0;
+            const matchesNeeded = autoScheduleMatchCount();
             if (dates.length * times.length < matchesNeeded) {
                 if (!confirm(`You only have ${dates.length * times.length} slot(s) for ${matchesNeeded} matches — some matches will share a slot time. Continue anyway?`)) return;
             }
 
-            const res = await api(`/tournaments/${currentTournamentId}/schedule-round-robin`, {
+            let res = await api(`/tournaments/${currentTournamentId}/schedule-auto`, {
                 method: 'POST',
                 body: { dates, times, venue_id, assign_officers },
             });
+            if (res && res.success === false && /Cannot POST|not found|404|HTTP 404/i.test(res.message || '')) {
+                res = await api(`/tournaments/${currentTournamentId}/schedule-round-robin`, {
+                    method: 'POST',
+                    body: { dates, times, venue_id, assign_officers },
+                });
+            }
             Toast.show(res.message || (res.success ? 'Scheduled!' : 'Error'), res.success ? 'success' : 'error');
             if (res.success) { Modal.close('modal-auto-schedule'); refreshAll(); }
         }

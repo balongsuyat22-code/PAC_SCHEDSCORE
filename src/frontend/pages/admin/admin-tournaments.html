@@ -563,6 +563,121 @@
             flex-shrink: 0;
         }
 
+
+        /* ── Double / single elim auto-schedule (admin) ───────── */
+        .de-as-banner {
+            display: flex;
+            gap: 12px;
+            align-items: flex-start;
+            padding: 14px 16px;
+            margin-bottom: 14px;
+            border-radius: 12px;
+            border: 1px solid rgba(139, 92, 246, .35);
+            background: linear-gradient(135deg, rgba(139, 92, 246, .12), rgba(245, 184, 0, .06));
+        }
+
+        .de-as-banner .de-as-icon {
+            width: 40px;
+            height: 40px;
+            border-radius: 10px;
+            flex-shrink: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: rgba(139, 92, 246, .2);
+            color: #a78bfa;
+            font-size: 18px;
+        }
+
+        .de-as-banner strong {
+            color: var(--text);
+            display: block;
+            margin-bottom: 4px;
+            font-size: 13px;
+        }
+
+        .de-as-banner p {
+            margin: 0;
+            font-size: 12px;
+            color: var(--muted);
+            line-height: 1.45;
+        }
+
+        .de-as-steps {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 8px;
+            margin-bottom: 14px;
+        }
+
+        .de-as-step {
+            background: var(--bg3);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            padding: 10px 12px;
+            text-align: center;
+        }
+
+        .de-as-step .num {
+            font-family: 'Barlow Condensed', sans-serif;
+            font-weight: 900;
+            font-size: 18px;
+            color: #a78bfa;
+            line-height: 1;
+        }
+
+        .de-as-step .lbl {
+            font-size: 11px;
+            color: var(--muted);
+            margin-top: 4px;
+            text-transform: uppercase;
+            letter-spacing: .04em;
+            font-weight: 700;
+        }
+
+        .de-as-note {
+            display: flex;
+            gap: 8px;
+            align-items: flex-start;
+            font-size: 12px;
+            color: var(--gold);
+            background: rgba(255, 176, 32, .08);
+            border: 1px dashed rgba(255, 176, 32, .35);
+            border-radius: 8px;
+            padding: 10px 12px;
+            margin-top: 4px;
+            line-height: 1.4;
+        }
+
+        .modal.de-theme .modal-header {
+            border-bottom-color: rgba(139, 92, 246, .25);
+        }
+
+        .modal.de-theme .modal-title {
+            color: #c4b5fd;
+        }
+
+        .as-slot-summary {
+            font-size: 13px;
+            padding: 10px 12px;
+            border-radius: 10px;
+            border: 1px solid var(--border);
+            background: var(--bg3);
+            margin-bottom: 14px;
+        }
+
+        .as-slot-summary strong {
+            color: var(--gold);
+            font-family: 'Barlow Condensed', sans-serif;
+            font-size: 18px;
+        }
+
+        @media (max-width: 560px) {
+            .de-as-steps {
+                grid-template-columns: 1fr;
+            }
+        }
+
         /* ── FILTER BAR (list view) ──
            These classes were used in the JS-rendered markup but never
            actually styled, so the filter pills/search were rendering as
@@ -1269,14 +1384,20 @@
     <!-- Schedule config -->
     <div class="modal-overlay" id="modal-schedule-config"
         onclick="if(event.target===this)Modal.close('modal-schedule-config')">
-        <div class="modal" style="max-width:500px">
+        <div class="modal" id="as-modal-box" style="max-width:540px">
             <div class="modal-header">
-                <div class="modal-title"><span style="color:var(--gold)">●</span> Schedule Configuration</div>
+                <div class="modal-title" id="as-modal-title"><span style="color:var(--gold)">●</span> Schedule
+                    Configuration</div>
                 <button class="modal-close" onclick="Modal.close('modal-schedule-config')">×</button>
             </div>
             <div class="modal-body">
-                <p style="font-size:13px;color:var(--muted);margin-bottom:16px">Assign default venue and referee for
-                    pending matches.</p>
+                <div id="as-format-intro"></div>
+                <p style="font-size:13px;color:var(--muted);margin-bottom:12px" id="as-modal-desc">
+                    Assign default venue and referee for pending matches. Dates and times come from your Time Slots.
+                </p>
+                <div class="as-slot-summary" id="as-slot-summary">
+                    Checking available slots…
+                </div>
                 <div class="form-group">
                     <label class="form-label">Default Venue</label>
                     <select id="config-venue" class="form-select">
@@ -1284,20 +1405,24 @@
                     </select>
                 </div>
                 <div class="form-group">
-                    <label class="form-label">Default Referee</label>
+                    <label class="form-label">Default Referee / Officer</label>
                     <select id="config-referee" class="form-select">
                         <option value="">Select referee...</option>
                     </select>
                 </div>
+                <div id="as-format-note"></div>
             </div>
-            <p style="font-size:12px;color:var(--muted);padding:0 20px 12px;margin:0;">
+            <p style="font-size:12px;color:var(--muted);padding:0 20px 12px;margin:0;" id="as-footer-hint">
                 This bulk-assigns dates/times/venues to every unscheduled match in this tournament.
-                To adjust a single match afterward, use its edit action in the bracket below or go to
+                To adjust a single match afterward, use its edit action or go to
                 <a href="/admin/matches" style="color:var(--gold);">Matches</a>.
             </p>
             <div class="modal-footer">
                 <button class="btn btn-secondary" onclick="Modal.close('modal-schedule-config')">Cancel</button>
-                <button class="btn btn-primary" onclick="confirmAutoSchedule()">Start Auto-Scheduling</button>
+                <button class="btn btn-secondary" onclick="openTSModal()"><i class="fa-solid fa-clock"></i> Time
+                    Slots</button>
+                <button class="btn btn-primary" id="as-submit-btn" onclick="confirmAutoSchedule()">Start
+                    Auto-Scheduling</button>
             </div>
         </div>
     </div>
@@ -2429,15 +2554,136 @@
         }
 
         function openTSModal() { Modal.open('modal-timeslots'); }
-        function openScheduleConfig() { Modal.open('modal-schedule-config'); }
+
+        function isKnockoutFormat(fmt) {
+            return ['single_elimination', 'double_elimination'].includes(fmt);
+        }
+
+        function sortMatchesForSchedule(list) {
+            // Bracket order: earlier rounds first; upper before lower before grand final
+            return [...list].sort((a, b) => {
+                const ra = Number(a.round_number) || 0;
+                const rb = Number(b.round_number) || 0;
+                if (ra !== rb) return ra - rb;
+                const sideRank = (s) => {
+                    const v = String(s || '').toLowerCase();
+                    if (v === 'lower') return 1;
+                    if (v === 'grand_final') return 2;
+                    return 0;
+                };
+                const sa = sideRank(a.bracket_side);
+                const sb = sideRank(b.bracket_side);
+                if (sa !== sb) return sa - sb;
+                const ma = Number(a.match_number) || 0;
+                const mb = Number(b.match_number) || 0;
+                if (ma !== mb) return ma - mb;
+                return (a.id || 0) - (b.id || 0);
+            });
+        }
+
+        function countFreeSlots() {
+            const slotDates = Object.entries(timeSlots || {});
+            const allSlots = [];
+            slotDates.sort(([a], [b]) => a.localeCompare(b)).forEach(([date, slots]) => {
+                (slots || []).forEach(slot => allSlots.push({ date, start: slot.start }));
+            });
+            const occupiedSlots = new Set();
+            (matches || []).forEach(m => {
+                if (m.scheduled_date && m.scheduled_time && m.status !== 'pending') {
+                    occupiedSlots.add(`${m.scheduled_date}_${String(m.scheduled_time).slice(0, 5)}`);
+                }
+            });
+            return allSlots.filter(s => !occupiedSlots.has(`${s.date}_${s.start}`));
+        }
+
+        function renderAdminScheduleIntro(fmt) {
+            const intro = document.getElementById('as-format-intro');
+            const note = document.getElementById('as-format-note');
+            const box = document.getElementById('as-modal-box');
+            const title = document.getElementById('as-modal-title');
+            const desc = document.getElementById('as-modal-desc');
+            const btn = document.getElementById('as-submit-btn');
+            if (box) box.classList.toggle('de-theme', fmt === 'double_elimination');
+
+            if (fmt === 'double_elimination') {
+                if (title) title.innerHTML = '<span style="color:#a78bfa">●</span> Auto-Schedule Double Elimination';
+                if (desc) desc.textContent = 'Dates come from Time Slots. Matches are filled in bracket order (upper → lower → grand final). Teams eliminated after two losses do not need re-scheduling.';
+                if (btn) btn.textContent = 'Assign DE Schedule';
+                if (intro) intro.innerHTML = `
+                    <div class="de-as-banner">
+                        <div class="de-as-icon">⇅</div>
+                        <div>
+                            <strong>Double Elimination — one calendar for the whole tree</strong>
+                            <p>Upper, lower, and grand final slots are dated now. Losers drop to the lower bracket;
+                            a second loss ends their path. You do not re-run auto-schedule when a team is eliminated.</p>
+                        </div>
+                    </div>
+                    <div class="de-as-steps">
+                        <div class="de-as-step"><div class="num">1</div><div class="lbl">Upper rounds</div></div>
+                        <div class="de-as-step"><div class="num">2</div><div class="lbl">Lower bracket</div></div>
+                        <div class="de-as-step"><div class="num">3</div><div class="lbl">Grand final</div></div>
+                    </div>`;
+                if (note) note.innerHTML = `
+                    <div class="de-as-note">
+                        <span>ℹ</span>
+                        <span>Open matches (including TBD sides) receive earlier slots first. Configure Time Slots if the summary below is short.</span>
+                    </div>`;
+            } else if (fmt === 'single_elimination') {
+                if (title) title.innerHTML = '<span style="color:#60a5fa">●</span> Auto-Schedule Single Elimination';
+                if (desc) desc.textContent = 'Matches are assigned in round order so Round 1 lands on the earliest free slots.';
+                if (btn) btn.textContent = 'Assign SE Schedule';
+                if (intro) intro.innerHTML = `
+                    <div class="de-as-banner" style="border-color:rgba(59,130,246,.35);background:linear-gradient(135deg,rgba(59,130,246,.12),transparent)">
+                        <div class="de-as-icon" style="background:rgba(59,130,246,.2);color:#60a5fa">▣</div>
+                        <div>
+                            <strong>Single Elimination</strong>
+                            <p>One loss eliminates. Schedule once; winners advance into already-dated later rounds.</p>
+                        </div>
+                    </div>`;
+                if (note) note.innerHTML = '';
+            } else if (IS_FFA(fmt)) {
+                if (title) title.innerHTML = '<span style="color:var(--gold)">●</span> Schedule FFA Event';
+                if (desc) desc.textContent = 'One date/time for the whole free-for-all event.';
+                if (btn) btn.textContent = 'Schedule FFA Event';
+                if (intro) intro.innerHTML = '';
+                if (note) note.innerHTML = '';
+            } else {
+                if (title) title.innerHTML = '<span style="color:var(--gold)">●</span> Schedule Configuration';
+                if (desc) desc.textContent = 'Assign default venue and referee for pending matches. Dates and times come from your Time Slots.';
+                if (btn) btn.textContent = 'Start Auto-Scheduling';
+                if (intro) intro.innerHTML = '';
+                if (note) note.innerHTML = '';
+            }
+
+            const summary = document.getElementById('as-slot-summary');
+            if (summary) {
+                const free = countFreeSlots();
+                const toDo = IS_FFA(fmt)
+                    ? 1
+                    : (matches || []).filter(m => m.status === 'pending' || m.status === 'scheduled').length;
+                const ok = free.length >= toDo;
+                summary.style.borderColor = ok ? 'rgba(34,197,94,.35)' : 'rgba(232,50,59,.35)';
+                summary.innerHTML = ok
+                    ? `<strong>${free.length}</strong> free slot(s) · <strong>${toDo}</strong> match(es) to place — ready.`
+                    : `<strong style="color:var(--red)">${free.length}</strong> free slot(s) · <strong>${toDo}</strong> match(es) needed — add more Time Slots.`;
+            }
+        }
+
+        function openScheduleConfig() {
+            const fmt = tournament?.format || '';
+            renderAdminScheduleIntro(fmt);
+            Modal.open('modal-schedule-config');
+        }
+
         function openFinalizeFlow() { switchTab('finalize'); }
         function openFinalizeModal() { /* reserved */ }
 
         async function confirmAutoSchedule() {
             const defaultVenue = document.getElementById('config-venue')?.value;
             const defaultReferee = document.getElementById('config-referee')?.value;
+            const fmt = tournament?.format || '';
 
-            if (IS_FFA(tournament.format)) {
+            if (IS_FFA(fmt)) {
                 const ffaMatch = matches.find(m => m.bracket_side === 'ffa' || m.bracket_position === 'FFA Event');
                 if (!ffaMatch) { Toast.show('No FFA match found. Click Initialize Event first.', 'error'); return; }
                 const slotDates = Object.entries(timeSlots);
@@ -2459,8 +2705,14 @@
                 return;
             }
 
-            const toSchedule = matches.filter(m => m.status === 'pending' || m.status === 'scheduled');
+            let toSchedule = matches.filter(m => m.status === 'pending' || m.status === 'scheduled');
             if (!toSchedule.length) { Toast.show('All matches already scheduled', 'info'); return; }
+
+            // Knockout: chronological bracket order (upper → lower → grand final)
+            if (isKnockoutFormat(fmt)) {
+                toSchedule = sortMatchesForSchedule(toSchedule);
+            }
+
             const slotDates = Object.entries(timeSlots);
             if (!slotDates.length) { Toast.show('Add time slots first', 'error'); openTSModal(); return; }
 
@@ -2471,12 +2723,13 @@
             const occupiedSlots = new Set();
             matches.forEach(m => {
                 if (m.scheduled_date && m.scheduled_time && m.status !== 'pending') {
-                    occupiedSlots.add(`${m.scheduled_date}_${m.scheduled_time.slice(0, 5)}`);
+                    occupiedSlots.add(`${m.scheduled_date}_${String(m.scheduled_time).slice(0, 5)}`);
                 }
             });
             const freeSlots = allSlots.filter(s => !occupiedSlots.has(`${s.date}_${s.start}`));
             if (freeSlots.length < toSchedule.length) {
-                Toast.show(`Only ${freeSlots.length} free slots for ${toSchedule.length} matches.`, 'error');
+                Toast.show(`Only ${freeSlots.length} free slots for ${toSchedule.length} matches. Add more Time Slots.`, 'error');
+                openTSModal();
                 return;
             }
             let scheduled = 0;
@@ -2489,7 +2742,8 @@
                 const res = await api(`/matches/${m.id}/schedule`, { method: 'PATCH', body: JSON.stringify(body) });
                 if (res.success) scheduled++;
             }
-            Toast.show(`Scheduled ${scheduled} of ${toSchedule.length} matches`, scheduled === toSchedule.length ? 'success' : 'info');
+            const label = fmt === 'double_elimination' ? 'DE ' : fmt === 'single_elimination' ? 'SE ' : '';
+            Toast.show(`Scheduled ${scheduled} of ${toSchedule.length} ${label}matches`, scheduled === toSchedule.length ? 'success' : 'info');
             await reloadDetail();
             Modal.close('modal-schedule-config');
             switchTab('schedule');
