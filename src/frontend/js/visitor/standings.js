@@ -21,11 +21,15 @@ function renderLeaderboard() {
     <div class="lb-header"><div>#</div><div>Department</div><div style="text-align:center">Medals</div><div style="text-align:right">Points</div></div>
     ${data.map((d, i) => {
         const rank = d.rank || i + 1;
+        const previous = data[i - 1];
+        const divisionHeading = d.division && (!previous || previous.division !== d.division)
+            ? `<div class="lb-division-heading">${esc(String(d.division).replace(/_/g, ' '))}</div>`
+            : '';
         const col = d.color || deptColor(d.name);
         const logoHtml = d.logo_url
             ? `<div class="lb-dot" style="background:${col}"><img src="${esc(d.logo_url)}" alt="${esc(d.name)}"></div>`
             : `<div class="lb-dot" style="background:${col}">${initials(d.name)}</div>`;
-        return `<div class="lb-row ${topClass(rank)}">
+        return `${divisionHeading}<div class="lb-row ${topClass(rank)}">
         ${rankLabel(rank)}
         <div class="lb-dept">${logoHtml}<div class="lb-name">${esc(d.name)}</div></div>
         <div class="lb-medals">
@@ -48,7 +52,7 @@ async function checkAndFireConfetti() {
         if (!r.ok) return;
         const j = await r.json();
         if (j.data && j.data.is_final && j.data.champion) {
-            showWinnerBanner(j.data.champion);
+            showWinnerBanner(j.data.champion, j.data.champions || []);
 
             const c = j.data.champion;
             const key = 'champ_confetti_' + (c.department_id || c.id || c.name);
@@ -79,7 +83,7 @@ function showLeaderBanner(c, message) {
 
 /** Persistent "Overall Champion" banner pinned above the standings table,
  *  with a button to re-open the full celebration modal on demand. */
-function showWinnerBanner(champion) {
+function showWinnerBanner(champion, champions = []) {
     const container = document.getElementById('lb-container');
     if (!container || container.querySelector('.winner-banner')) return;
 
@@ -89,9 +93,12 @@ function showWinnerBanner(champion) {
 
     const banner = document.createElement('div');
     banner.className = 'winner-banner';
+    const championNames = champions.length > 1
+        ? champions.map(c => `${esc(String(c.division || '').replace(/_/g, ' '))}: ${esc(c.name)}`).join(' · ')
+        : esc(champion.name);
     banner.innerHTML = `<div class="wb-trophy">${I.trophy}</div>${imgHtml}<div class="wb-body">
-      <div class="wb-label">Overall Champion</div>
-      <div class="wb-name">${esc(champion.name)}</div>
+            <div class="wb-label">${champions.length > 1 ? 'Division Champions' : 'Overall Champion'}</div>
+            <div class="wb-name">${championNames}</div>
       <div class="wb-sub">${champion.total_points || 0} pts · ${champion.gold_medals || 0} Gold · ${champion.silver_medals || 0} Silver · ${champion.bronze_medals || 0} Bronze</div>
     </div>
     <button type="button" class="wb-view-btn" onclick="viewChampionCelebration()"
@@ -119,6 +126,7 @@ async function viewChampionCelebration() {
             silver: c.silver_medals,
             bronze: c.bronze_medals,
             top3: allLbData.slice(0, 3),
+            champions: j.data?.champions || [],
         });
     } catch { /* ignore */ }
 }
@@ -162,7 +170,7 @@ function bindChampionSocket() {
     socket.on('champion:declared', (data) => {
         if (data?.champion) {
             const c = data.champion;
-            showWinnerBanner(c);
+            showWinnerBanner(c, data.champions || []);
             window.showChampionCelebration?.({
                 name: c.name,
                 color: c.color,
@@ -172,6 +180,7 @@ function bindChampionSocket() {
                 silver: c.silver_medals,
                 bronze: c.bronze_medals,
                 top3: allLbData.slice(0, 3),
+                champions: data.champions || [],
             });
         } else {
             loadLeaderboard();

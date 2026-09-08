@@ -9,7 +9,7 @@ const {
     emitToAll,
     getMatchWatchers,
 } = require('../utils/socketEmit');
-const { createNotification } = require('./notificationController');
+const { createNotification, notifyRoles } = require('./notificationController');
 
 const safeFK = (val) => { const n = parseInt(val); return Number.isInteger(n) && n > 0 ? n : null; };
 const safeDate = (val) => { if (!val) return null; return String(val).split('T')[0]; };
@@ -100,6 +100,11 @@ async function notifyMatchEvent(kind, matchId, extra = {}, createdBy = null) {
                 entity_id: matchId,
                 created_by: createdBy,
             });
+            await createNotification({
+                role: 'admin', type: 'schedule', severity: 'info', title: 'Match scheduled',
+                message: msg, link: '/admin/schedule', entity_type: 'match', entity_id: matchId,
+                created_by: createdBy,
+            });
             return;
         }
 
@@ -115,6 +120,10 @@ async function notifyMatchEvent(kind, matchId, extra = {}, createdBy = null) {
                 entity_type: 'match',
                 entity_id: matchId,
                 created_by: createdBy,
+            });
+            await notifyRoles(['admin', 'dean_adviser'], {
+                type: 'score', severity: 'live', title: 'Match started', message: msg,
+                link: '/admin/live', entity_type: 'match', entity_id: matchId, created_by: createdBy,
             });
             for (const department_id of [m.participant_a_department_id, m.participant_b_department_id].filter(Boolean)) {
                 await createNotification({
@@ -145,6 +154,10 @@ async function notifyMatchEvent(kind, matchId, extra = {}, createdBy = null) {
                 entity_type: 'match',
                 entity_id: matchId,
                 created_by: createdBy,
+            });
+            await notifyRoles(['admin', 'dean_adviser'], {
+                type: 'result', severity: 'success', title: 'Match completed', message: msg,
+                link: '/admin/matches', entity_type: 'match', entity_id: matchId, created_by: createdBy,
             });
             for (const department_id of [m.participant_a_department_id, m.participant_b_department_id].filter(Boolean)) {
                 await createNotification({
@@ -441,7 +454,11 @@ const getLive = async (req, res, next) => {
                     v.name  AS venue_name, m.started_at,
                     COALESCE((SELECT SUM(score_a) FROM match_scores WHERE match_id = m.id), 0) AS live_score_a,
                     COALESCE((SELECT SUM(score_b) FROM match_scores WHERE match_id = m.id), 0) AS live_score_b,
-                    (SELECT COUNT(*) FROM match_scores WHERE match_id = m.id) AS periods_played
+                    (SELECT COUNT(*) FROM match_scores WHERE match_id = m.id) AS periods_played,
+                    (SELECT MAX(ms.updated_at) FROM match_scores ms WHERE ms.match_id = m.id) AS score_updated_at,
+                    (SELECT CONCAT(u.first_name, ' ', u.last_name)
+                     FROM match_scores ms JOIN users u ON u.id = ms.updated_by
+                     WHERE ms.match_id = m.id ORDER BY ms.updated_at DESC LIMIT 1) AS score_updated_by
                     FROM matches m
                     JOIN  tournaments t ON m.tournament_id = t.id
                     JOIN  sports      s ON t.sport_id      = s.id
@@ -612,6 +629,64 @@ const startMatch = async (req, res, next) => {
     try {
         const matchId = parseInt(req.params.id);
 
+        const [[startInfo]] = await pool.execute(
+            `SELECT id, status, scheduled_date, scheduled_time,
+                    participant_a_department_id, participant_b_department_id,
+                    venue_id, referee_id, bracket_side
+             FROM matches WHERE id = ?`,
+            [matchId]
+        );
+        if (!startInfo) {
+            return res.status(404).json({ success: false, message: 'Match not found.' });
+        }
+
+        const warnings = [];
+        if (!startInfo.scheduled_date || !startInfo.scheduled_time) {
+            warnings.push('This match has no scheduled date and time. Confirm the event schedule before starting.');
+            if (req.user.role === 'sgo_officer') {
+                return res.status(409).json({
+                    success: false,
+                    code: 'MISSING_SCHEDULE',
+                    warning: true,
+                    message: warnings[0],
+                });
+            }
+        }
+
+        if (!startInfo.participant_a_department_id || (!startInfo.participant_b_department_id && startInfo.bracket_side !== 'ffa')) {
+            return res.status(409).json({
+                success: false,
+                code: 'MISSING_PARTICIPANT',
+                warning: true,
+                message: 'This match cannot start because both participants are not assigned yet.',
+            });
+        }
+
+        let scheduledAt = null;
+        if (startInfo.scheduled_date && startInfo.scheduled_time) {
+            const dateText = String(startInfo.scheduled_date).slice(0, 10);
+            const timeText = String(startInfo.scheduled_time).slice(0, 8);
+            scheduledAt = new Date(`${dateText}T${timeText}`);
+            if (!Number.isNaN(scheduledAt.getTime())) {
+                const now = new Date();
+                if (now < scheduledAt) {
+                    const message = `This match is scheduled for ${dateText} ${timeText}. It cannot start yet.`;
+                    if (req.user.role === 'sgo_officer') {
+                        return res.status(409).json({
+                            success: false,
+                            code: 'START_TOO_EARLY',
+                            warning: true,
+                            scheduled_at: scheduledAt.toISOString(),
+                            message,
+                        });
+                    }
+                    warnings.push(`${message} Admin/President override used.`);
+                } else if (now.getTime() - scheduledAt.getTime() > 30 * 60 * 1000) {
+                    warnings.push('This match is more than 30 minutes late. Confirm the venue and participants before starting.');
+                }
+            }
+        }
+
         if (req.user.role === 'sgo_officer') {
             const [assigned] = await pool.execute(
                 'SELECT id FROM matches WHERE id = ? AND referee_id = ?',
@@ -671,8 +746,9 @@ const startMatch = async (req, res, next) => {
 
         return res.json({
             success: true,
-            message: 'Match started.',
-            data: startData,
+            message: warnings.length ? `Match started with warning: ${warnings[0]}` : 'Match started.',
+            warnings,
+            data: { ...startData, warnings },
         });
     } catch (err) {
         next(err);
@@ -795,12 +871,37 @@ const updateScore = async (req, res, next) => {
             `Score updated: ${safeA}-${safeB} in period ${safePeriod}`
         );
 
+        await createNotification({
+            role: 'dean_adviser',
+            type: 'score_updated',
+            title: 'Match score updated',
+            message: `${match.dept_a_name || 'Team A'} vs ${match.dept_b_name || 'Team B'} was updated to ${totals.total_a}-${totals.total_b} by ${req.user.first_name || ''} ${req.user.last_name || ''}`.trim(),
+            link: `/dean/matches?match_id=${matchId}`,
+            severity: 'info',
+            entity_type: 'match',
+            entity_id: matchId,
+            created_by: userId,
+        });
+        await notifyRoles(['admin', 'sgo_president'], {
+            type: 'score_updated',
+            title: 'Match score updated',
+            message: `${match.dept_a_name || 'Team A'} vs ${match.dept_b_name || 'Team B'} was updated to ${totals.total_a}-${totals.total_b} by ${req.user.first_name || ''} ${req.user.last_name || ''}`.trim(),
+            link: '/admin/live',
+            severity: 'info',
+            entity_type: 'match',
+            entity_id: matchId,
+            created_by: userId,
+        });
+
         return res.json({
             success: true,
             data: {
                 total_a: totals.total_a,
                 total_b: totals.total_b,
                 watchers: getMatchWatchers(matchId)
+                , updated: true
+                , updated_by: req.user.first_name + ' ' + req.user.last_name
+                , updated_at: new Date()
             }
         });
     } catch (err) {

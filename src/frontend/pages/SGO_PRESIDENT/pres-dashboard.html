@@ -56,7 +56,7 @@
                         </div>
                     </div>
                 </div>
-                <a href="/president/game-setup.html" class="btn btn-primary btn-sm">New Tournament</a>
+                <a href="/president/game-setup" class="btn btn-primary btn-sm">New Tournament</a>
             </div>
         </div>
         <div class="content">
@@ -104,7 +104,7 @@
                 <div class="card">
                     <div class="card-header">
                         <div class="card-title">Upcoming Matches</div>
-                        <a href="/president/schedule.html" class="btn btn-secondary btn-sm">Manage</a>
+                        <a href="/president/schedule" class="btn btn-secondary btn-sm">Manage</a>
                     </div>
                     <div class="card-body" id="upcoming-matches">
                         <div class="empty-state">
@@ -115,7 +115,7 @@
                 <div class="card">
                     <div class="card-header">
                         <div class="card-title">Standings</div>
-                        <a href="/president/reports.html" class="btn btn-secondary btn-sm">Full View</a>
+                        <a href="/president/reports" class="btn btn-secondary btn-sm">Full View</a>
                     </div>
                     <div class="card-body" style="padding:0" id="mini-leaderboard"></div>
                 </div>
@@ -124,7 +124,7 @@
             <div class="card" style="margin-top:20px">
                 <div class="card-header">
                     <div class="card-title">Live Right Now</div>
-                    <a href="/president/live-scores.html" class="btn btn-secondary btn-sm">Watch Live</a>
+                    <a href="/president/live" class="btn btn-secondary btn-sm">Watch Live</a>
                 </div>
                 <div class="card-body" id="live-preview"></div>
             </div>
@@ -334,7 +334,7 @@
                 <div class="notif-icon"><i class="fa-solid fa-calendar-days"></i></div>
                 <div class="notif-content">
                     <strong>${isFfa(m) ? m.tournament_name + ' (FFA)' : `${m.dept_a_name || '?'} vs ${m.dept_b_name || '?'}`}</strong> — ${m.sport_name} scheduled ${formatDate(m.scheduled_date)} ${formatTime(m.scheduled_time)}
-                    <a class="notif-link" href="/president/schedule.html">Manage schedule →</a>
+                    <a class="notif-link" href="/president/schedule">Manage schedule →</a>
                 </div>
             </div>`).join('');
             } catch (error) {

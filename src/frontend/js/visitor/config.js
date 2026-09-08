@@ -417,6 +417,10 @@ function injectChampionStyles() {
     }
     .cc-slot-pts{font-family:var(--font-mono);font-size:13px;font-weight:700;color:var(--gold,#f5b800);margin-top:3px}
     .cc-slot.gold .cc-slot-pts{font-size:15px}
+    .cc-champions{display:grid;grid-template-columns:repeat(auto-fit,minmax(0,1fr));gap:8px;margin:1rem 0 .25rem;width:100%}
+    .cc-champion-card{border:1px solid color-mix(in srgb,var(--cc-color) 45%,transparent);background:rgba(255,255,255,.05);border-radius:12px;padding:.65rem .45rem;min-width:0}
+    .cc-champion-division{font-size:9px;letter-spacing:.1em;text-transform:uppercase;color:var(--cc-color);margin-bottom:.35rem}
+    .cc-champion-name{font-size:12px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
     .champion-fab-pulsing{animation:ccFabPulse 2.4s ease-out infinite}
     @media (max-width:420px){
       .champion-modal{padding:1.75rem 1.1rem 1.4rem;border-radius:22px}
@@ -482,7 +486,7 @@ function fireChampionConfetti(color) {
 
 /**
  * Shared full-screen champion celebration modal.
- * opts: { name, color, logoUrl, points, gold, silver, bronze, top3 }
+ * opts: { name, color, logoUrl, points, gold, silver, bronze, top3, champions }
  */
 function showChampionCelebration(opts = {}) {
     injectChampionStyles();
@@ -495,6 +499,7 @@ function showChampionCelebration(opts = {}) {
     const bronze = opts.bronze || 0;
     const logo = opts.logoUrl;
     const top3 = opts.top3 || [];
+    const champions = opts.champions || [];
 
     const imgHtml = logo
         ? `<img src="${esc(logo)}" class="cc-logo" alt="">`
@@ -519,6 +524,13 @@ function showChampionCelebration(opts = {}) {
         </div>`;
         }).join('')}</div>`
         : '';
+    const championsHtml = champions.length > 1
+        ? `<div class="cc-champions">${champions.map((champion) => `
+                        <div class="cc-champion-card">
+                            <div class="cc-champion-division">${esc(String(champion.division || '').replace(/_/g, ' '))} Champion</div>
+                            <div class="cc-champion-name">${esc(champion.name || champion.department_name || 'Champion')}</div>
+                        </div>`).join('')}</div>`
+        : '';
 
     document.querySelector('.champion-overlay')?.remove();
     clearInterval(_ccConfettiRainTimer);
@@ -538,6 +550,7 @@ function showChampionCelebration(opts = {}) {
         <div class="cc-eyebrow">Sport Fest Overall Champion</div>
         <div class="cc-name">${esc(name)}</div>
         <div class="cc-sub"><span id="cc-pts-count">0</span> pts · ${gold} Gold · ${silver} Silver · ${bronze} Bronze</div>
+        ${championsHtml}
         ${podiumHtml}
       </div>`;
     document.body.appendChild(overlay);

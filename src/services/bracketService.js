@@ -233,6 +233,19 @@ const generateSingleElimination = async (tournament, participants, pool) => {
         }
     }
 
+    for (let round = 1; round < totalRounds; round++) {
+        const currentMatches = insertedMatches[round];
+        const nextMatches = insertedMatches[round + 1];
+        for (let i = 0; i < currentMatches.length; i++) {
+            await pool.execute(
+                `UPDATE matches
+                 SET next_match_id = ?, next_match_slot = ?
+                 WHERE id = ?`,
+                [nextMatches[Math.floor(i / 2)], i % 2 === 0 ? 'a' : 'b', currentMatches[i]]
+            );
+        }
+    }
+
 
     if (totalRounds >= 2) {
         await pool.execute(
@@ -272,6 +285,93 @@ const generateDoubleElimination = async (tournament, participants, pool) => {
          VALUES (?, ?, 999, 9999, 'Grand Final', 'grand_final', 'scheduled')`,
         [tournament.id, tournament.sport_id]
     );
+
+    const [upper] = await pool.execute(
+        `SELECT id, round_number, match_number
+         FROM matches
+         WHERE tournament_id = ? AND bracket_side IS NULL
+         ORDER BY round_number, match_number`,
+        [tournament.id]
+    );
+    const [lower] = await pool.execute(
+        `SELECT id, round_number, match_number
+         FROM matches
+         WHERE tournament_id = ? AND bracket_side = 'lower'
+         ORDER BY round_number, match_number`,
+        [tournament.id]
+    );
+
+    const upperRounds = [...new Set(upper.map((m) => m.round_number))].sort((a, b) => a - b);
+    const lowerRoundsByNumber = new Map();
+    lower.forEach((match) => {
+        if (!lowerRoundsByNumber.has(match.round_number)) lowerRoundsByNumber.set(match.round_number, []);
+        lowerRoundsByNumber.get(match.round_number).push(match);
+    });
+
+    // Lower winners advance round by round. The first lower round feeds one
+    // match per winner into the next round; later rounds pair winners.
+    for (const [roundIndex, roundNumber] of [...lowerRoundsByNumber.keys()].sort((a, b) => a - b).entries()) {
+        const current = lowerRoundsByNumber.get(roundNumber);
+        const next = [...lowerRoundsByNumber.values()][roundIndex + 1];
+        if (!next) continue;
+        for (let i = 0; i < current.length; i++) {
+            const target = next[roundNumber === 1 ? i : Math.floor(i / 2)];
+            if (!target) continue;
+            await pool.execute(
+                `UPDATE matches SET next_match_id = ?, next_match_slot = ? WHERE id = ?`,
+                [target.id, roundNumber === 1 ? 'a' : (i % 2 === 0 ? 'a' : 'b'), current[i].id]
+            );
+        }
+    }
+
+    // Upper losers enter the lower bracket. Round 1 losers pair together;
+    // later upper-round losers enter the matching lower round's open slot.
+    for (let i = 0; i < upperRounds.length - 1; i++) {
+        const upperRoundNumber = upperRounds[i];
+        const upperRound = upper.filter((m) => m.round_number === upperRoundNumber && m.bracket_position !== '3rd Place');
+        const lowerRoundNumber = upperRoundNumber === upperRounds[0]
+            ? 1
+            : upperRoundNumber === upperRounds[upperRounds.length - 2]
+                ? Math.max(...lowerRoundsByNumber.keys())
+                : upperRoundNumber;
+        const lowerRound = lowerRoundsByNumber.get(lowerRoundNumber) || [];
+
+        for (let j = 0; j < upperRound.length; j++) {
+            const target = lowerRound[Math.floor(j / 2)];
+            if (!target) continue;
+            await pool.execute(
+                `UPDATE matches SET loser_next_match_id = ?, loser_next_match_slot = ? WHERE id = ?`,
+                [target.id, upperRoundNumber === upperRounds[0] ? (j % 2 === 0 ? 'a' : 'b') : 'b', upperRound[j].id]
+            );
+        }
+    }
+
+    const upperFinal = upper
+        .filter((m) => m.round_number === Math.max(...upperRounds) && m.bracket_position !== '3rd Place')
+        .sort((a, b) => a.match_number - b.match_number)[0];
+    const lowerFinal = lowerRoundsByNumber.get(Math.max(...lowerRoundsByNumber.keys()))?.[0];
+    const [grandFinal] = await pool.execute(
+        `SELECT id FROM matches WHERE tournament_id = ? AND bracket_side = 'grand_final' LIMIT 1`,
+        [tournament.id]
+    );
+    if (upperFinal && lowerFinal) {
+        await pool.execute(
+            `UPDATE matches SET loser_next_match_id = ?, loser_next_match_slot = 'b' WHERE id = ?`,
+            [lowerFinal.id, upperFinal.id]
+        );
+    }
+    if (grandFinal?.length && upperFinal) {
+        await pool.execute(
+            `UPDATE matches SET next_match_id = ?, next_match_slot = 'a' WHERE id = ?`,
+            [grandFinal[0].id, upperFinal.id]
+        );
+    }
+    if (grandFinal?.length && lowerFinal) {
+        await pool.execute(
+            `UPDATE matches SET next_match_id = ?, next_match_slot = 'b' WHERE id = ?`,
+            [grandFinal[0].id, lowerFinal.id]
+        );
+    }
 };
 
 

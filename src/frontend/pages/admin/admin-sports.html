@@ -233,7 +233,7 @@
             left: 50% !important;
             transform: translateX(-50%) !important;
             z-index: 10000 !important;
-            width: auto !important;
+            width: max-content !important;
             max-width: min(300px, calc(100vw - 24px)) !important;
             display: flex !important;
             flex-direction: column !important;
@@ -267,6 +267,7 @@
             align-items: center;
             gap: 6px;
             pointer-events: none;
+            width: max-content;
             max-width: min(300px, calc(100vw - 24px));
         }
 
@@ -284,6 +285,7 @@
             background: #1f2937;
             border: 1px solid rgba(255, 255, 255, .08);
             box-shadow: 0 6px 18px rgba(0, 0, 0, .3);
+            width: fit-content;
             max-width: 100%;
         }
 

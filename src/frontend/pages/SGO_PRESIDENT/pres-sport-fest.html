@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PAC SCHED-SCORE - Sport Fest</title>
+    <link rel="stylesheet" href="../../css/sgo_president.css">
+    <style>
+        .sf-grid {
+            display: grid;
+            grid-template-columns: minmax(280px, .8fr) minmax(320px, 1.2fr);
+            gap: 18px;
+        }
+
+        .sf-panel {
+            background: var(--bg2);
+            border: 1px solid var(--border);
+            border-radius: 14px;
+            padding: 20px;
+        }
+
+        .sf-panel h2 {
+            margin: 0 0 16px;
+            font-family: 'Barlow Condensed', sans-serif;
+            text-transform: uppercase;
+            font-size: 18px;
+        }
+
+        .sf-card {
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            padding: 14px;
+            margin-bottom: 10px;
+        }
+
+        .sf-card.current {
+            border-color: var(--gold);
+        }
+
+        .sf-card-head {
+            display: flex;
+            justify-content: space-between;
+            gap: 12px;
+            align-items: start;
+        }
+
+        .sf-name {
+            font-weight: 800;
+            font-size: 16px;
+        }
+
+        .sf-meta {
+            color: var(--muted);
+            font-size: 12px;
+            margin-top: 4px;
+        }
+
+        .sf-actions {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+            margin-top: 12px;
+        }
+
+        @media(max-width:760px) {
+            .sf-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <main class="main">
+        <div class="topbar">
+            <button class="burger-menu" id="burger-menu" type="button" aria-label="Toggle navigation menu"></button>
+            <div class="topbar-title">Sport Fest</div>
+            <div class="topbar-actions"><button class="btn btn-secondary btn-sm" type="button"
+                    onclick="loadSeasons()">Refresh</button></div>
+        </div>
+        <div class="content">
+            <div class="sf-grid">
+                <section class="sf-panel">
+                    <h2>Start New Sport Fest</h2>
+                    <div class="form-group"><label class="form-label">Name *</label><input id="sf-name"
+                            class="form-input" placeholder="PAC Sport Fest 2027"></div>
+                    <div class="form-group"><label class="form-label">Year *</label><input id="sf-year"
+                            class="form-input" type="number"></div>
+                    <div class="form-group"><label class="form-label">Champions to Declare</label>
+                        <select id="sf-champion-count" class="form-input">
+                            <option value="1">1 champion</option>
+                            <option value="2">2 champions (JHS + SHS)</option>
+                        </select>
+                    </div>
+                    <div class="form-group"><label class="form-label">Theme</label><input id="sf-theme"
+                            class="form-input" placeholder="Optional theme"></div>
+                    <div class="form-group"><label class="form-label">Description</label><textarea id="sf-description"
+                            class="form-textarea" placeholder="Optional notes"></textarea></div>
+                    <button class="btn btn-primary" type="button" onclick="startSeason()">Start Sport Fest</button>
+                    <div id="sf-message" style="margin-top:12px;font-size:13px"></div>
+                </section>
+                <section class="sf-panel">
+                    <h2>Sport Fest Seasons</h2>
+                    <div id="sf-list">
+                        <div style="color:var(--muted)">Loading...</div>
+                    </div>
+                </section>
+            </div>
+        </div>
+    </main>
+    <script src="../../js/shared.js"></script>
+    <script src="../../js/sgo_president.js"></script>
+    <script>
+        let seasons = [];
+        document.addEventListener('DOMContentLoaded', async () => {
+            Auth.requireAuth('sgo_president');
+            renderSidebar('sport-fest');
+            document.getElementById('sf-year').value = new Date().getFullYear();
+            await loadSeasons();
+        });
+
+        async function loadSeasons() {
+            const res = await api('/sport-fest');
+            if (!res.success) return showMessage(res.message || 'Could not load seasons', true);
+            seasons = res.data || [];
+            renderSeasons();
+        }
+
+        function renderSeasons() {
+            const el = document.getElementById('sf-list');
+            if (!seasons.length) { el.innerHTML = '<div style="color:var(--muted)">No Sport Fest seasons yet.</div>'; return; }
+            el.innerHTML = seasons.map(s => `
+            <div class="sf-card ${s.is_current ? 'current' : ''}">
+                <div class="sf-card-head"><div><div class="sf-name">${escapeHtml(s.name)}</div><div class="sf-meta">${s.year} · ${escapeHtml(s.status || 'upcoming')} · ${Number(s.champion_count || 1)} champion${Number(s.champion_count || 1) === 1 ? '' : 's'}</div></div>${s.is_current ? '<span class="status-badge status-live">CURRENT</span>' : ''}</div>
+                ${s.champion_department_name ? `<div class="sf-meta" style="color:var(--gold);margin-top:10px">Declared lead: ${escapeHtml(s.champion_department_name)}</div>` : ''}
+                <div class="sf-actions"><button class="btn btn-secondary btn-sm" type="button" onclick="editSeason(${s.id})">Edit</button><button class="btn btn-secondary btn-sm" type="button" onclick="viewSummary(${s.id})">Summary</button></div>
+            </div>`).join('');
+        }
+
+        async function startSeason() {
+            const name = document.getElementById('sf-name').value.trim();
+            const year = parseInt(document.getElementById('sf-year').value, 10);
+            if (!name || !year) return showMessage('Name and year are required.', true);
+            const res = await api('/sport-fest/start-new-season', {
+                method: 'POST', body: JSON.stringify({
+                    name, year, theme: document.getElementById('sf-theme').value.trim() || null,
+                    description: document.getElementById('sf-description').value.trim() || null,
+                    champion_count: parseInt(document.getElementById('sf-champion-count').value, 10) || 1
+                })
+            });
+            showMessage(res.message || (res.success ? 'Sport Fest started.' : 'Could not start Sport Fest'), !res.success);
+            if (res.success) await loadSeasons();
+        }
+
+        async function editSeason(id) {
+            const s = seasons.find(x => Number(x.id) === Number(id));
+            if (!s) return;
+            const name = prompt('Sport Fest name:', s.name);
+            if (name === null) return;
+            const count = prompt('Champions to declare (1 or 2):', String(s.champion_count || 1));
+            if (count === null) return;
+            const res = await api(`/sport-fest/${id}`, {
+                method: 'PUT', body: JSON.stringify({
+                    name: name.trim() || s.name, year: s.year, theme: s.theme || null,
+                    description: s.description || null, status: s.status || 'upcoming', champion_count: Number(count) === 2 ? 2 : 1
+                })
+            });
+            showMessage(res.message || (res.success ? 'Sport Fest updated.' : 'Could not update Sport Fest'), !res.success);
+            if (res.success) await loadSeasons();
+        }
+
+        async function viewSummary(id) {
+            const res = await api(`/sport-fest/${id}/summary`);
+            if (!res.success) return showMessage(res.message || 'Could not load summary', true);
+            const champions = (res.data.champions || []).map(c => `${c.division}: ${c.name}`).join(', ') || 'Not declared';
+            alert(`${res.data.event.name}\nChampions: ${champions}\nTournaments: ${(res.data.tournaments || []).length}`);
+        }
+
+        function showMessage(message, error) {
+            const el = document.getElementById('sf-message');
+            el.textContent = message;
+            el.style.color = error ? 'var(--red)' : 'var(--green)';
+        }
+        function escapeHtml(value) { return String(value || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); }
+    </script>
+</body>
+
+</html>

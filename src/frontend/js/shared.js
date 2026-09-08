@@ -145,7 +145,8 @@ const Toast = {
   left: 50%;
   transform: translateX(-50%) translateY(-8px);
   z-index: 10000;
-  min-width: 200px;
+    width: fit-content;
+    min-width: 0;
   max-width: min(400px, calc(100vw - 24px));
   padding: 12px 16px;
   border-radius: 12px;
@@ -160,7 +161,8 @@ const Toast = {
   background: #1e293b;
   color: #e2e8f0;
   border: 1px solid rgba(255,255,255,.12);
-  text-align: center;
+    text-align: left;
+    overflow-wrap: anywhere;
 }
 #sf-toast.show {
   opacity: 1;

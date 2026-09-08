@@ -8,6 +8,8 @@ CREATE TABLE IF NOT EXISTS departments (
     color VARCHAR(20) DEFAULT '#3B82F6',
     logo_url VARCHAR(255),
     short_name VARCHAR(50),
+    division ENUM('junior_high', 'senior_high', 'college') NULL DEFAULT NULL,
+    is_exhibition TINYINT(1) NOT NULL DEFAULT 0,
     is_active TINYINT(1) DEFAULT 1,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
@@ -22,6 +24,7 @@ CREATE TABLE IF NOT EXISTS sport_fest_events (
     description TEXT,
     status VARCHAR(30) DEFAULT 'upcoming',
     is_current TINYINT(1) DEFAULT 0,
+    champion_count TINYINT UNSIGNED NOT NULL DEFAULT 1,
     champion_department_id INT NULL,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
@@ -212,6 +215,10 @@ CREATE TABLE IF NOT EXISTS matches (
     started_at DATETIME NULL,
     completed_at DATETIME NULL,
     winner_department_id INT NULL,
+    next_match_id INT NULL,
+    next_match_slot ENUM('a', 'b') NULL,
+    loser_next_match_id INT NULL,
+    loser_next_match_slot ENUM('a', 'b') NULL,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     CONSTRAINT fk_matches_tour FOREIGN KEY (tournament_id) REFERENCES tournaments(id) ON DELETE CASCADE,
@@ -229,6 +236,15 @@ CREATE TABLE IF NOT EXISTS matches (
         INDEX idx_matches_status (status),
         INDEX idx_matches_date (scheduled_date)
 ) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4;
+ALTER TABLE matches
+ADD COLUMN IF NOT EXISTS next_match_id INT NULL
+AFTER winner_department_id,
+    ADD COLUMN IF NOT EXISTS next_match_slot ENUM('a', 'b') NULL
+AFTER next_match_id,
+    ADD COLUMN IF NOT EXISTS loser_next_match_id INT NULL
+AFTER next_match_slot,
+    ADD COLUMN IF NOT EXISTS loser_next_match_slot ENUM('a', 'b') NULL
+AFTER loser_next_match_id;
 CREATE TABLE IF NOT EXISTS match_scores (
     id INT AUTO_INCREMENT PRIMARY KEY,
     match_id INT NOT NULL,
@@ -360,3 +376,26 @@ CREATE TABLE IF NOT EXISTS notifications (
     INDEX idx_notif_dept (department_id, is_read, created_at),
     INDEX idx_notif_created (created_at)
 ) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4;
+ALTER TABLE departments
+ADD COLUMN IF NOT EXISTS division ENUM('junior_high', 'senior_high', 'college') NULL DEFAULT NULL
+AFTER short_name,
+    ADD COLUMN IF NOT EXISTS is_exhibition TINYINT(1) NOT NULL DEFAULT 0
+AFTER division;
+CREATE TABLE IF NOT EXISTS sport_fest_champions (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    sport_fest_id INT NOT NULL,
+    division VARCHAR(30) NOT NULL,
+    department_id INT NOT NULL,
+    total_points DECIMAL(10, 2) DEFAULT 0,
+    gold_medals INT DEFAULT 0,
+    declared_by INT NULL,
+    declared_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE KEY uniq_fest_division (sport_fest_id, division),
+    CONSTRAINT fk_sfc_fest FOREIGN KEY (sport_fest_id) REFERENCES sport_fest_events(id) ON DELETE CASCADE,
+    CONSTRAINT fk_sfc_department FOREIGN KEY (department_id) REFERENCES departments(id),
+    CONSTRAINT fk_sfc_declared_by FOREIGN KEY (declared_by) REFERENCES users(id) ON DELETE
+    SET NULL
+) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4;
+ALTER TABLE sport_fest_events
+ADD COLUMN IF NOT EXISTS champion_count TINYINT UNSIGNED NOT NULL DEFAULT 1
+AFTER is_current;

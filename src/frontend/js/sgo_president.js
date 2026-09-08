@@ -18,6 +18,7 @@
         { key: 'reports', icon: 'fa-solid fa-file-lines', label: 'Reports', href: '/president/reports' },
         { key: 'tournament-export', icon: 'fa-solid fa-print', label: 'Export Results', href: '/president/tournament-export' },
         { key: 'notifications', icon: 'fa-solid fa-bell', label: 'Announcements', href: '/president/notifications' },
+        { key: 'sport-fest', icon: 'fa-solid fa-calendar-check', label: 'Sport Fest', href: '/president/sport-fest' },
     ];
 
     var sidebarRendered = false;

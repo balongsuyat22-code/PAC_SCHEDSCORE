@@ -82,13 +82,18 @@ const run = async () => {
 
         console.log('🏫 Creating departments...');
         await conn.query(`
-            INSERT IGNORE INTO departments (id, name, code, description) VALUES
-            (1, 'College of Arts and Sciences', 'CAS', 'Arts and Sciences Department'),
-            (2, 'College of Business Administration', 'CBA', 'Business Administration Department'),
-            (3, 'College of Education', 'CED', 'Education Department'),
-            (4, 'College of Engineering', 'CEN', 'Engineering Department'),
-            (5, 'College of Nursing', 'CON', 'Nursing Department'),
-            (6, 'College of Information Technology', 'CIT', 'Information Technology Department')
+            INSERT INTO departments (id, name, code, description, division, is_exhibition) VALUES
+            (1, 'College of Arts and Sciences', 'CAS', 'Arts and Sciences Department', 'college', 0),
+            (2, 'College of Business Administration', 'CBA', 'Business Administration Department', 'college', 0),
+            (3, 'College of Education', 'CED', 'Education Department', 'college', 0),
+            (4, 'College of Engineering', 'CEN', 'Engineering Department', 'college', 0),
+            (5, 'College of Nursing', 'CON', 'Nursing Department', 'college', 0),
+            (6, 'College of Information Technology', 'CIT', 'Information Technology Department', 'college', 0),
+            (7, 'Faculty / Night Owls', 'FAC', 'Exhibition-only faculty team', NULL, 1),
+            (8, 'SGO / SELECOM', 'SGO', 'Exhibition-only student government team', NULL, 1)
+            ON DUPLICATE KEY UPDATE
+                division = VALUES(division),
+                is_exhibition = VALUES(is_exhibition)
         `);
         console.log('✅ Departments created\n');
 

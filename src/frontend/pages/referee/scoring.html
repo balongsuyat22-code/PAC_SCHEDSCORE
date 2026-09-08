@@ -1507,6 +1507,12 @@
 
         async function startCurrentMatch() {
             if (isSaving || !selectedMatch) return;
+
+            const earlyWarning = getStartWarning(selectedMatch);
+            if (earlyWarning) {
+                Toast.show(earlyWarning, 'error');
+                return;
+            }
             isSaving = true;
 
             try {
@@ -1528,6 +1534,21 @@
             } finally {
                 isSaving = false;
             }
+        }
+
+        function getStartWarning(match) {
+            if (!match) return 'Select a match first.';
+            if (!match.scheduled_date || !match.scheduled_time) {
+                return 'This match has no scheduled date and time. Ask the scheduler to complete it first.';
+            }
+            const scheduled = new Date(`${String(match.scheduled_date).slice(0, 10)}T${String(match.scheduled_time).slice(0, 8)}`);
+            if (!Number.isNaN(scheduled.getTime()) && Date.now() < scheduled.getTime()) {
+                return `This match cannot start yet. Scheduled for ${formatDate(match.scheduled_date)} at ${formatTime(match.scheduled_time)}.`;
+            }
+            if (!match.participant_a_department_id || (!match.participant_b_department_id && match.bracket_side !== 'ffa')) {
+                return 'Both participants must be assigned before this match can start.';
+            }
+            return '';
         }
 
         function showMatchStartedBanner(match) {

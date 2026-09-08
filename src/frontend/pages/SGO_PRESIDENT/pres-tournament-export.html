@@ -651,6 +651,7 @@
 
             const matchRows = (data.matches || []).map(m => {
                 const isFfa = !m.dept_b_name && m.dept_a_name;
+                const isExhibition = m.bracket_side === 'exhibition';
                 const a = m.dept_a_name || '—';
                 const b = m.dept_b_name || '—';
                 const score = (m.total_score_a != null && m.total_score_b != null)
@@ -659,10 +660,10 @@
                 const winnerRow = m.winner_department_id ? 'winner-row' : '';
                 return `
                 <tr class="${winnerRow}">
-                    <td>R${m.round_number ?? '—'} / ${m.match_number ?? '—'}</td>
+                    <td>${isExhibition ? 'Exhibition' : `R${m.round_number ?? '—'} / ${m.match_number ?? '—'}`}</td>
                     <td>${a} vs ${b}</td>
                     <td>${score}</td>
-                    <td>${m.winner_name || (m.status === 'completed' ? '—' : m.status)}</td>
+                    <td>${isExhibition ? 'Participation only' : (m.winner_name || (m.status === 'completed' ? '—' : m.status))}</td>
                     <td>${m.venue_name || '—'}</td>
                     <td>${m.referee_name || '—'}</td>
                     <td>${m.scheduled_date ? formatDate(m.scheduled_date) : '—'}</td>

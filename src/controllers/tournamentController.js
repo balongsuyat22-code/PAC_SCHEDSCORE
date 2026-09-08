@@ -3,6 +3,8 @@ const { getActiveSportFestId } = require('../utils/season');
 const { recordResultsAndRebuild, DEFAULT_MEDAL_POINTS } = require('../utils/scoring');
 const cache = require('../utils/cache');
 const { emitToLeaderboard } = require('../utils/socketEmit');
+const { generateBracket: generateBracketService } = require('../services/bracketService');
+const { notifyRoles } = require('./notificationController');
 
 function isTeamSport(row) {
     if (!row) return false;
@@ -119,7 +121,9 @@ const getOne = async (req, res, next) => {
               d.name AS department_name,
               d.color AS department_color,
               d.logo_url AS department_logo,
-              d.code AS department_code
+              d.code AS department_code,
+              d.division,
+              d.is_exhibition
        FROM tournament_participants tp
        JOIN departments d ON d.id = tp.department_id
        WHERE tp.tournament_id = ?
@@ -174,7 +178,9 @@ const getParticipants = async (req, res, next) => {
               d.name AS department_name,
               d.color AS department_color,
               d.logo_url AS department_logo,
-              d.code AS department_code
+              d.code AS department_code,
+              d.division,
+              d.is_exhibition
        FROM tournament_participants tp
        JOIN departments d ON d.id = tp.department_id
        WHERE tp.tournament_id = ?
@@ -241,7 +247,9 @@ const getEligibility = async (req, res, next) => {
             `SELECT d.id AS department_id,
               d.name AS department_name,
               d.color AS department_color,
-              d.code AS department_code
+                            d.code AS department_code,
+                            d.division,
+                            d.is_exhibition
        FROM departments d
        WHERE d.is_active = 1
        ORDER BY d.name`
@@ -290,6 +298,8 @@ const getEligibility = async (req, res, next) => {
                 department_name: d.department_name,
                 department_color: d.department_color,
                 department_code: d.department_code,
+                division: d.division,
+                is_exhibition: Number(d.is_exhibition) === 1,
                 team_name: null,
                 approved_count,
                 required,
@@ -544,6 +554,13 @@ const create = async (req, res, next) => {
             [tournamentId, festId]
         );
 
+        await notifyRoles(['admin', 'sgo_president', 'dean_adviser', 'sgo_officer'], {
+            type: 'tournament', severity: 'info', title: 'Tournament created',
+            message: `${name} was created for the current Sport Fest.`,
+            link: '/president/game-setup', entity_type: 'tournament', entity_id: tournamentId,
+            created_by: req.user?.id || null,
+        });
+
         res.status(201).json({
             success: true,
             message: 'Tournament created',
@@ -733,6 +750,13 @@ const remove = async (req, res, next) => {
 
         await conn.commit();
 
+        await notifyRoles(['admin', 'sgo_president', 'dean_adviser', 'sgo_officer'], {
+            type: 'tournament', severity: 'success', title: 'Tournament finalized',
+            message: `${t.name} was finalized and ${recorded} result(s) were recorded.`,
+            link: `/president/tournament-export?tournament_id=${req.params.id}`,
+            entity_type: 'tournament', entity_id: req.params.id, created_by: req.user?.id || null,
+        });
+
         cache.clearPrefix('leaderboard:');
 
         res.json({
@@ -762,7 +786,11 @@ const generateBracket = async (req, res, next) => {
         }
 
         const [participants] = await pool.execute(
-            `SELECT department_id FROM tournament_participants WHERE tournament_id = ? ORDER BY seed IS NULL, seed ASC, id ASC`,
+            `SELECT tp.department_id, d.is_exhibition
+             FROM tournament_participants tp
+             JOIN departments d ON d.id = tp.department_id
+             WHERE tp.tournament_id = ?
+             ORDER BY tp.seed IS NULL, tp.seed ASC, tp.id ASC`,
             [req.params.id]
         );
         if (participants.length < 2) {
@@ -792,6 +820,9 @@ const generateBracket = async (req, res, next) => {
         await conn.execute(`DELETE FROM matches WHERE tournament_id = ?`, [req.params.id]);
 
         const depts = participants.map((p) => p.department_id);
+        const exhibitionDepts = participants
+            .filter((p) => Number(p.is_exhibition) === 1)
+            .map((p) => p.department_id);
         const format = t.format || 'single_elimination';
         let created = 0;
 
@@ -830,31 +861,45 @@ const generateBracket = async (req, res, next) => {
             created = 1;
         } else {
 
-            let round = 1;
-            let matchNumber = 1;
-            const queue = [...depts];
+            const competitiveParticipants = participants.filter((p) => Number(p.is_exhibition) !== 1);
 
-            let size = 1;
-            while (size < queue.length) size *= 2;
-            while (queue.length < size) queue.push(null);
+            if (competitiveParticipants.length < 2 && exhibitionDepts.length) {
+                await conn.rollback();
+                conn.release();
+                return res.status(400).json({
+                    success: false,
+                    message: 'An exhibition team needs at least two competing departments for its qualifying bracket.',
+                });
+            }
 
-            for (let i = 0; i < queue.length; i += 2) {
+            await generateBracketService(t, competitiveParticipants, conn);
+            const [[matchCount]] = await conn.execute(
+                'SELECT COUNT(*) AS count FROM matches WHERE tournament_id = ?',
+                [req.params.id]
+            );
+            created = Number(matchCount.count || 0);
+
+            const [lastMatch] = await conn.execute(
+                'SELECT COALESCE(MAX(match_number), 0) AS match_number FROM matches WHERE tournament_id = ?',
+                [req.params.id]
+            );
+            let matchNumber = Number(lastMatch[0]?.match_number || 0) + 1;
+            for (const [exhibitionIndex, exhibitionDeptId] of exhibitionDepts.entries()) {
+                const exhibitionOpponent = competitiveParticipants[exhibitionIndex % competitiveParticipants.length];
                 await conn.execute(
                     `INSERT INTO matches
-            (tournament_id, sport_id, round_number, match_number, bracket_position,
-             participant_a_department_id, participant_b_department_id, status)
-           VALUES (?, ?, ?, ?, ?, ?, ?, 'scheduled')`,
+              (tournament_id, sport_id, round_number, match_number, bracket_position, bracket_side,
+               participant_a_department_id, participant_b_department_id, status)
+             VALUES (?, ?, 0, ?, ?, 'exhibition', ?, ?, 'scheduled')`,
                     [
                         req.params.id,
                         t.sport_id,
-                        round,
-                        matchNumber,
-                        String(matchNumber),
-                        queue[i],
-                        queue[i + 1],
+                        matchNumber++,
+                        `EXHIBITION-${exhibitionDeptId}`,
+                        exhibitionDeptId,
+                        exhibitionOpponent.department_id,
                     ]
                 );
-                matchNumber++;
                 created++;
             }
         }

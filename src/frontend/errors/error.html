@@ -1,0 +1,176 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>PAC SCHED-SCORE - Error</title>
+    <style>
+        :root {
+            color-scheme: dark;
+            --bg: #080b10;
+            --panel: #111722;
+            --line: #263244;
+            --text: #f4f7fb;
+            --muted: #9aa8bb;
+            --gold: #f5b800;
+            --red: #ef6262;
+            --green: #52d48a;
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            min-height: 100vh;
+            display: grid;
+            place-items: center;
+            padding: 24px;
+            color: var(--text);
+            background: radial-gradient(circle at 20% 10%, #1c2736 0, transparent 34%), radial-gradient(circle at 85% 90%, #1c1710 0, transparent 32%), var(--bg);
+            font-family: Segoe UI, system-ui, sans-serif;
+        }
+
+        main {
+            width: min(640px, 100%);
+            text-align: center;
+        }
+
+        .mark {
+            width: 74px;
+            height: 74px;
+            margin: 0 auto 22px;
+            display: grid;
+            place-items: center;
+            border: 1px solid rgba(245, 184, 0, .5);
+            border-radius: 22px;
+            color: var(--gold);
+            background: rgba(245, 184, 0, .1);
+            font-size: 34px;
+            font-weight: 900;
+            box-shadow: 0 0 50px rgba(245, 184, 0, .12);
+        }
+
+        .code {
+            margin: 0;
+            color: var(--gold);
+            font-size: clamp(56px, 13vw, 104px);
+            line-height: .9;
+            letter-spacing: -4px;
+            font-weight: 900;
+        }
+
+        h1 {
+            margin: 22px 0 10px;
+            font-size: clamp(24px, 5vw, 38px);
+            letter-spacing: -1px;
+        }
+
+        p {
+            margin: 0 auto;
+            max-width: 500px;
+            color: var(--muted);
+            line-height: 1.65;
+        }
+
+        .panel {
+            margin-top: 28px;
+            padding: 18px;
+            border: 1px solid var(--line);
+            border-radius: 16px;
+            background: rgba(17, 23, 34, .88);
+            box-shadow: 0 20px 70px rgba(0, 0, 0, .3);
+        }
+
+        .detail {
+            overflow-wrap: anywhere;
+            color: #cbd5e1;
+            font-size: 13px;
+        }
+
+        .actions {
+            display: flex;
+            justify-content: center;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-top: 22px;
+        }
+
+        button,
+        a {
+            min-height: 44px;
+            padding: 11px 18px;
+            border-radius: 10px;
+            border: 1px solid var(--line);
+            color: var(--text);
+            background: #182231;
+            font: 600 14px inherit;
+            text-decoration: none;
+            cursor: pointer;
+        }
+
+        .primary {
+            border-color: var(--gold);
+            color: #14110a;
+            background: var(--gold);
+        }
+
+        .foot {
+            margin-top: 22px;
+            color: #64748b;
+            font-size: 12px;
+        }
+
+        @media (max-width:420px) {
+            body {
+                padding: 18px;
+            }
+
+            .panel {
+                padding: 15px;
+            }
+
+            .actions>* {
+                flex: 1 1 140px;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <main>
+        <div class="mark" aria-hidden="true">!</div>
+        <div class="code" id="code">500</div>
+        <h1 id="title">Something went wrong</h1>
+        <p id="message">The scoreboard hit an unexpected problem. Please try again.</p>
+        <div class="panel">
+            <div class="detail" id="detail">Request could not be completed.</div>
+            <div class="actions">
+                <a class="primary" href="/">Return home</a>
+                <button type="button" onclick="location.reload()">Try again</button>
+            </div>
+        </div>
+        <div class="foot">PAC SCHED-SCORE · Sport Fest Management</div>
+    </main>
+    <script>
+        const params = new URLSearchParams(location.search);
+        const code = Number(params.get('code')) || 500;
+        const states = {
+            401: ['Authentication required', 'Please sign in to continue.', 'Your session may have expired.'],
+            403: ['Access denied', 'You do not have permission to view this page.', 'Ask an administrator if you believe this is incorrect.'],
+            404: ['Page not found', 'That page moved, disappeared, or never existed.', 'Check the address or return to the live board.'],
+            409: ['Action needs attention', 'The request conflicts with the current match or season state.', 'Refresh the page and try again.'],
+            500: ['Something went wrong', 'The server hit an unexpected problem.', 'Please try again in a moment.'],
+        };
+        const state = states[code] || states[500];
+        document.title = `PAC SCHED-SCORE - ${code}`;
+        document.getElementById('code').textContent = code;
+        document.getElementById('title').textContent = state[0];
+        document.getElementById('message').textContent = params.get('message') || state[1];
+        document.getElementById('detail').textContent = params.get('detail') || state[2];
+    </script>
+</body>
+
+</html>

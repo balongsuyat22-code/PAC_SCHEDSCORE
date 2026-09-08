@@ -8,11 +8,11 @@ router.get('/:id', sfc.getOne);
 router.get('/:id/summary', sfc.getSummary);
 
 router.use(authenticate);
-router.post('/', authorize('admin'), sfc.create);
-router.post('/start-new-season', authorize('admin'), sfc.startNewSeason);
-router.put('/:id', authorize('admin'), sfc.update);
-router.post('/:id/tournaments', authorize('admin'), sfc.addTournament);
-router.delete('/:id/tournaments/:tournamentId', authorize('admin'), sfc.removeTournament);
+router.post('/', authorize('admin', 'sgo_president'), sfc.create);
+router.post('/start-new-season', authorize('admin', 'sgo_president'), sfc.startNewSeason);
+router.put('/:id', authorize('admin', 'sgo_president'), sfc.update);
+router.post('/:id/tournaments', authorize('admin', 'sgo_president'), sfc.addTournament);
+router.delete('/:id/tournaments/:tournamentId', authorize('admin', 'sgo_president'), sfc.removeTournament);
 router.post('/:id/declare-champion', authorize('admin'), sfc.declareChampion);
 router.delete('/:id', authorize('admin'), sfc.remove);
 

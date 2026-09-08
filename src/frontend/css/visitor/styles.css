@@ -253,6 +253,7 @@ body{
 /* Leaderboard */
 .lb-table{background:var(--bg2);border:1px solid var(--border);border-radius:var(--r2);overflow:hidden}
 .lb-header{display:grid;grid-template-columns:40px 1fr 90px 70px;padding:.6rem 1rem;font-size:9px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);border-bottom:1px solid var(--border);font-family:var(--font-mono)}
+.lb-division-heading{padding:.65rem 1rem .35rem;color:var(--accent);font-family:var(--font-mono);font-size:10px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;border-top:1px solid var(--border);background:rgba(var(--accent-rgb),.04)}
 .lb-row{display:grid;grid-template-columns:40px 1fr 90px 70px;align-items:center;padding:.75rem 1rem;border-bottom:1px solid var(--border);gap:6px;transition:background .15s}
 .lb-row:last-child{border-bottom:none}
 .lb-row:hover{background:var(--bg3)}

@@ -15,7 +15,7 @@ const getLeaderboard = async (req, res, next) => {
         const rows = await cache.wrap(`leaderboard:overall:${sportFestId}`, LEADERBOARD_TTL, async () => {
             const [r] = await pool.execute(
                 `SELECT
-                    d.id, d.name, d.code, d.color, d.logo_url, d.short_name,
+                    d.id, d.name, d.code, d.color, d.logo_url, d.short_name, d.division,
                     COALESCE(ds.total_points,        0) AS total_points,
                     COALESCE(ds.gold_medals,         0) AS gold_medals,
                     COALESCE(ds.silver_medals,       0) AS silver_medals,
@@ -23,6 +23,7 @@ const getLeaderboard = async (req, res, next) => {
                     COALESCE(ds.total_participations,0) AS total_participations,
                     COALESCE(ds.tournaments_entered, 0) AS tournaments_entered,
                     RANK() OVER (
+                        PARTITION BY d.division
                         ORDER BY
                             COALESCE(ds.total_points,  0) DESC,
                             COALESCE(ds.gold_medals,   0) DESC,
@@ -31,7 +32,7 @@ const getLeaderboard = async (req, res, next) => {
                     ) AS \`rank\`
                  FROM departments d
                  LEFT JOIN department_scores ds ON d.id = ds.department_id AND ds.sport_fest_id <=> ?
-                 WHERE d.is_active = 1
+                 WHERE d.is_active = 1 AND d.is_exhibition = 0 AND d.division IS NOT NULL
                  ORDER BY total_points DESC, gold_medals DESC, silver_medals DESC, bronze_medals DESC`,
                 [sportFestId]
             );
@@ -51,7 +52,7 @@ const getDepartmentRanking = async (req, res, next) => {
         const rows = await cache.wrap(`leaderboard:ranking:${sportFestId}`, LEADERBOARD_TTL, async () => {
             const [r] = await pool.execute(
                 `SELECT
-            d.id, d.name, d.code, d.color, d.logo_url, d.short_name,
+            d.id, d.name, d.code, d.color, d.logo_url, d.short_name, d.division,
             COALESCE(ds.total_points,        0) AS total_points,
             COALESCE(ds.gold_medals,         0) AS gold_medals,
             COALESCE(ds.silver_medals,       0) AS silver_medals,
@@ -65,6 +66,7 @@ const getDepartmentRanking = async (req, res, next) => {
             COUNT(DISTINCT CASE WHEN (m.participant_a_department_id = d.id OR m.participant_b_department_id = d.id)
                                  AND m.status = 'completed' THEN m.id END) AS total_matches_played,
             RANK() OVER (
+                PARTITION BY d.division
                 ORDER BY
                     COALESCE(ds.total_points,  0) DESC,
                     COALESCE(ds.gold_medals,   0) DESC,
@@ -79,7 +81,7 @@ const getDepartmentRanking = async (req, res, next) => {
                   SELECT 1 FROM sport_fest_tournaments sft
                   WHERE sft.tournament_id = m.tournament_id AND sft.sport_fest_id <=> ?
               )
-         WHERE d.is_active = 1
+         WHERE d.is_active = 1 AND d.is_exhibition = 0 AND d.division IS NOT NULL
          GROUP BY d.id
          ORDER BY total_points DESC, gold_medals DESC`,
                 [sportFestId, sportFestId]
@@ -100,13 +102,14 @@ const getMedalTally = async (req, res, next) => {
         const rows = await cache.wrap(`leaderboard:medals:${sportFestId}`, LEADERBOARD_TTL, async () => {
             const [r] = await pool.execute(
                 `SELECT
-                    d.id, d.name, d.code, d.color, d.logo_url,
+                    d.id, d.name, d.code, d.color, d.logo_url, d.division,
                     COALESCE(ds.gold_medals,   0) AS gold,
                     COALESCE(ds.silver_medals, 0) AS silver,
                     COALESCE(ds.bronze_medals, 0) AS bronze,
                     COALESCE(ds.gold_medals + ds.silver_medals + ds.bronze_medals, 0) AS total_medals,
                     COALESCE(ds.total_points,  0) AS total_points,
                     RANK() OVER (
+                        PARTITION BY d.division
                         ORDER BY
                             COALESCE(ds.gold_medals,   0) DESC,
                             COALESCE(ds.silver_medals, 0) DESC,
@@ -114,7 +117,7 @@ const getMedalTally = async (req, res, next) => {
                     ) AS \`rank\`
                  FROM departments d
                  LEFT JOIN department_scores ds ON d.id = ds.department_id AND ds.sport_fest_id <=> ?
-                 WHERE d.is_active = 1
+                 WHERE d.is_active = 1 AND d.is_exhibition = 0 AND d.division IS NOT NULL
                  ORDER BY gold DESC, silver DESC, bronze DESC`,
                 [sportFestId]
             );
@@ -150,7 +153,7 @@ const getBySport = async (req, res, next) => {
             JOIN tournaments   t ON tr.tournament_id = t.id
             JOIN sports        s ON t.sport_id       = s.id
             JOIN departments   d ON tr.department_id = d.id
-            WHERE 1 = 1
+            WHERE d.is_exhibition = 0 AND d.division IS NOT NULL
         `;
         const params = [];
 
@@ -280,7 +283,7 @@ const getOverallChampion = async (req, res, next) => {
         const sportFestId = await getActiveSportFestId();
 
         const [[festRow]] = await pool.execute(
-            `SELECT champion_department_id, status FROM sport_fest_events WHERE id <=> ?`,
+            `SELECT champion_department_id, status, champion_count FROM sport_fest_events WHERE id <=> ?`,
             [sportFestId]
         );
         const manuallyDeclared = !!(festRow && festRow.champion_department_id);
@@ -293,8 +296,7 @@ const getOverallChampion = async (req, res, next) => {
      WHERE sft.sport_fest_id <=> ?`,
             [sportFestId]
         );
-        const hasTournaments = Number(totals.total) > 0;
-        const allComplete = manuallyDeclared || (hasTournaments && Number(totals.incomplete) === 0);
+        const allComplete = manuallyDeclared;
 
         const [leaders] = await pool.execute(
             `SELECT
@@ -305,7 +307,7 @@ const getOverallChampion = async (req, res, next) => {
                 COALESCE(ds.bronze_medals, 0) AS bronze_medals
              FROM departments d
              LEFT JOIN department_scores ds ON d.id = ds.department_id AND ds.sport_fest_id <=> ?
-             WHERE d.is_active = 1
+             WHERE d.is_active = 1 AND d.is_exhibition = 0 AND d.division IS NOT NULL
              ORDER BY total_points DESC, gold_medals DESC, silver_medals DESC, bronze_medals DESC
              LIMIT 1`,
             [sportFestId]
@@ -313,8 +315,19 @@ const getOverallChampion = async (req, res, next) => {
 
         const leader = leaders[0] || null;
 
+        const [champions] = await pool.execute(
+            `SELECT c.division, c.department_id, d.name, d.color, d.logo_url,
+                    c.total_points, c.gold_medals
+             FROM sport_fest_champions c
+             JOIN departments d ON d.id = c.department_id
+             WHERE c.sport_fest_id = ?
+             ORDER BY c.division`,
+            [sportFestId]
+        );
+        const declaredChampion = champions[0] || leader;
+
         let sportBreakdown = [];
-        if (leader) {
+        if (declaredChampion) {
             const [breakdown] = await pool.execute(
                 `SELECT
                     s.name  AS sport_name,
@@ -329,7 +342,7 @@ const getOverallChampion = async (req, res, next) => {
                  JOIN sport_fest_tournaments sft ON t.id = sft.tournament_id
                  WHERE tr.department_id = ? AND sft.sport_fest_id <=> ?
                  ORDER BY tr.sport_fest_points DESC`,
-                [leader.id, sportFestId]
+                [declaredChampion.department_id || declaredChampion.id, sportFestId]
             );
             sportBreakdown = breakdown;
         }
@@ -349,7 +362,7 @@ const getOverallChampion = async (req, res, next) => {
                 ) AS \`rank\`
              FROM departments d
              LEFT JOIN department_scores ds ON d.id = ds.department_id AND ds.sport_fest_id <=> ?
-             WHERE d.is_active = 1
+                WHERE d.is_active = 1 AND d.is_exhibition = 0 AND d.division IS NOT NULL
              ORDER BY total_points DESC, gold_medals DESC`,
             [sportFestId]
         );
@@ -371,9 +384,10 @@ const getOverallChampion = async (req, res, next) => {
             data: {
                 is_final: allComplete,
                 message: allComplete
-                    ? `🏆 ${leader?.name || 'TBD'} is the Sport Fest Overall Champion!`
+                    ? `🏆 ${declaredChampion?.name || 'TBD'} is the Sport Fest Champion!`
                     : `📊 Current standings (${stats.completed_tournaments || 0}/${stats.total_tournaments || 0} events completed)`,
-                champion: allComplete ? leader : null,
+                champion: allComplete ? declaredChampion : null,
+                champions,
                 current_leader: !allComplete ? leader : null,
                 sport_breakdown: sportBreakdown,
                 leaderboard,

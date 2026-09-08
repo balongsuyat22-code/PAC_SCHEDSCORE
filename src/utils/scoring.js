@@ -108,6 +108,8 @@ async function rebuildDepartmentScores(conn) {
             COUNT(DISTINCT tr.tournament_id)                       AS tournaments
          FROM tournament_results tr
          LEFT JOIN sport_fest_tournaments sft ON tr.tournament_id = sft.tournament_id
+         JOIN departments d ON d.id = tr.department_id
+         WHERE d.is_exhibition = 0
          GROUP BY tr.department_id, sft.sport_fest_id`
     );
 

@@ -416,9 +416,11 @@ tr:last-child td { border-bottom: none; }
 .toast {
   position: fixed; bottom: 24px; right: 24px; z-index: 999;
   padding: 14px 20px; border-radius: 10px;
-  font-size: 14px; font-weight: 500; max-width: 320px;
+  width: fit-content; min-width: 0; max-width: min(400px, calc(100vw - 24px));
+  font-size: 14px; font-weight: 500;
   transform: translateY(80px); opacity: 0;
   transition: all 0.3s; display: flex; align-items: center; gap: 10px;
+  line-height: 1.35; white-space: normal; overflow-wrap: anywhere;
 }
 .toast.show { transform: translateY(0); opacity: 1; }
 .toast.success { background: #14532D; border: 1px solid var(--green); color: #86EFAC; }

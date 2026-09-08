@@ -25,6 +25,8 @@ const getAll = async (req, res, next) => {
     d.color,
     d.logo_url,
     d.short_name,
+    d.division,
+    d.is_exhibition,
     d.is_active,
     d.created_at,
     d.updated_at,
@@ -44,7 +46,7 @@ const getAll = async (req, res, next) => {
   WHERE d.is_active = 1
   GROUP BY
     d.id, d.name, d.code, d.description, d.color,
-    d.logo_url, d.short_name, d.is_active, d.created_at, d.updated_at
+    d.logo_url, d.short_name, d.division, d.is_exhibition, d.is_active, d.created_at, d.updated_at
   ORDER BY total_points DESC, d.name ASC
   `,
             params
@@ -83,6 +85,8 @@ const getOne = async (req, res, next) => {
                 d.color,
                 d.logo_url,
                 d.short_name,
+                d.division,
+                d.is_exhibition,
                 d.is_active,
                 d.created_at,
                 d.updated_at,
@@ -101,7 +105,7 @@ const getOne = async (req, res, next) => {
              WHERE d.id = ?
              GROUP BY
                 d.id, d.name, d.code, d.description, d.color,
-                d.logo_url, d.short_name, d.is_active, d.created_at, d.updated_at`,
+                d.logo_url, d.short_name, d.division, d.is_exhibition, d.is_active, d.created_at, d.updated_at`,
             params
         );
 
@@ -200,7 +204,7 @@ const getPlayers = async (req, res, next) => {
 
 const create = async (req, res, next) => {
     try {
-        const { name, code, description, color, logo_url, short_name } = req.body;
+        const { name, code, description, color, logo_url, short_name, division, is_exhibition } = req.body;
 
         if (!name || !code) {
             return res.status(400).json({ success: false, message: 'Name and code are required.' });
@@ -217,8 +221,8 @@ const create = async (req, res, next) => {
         }
 
         const [result] = await pool.execute(
-            `INSERT INTO departments (name, code, description, color, logo_url, short_name)
-             VALUES (?, ?, ?, ?, ?, ?)`,
+            `INSERT INTO departments (name, code, description, color, logo_url, short_name, division, is_exhibition)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
             [
                 name,
                 code.toUpperCase(),
@@ -226,6 +230,8 @@ const create = async (req, res, next) => {
                 color || '#3B82F6',
                 finalLogoUrl,
                 short_name || null,
+                division || null,
+                is_exhibition ? 1 : 0,
             ]
         );
 
@@ -257,10 +263,10 @@ const create = async (req, res, next) => {
 
 const update = async (req, res, next) => {
     try {
-        const { name, code, description, color, logo_url, short_name, is_active } = req.body;
+        const { name, code, description, color, logo_url, short_name, division, is_exhibition, is_active } = req.body;
 
         const [existing] = await pool.execute(
-            'SELECT id, name, code, description, color, logo_url, short_name, is_active FROM departments WHERE id = ?',
+            'SELECT id, name, code, description, color, logo_url, short_name, division, is_exhibition, is_active FROM departments WHERE id = ?',
             [req.params.id]
         );
         if (!existing.length) {
@@ -280,6 +286,8 @@ const update = async (req, res, next) => {
         const finalDescription = description !== undefined ? (description || null) : cur.description;
         const finalColor = color != null && String(color).trim() !== '' ? color : (cur.color || '#3B82F6');
         const finalShortName = short_name !== undefined ? (short_name || null) : cur.short_name;
+        const finalDivision = division !== undefined ? (division || null) : cur.division;
+        const finalExhibition = is_exhibition !== undefined ? (is_exhibition ? 1 : 0) : cur.is_exhibition;
         const finalActive = is_active !== undefined ? (is_active ? 1 : 0) : cur.is_active;
 
         await pool.execute(
@@ -290,6 +298,8 @@ const update = async (req, res, next) => {
                  color      = ?,
                  logo_url   = ?,
                  short_name = ?,
+                 division   = ?,
+                 is_exhibition = ?,
                  is_active  = ?,
                  updated_at = NOW()
              WHERE id = ?`,
@@ -300,6 +310,8 @@ const update = async (req, res, next) => {
                 finalColor,
                 finalLogoUrl || null,
                 finalShortName,
+                finalDivision,
+                finalExhibition,
                 finalActive,
                 req.params.id,
             ]

@@ -606,7 +606,7 @@ const getTournamentExport = async (req, res, next) => {
         }
 
         const [matches] = await pool.execute(
-            `SELECT m.id, m.round_number, m.match_number, m.bracket_position,
+            `SELECT m.id, m.round_number, m.match_number, m.bracket_position, m.bracket_side,
                     m.status, m.scheduled_date, m.scheduled_time,
                     m.started_at, m.completed_at,
                     da.name AS dept_a_name, da.color AS dept_a_color,

@@ -189,9 +189,11 @@
                         <div style="font-family:'Barlow Condensed',sans-serif;font-size:18px;font-weight:800">${m.dept_b || '?'}</div>
                     </div>
                 </div>
-                <div style="font-size:12px;color:var(--muted);margin-top:8px;display:flex;align-items:center;gap:6px">
+                    <div style="font-size:12px;color:var(--muted);margin-top:8px;display:flex;align-items:center;gap:6px">
                     <i class="fa-solid fa-location-dot"></i> ${m.venue_name || '—'}
                 </div>
+                    ${m.score_updated_at ? `<div style="font-size:11px;color:var(--gold);margin-top:6px">SCORE UPDATED · ${m.score_updated_by || 'Authorized user'}</div>` : ''}
+                    <button class="btn btn-secondary btn-sm" style="margin-top:8px" type="button" onclick="changeLiveScore(${m.id}, ${m.live_score_a || 0}, ${m.live_score_b || 0})">Update score</button>
             </div>
         </div>`).join('');
 
@@ -204,6 +206,22 @@
                     ? names.map(n => `<span class="ffa-live-chip">${n}</span>`).join('')
                     : `<span class="ffa-live-chip" style="color:var(--muted)">No departments listed</span>`;
             });
+        }
+
+        async function changeLiveScore(matchId, currentA, currentB) {
+            const value = prompt('Enter score as Team A - Team B:', `${currentA}-${currentB}`);
+            if (value === null) return;
+            const parts = value.split('-').map(v => Number(v.trim()));
+            if (parts.length !== 2 || parts.some(v => !Number.isFinite(v) || v < 0)) {
+                Toast.show('Use a format such as 12-9.', 'error');
+                return;
+            }
+            const res = await api(`/matches/${matchId}/score`, {
+                method: 'PUT',
+                body: JSON.stringify({ period: 1, period_label: 'Live score', score_a: parts[0], score_b: parts[1] }),
+            });
+            Toast.show(res.message || (res.success ? 'Score updated.' : 'Could not update score'), res.success ? 'success' : 'error');
+            if (res.success) await loadLive();
         }
 
         async function loadScheduled() {

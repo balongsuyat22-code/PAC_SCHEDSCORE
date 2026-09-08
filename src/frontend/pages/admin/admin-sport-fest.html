@@ -591,6 +591,12 @@
                     <div class="form-group"><label class="form-label">End Date</label><input type="date" id="fst-end"
                             class="form-input"></div>
                 </div>
+                <div class="form-group"><label class="form-label">Champions to Declare</label>
+                    <select id="fst-champion-count" class="form-select">
+                        <option value="1">1 champion</option>
+                        <option value="2">2 champions (JHS + SHS)</option>
+                    </select>
+                </div>
                 <div class="form-group">
                     <label class="form-label">Status</label>
                     <select id="fst-status" class="form-select">
@@ -634,6 +640,12 @@
                             class="form-input"></div>
                     <div class="form-group"><label class="form-label">End Date</label><input type="date" id="ns-end"
                             class="form-input"></div>
+                </div>
+                <div class="form-group"><label class="form-label">Champions to Declare</label>
+                    <select id="ns-champion-count" class="form-select">
+                        <option value="1">1 champion</option>
+                        <option value="2">2 champions (JHS + SHS)</option>
+                    </select>
                 </div>
                 <div class="form-group"><label class="form-label">Description</label><textarea id="ns-desc"
                         class="form-textarea" placeholder="Optional notes..."></textarea></div>
@@ -787,7 +799,9 @@
             el.innerHTML = allFests.map(f => {
                 const init = (f.champion_department_name || '').split(' ').map(w => w[0]).slice(0, 2).join('').toUpperCase();
                 const isCurrent = !!f.is_current;
-                const needsChampion = f.status === 'completed' && !f.champion_department_name;
+                const championTarget = Number(f.champion_count || 1);
+                const declaredCount = Number(f.declared_champion_count || 0);
+                const needsChampion = f.status === 'completed' && declaredCount < championTarget;
 
                 return `
                 <div class="fest-card ${isCurrent ? 'is-current' : 'is-archived'}">
@@ -808,7 +822,7 @@
                         <div class="fest-champion">
                             <div class="fest-champion-logo" style="background:${f.champion_color || '#555'}">${init || '★'}</div>
                             <div class="fest-champion-info">
-                                <div style="font-size:11px;color:var(--muted);text-transform:uppercase">Champion</div>
+                                <div style="font-size:11px;color:var(--muted);text-transform:uppercase">${declaredCount}/${championTarget} Champion${championTarget === 1 ? '' : 's'}</div>
                                 <div class="fest-champion-name">${escapeHtml(f.champion_department_name)}</div>
                             </div>
                         </div>` : needsChampion ? `
@@ -854,6 +868,7 @@
             document.getElementById('fst-end').value = f.end_date ? String(f.end_date).split('T')[0] : '';
             document.getElementById('fst-desc').value = f.description || '';
             document.getElementById('fst-status').value = f.status || 'upcoming';
+            document.getElementById('fst-champion-count').value = String(f.champion_count || 1);
             Modal.open('modal-fest');
         }
 
@@ -873,6 +888,7 @@
                 end_date: document.getElementById('fst-end').value || null,
                 description: document.getElementById('fst-desc').value.trim() || null,
                 status: document.getElementById('fst-status').value || 'upcoming',
+                champion_count: parseInt(document.getElementById('fst-champion-count').value, 10) || 1,
             };
             const res = await api(`/sport-fest/${id}`, { method: 'PUT', body: JSON.stringify(body) });
             Toast.show(res.message || (res.success ? 'Saved!' : 'Error'), res.success ? 'success' : 'error');
@@ -902,6 +918,7 @@
             ['ns-name', 'ns-year', 'ns-theme', 'ns-start', 'ns-end', 'ns-desc'].forEach(id => {
                 document.getElementById(id).value = '';
             });
+            document.getElementById('ns-champion-count').value = '1';
             const y = new Date().getFullYear();
             document.getElementById('ns-year').value = y;
             document.getElementById('ns-name').value = `PAC Sport Fest ${y}`;
@@ -923,6 +940,7 @@
                 start_date: document.getElementById('ns-start').value || null,
                 end_date: document.getElementById('ns-end').value || null,
                 description: document.getElementById('ns-desc').value.trim() || null,
+                champion_count: parseInt(document.getElementById('ns-champion-count').value, 10) || 1,
             };
 
             const current = allFests.find(f => f.is_current);
@@ -972,7 +990,7 @@
                 Toast.show(res.message || 'Failed to load summary', 'error');
                 return;
             }
-            const { event, leaderboard, tournaments } = res.data;
+            const { event, leaderboard, exhibition_teams, champions, tournaments } = res.data;
             document.getElementById('fest-detail-title').textContent = event.name;
             document.getElementById('fest-detail-body').innerHTML = `
                 <div style="display:flex;gap:10px;margin-bottom:18px;flex-wrap:wrap">
@@ -983,13 +1001,22 @@
                 ${event.theme ? `<div style="font-style:italic;color:var(--muted);margin-bottom:16px">"${escapeHtml(event.theme)}"</div>` : ''}
                 <div style="font-family:'Barlow Condensed',sans-serif;font-size:14px;font-weight:800;color:var(--muted);margin-bottom:8px">Standings</div>
                 <div class="card" style="margin-bottom:18px">
-                    ${(leaderboard || []).slice(0, 8).map((d, i) => `
+                    ${(leaderboard || []).map((d, i, rows) => `
                     <div style="display:flex;align-items:center;gap:10px;padding:9px 14px;border-bottom:1px solid rgba(255,255,255,.04)">
-                        <div style="width:22px;font-family:'Barlow Condensed',sans-serif;font-weight:900;color:${i === 0 ? '#FFD700' : i === 1 ? '#C0C0C0' : i === 2 ? '#CD7F32' : 'var(--muted)'}">${i + 1}</div>
+                        <div style="width:90px;font-size:10px;color:var(--muted);text-transform:uppercase">${escapeHtml((d.division || '').replace(/_/g, ' '))}</div>
+                        <div style="width:22px;font-family:'Barlow Condensed',sans-serif;font-weight:900;color:${i === 0 || rows[i - 1]?.division !== d.division ? '#FFD700' : 'var(--muted)'}">${rows.slice(0, i + 1).filter(x => x.division === d.division).length}</div>
                         <div style="width:10px;height:10px;border-radius:50%;background:${d.color || '#555'};flex-shrink:0"></div>
                         <div style="flex:1;min-width:0;font-size:13px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escapeHtml(d.name)}</div>
                         <div style="font-family:'Barlow Condensed',sans-serif;font-size:18px;font-weight:900;color:var(--gold);flex-shrink:0">${d.total_points}</div>
                     </div>`).join('') || '<div style="padding:14px;color:var(--muted);font-size:13px">No scores yet.</div>'}
+                </div>
+                <div style="font-family:'Barlow Condensed',sans-serif;font-size:14px;font-weight:800;color:var(--muted);margin-bottom:8px">Champions</div>
+                <div class="card" style="margin-bottom:18px">
+                    ${(champions || []).map(c => `<div style="display:flex;justify-content:space-between;padding:9px 14px;border-bottom:1px solid rgba(255,255,255,.04)"><span style="text-transform:uppercase;font-size:11px;color:var(--muted)">${escapeHtml(c.division.replace(/_/g, ' '))}</span><strong style="color:var(--gold)">${escapeHtml(c.name)}</strong></div>`).join('') || '<div style="padding:14px;color:var(--muted);font-size:13px">Not declared yet.</div>'}
+                </div>
+                <div style="font-family:'Barlow Condensed',sans-serif;font-size:14px;font-weight:800;color:var(--muted);margin-bottom:8px">Exhibition Teams</div>
+                <div class="card" style="margin-bottom:18px">
+                    ${(exhibition_teams || []).map(d => `<div style="display:flex;justify-content:space-between;padding:9px 14px;border-bottom:1px solid rgba(255,255,255,.04)"><span>${escapeHtml(d.name)}</span><span style="font-size:11px;color:var(--muted)">Non-competing · ${d.total_points || 0} pts</span></div>`).join('') || '<div style="padding:14px;color:var(--muted);font-size:13px">None.</div>'}
                 </div>
                 <div style="font-family:'Barlow Condensed',sans-serif;font-size:14px;font-weight:800;color:var(--muted);margin-bottom:8px">Tournaments</div>
                 <div class="card">

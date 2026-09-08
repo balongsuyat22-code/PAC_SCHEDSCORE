@@ -825,7 +825,7 @@
             left: 50% !important;
             transform: translateX(-50%) !important;
             z-index: 10000 !important;
-            width: auto !important;
+            width: max-content !important;
             max-width: min(300px, calc(100vw - 24px)) !important;
             display: flex !important;
             flex-direction: column !important;
@@ -859,6 +859,7 @@
             align-items: center;
             gap: 6px;
             pointer-events: none;
+            width: max-content;
             max-width: min(300px, calc(100vw - 24px));
         }
 
@@ -876,6 +877,7 @@
             background: #1f2937;
             border: 1px solid rgba(255, 255, 255, .08);
             box-shadow: 0 6px 18px rgba(0, 0, 0, .3);
+            width: fit-content;
             max-width: 100%;
         }
 
@@ -1939,9 +1941,11 @@
                 const isDQ = !!dqList[p.department_id];
                 const playerCount = pls.length;
                 const hasEnough = playerCount >= req;
-                const playerBadge = hasEnough
-                    ? `<span class="player-count-badge player-count-ok">${playerCount}/${req}</span>`
-                    : `<span class="player-count-badge player-count-warning">${playerCount}/${req}</span>`;
+                const playerBadge = Number(p.is_exhibition) === 1
+                    ? '<span class="player-count-badge" style="color:var(--gold);border-color:var(--gold)">EXHIBITION</span>'
+                    : hasEnough
+                        ? `<span class="player-count-badge player-count-ok">${playerCount}/${req}</span>`
+                        : `<span class="player-count-badge player-count-warning">${playerCount}/${req}</span>`;
                 const safeDept = (deptName || primary).replace(/'/g, "\\'");
                 return `<div class="participant-card ${isDQ ? 'is-dq' : ''} ${!hasEnough ? 'player-warning' : ''}">
                     <div class="participant-card-header" onclick="toggleP('${p.department_id}')">
@@ -1951,7 +1955,7 @@
                             <div class="participant-meta">
                                 ${secondary ? `<span class="participant-dept">${secondary}</span>` : ''}
                                 ${playerBadge}
-                                <span class="participant-meta-hint">${hasEnough ? 'Ready' : 'Need players'}</span>
+                                <span class="participant-meta-hint">${Number(p.is_exhibition) === 1 ? 'One-off special match' : (hasEnough ? 'Ready' : 'Need players')}</span>
                             </div>
                         </div>
                         <div class="participant-actions" onclick="event.stopPropagation()">
@@ -2007,6 +2011,7 @@
                         <input type="checkbox" class="dept-checkbox" value="${dept.id}" ${currentIds.has(dept.id) ? 'checked disabled' : ''}>
                         <span style="width:12px;height:12px;border-radius:50%;background:${dept.color || '#555'};display:inline-block"></span>
                         ${dept.name}
+                        ${Number(dept.is_exhibition) === 1 ? '<span style="margin-left:auto;font-size:10px;color:var(--gold)">EXHIBITION</span>' : ''}
                         ${currentIds.has(dept.id) ? '<span style="margin-left:auto;font-size:11px;color:var(--green)">Added</span>' : ''}
                     </label>`).join('');
             } catch (err) {

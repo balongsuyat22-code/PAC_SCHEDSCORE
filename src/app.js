@@ -167,7 +167,7 @@ app.get('/admin/schedule', sendPageFrom(frontendAdmin, 'admin-schedule.html'));
 app.get('/admin/departments', sendPageFrom(frontendAdmin, 'admin-departments.html'));
 app.get('/admin/sport-fest', sendPageFrom(frontendAdmin, 'admin-sport-fest.html'));
 app.get('/admin/reports', sendPageFrom(frontendAdmin, 'admin-reports.html'));
-app.get('/admin/tournament-export', sendPageFrom(frontendPresident, 'tournament-export.html'));
+app.get('/admin/tournament-export', sendPageFrom(frontendPresident, 'pres-tournament-export.html'));
 
 app.get('/dean', sendPageFrom(frontendDean, 'dashboard.html'));
 app.get('/dean/dashboard', sendPageFrom(frontendDean, 'dashboard.html'));
@@ -182,33 +182,35 @@ app.get('/dean/scores', sendPageFrom(frontendDean, 'scores.html'));
 app.get('/dean/reports', sendPageFrom(frontendDean, 'reports.html'));
 app.get('/dean/standings', sendPageFrom(frontendDean, 'standings.html'));
 
-app.get('/president', sendPageFrom(frontendPresident, 'dashboard.html'));
-app.get('/president/dashboard', sendPageFrom(frontendPresident, 'dashboard.html'));
-app.get('/president/dashboard.html', sendPageFrom(frontendPresident, 'dashboard.html'));
-app.get('/president/bracketing', sendPageFrom(frontendPresident, 'bracketing.html'));
-app.get('/president/bracketing.html', sendPageFrom(frontendPresident, 'bracketing.html'));
-app.get('/president/game-setup', sendPageFrom(frontendPresident, 'game-setup.html'));
-app.get('/president/game-setup.html', sendPageFrom(frontendPresident, 'game-setup.html'));
-app.get('/president/schedule', sendPageFrom(frontendPresident, 'schedule.html'));
-app.get('/president/schedule.html', sendPageFrom(frontendPresident, 'schedule.html'));
-app.get('/president/venues', sendPageFrom(frontendPresident, 'venues.html'));
-app.get('/president/venues.html', sendPageFrom(frontendPresident, 'venues.html'));
-app.get('/president/departments', sendPageFrom(frontendPresident, 'departments.html'));
-app.get('/president/departments.html', sendPageFrom(frontendPresident, 'departments.html'));
-app.get('/president/users', sendPageFrom(frontendPresident, 'users.html'));
-app.get('/president/users.html', sendPageFrom(frontendPresident, 'users.html'));
-app.get('/president/tournament-export', sendPageFrom(frontendPresident, 'tournament-export.html'));
-app.get('/president/tournament-export.html', sendPageFrom(frontendPresident, 'tournament-export.html'));
+app.get('/president', sendPageFrom(frontendPresident, 'pres-dashboard.html'));
+app.get('/president/dashboard', sendPageFrom(frontendPresident, 'pres-dashboard.html'));
+app.get('/president/dashboard.html', sendPageFrom(frontendPresident, 'pres-dashboard.html'));
+app.get('/president/bracketing', sendPageFrom(frontendPresident, 'pres-game-setup.html'));
+app.get('/president/bracketing.html', sendPageFrom(frontendPresident, 'pres-game-setup.html'));
+app.get('/president/game-setup', sendPageFrom(frontendPresident, 'pres-game-setup.html'));
+app.get('/president/game-setup.html', sendPageFrom(frontendPresident, 'pres-game-setup.html'));
+app.get('/president/schedule', sendPageFrom(frontendPresident, 'pres-schedule.html'));
+app.get('/president/schedule.html', sendPageFrom(frontendPresident, 'pres-schedule.html'));
+app.get('/president/venues', sendPageFrom(frontendPresident, 'pres-venues.html'));
+app.get('/president/venues.html', sendPageFrom(frontendPresident, 'pres-venues.html'));
+app.get('/president/departments', sendPageFrom(frontendPresident, 'pres-departments.html'));
+app.get('/president/departments.html', sendPageFrom(frontendPresident, 'pres-departments.html'));
+app.get('/president/users', sendPageFrom(frontendPresident, 'pres-users.html'));
+app.get('/president/users.html', sendPageFrom(frontendPresident, 'pres-users.html'));
+app.get('/president/tournament-export', sendPageFrom(frontendPresident, 'pres-tournament-export.html'));
+app.get('/president/tournament-export.html', sendPageFrom(frontendPresident, 'pres-tournament-export.html'));
 app.get('/president/assignment', (req, res) => res.redirect(301, '/president/schedule'));
 app.get('/president/assignment.html', (req, res) => res.redirect(301, '/president/schedule'));
-app.get('/president/live', sendPageFrom(frontendPresident, 'live-scores.html'));
-app.get('/president/live-scores.html', sendPageFrom(frontendPresident, 'live-scores.html'));
-app.get('/president/reports', sendPageFrom(frontendPresident, 'reports.html'));
-app.get('/president/reports.html', sendPageFrom(frontendPresident, 'reports.html'));
-app.get('/president/notifications', sendPageFrom(frontendPresident, 'notifications.html'));
-app.get('/president/notifications.html', sendPageFrom(frontendPresident, 'notifications.html'));
-app.get('/president/sports', sendPageFrom(frontendPresident, 'sports.html'));
-app.get('/president/sports.html', sendPageFrom(frontendPresident, 'sports.html'));
+app.get('/president/live', sendPageFrom(frontendPresident, 'pres-live-scores.html'));
+app.get('/president/live-scores.html', sendPageFrom(frontendPresident, 'pres-live-scores.html'));
+app.get('/president/reports', sendPageFrom(frontendPresident, 'pres-reports.html'));
+app.get('/president/reports.html', sendPageFrom(frontendPresident, 'pres-reports.html'));
+app.get('/president/notifications', sendPageFrom(frontendPresident, 'pres-notifications.html'));
+app.get('/president/notifications.html', sendPageFrom(frontendPresident, 'pres-notifications.html'));
+app.get('/president/sports', sendPageFrom(frontendPresident, 'pres-sports.html'));
+app.get('/president/sports.html', sendPageFrom(frontendPresident, 'pres-sports.html'));
+app.get('/president/sport-fest', sendPageFrom(frontendPresident, 'pres-sport-fest.html'));
+app.get('/president/sport-fest.html', sendPageFrom(frontendPresident, 'pres-sport-fest.html'));
 
 app.use('/SGO_PRESIDENT', express.static(frontendPresident));
 app.use('/sgo_president', express.static(frontendPresident));
@@ -251,12 +253,6 @@ app.get('*', (req, res, next) => {
     if (req.originalUrl.startsWith('/api')) return next();
 
     const ext = path.extname(req.originalUrl).toLowerCase();
-    if (['.css', '.js', '.png', '.jpg', '.jpeg', '.gif', '.svg', '.ico', '.webp'].includes(ext)) {
-        return res.status(404).send('File not found');
-    }
-
-    const loginPath = path.join(frontendRoot, 'login.html');
-    if (fs.existsSync(loginPath)) return res.sendFile(loginPath);
     next();
 });
 

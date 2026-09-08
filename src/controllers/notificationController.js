@@ -76,6 +76,11 @@ async function createNotification(opts = {}) {
     }
 }
 
+async function notifyRoles(roles, opts = {}) {
+    const uniqueRoles = [...new Set((roles || []).filter(Boolean))];
+    return Promise.all(uniqueRoles.map((role) => createNotification({ ...opts, role })));
+}
+
 /** Build WHERE for the current user (personal + role + department broadcasts). */
 function audienceClause(user) {
     const parts = [];
@@ -298,4 +303,5 @@ module.exports = {
     broadcast,
     remove,
     createNotification,
+    notifyRoles,
 };

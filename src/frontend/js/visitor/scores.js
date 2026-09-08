@@ -138,16 +138,23 @@
             if (!json.success || !json.data) return hideChampion();
 
             const fest = json.data;
-            if (!fest.champion_department_id) {
+            const champions = fest.champions || [];
+            if (!fest.champion_department_id && !champions.length) {
                 hideChampion();
                 return;
             }
+
+            const declaredChampion = champions[0] || {
+                department_id: fest.champion_department_id,
+                name: fest.champion_name || fest.champion_department_name,
+                color: fest.champion_color,
+            };
 
             let points = null;
             let gold = null;
             let silver = null;
             let bronze = null;
-            let color = fest.champion_color || null;
+            let color = declaredChampion.color || fest.champion_color || null;
             let logo_url = null;
 
             try {
@@ -158,7 +165,7 @@
                     rows.find(
                         (r) =>
                             String(r.department_id || r.id) ===
-                            String(fest.champion_department_id)
+                            String(declaredChampion.department_id)
                     ) || rows[0];
                 if (top) {
                     points = top.total_points ?? top.points ?? top.pts ?? null;
@@ -171,8 +178,8 @@
             } catch (_) { }
 
             championData = {
-                department_id: fest.champion_department_id,
-                name: fest.champion_name || fest.champion_department_name || 'Champion',
+                department_id: declaredChampion.department_id,
+                name: declaredChampion.name || 'Champion',
                 color,
                 logo_url,
                 points,
@@ -181,6 +188,7 @@
                 bronze,
                 fest_name: fest.name,
                 fest_year: fest.year,
+                champions,
             };
 
             showChampion(championData);
@@ -219,11 +227,13 @@
     window.openChampionModal = async function () {
         let champion = championData || {};
         let top3 = [];
+        let declaredChampions = championData?.champions || [];
 
         try {
             const r = await fetch(`${API_BASE}/leaderboard/overall-champion`);
             if (r.ok) {
                 const j = await r.json();
+                declaredChampions = j.data?.champions || declaredChampions;
                 if (j.data?.champion) {
                     champion = {
                         ...champion,
@@ -255,6 +265,7 @@
             silver: champion.silver_medals ?? champion.silver ?? championData?.silver ?? 0,
             bronze: champion.bronze_medals ?? champion.bronze ?? championData?.bronze ?? 0,
             top3,
+            champions: declaredChampions,
         });
     };
 
