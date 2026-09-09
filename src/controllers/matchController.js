@@ -639,10 +639,12 @@ const startMatch = async (req, res, next) => {
         const matchId = parseInt(req.params.id);
 
         const [[startInfo]] = await pool.execute(
-            `SELECT id, status, scheduled_date, scheduled_time,
+            `SELECT m.id, m.status, m.scheduled_date, m.scheduled_time,
                     participant_a_department_id, participant_b_department_id,
-                    venue_id, referee_id, bracket_side
-             FROM matches WHERE id = ?`,
+                venue_id, referee_id, bracket_side, t.format AS tournament_format
+             FROM matches m
+             JOIN tournaments t ON t.id = m.tournament_id
+             WHERE m.id = ?`,
             [matchId]
         );
         if (!startInfo) {
@@ -662,7 +664,10 @@ const startMatch = async (req, res, next) => {
             }
         }
 
-        if (!startInfo.participant_a_department_id || (!startInfo.participant_b_department_id && startInfo.bracket_side !== 'ffa')) {
+        const isFfa = startInfo.bracket_side === 'ffa' ||
+            ['free_for_all', 'team_ranking'].includes(startInfo.tournament_format);
+        if ((!startInfo.participant_a_department_id && !isFfa) ||
+            (!startInfo.participant_b_department_id && !isFfa)) {
             return res.status(409).json({
                 success: false,
                 code: 'MISSING_PARTICIPANT',
