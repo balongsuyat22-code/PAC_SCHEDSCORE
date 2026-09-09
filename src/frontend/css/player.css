@@ -609,7 +609,9 @@ img { max-width: 100%; display: block; }
   font-weight: 500;
   width: fit-content;
   min-width: 0;
-  max-width: min(400px, calc(100vw - 24px));
+  max-width: min(260px, calc(100vw - 40px));
+  padding: 7px 10px;
+  font-size: 12px;
   overflow-wrap: anywhere;
   transform: translateY(60px);
   opacity: 0;

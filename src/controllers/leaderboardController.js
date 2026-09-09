@@ -132,6 +132,7 @@ const getMedalTally = async (req, res, next) => {
 
 const getBySport = async (req, res, next) => {
     try {
+        const sportFestId = await getActiveSportFestId();
         const { sport_id } = req.query;
 
         let query = `
@@ -153,9 +154,10 @@ const getBySport = async (req, res, next) => {
             JOIN tournaments   t ON tr.tournament_id = t.id
             JOIN sports        s ON t.sport_id       = s.id
             JOIN departments   d ON tr.department_id = d.id
-            WHERE d.is_exhibition = 0 AND d.division IS NOT NULL
+            JOIN sport_fest_tournaments sft ON sft.tournament_id = t.id
+            WHERE sft.sport_fest_id <=> ? AND d.is_exhibition = 0 AND d.division IS NOT NULL
         `;
-        const params = [];
+        const params = [sportFestId];
 
         if (sport_id) {
             query += ' AND s.id = ?';
@@ -176,6 +178,7 @@ const getBySport = async (req, res, next) => {
 
 const getTopScorers = async (req, res, next) => {
     try {
+        const sportFestId = await getActiveSportFestId();
         const { sport_id, limit = 20 } = req.query;
 
         let query = `
@@ -192,11 +195,13 @@ const getTopScorers = async (req, res, next) => {
             FROM match_results mr
             INNER JOIN matches m ON mr.match_id = m.id
             LEFT JOIN tournaments t ON m.tournament_id = t.id
+                        INNER JOIN sport_fest_tournaments sft ON sft.tournament_id = t.id
             LEFT JOIN sports      s ON t.sport_id      = s.id
             LEFT JOIN departments d ON m.winner_department_id = d.id
-            WHERE mr.mvp_player_name IS NOT NULL AND mr.mvp_player_name != ''
+                        WHERE sft.sport_fest_id <=> ?
+                            AND mr.mvp_player_name IS NOT NULL AND mr.mvp_player_name != ''
         `;
-        const params = [];
+        const params = [sportFestId];
 
         if (sport_id) {
             query += ' AND t.sport_id = ?';
@@ -219,6 +224,7 @@ const getTopScorers = async (req, res, next) => {
 
 const getWinningTeams = async (req, res, next) => {
     try {
+        const sportFestId = await getActiveSportFestId();
         const [rows] = await pool.execute(
             `SELECT
                 t.id   AS team_id,
@@ -237,9 +243,14 @@ const getWinningTeams = async (req, res, next) => {
                        SELECT id FROM tournaments WHERE sport_id = t.sport_id
                    )
                    AND m.status = 'completed'
+                         JOIN sport_fest_tournaments sft
+                             ON sft.tournament_id = m.tournament_id
+                            AND sft.sport_fest_id <=> ?
+                         WHERE d.is_exhibition = 0
              GROUP BY t.id
              ORDER BY total_wins DESC
-             LIMIT 20`
+                         LIMIT 20`,
+            [sportFestId]
         );
 
         return res.json({ success: true, data: rows });
@@ -250,6 +261,7 @@ const getWinningTeams = async (req, res, next) => {
 
 const getChampionTeams = async (req, res, next) => {
     try {
+        const sportFestId = await getActiveSportFestId();
         const [rows] = await pool.execute(
             `SELECT
                 s.id   AS sport_id,
@@ -260,16 +272,22 @@ const getChampionTeams = async (req, res, next) => {
                 d.name AS department_name,
                 d.color,
                 d.logo_url,
-                te.name AS team_name,
+                CASE WHEN COUNT(DISTINCT te.id) = 1 THEN MAX(te.name) ELSE NULL END AS team_name,
                 tr.sport_fest_points,
                 tr.finalized_at
              FROM tournament_results tr
              JOIN tournaments  t  ON tr.tournament_id = t.id
              JOIN sports       s  ON t.sport_id       = s.id
              JOIN departments  d  ON tr.department_id = d.id
-             LEFT JOIN teams   te ON te.department_id = d.id AND te.sport_id = s.id
-             WHERE tr.medal = 'gold'
+             JOIN sport_fest_tournaments sft ON sft.tournament_id = t.id
+             LEFT JOIN teams   te ON te.department_id = d.id
+                                  AND te.sport_id = s.id
+                                  AND te.sport_fest_id <=> sft.sport_fest_id
+             WHERE sft.sport_fest_id <=> ? AND tr.medal = 'gold' AND d.is_exhibition = 0
+             GROUP BY s.id, s.name, s.icon, t.name, d.id, d.name, d.color, d.logo_url,
+                      tr.sport_fest_points, tr.finalized_at
              ORDER BY s.name, tr.finalized_at DESC`
+            , [sportFestId]
         );
 
         return res.json({ success: true, data: rows });
@@ -296,7 +314,9 @@ const getOverallChampion = async (req, res, next) => {
      WHERE sft.sport_fest_id <=> ?`,
             [sportFestId]
         );
-        const allComplete = manuallyDeclared;
+        const tournamentTotal = Number(totals?.total || 0);
+        const incompleteTournaments = Number(totals?.incomplete || 0);
+        const allComplete = manuallyDeclared || (tournamentTotal > 0 && incompleteTournaments === 0);
 
         const [leaders] = await pool.execute(
             `SELECT

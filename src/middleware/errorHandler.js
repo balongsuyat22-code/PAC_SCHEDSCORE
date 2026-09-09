@@ -30,6 +30,12 @@ const errorHandler = (err, req, res, next) => {
     console.error('Error:', err);
 
     if (err.code === 'ER_DUP_ENTRY') {
+        if (req.originalUrl.startsWith('/api/departments')) {
+            return res.status(409).json({
+                success: false,
+                message: 'A department with this name or code already exists.',
+            });
+        }
         if (sendErrorPage(req, res, 409, 'Duplicate entry', 'That record already exists.')) return;
         return res.status(409).json({ success: false, message: 'Duplicate entry. Record already exists.' });
     }

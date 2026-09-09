@@ -411,6 +411,18 @@
                 </div>
                 <div class="form-group"><label class="form-label">Description</label><textarea id="dept-desc"
                         class="form-textarea" placeholder="Optional description..."></textarea></div>
+                <div class="form-row">
+                    <div class="form-group"><label class="form-label">Division</label><select id="dept-division"
+                            class="form-select">
+                            <option value="">No division</option>
+                            <option value="junior_high">Junior High</option>
+                            <option value="senior_high">Senior High</option>
+                            <option value="college">College</option>
+                        </select></div>
+                    <label class="form-check" style="align-self:end;padding-bottom:12px">
+                        <input type="checkbox" id="dept-exhibition"> Exhibition only (no championship points)
+                    </label>
+                </div>
             </div>
             <div class="modal-footer">
                 <button class="btn btn-secondary" onclick="Modal.close('modal-dept')">Cancel</button>
@@ -500,7 +512,7 @@
                     <div class="dept-actions">
                         <button class="btn btn-secondary btn-sm" style="flex:1" onclick="viewDetail(${d.id})">View</button>
                         <button class="btn btn-primary btn-sm" style="flex:1" onclick="openEdit(${d.id})">Edit</button>
-                        <button class="btn btn-danger-outline btn-sm" style="flex:1" onclick="deleteDept(${d.id})">Deactivate</button>
+                        <button class="btn btn-danger-outline btn-sm" style="flex:1" onclick="deleteDept(${d.id})">Delete</button>
                     </div>
                 </div>`;
             }).join('');
@@ -592,6 +604,8 @@
             document.getElementById('dept-edit-id').value = '';
             ['dept-name', 'dept-short', 'dept-code', 'dept-desc', 'dept-logo-url'].forEach(id => document.getElementById(id).value = '');
             document.getElementById('dept-color').value = '#8B5CF6';
+            document.getElementById('dept-division').value = '';
+            document.getElementById('dept-exhibition').checked = false;
             document.getElementById('logo-preview').innerHTML = 'Click to upload';
             document.getElementById('logo-file').value = '';
             Modal.open('modal-dept');
@@ -608,6 +622,8 @@
             document.getElementById('dept-code').value = d.code;
             document.getElementById('dept-color').value = d.color || '#8B5CF6';
             document.getElementById('dept-desc').value = d.description || '';
+            document.getElementById('dept-division').value = d.division || '';
+            document.getElementById('dept-exhibition').checked = Number(d.is_exhibition) === 1;
             document.getElementById('dept-logo-url').value = d.logo_url || '';
             document.getElementById('logo-file').value = '';
             const prev = document.getElementById('logo-preview');
@@ -652,6 +668,8 @@
             formData.append('short_name', document.getElementById('dept-short').value.trim());
             formData.append('color', document.getElementById('dept-color').value);
             formData.append('description', document.getElementById('dept-desc').value.trim());
+            formData.append('division', document.getElementById('dept-division').value);
+            formData.append('is_exhibition', document.getElementById('dept-exhibition').checked ? '1' : '0');
             formData.append('logo_url', document.getElementById('dept-logo-url').value.trim());
             const file = document.getElementById('logo-file').files[0];
             if (file) formData.append('logo', file);

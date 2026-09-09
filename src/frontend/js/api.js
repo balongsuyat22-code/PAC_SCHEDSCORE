@@ -55,7 +55,7 @@ const api = async (path, options = {}) => {
     }
 };
 
-const Toast = {
+const Toast = window.Toast || {
     show(msg, type = 'success', duration = 3000) {
         let t = document.getElementById('sf-toast');
         if (!t) {
@@ -64,13 +64,14 @@ const Toast = {
             t.className = 'toast';
             document.body.appendChild(t);
         }
-        const icons = { success: '✅', error: '❌', info: 'ℹ️' };
-        t.innerHTML = `<span>${icons[type] || '📢'}</span> ${msg}`;
+        const icons = { success: 'OK', error: 'ERR', info: 'i' };
+        t.innerHTML = `<span style="font-weight:800;margin-right:6px">${icons[type] || '•'}</span> ${msg}`;
         t.className = `toast ${type} show`;
         clearTimeout(t._timer);
         t._timer = setTimeout(() => t.classList.remove('show'), duration);
     }
 };
+window.Toast = Toast;
 
 const Modal = {
     open(id) { document.getElementById(id)?.classList.add('open'); },

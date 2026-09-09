@@ -141,17 +141,18 @@ const Toast = {
         s.textContent = `
 #sf-toast {
   position: fixed;
-  top: max(72px, calc(env(safe-area-inset-top, 0px) + 56px));
-    right: 24px;
-    transform: translateY(-8px);
+    top: auto;
+    bottom: 20px;
+    right: 20px;
+    transform: translateY(8px);
   z-index: 10000;
     width: fit-content;
     min-width: 0;
-    max-width: min(340px, calc(100vw - 32px));
-  padding: 12px 16px;
-  border-radius: 12px;
-  font-size: 14px;
-  line-height: 1.35;
+    max-width: min(260px, calc(100vw - 40px));
+    padding: 7px 10px;
+    border-radius: 7px;
+    font-size: 12px;
+    line-height: 1.25;
   font-family: 'Barlow', system-ui, sans-serif;
   box-shadow: 0 12px 36px rgba(0,0,0,.45);
   opacity: 0;
@@ -187,8 +188,9 @@ const Toast = {
 }
 @media (max-width: 600px) {
     #sf-toast {
-        right: 16px;
-        max-width: calc(100vw - 32px);
+        right: 12px;
+        bottom: 12px;
+        max-width: calc(100vw - 24px);
     }
 }`;
         document.head.appendChild(s);
@@ -224,6 +226,7 @@ const Toast = {
         t.innerHTML = '';
     }
 };
+window.Toast = Toast;
 
 const Modal = {
     open(id) { document.getElementById(id)?.classList.add('open'); },

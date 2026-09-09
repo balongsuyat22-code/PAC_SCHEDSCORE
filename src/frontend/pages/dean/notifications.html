@@ -384,7 +384,7 @@
 
         async function loadPage() {
             // Try notifications endpoint; empty list if 404
-            const res = await api('/sport-fest/notifications?limit=50');
+            const res = await api('/notifications?limit=50');
             allNotifs = (res.success && res.data) ? res.data : [];
             renderStats();
             applyFilter();
@@ -451,7 +451,7 @@
             const n = allNotifs.find(x => x.id === id);
             if (!n) return;
             if (!n.is_read) {
-                await api('/sport-fest/notifications/' + id + '/read', { method: 'PATCH' });
+                await api('/notifications/' + id + '/read', { method: 'PATCH' });
                 n.is_read = 1;
                 renderStats();
                 applyFilter();
@@ -471,7 +471,7 @@
         }
 
         async function markAllRead() {
-            const res = await api('/sport-fest/notifications/read-all', { method: 'PATCH' });
+            const res = await api('/notifications/read-all', { method: 'PATCH' });
             if (res.success) {
                 allNotifs.forEach(n => n.is_read = 1);
                 renderStats();

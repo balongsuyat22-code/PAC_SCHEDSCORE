@@ -32,12 +32,12 @@ const getAll = async (req, res, next) => {
     d.is_active,
     d.created_at,
     d.updated_at,
-    COALESCE(MAX(ds.total_points), 0) AS total_points,
-    COALESCE(MAX(ds.gold_medals), 0) AS gold_medals,
-    COALESCE(MAX(ds.silver_medals), 0) AS silver_medals,
-    COALESCE(MAX(ds.bronze_medals), 0) AS bronze_medals,
-    COALESCE(MAX(ds.total_participations), 0) AS total_participations,
-    COALESCE(MAX(ds.tournaments_entered), 0) AS tournaments_entered,
+    COALESCE(MAX(CASE WHEN d.is_exhibition = 0 THEN ds.total_points ELSE 0 END), 0) AS total_points,
+    COALESCE(MAX(CASE WHEN d.is_exhibition = 0 THEN ds.gold_medals ELSE 0 END), 0) AS gold_medals,
+    COALESCE(MAX(CASE WHEN d.is_exhibition = 0 THEN ds.silver_medals ELSE 0 END), 0) AS silver_medals,
+    COALESCE(MAX(CASE WHEN d.is_exhibition = 0 THEN ds.bronze_medals ELSE 0 END), 0) AS bronze_medals,
+    COALESCE(MAX(CASE WHEN d.is_exhibition = 0 THEN ds.total_participations ELSE 0 END), 0) AS total_participations,
+    COALESCE(MAX(CASE WHEN d.is_exhibition = 0 THEN ds.tournaments_entered ELSE 0 END), 0) AS tournaments_entered,
     COUNT(DISTINCT t.id) AS total_teams,
     COUNT(DISTINCT p.id) AS total_members
   FROM departments d
@@ -92,12 +92,12 @@ const getOne = async (req, res, next) => {
                 d.is_active,
                 d.created_at,
                 d.updated_at,
-                COALESCE(MAX(ds.total_points), 0) AS total_points,
-                COALESCE(MAX(ds.gold_medals), 0) AS gold_medals,
-                COALESCE(MAX(ds.silver_medals), 0) AS silver_medals,
-                COALESCE(MAX(ds.bronze_medals), 0) AS bronze_medals,
-                COALESCE(MAX(ds.total_participations), 0) AS total_participations,
-                COALESCE(MAX(ds.tournaments_entered), 0) AS tournaments_entered,
+                COALESCE(MAX(CASE WHEN d.is_exhibition = 0 THEN ds.total_points ELSE 0 END), 0) AS total_points,
+                COALESCE(MAX(CASE WHEN d.is_exhibition = 0 THEN ds.gold_medals ELSE 0 END), 0) AS gold_medals,
+                COALESCE(MAX(CASE WHEN d.is_exhibition = 0 THEN ds.silver_medals ELSE 0 END), 0) AS silver_medals,
+                COALESCE(MAX(CASE WHEN d.is_exhibition = 0 THEN ds.bronze_medals ELSE 0 END), 0) AS bronze_medals,
+                COALESCE(MAX(CASE WHEN d.is_exhibition = 0 THEN ds.total_participations ELSE 0 END), 0) AS total_participations,
+                COALESCE(MAX(CASE WHEN d.is_exhibition = 0 THEN ds.tournaments_entered ELSE 0 END), 0) AS tournaments_entered,
                 COUNT(DISTINCT t.id) AS total_teams,
                 COUNT(DISTINCT p.id) AS total_members
              FROM departments d
@@ -359,7 +359,7 @@ const remove = async (req, res, next) => {
         if (active[0].count > 0) {
             return res.status(400).json({
                 success: false,
-                message: 'Cannot deactivate a department that is currently participating in active tournaments.',
+                message: 'Cannot delete a department that is currently participating in active tournaments.',
             });
         }
 
