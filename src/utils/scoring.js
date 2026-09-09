@@ -21,6 +21,26 @@ async function ffaStandings(conn, tournamentId) {
     );
     return rows.map((r) => ({ department_id: r.department_id, rank: r.rank_position }));
 }
+
+async function divisionGauntletStandings(conn, tournamentId) {
+    const [finals] = await conn.execute(
+        `SELECT participant_a_department_id, participant_b_department_id, winner_department_id
+         FROM matches
+         WHERE tournament_id = ? AND bracket_position LIKE 'Day 4%'
+         ORDER BY match_number`,
+        [tournamentId]
+    );
+    const standings = [];
+    finals.forEach((match) => {
+        if (!match.winner_department_id) return;
+        const loser = Number(match.participant_a_department_id) === Number(match.winner_department_id)
+            ? match.participant_b_department_id
+            : match.participant_a_department_id;
+        standings.push({ department_id: match.winner_department_id, rank: 1 });
+        if (loser) standings.push({ department_id: loser, rank: 2 });
+    });
+    return standings;
+}
 async function singleEliminationStandings(conn, tournamentId) {
     const [matches] = await conn.execute(
         `SELECT round_number, match_number, bracket_position, bracket_side,
@@ -82,6 +102,7 @@ async function singleEliminationStandings(conn, tournamentId) {
 async function computeFinalStandings(conn, tournamentId, format) {
     if (format === 'round_robin') return roundRobinStandings(conn, tournamentId);
     if (['free_for_all', 'team_ranking', 'group_stage_ffa'].includes(format)) return ffaStandings(conn, tournamentId);
+    if (format === 'division_gauntlet') return divisionGauntletStandings(conn, tournamentId);
     return singleEliminationStandings(conn, tournamentId);
 }
 async function recordResultsAndRebuild(conn, tournamentId, pointsMap = DEFAULT_MEDAL_POINTS) {

@@ -1185,6 +1185,7 @@
                             <option value="">Select format…</option>
                             <option value="single_elimination">Single Elimination</option>
                             <option value="double_elimination">Double Elimination</option>
+                            <option value="division_gauntlet">Division Gauntlet (2 Champions)</option>
                             <option value="round_robin">Round Robin</option>
                             <option value="free_for_all">Free-For-All (individual event)</option>
                         </select>
@@ -1469,6 +1470,7 @@
             'round_robin', 'single_elimination', 'double_elimination',
             'free_for_all', 'team_ranking',
             'group_stage_se', 'group_stage_de', 'group_stage_ffa',
+            'division_gauntlet',
         ];
         const FFA_SCORING_HINTS = {
             points: 'Officer enters a numeric score for each department — highest score wins.',
@@ -1815,7 +1817,7 @@
                     ? (isFfa ? '<i class="fa-solid fa-bolt"></i> Re-Initialize Event' : '<i class="fa-solid fa-bolt"></i> Regenerate Bracket')
                     : (isFfa ? '<i class="fa-solid fa-bolt"></i> Initialize Event' : '<i class="fa-solid fa-bolt"></i> Generate Bracket');
             }
-            if (btnAuto) btnAuto.style.display = (['round_robin', 'single_elimination', 'double_elimination'].includes(fmt) && !isFinalized) ? '' : 'none';
+            if (btnAuto) btnAuto.style.display = (['round_robin', 'single_elimination', 'double_elimination', 'division_gauntlet'].includes(fmt) && !isFinalized) ? '' : 'none';
             if (btnPromo) btnPromo.style.display = (fmt.startsWith('group_stage_') && !isFinalized) ? '' : 'none';
             if (btnFin) btnFin.style.display = isFinalized ? 'none' : '';
 
@@ -2020,7 +2022,7 @@
                 return `<div class="card"><div class="card-body">
                     <div class="section-empty">
                         No scheduled matches yet.
-                        ${['round_robin', 'single_elimination', 'double_elimination'].includes(currentTournament.format)
+                        ${['round_robin', 'single_elimination', 'double_elimination', 'division_gauntlet'].includes(currentTournament.format)
                         ? `<br><br><button class="btn btn-secondary btn-sm" onclick="openAutoSchedule()"><i class="fa-solid fa-dice"></i> Auto-Schedule</button>`
                         : ''}
                     </div>
@@ -2170,7 +2172,7 @@
 
             const matches = currentBracketMatches || [];
             const isFinalized = currentTournament.status === 'completed';
-            const canAuto = ['round_robin', 'single_elimination', 'double_elimination'].includes(currentTournament.format) && !isFinalized;
+            const canAuto = ['round_robin', 'single_elimination', 'double_elimination', 'division_gauntlet'].includes(currentTournament.format) && !isFinalized;
 
             if (!matches.length) {
                 return `<div class="card"><div class="card-body">
@@ -2727,7 +2729,7 @@
         }
 
         function isAutoSchedulableFormat(fmt) {
-            return ['round_robin', 'single_elimination', 'double_elimination'].includes(fmt);
+            return ['round_robin', 'single_elimination', 'double_elimination', 'division_gauntlet'].includes(fmt);
         }
 
         function autoScheduleMatchCount() {

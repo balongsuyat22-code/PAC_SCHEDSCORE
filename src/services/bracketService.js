@@ -8,6 +8,7 @@ const VALID_FORMATS = [
     'group_stage_se',
     'group_stage_de',
     'group_stage_ffa',
+    'division_gauntlet',
 ];
 
 
@@ -62,8 +63,66 @@ const generateBracket = async (tournament, participants, pool) => {
         case 'group_stage_ffa':
             return generateGroupStage(tournament, participants, pool, 'free_for_all');
 
+        case 'division_gauntlet':
+            return generateDivisionGauntlet(tournament, participants, pool);
+
         default:
             throw new Error(`Unhandled format: "${format}"`);
+    }
+};
+
+const generateDivisionGauntlet = async (tournament, participants, pool) => {
+    const junior = participants.filter((p) => String(p.division || '').toLowerCase() === 'junior_high');
+    const senior = participants.filter((p) => String(p.division || '').toLowerCase() === 'senior_high');
+    const nightOwls = senior.find((p) => Number(p.is_exhibition) === 1);
+    const juniorTeams = junior.filter((p) => Number(p.is_exhibition) !== 1);
+    const seniorTeams = senior.filter((p) => Number(p.is_exhibition) !== 1);
+
+    if (juniorTeams.length !== 4 || seniorTeams.length !== 4 || !nightOwls) {
+        throw new Error('Division Gauntlet needs 4 Junior High teams, 4 Senior High teams, and one Senior High exhibition team.');
+    }
+
+    const matches = [
+        ['Day 2 · Junior High · Game 1', juniorTeams[0], juniorTeams[1]],
+        ['Day 2 · Junior High · Game 2', juniorTeams[2], juniorTeams[3]],
+        ['Day 2 · Senior High · Game 3', seniorTeams[0], seniorTeams[1]],
+        ['Day 2 · Senior High · Game 4', seniorTeams[2], seniorTeams[3]],
+        ['Day 3 · Junior High · Loser vs Loser', null, null],
+        ['Day 3 · Junior High · Winner vs Winner', null, null],
+        ['Day 3 · Junior High · Loser vs Winner', null, null],
+        ['Day 3 · Senior High · Night Owls Entry', null, nightOwls],
+        ['Day 3 · Senior High · Loser vs Loser', null, null],
+        ['Day 3 · Senior High · Winner vs Winner', null, null],
+        ['Day 4 · Junior High · Grand Final', null, null],
+        ['Day 4 · Senior High · Grand Final', null, null],
+    ];
+    const ids = [];
+    for (let i = 0; i < matches.length; i++) {
+        const [label, a, b] = matches[i];
+        const [result] = await pool.execute(
+            `INSERT INTO matches
+             (tournament_id, sport_id, round_number, match_number, bracket_position,
+              bracket_side, participant_a_department_id, participant_b_department_id, status)
+             VALUES (?, ?, ?, ?, ?, 'division_gauntlet', ?, ?, ?)`,
+            [tournament.id, tournament.sport_id, i < 4 ? 1 : i < 10 ? 2 : 3, i + 1,
+                label, a?.department_id || null, b?.department_id || null,
+            a && b ? 'scheduled' : 'pending']
+        );
+        ids.push(result.insertId);
+    }
+    const links = [
+        [0, 4, 'a', 'loser'], [1, 4, 'b', 'loser'], [0, 5, 'a', 'winner'], [1, 5, 'b', 'winner'],
+        [5, 6, 'a', 'loser'], [4, 6, 'b', 'winner'], [3, 7, 'a', 'winner'],
+        [2, 8, 'a', 'loser'], [3, 8, 'b', 'loser'], [2, 9, 'a', 'winner'], [7, 9, 'b', 'winner'],
+        [5, 10, 'a', 'winner'], [6, 10, 'b', 'winner'], [9, 11, 'a', 'winner'], [8, 11, 'b', 'winner'],
+    ];
+    for (const [source, target, slot, resultType] of links) {
+        const column = resultType === 'loser' ? 'loser_next_match_id' : 'next_match_id';
+        const slotColumn = resultType === 'loser' ? 'loser_next_match_slot' : 'next_match_slot';
+        await pool.execute(
+            `UPDATE matches SET ${column} = ?, ${slotColumn} = ? WHERE id = ?`,
+            [ids[target], slot, ids[source]]
+        );
     }
 };
 

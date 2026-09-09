@@ -1550,6 +1550,7 @@
             }
             const scheduled = new Date(`${String(match.scheduled_date).slice(0, 10)}T${String(match.scheduled_time).slice(0, 8)}`);
             const isFfa = match.bracket_side === 'ffa' ||
+                match.bracket_side === 'exhibition' ||
                 ['free_for_all', 'team_ranking', 'group_stage_ffa'].includes(String(match.tournament_format || '').toLowerCase());
             if ((!match.participant_a_department_id && !isFfa) ||
                 (!match.participant_b_department_id && !isFfa)) {

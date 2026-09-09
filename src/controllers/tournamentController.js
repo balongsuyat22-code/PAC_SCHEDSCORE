@@ -823,7 +823,7 @@ const generateBracket = async (req, res, next) => {
         }
 
         const [participants] = await pool.execute(
-            `SELECT tp.department_id, d.is_exhibition
+            `SELECT tp.department_id, d.is_exhibition, d.division
              FROM tournament_participants tp
              JOIN departments d ON d.id = tp.department_id
              WHERE tp.tournament_id = ?
@@ -900,6 +900,17 @@ const generateBracket = async (req, res, next) => {
 
             const competitiveParticipants = participants.filter((p) => Number(p.is_exhibition) !== 1);
 
+            if (format === 'division_gauntlet') {
+                await generateBracketService(t, participants, conn);
+                created = 12;
+                await conn.commit();
+                return res.json({
+                    success: true,
+                    message: `Bracket generated (${created} match(es))`,
+                    data: { matches_created: created },
+                });
+            }
+
             if (competitiveParticipants.length < 2 && exhibitionDepts.length) {
                 await conn.rollback();
                 conn.release();
@@ -972,6 +983,7 @@ const AUTO_SCHEDULE_FORMATS = new Set([
     'round_robin',
     'single_elimination',
     'double_elimination',
+    'division_gauntlet',
 ]);
 
 const scheduleRoundRobin = async (req, res, next) => {
@@ -984,7 +996,7 @@ const scheduleRoundRobin = async (req, res, next) => {
         if (!AUTO_SCHEDULE_FORMATS.has(format)) {
             return res.status(400).json({
                 success: false,
-                message: `Auto-schedule supports round robin, single elimination, and double elimination (got "${format || 'none'}").`,
+                message: `Auto-schedule supports round robin, single elimination, double elimination, and division gauntlet (got "${format || 'none'}").`,
             });
         }
 
@@ -1026,7 +1038,7 @@ const scheduleRoundRobin = async (req, res, next) => {
         const requiredSlots = allMatches.length;
         const matches = allMatches.filter((m) =>
             ['pending', 'scheduled'].includes(m.status) &&
-            (m.bracket_side === 'ffa' ||
+            (m.bracket_side === 'ffa' || m.bracket_side === 'exhibition' ||
                 (m.participant_a_department_id && m.participant_b_department_id))
         );
         const locked = allMatches.length - matches.length;
@@ -1163,7 +1175,7 @@ const finalizeTournament = async (req, res, next) => {
             `SELECT COUNT(*) AS c FROM matches
        WHERE tournament_id = ?
          AND status NOT IN ('completed', 'cancelled', 'walkover')
-         AND (bracket_side = 'ffa'
+         AND (bracket_side IN ('ffa', 'exhibition')
               OR tournament_id IN (
                   SELECT id FROM tournaments
                   WHERE format IN ('free_for_all', 'team_ranking', 'group_stage_ffa')
@@ -1262,6 +1274,38 @@ const removeParticipant = async (req, res, next) => {
     }
 };
 
+const placeExhibition = async (req, res, next) => {
+    try {
+        const tournamentId = parseInt(req.params.id, 10);
+        const matchId = parseInt(req.params.matchId, 10);
+        const departmentId = parseInt(req.body.department_id, 10);
+        const slot = req.body.slot === 'b' ? 'b' : 'a';
+        const [[match]] = await pool.execute(
+            `SELECT id, status, participant_a_department_id, participant_b_department_id
+             FROM matches WHERE id = ? AND tournament_id = ?`, [matchId, tournamentId]
+        );
+        if (!match) return res.status(404).json({ success: false, message: 'Match not found in this tournament.' });
+        if (!['pending', 'scheduled'].includes(match.status)) {
+            return res.status(409).json({ success: false, message: 'Exhibition teams can only be placed before a match starts.' });
+        }
+        const [[department]] = await pool.execute(
+            `SELECT id, name FROM departments
+             WHERE id = ? AND is_active = 1 AND is_exhibition = 1`,
+            [departmentId]
+        );
+        if (!department) return res.status(400).json({ success: false, message: 'Select an active exhibition department.' });
+        const column = slot === 'b' ? 'participant_b_department_id' : 'participant_a_department_id';
+        if (match[column]) return res.status(409).json({ success: false, message: `Match side ${slot.toUpperCase()} is already assigned.` });
+        await pool.execute(
+            `UPDATE matches SET ${column} = ?, bracket_side = 'exhibition', updated_at = NOW() WHERE id = ?`,
+            [departmentId, matchId]
+        );
+        return res.json({ success: true, message: `${department.name} placed in match ${matchId}.` });
+    } catch (err) {
+        next(err);
+    }
+};
+
 module.exports = {
     getAll,
     getOne,
@@ -1270,6 +1314,7 @@ module.exports = {
     addParticipants,
     removeParticipant,
     getBracket,
+    placeExhibition,
     create,
     update,
     remove,

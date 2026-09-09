@@ -258,6 +258,7 @@ const getAll = async (req, res, next) => {
                 AND (m.status NOT IN ('pending', 'scheduled')
                     OR m.bracket_side = 'ffa'
                        OR t.format IN ('free_for_all', 'team_ranking', 'group_stage_ffa')
+                       OR m.bracket_side = 'exhibition'
                    OR (m.participant_a_department_id IS NOT NULL
                        AND m.participant_b_department_id IS NOT NULL))
         `;
@@ -474,6 +475,7 @@ const getLive = async (req, res, next) => {
                     WHERE m.status IN ('ongoing', 'scheduled')
                       AND (m.bracket_side = 'ffa'
                            OR t.format IN ('free_for_all', 'team_ranking', 'group_stage_ffa')
+                           OR m.bracket_side = 'exhibition'
                            OR (m.participant_a_department_id IS NOT NULL
                                AND m.participant_b_department_id IS NOT NULL))
                     GROUP BY m.id
@@ -657,6 +659,7 @@ const startMatch = async (req, res, next) => {
         }
 
         const isFfa = startInfo.bracket_side === 'ffa' ||
+            startInfo.bracket_side === 'exhibition' ||
             ['free_for_all', 'team_ranking', 'group_stage_ffa']
                 .includes(String(startInfo.tournament_format || '').toLowerCase());
         if ((!startInfo.participant_a_department_id && !isFfa) ||
