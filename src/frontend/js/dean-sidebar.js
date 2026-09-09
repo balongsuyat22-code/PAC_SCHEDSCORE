@@ -1,3 +1,5 @@
+let deanMobileOpen = false;
+let deanSidebarCollapsed = localStorage.getItem('sf_sidebar_collapsed') === '1';
 
 const DEAN_ICONS = {
     dashboard: `<svg viewBox="0 0 24 24"><rect width="7" height="9" x="3" y="3" rx="1"/><rect width="7" height="5" x="14" y="3" rx="1"/><rect width="7" height="9" x="14" y="12" rx="1"/><rect width="7" height="5" x="3" y="16" rx="1"/></svg>`,
@@ -15,12 +17,8 @@ const DEAN_ICONS = {
     refresh: `<svg viewBox="0 0 24 24"><path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/><path d="M8 16H3v5"/></svg>`,
     check: `<svg viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></svg>`,
     x: `<svg viewBox="0 0 24 24"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>`,
-    eye: `<svg viewBox="0 0 24 24"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg>`,
-    star: `<svg viewBox="0 0 24 24"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>`,
-    layers: `<svg viewBox="0 0 24 24"><path d="m12.83 2.18a2 2 0 0 0-1.66 0L2.6 6.08a1 1 0 0 0 0 1.83l8.58 3.91a2 2 0 0 0 1.66 0l8.58-3.9a1 1 0 0 0 0-1.83Z"/><path d="m22 12.5-8.58 3.91a2 2 0 0 1-1.66 0L2 12.5"/><path d="m22 17.5-8.58 3.91a2 2 0 0 1-1.66 0L2 17.5"/></svg>`,
-    activity: `<svg viewBox="0 0 24 24"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>`,
-    medal: `<svg viewBox="0 0 24 24"><path d="M7.21 15 2.66 7.14a2 2 0 0 1 .13-2.2L4.4 2.8A2 2 0 0 1 6 2h12a2 2 0 0 1 1.6.8l1.6 2.14a2 2 0 0 1 .14 2.2L16.79 15"/><path d="M11 12 5.12 2.2"/><path d="m13 12 5.88-9.8"/><path d="M8 7h8"/><circle cx="12" cy="17" r="5"/><path d="M12 18v-2h-.5"/></svg>`,
     menu: `<svg viewBox="0 0 24 24"><line x1="4" y1="7" x2="20" y2="7"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="17" x2="20" y2="17"/></svg>`,
+    chevronLeft: `<svg viewBox="0 0 24 24"><path d="m15 18-6-6 6-6"/></svg>`,
 };
 
 function deanIcon(name, cls = '') {
@@ -59,32 +57,30 @@ function renderSidebar(activePage) {
             || (item.href !== '/dean' && currentPath.startsWith(item.href))
             || (item.href === '/dean' && (currentPath === '/dean' || currentPath === '/dean/dashboard'));
         const badgeHtml = item.badge && item.key === 'live'
-            ? `<span class="nav-badge" id="sb-live-count" style="background:var(--red)">—</span>`
+            ? `<span class="nav-badge" id="sb-live-count" style="background:var(--red);display:none">0</span>`
             : item.badge && item.key === 'notifications'
                 ? `<span class="nav-badge" id="sb-notif-count" style="background:var(--gold);color:#000;display:none">0</span>`
                 : '';
-        return `<a class="nav-item${isActive ? ' active' : ''}" href="${item.href}">
+        return `<a class="nav-item${isActive ? ' active' : ''}" href="${item.href}" title="${item.label}">
             <span class="nav-icon">${DEAN_ICONS[item.icon] || ''}</span>
             <span>${item.label}</span>${badgeHtml}
         </a>`;
     }).join('\n');
 
+    // Referee-style sidebar markup
     const sidebarHtml = `
 <aside class="sidebar" id="sidebar">
     <div class="sidebar-logo">
-        <div class="logo-mark" style="background:var(--gold);color:#000;width:36px;height:36px;border-radius:10px;display:flex;align-items:center;justify-content:center;">
-            ${DEAN_ICONS.trophy}
-        </div>
+        <div class="logo-mark">${DEAN_ICONS.trophy}</div>
         <div class="sidebar-logo-text">PAC<span> SCHED-SCORE</span></div>
+        <button class="sidebar-close-btn" onclick="toggleSidebar()" aria-label="Close menu">${DEAN_ICONS.x}</button>
     </div>
-    <div class="sidebar-role role-dean">${deanIcon('grad')} Dean / Adviser</div>
+    <div class="sidebar-role-badge role-dean">Dean / Adviser</div>
     <div class="sidebar-dept">
-        <span class="sidebar-dept-icon">${deanIcon('building')}</span>
+        <span class="sidebar-dept-icon">${DEAN_ICONS.building}</span>
         <span id="sb-dept-name">${deptName}</span>
     </div>
-    <nav class="sidebar-nav">
-        ${navHtml}
-    </nav>
+    <nav class="sidebar-nav">${navHtml}</nav>
     <div class="sidebar-footer">
         <div class="user-card">
             <div class="user-avatar" id="sb-avatar">${avatar}</div>
@@ -97,19 +93,19 @@ function renderSidebar(activePage) {
     </div>
 </aside>`;
 
+    document.getElementById('sidebar')?.remove();
     const mainEl = document.querySelector('main.main') || document.querySelector('main');
     if (mainEl) mainEl.insertAdjacentHTML('beforebegin', sidebarHtml);
     else document.body.insertAdjacentHTML('afterbegin', sidebarHtml);
 
     document.getElementById('logout-btn')?.addEventListener('click', confirmDeanLogout);
-    initMobileNav();
-    injectDeanNotifBell();
 
-    const hideBadge = (id) => {
-        const el = document.getElementById(id);
-        if (el) el.style.display = 'none';
-    };
+    if (deanSidebarCollapsed) {
+        document.getElementById('sidebar')?.classList.add('collapsed');
+        document.querySelector('.main')?.classList.add('sidebar-collapsed');
+    }
 
+    // Live badge
     api('/matches/live').then(r => {
         const badge = document.getElementById('sb-live-count');
         if (!badge) return;
@@ -117,61 +113,91 @@ function renderSidebar(activePage) {
         const count = r.data?.length || 0;
         badge.textContent = count;
         badge.style.display = count > 0 ? '' : 'none';
-    }).catch(() => hideBadge('sb-live-count'));
+    }).catch(() => {
+        const badge = document.getElementById('sb-live-count');
+        if (badge) badge.style.display = 'none';
+    });
 
+    // Topbar (referee-style) + mobile nav
+    renderDeanTopbar();
+    injectDeanNotifEngine();
 }
 
-function injectDeanNotifBell() {
-    if (typeof NotificationEngine === 'undefined') return;
+async function renderDeanTopbar() {
+    const topbar = document.querySelector('.topbar');
+    if (!topbar) return;
 
-    const actions = document.querySelector('.topbar-actions');
-    if (actions && !document.getElementById('sf-notif-wrap')) {
-        const wrap = document.createElement('div');
-        wrap.id = 'sf-notif-wrap';
-        wrap.style.cssText = 'display:flex;align-items:center;gap:10px;margin-right:4px;position:relative;';
-        wrap.innerHTML = `
+    const user = Auth.getUser();
+    const firstName = user?.first_name || 'Dean';
+    const lastName = user?.last_name || '';
+    const initials = (firstName[0] || 'D').toUpperCase();
+
+    // Preserve existing page title if present
+    const existingTitle = topbar.querySelector('.topbar-title');
+    const titleHtml = existingTitle
+        ? existingTitle.outerHTML
+        : `<div class="topbar-title">Dashboard</div>`;
+
+    // Preserve extra action buttons that pages put in .topbar-actions
+    const existingActions = topbar.querySelector('.topbar-actions');
+    const pageActionsHtml = existingActions ? existingActions.innerHTML : '';
+
+    topbar.innerHTML = `
+        <div class="topbar-left">
+            <button class="burger-menu" onclick="toggleSidebar()" aria-label="Open menu">${DEAN_ICONS.menu}</button>
+            ${titleHtml}
+        </div>
+        <div class="topbar-right">
             <span id="sf-conn-dot" title="Connecting…"
                   style="width:8px;height:8px;border-radius:50%;background:var(--muted);flex-shrink:0;
-                         box-shadow:0 0 0 3px rgba(34,197,94,0.12)"></span>
-            <div class="nav-notification-container" style="position:relative">
-                <button type="button" id="sf-notif-btn" class="btn btn-secondary btn-sm"
-                        style="padding:6px 10px;position:relative" aria-label="Notifications">
-                    <span class="icon" style="width:16px;height:16px">${DEAN_ICONS.bell}</span>
-                    <span id="sf-notif-badge" class="notif-badge" style="display:none">0</span>
-                </button>
-                <div id="sf-notif-dropdown" class="notif-dropdown" style="display:none;position:absolute;right:0;top:calc(100% + 8px);width:320px;background:var(--bg2);border:1px solid var(--border);border-radius:12px;box-shadow:0 12px 40px rgba(0,0,0,.45);z-index:200;overflow:hidden">
-                    <div class="notif-header" style="display:flex;justify-content:space-between;align-items:center;padding:10px 14px;border-bottom:1px solid var(--border)">
-                        <span style="font-weight:700;font-size:13px">Notifications</span>
+                         box-shadow:0 0 0 3px rgba(34,197,94,0.12);margin-right:4px;align-self:center"></span>
+            <div class="nav-notification-container">
+                <div class="nav-bell" onclick="window.toggleDeanNotifDropdown && window.toggleDeanNotifDropdown(event)" role="button" aria-label="Notifications">
+                    ${DEAN_ICONS.bell}
+                    <span id="notif-badge" style="display:none">0</span>
+                </div>
+                <div id="notif-dropdown">
+                    <div class="notif-header-row">
+                        <span class="notif-header-title">${DEAN_ICONS.bell} Notifications</span>
+                        <span class="notif-mark-read" onclick="window.deanMarkAllRead && window.deanMarkAllRead(event)">Mark all read</span>
                     </div>
-                    <div class="notif-list" id="sf-notif-list" style="max-height:320px;overflow-y:auto">
-                        <div class="notif-item empty" style="padding:16px;color:var(--muted);text-align:center;font-size:13px">No notifications yet</div>
+                    <div id="notif-list"></div>
+                    <div class="notif-footer">
+                        <a href="/dean/notifications">View all</a>
                     </div>
                 </div>
-            </div>`;
-        actions.insertBefore(wrap, actions.firstChild);
+            </div>
+            <div class="topbar-actions" style="display:flex;align-items:center;gap:8px">${pageActionsHtml}</div>
+            <div class="user-pill">
+                <div class="user-pill-avatar">${initials}</div>
+                <span class="user-pill-name">${firstName}${lastName ? ' ' + lastName : ''}</span>
+            </div>
+        </div>
+    `;
 
-        const btn = document.getElementById('sf-notif-btn');
-        const dd = document.getElementById('sf-notif-dropdown');
-        btn?.addEventListener('click', (e) => {
-            e.stopPropagation();
-            dd.style.display = dd.style.display === 'block' ? 'none' : 'block';
-        });
-        document.addEventListener('click', () => { if (dd) dd.style.display = 'none'; });
-        dd?.addEventListener('click', (e) => e.stopPropagation());
+    if (!document.getElementById('sidebar-overlay')) {
+        const overlay = document.createElement('div');
+        overlay.id = 'sidebar-overlay';
+        overlay.onclick = toggleSidebar;
+        document.body.appendChild(overlay);
     }
+}
 
-    // Live socket (joins user_/role_/dept_ rooms)
+function injectDeanNotifEngine() {
     if (typeof Realtime !== 'undefined') {
         Realtime.connect().catch(() => { });
     }
 
-    NotificationEngine.mount({
-        stateContainerId: 'sf-notif-list',
-        badgeId: 'sf-notif-badge',
-        role: 'dean_adviser',
-    });
+    if (typeof NotificationEngine !== 'undefined') {
+        NotificationEngine.mount({
+            stateContainerId: 'notif-list',
+            badgeId: 'notif-badge',
+            role: 'dean_adviser',
+        });
+    }
 
     const syncNavBadge = async () => {
+        if (typeof NotificationEngine === 'undefined') return;
         const items = await NotificationEngine.list('dean_adviser');
         const navBadge = document.getElementById('sb-notif-count');
         if (!navBadge) return;
@@ -180,7 +206,48 @@ function injectDeanNotifBell() {
     };
     syncNavBadge();
     setInterval(syncNavBadge, 45000);
-    ['sf:notif', 'sf:live', 'sf:match', 'sf:leaderboard'].forEach(evt => window.addEventListener(evt, syncNavBadge));
+    ['sf:notif', 'sf:live', 'sf:match', 'sf:leaderboard'].forEach(evt =>
+        window.addEventListener(evt, syncNavBadge)
+    );
+}
+
+window.toggleDeanNotifDropdown = function (event) {
+    if (event) event.stopPropagation();
+    const dd = document.getElementById('notif-dropdown');
+    if (!dd) return;
+    const isOpen = dd.classList.contains('open');
+    dd.classList.toggle('open', !isOpen);
+    dd.style.display = isOpen ? 'none' : 'flex';
+};
+
+window.deanMarkAllRead = async function (event) {
+    if (event) event.stopPropagation();
+    try {
+        await api('/notifications/read-all', { method: 'PATCH' }).catch(() => { });
+        if (typeof NotificationEngine !== 'undefined') NotificationEngine.undismissAll();
+    } catch (_) { }
+    const badge = document.getElementById('notif-badge');
+    const list = document.getElementById('notif-list');
+    if (badge) badge.style.display = 'none';
+    if (list) list.innerHTML = `<div class="notif-empty">You're all caught up</div>`;
+};
+
+window.addEventListener('click', function (e) {
+    const dd = document.getElementById('notif-dropdown');
+    const bell = document.querySelector('.nav-bell');
+    if (dd && bell && !bell.contains(e.target) && !dd.contains(e.target)) {
+        dd.classList.remove('open');
+        dd.style.display = 'none';
+    }
+});
+
+function toggleSidebar() {
+    deanMobileOpen = !deanMobileOpen;
+    const sidebar = document.getElementById('sidebar');
+    const overlay = document.getElementById('sidebar-overlay');
+    if (sidebar) sidebar.classList.toggle('sidebar-open', deanMobileOpen);
+    if (overlay) overlay.style.display = deanMobileOpen ? 'block' : 'none';
+    document.body.style.overflow = deanMobileOpen ? 'hidden' : '';
 }
 
 function confirmDeanLogout() {
@@ -205,79 +272,16 @@ function confirmDeanLogout() {
     document.body.appendChild(overlay);
 }
 
-function initMobileNav() {
-    const titleEl = document.querySelector('.topbar-title');
-    if (titleEl && !titleEl.querySelector('.burger-menu')) {
-        const btn = document.createElement('button');
-        btn.className = 'burger-menu';
-        btn.type = 'button';
-        btn.setAttribute('aria-label', 'Open navigation menu');
-        btn.setAttribute('aria-expanded', 'false');
-        btn.setAttribute('aria-controls', 'sidebar');
-        btn.innerHTML = deanIcon('menu');
-        titleEl.insertAdjacentElement('afterbegin', btn);
-        btn.addEventListener('click', toggleMobileSidebar);
+// Close mobile sidebar on nav click / resize / Escape (referee parity)
+document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && deanMobileOpen) toggleSidebar();
+});
+window.addEventListener('resize', () => {
+    if (window.innerWidth > 900 && deanMobileOpen) {
+        deanMobileOpen = false;
+        document.getElementById('sidebar')?.classList.remove('sidebar-open');
+        const overlay = document.getElementById('sidebar-overlay');
+        if (overlay) overlay.style.display = 'none';
+        document.body.style.overflow = '';
     }
-
-    if (!document.getElementById('dean-sidebar-overlay')) {
-        const overlay = document.createElement('div');
-        overlay.className = 'sidebar-open-overlay';
-        overlay.id = 'dean-sidebar-overlay';
-        overlay.addEventListener('click', closeMobileSidebar);
-        document.body.appendChild(overlay);
-    }
-
-    const sidebarEl = document.getElementById('sidebar');
-    if (sidebarEl) {
-        sidebarEl.querySelectorAll('.nav-item').forEach(a => a.addEventListener('click', closeMobileSidebar));
-
-        let touchStartX = null, touchStartY = null;
-        sidebarEl.addEventListener('touchstart', (e) => {
-            touchStartX = e.touches[0].clientX;
-            touchStartY = e.touches[0].clientY;
-        }, { passive: true });
-        sidebarEl.addEventListener('touchmove', (e) => {
-            if (touchStartX === null) return;
-            const dx = e.touches[0].clientX - touchStartX;
-            const dy = e.touches[0].clientY - touchStartY;
-            if (dx < -45 && Math.abs(dx) > Math.abs(dy)) closeMobileSidebar();
-        }, { passive: true });
-        sidebarEl.addEventListener('touchend', () => { touchStartX = null; touchStartY = null; });
-    }
-
-    if (!window.__deanMobileNavGlobalBound) {
-        window.__deanMobileNavGlobalBound = true;
-        document.addEventListener('keydown', (e) => {
-            if (e.key === 'Escape') closeMobileSidebar();
-        });
-        window.addEventListener('resize', () => {
-            if (window.innerWidth > 900) closeMobileSidebar();
-        });
-    }
-}
-
-function toggleMobileSidebar() {
-    const sidebarEl = document.getElementById('sidebar');
-    if (!sidebarEl) return;
-    sidebarEl.classList.contains('sidebar-open') ? closeMobileSidebar() : openMobileSidebar();
-}
-
-function openMobileSidebar() {
-    const sidebarEl = document.getElementById('sidebar');
-    const overlay = document.getElementById('dean-sidebar-overlay');
-    const btn = document.querySelector('.burger-menu');
-    sidebarEl?.classList.add('sidebar-open');
-    overlay?.classList.add('show');
-    btn?.setAttribute('aria-expanded', 'true');
-    document.body.style.overflow = 'hidden';
-}
-
-function closeMobileSidebar() {
-    const sidebarEl = document.getElementById('sidebar');
-    const overlay = document.getElementById('dean-sidebar-overlay');
-    const btn = document.querySelector('.burger-menu');
-    sidebarEl?.classList.remove('sidebar-open');
-    overlay?.classList.remove('show');
-    btn?.setAttribute('aria-expanded', 'false');
-    document.body.style.overflow = '';
-}
+});
