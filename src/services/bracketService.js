@@ -78,15 +78,15 @@ const generateDivisionGauntlet = async (tournament, participants, pool) => {
     const juniorTeams = junior.filter((p) => Number(p.is_exhibition) !== 1);
     const seniorTeams = senior.filter((p) => Number(p.is_exhibition) !== 1);
 
-    if (juniorTeams.length !== 4 || seniorTeams.length !== 4 || !nightOwls) {
-        throw new Error('Division Gauntlet needs 4 Junior High teams, 4 Senior High teams, and one Senior High exhibition team.');
+    if (juniorTeams.length !== 4 || seniorTeams.length !== 3 || !nightOwls) {
+        throw new Error('Division Gauntlet needs 4 Junior High teams, 3 Senior High teams, and one Senior High exhibition team.');
     }
 
     const matches = [
         ['Day 2 · Junior High · Game 1', juniorTeams[0], juniorTeams[1]],
         ['Day 2 · Junior High · Game 2', juniorTeams[2], juniorTeams[3]],
         ['Day 2 · Senior High · Game 3', seniorTeams[0], seniorTeams[1]],
-        ['Day 2 · Senior High · Game 4', seniorTeams[2], seniorTeams[3]],
+        ['Day 2 · Senior High · Game 4 · Bye', seniorTeams[2], null],
         ['Day 3 · Junior High · Loser vs Loser', null, null],
         ['Day 3 · Junior High · Winner vs Winner', null, null],
         ['Day 3 · Junior High · Loser vs Winner', null, null],
@@ -106,9 +106,18 @@ const generateDivisionGauntlet = async (tournament, participants, pool) => {
              VALUES (?, ?, ?, ?, ?, 'division_gauntlet', ?, ?, ?)`,
             [tournament.id, tournament.sport_id, i < 4 ? 1 : i < 10 ? 2 : 3, i + 1,
                 label, a?.department_id || null, b?.department_id || null,
-            a && b ? 'scheduled' : 'pending']
+            a && b ? 'scheduled' : (a ? 'walkover' : 'pending')]
         );
         ids.push(result.insertId);
+
+        if (a && !b) {
+            await pool.execute(
+                `UPDATE matches
+                 SET winner_department_id = ?, completed_at = NOW()
+                 WHERE id = ?`,
+                [a.department_id, result.insertId]
+            );
+        }
     }
     const links = [
         [0, 4, 'a', 'loser'], [1, 4, 'b', 'loser'], [0, 5, 'a', 'winner'], [1, 5, 'b', 'winner'],
@@ -124,6 +133,14 @@ const generateDivisionGauntlet = async (tournament, participants, pool) => {
             [ids[target], slot, ids[source]]
         );
     }
+
+    // With three Senior High teams, Game 4 is a bye and its winner enters the Night Owls match.
+    await pool.execute(
+        `UPDATE matches
+         SET participant_a_department_id = ?, status = 'scheduled'
+         WHERE id = ?`,
+        [seniorTeams[2].department_id, ids[7]]
+    );
 };
 
 
