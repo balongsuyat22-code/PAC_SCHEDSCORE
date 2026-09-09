@@ -1882,7 +1882,7 @@
 
         async function saveScores() {
             const match = allMatches.find(m => m.id === activeId);
-            if (!match || match.status !== 'ongoing') {
+            if (!match || !['ongoing', 'completed'].includes(match.status)) {
                 Toast.show('Start the match before entering scores.', 'error');
                 return;
             }
