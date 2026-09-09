@@ -1130,18 +1130,19 @@ const scheduleRoundRobin = async (req, res, next) => {
 
 const getPointsConfig = async (req, res, next) => {
     try {
-        const [[t]] = await pool.execute(
-            'SELECT points_config FROM tournaments WHERE id = ?',
-            [req.params.id]
-        );
-        if (!t) return res.status(404).json({ success: false, message: 'Tournament not found' });
-
         let map = DEFAULT_MEDAL_POINTS;
-        if (t.points_config) {
-            try {
+        try {
+            const [[t]] = await pool.execute(
+                'SELECT points_config FROM tournaments WHERE id = ?',
+                [req.params.id]
+            );
+            if (!t) return res.status(404).json({ success: false, message: 'Tournament not found' });
+            if (t.points_config) {
                 const parsed = typeof t.points_config === 'string' ? JSON.parse(t.points_config) : t.points_config;
                 if (parsed && Object.keys(parsed).length) map = parsed;
-            } catch { }
+            }
+        } catch (err) {
+            if (err.code !== 'ER_BAD_FIELD_ERROR') throw err;
         }
         return res.json({ success: true, data: { points_map: map } });
     } catch (err) {
@@ -1186,11 +1187,21 @@ const finalizeTournament = async (req, res, next) => {
 
         await conn.beginTransaction();
 
-        const [claim] = await conn.execute(
-            `UPDATE tournaments SET status = 'completed', points_config = ?, updated_at = NOW()
-             WHERE id = ? AND status != 'completed'`,
-            [JSON.stringify(pointsMap), req.params.id]
-        );
+        let claim;
+        try {
+            [claim] = await conn.execute(
+                `UPDATE tournaments SET status = 'completed', points_config = ?, updated_at = NOW()
+                 WHERE id = ? AND status != 'completed'`,
+                [JSON.stringify(pointsMap), req.params.id]
+            );
+        } catch (err) {
+            if (err.code !== 'ER_BAD_FIELD_ERROR') throw err;
+            [claim] = await conn.execute(
+                `UPDATE tournaments SET status = 'completed', updated_at = NOW()
+                 WHERE id = ? AND status != 'completed'`,
+                [req.params.id]
+            );
+        }
         if (claim.affectedRows === 0) {
             await conn.rollback();
             conn.release();

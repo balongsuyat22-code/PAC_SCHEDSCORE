@@ -116,6 +116,7 @@ CREATE TABLE IF NOT EXISTS tournaments (
     min_players INT NULL,
     category VARCHAR(20) NULL,
     is_exhibition TINYINT(1) NOT NULL DEFAULT 0,
+    points_config JSON NULL,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     CONSTRAINT fk_tour_sport FOREIGN KEY (sport_id) REFERENCES sports(id) ON DELETE CASCADE,
@@ -125,6 +126,9 @@ CREATE TABLE IF NOT EXISTS tournaments (
     SET NULL,
         INDEX idx_tour_status (status)
 ) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4;
+ALTER TABLE tournaments
+ADD COLUMN IF NOT EXISTS points_config JSON NULL
+AFTER is_exhibition;
 CREATE TABLE IF NOT EXISTS sport_fest_tournaments (
     sport_fest_id INT NOT NULL,
     tournament_id INT NOT NULL,
