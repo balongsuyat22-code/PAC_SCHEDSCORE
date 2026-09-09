@@ -352,8 +352,31 @@ function closeSidebar() {
     document.getElementById('hamburger-btn')?.classList.remove('open');
 }
 
-function confirmLogout() {
-    if (confirm('Sign out of SportFest 2025?')) {
+if (!window.Modal) {
+    window.Modal = {
+        confirm(message, title = 'Confirm action') {
+            const overlay = document.createElement('div');
+            overlay.style.cssText = 'position:fixed;inset:0;z-index:10000;background:rgba(0,0,0,.65);display:grid;place-items:center;padding:20px';
+            overlay.innerHTML = '<div style="width:min(420px,100%);background:#171b24;color:#f0f2f8;border:1px solid rgba(255,255,255,.12);border-radius:10px;padding:20px;box-shadow:0 16px 40px rgba(0,0,0,.45)">' +
+                '<h2 style="margin:0 0 12px;font-size:18px">' + title + '</h2>' +
+                '<p style="margin:0;line-height:1.5;white-space:pre-wrap"></p>' +
+                '<div style="display:flex;justify-content:flex-end;gap:8px;margin-top:20px"><button data-cancel type="button">Cancel</button><button data-ok type="button">Confirm</button></div></div>';
+            overlay.querySelector('p').textContent = message;
+            document.body.appendChild(overlay);
+            return new Promise(resolve => {
+                const finish = value => { overlay.remove(); resolve(value); };
+                overlay.querySelector('[data-ok]').onclick = () => finish(true);
+                overlay.querySelector('[data-cancel]').onclick = () => finish(false);
+                overlay.onclick = event => { if (event.target === overlay) finish(false); };
+                overlay.querySelector('[data-ok]').focus();
+            });
+        }
+    };
+}
+
+async function confirmLogout() {
+    const confirmed = await Modal.confirm('Sign out of SportFest 2025?', 'Sign out');
+    if (confirmed) {
         localStorage.clear();
         window.location.href = '/login';
     }

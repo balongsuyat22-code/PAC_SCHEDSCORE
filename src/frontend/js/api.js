@@ -76,8 +76,55 @@ window.Toast = Toast;
 const Modal = {
     open(id) { document.getElementById(id)?.classList.add('open'); },
     close(id) { document.getElementById(id)?.classList.remove('open'); },
-    closeAll() { document.querySelectorAll('.modal-overlay').forEach(m => m.classList.remove('open')); }
+    closeAll() { document.querySelectorAll('.modal-overlay').forEach(m => m.classList.remove('open')); },
+    _ensureDialog() {
+        if (document.getElementById('sf-dialog')) return document.getElementById('sf-dialog');
+        const overlay = document.createElement('div');
+        overlay.id = 'sf-dialog';
+        overlay.className = 'modal-overlay';
+        overlay.innerHTML = `<div class="modal sf-dialog-modal" role="dialog" aria-modal="true">
+            <div class="modal-header"><div class="modal-title" data-dialog-title></div>
+                <button class="modal-close" type="button" data-dialog-cancel aria-label="Close">X</button></div>
+            <div class="modal-body"><div data-dialog-message></div><input class="form-input" data-dialog-input type="text" hidden></div>
+            <div class="modal-footer"><button class="btn btn-secondary" type="button" data-dialog-cancel>Cancel</button>
+                <button class="btn btn-primary" type="button" data-dialog-ok>OK</button></div></div>`;
+        document.body.appendChild(overlay);
+        return overlay;
+    },
+    _dialog(mode, title, message, defaultValue = '') {
+        const overlay = this._ensureDialog();
+        const input = overlay.querySelector('[data-dialog-input]');
+        const ok = overlay.querySelector('[data-dialog-ok]');
+        const cancel = overlay.querySelectorAll('[data-dialog-cancel]');
+        overlay.querySelector('[data-dialog-title]').textContent = title;
+        overlay.querySelector('[data-dialog-message]').textContent = message;
+        input.hidden = mode !== 'prompt';
+        input.value = defaultValue;
+        ok.textContent = mode === 'confirm' ? 'Confirm' : 'OK';
+        cancel.forEach(button => { button.hidden = mode === 'alert'; });
+        overlay.classList.add('open');
+        if (mode === 'prompt') input.focus(); else ok.focus();
+        return new Promise(resolve => {
+            const finish = value => {
+                overlay.classList.remove('open');
+                ok.removeEventListener('click', onOk);
+                cancel.forEach(button => button.removeEventListener('click', onCancel));
+                overlay.removeEventListener('click', onBackdrop);
+                resolve(value);
+            };
+            const onOk = () => finish(mode === 'prompt' ? input.value : true);
+            const onCancel = () => finish(mode === 'prompt' ? null : false);
+            const onBackdrop = event => { if (event.target === overlay) onCancel(); };
+            ok.addEventListener('click', onOk);
+            cancel.forEach(button => button.addEventListener('click', onCancel));
+            overlay.addEventListener('click', onBackdrop);
+        });
+    },
+    confirm(message, title = 'Confirm action') { return this._dialog('confirm', title, message); },
+    alert(message, title = 'Notification') { return this._dialog('alert', title, message); },
+    prompt(message, defaultValue = '', title = 'Enter value') { return this._dialog('prompt', title, message, defaultValue); }
 };
+window.Modal = Modal;
 
 const statusBadge = (status) => {
     const map = {

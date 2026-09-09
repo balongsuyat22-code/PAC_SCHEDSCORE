@@ -64,17 +64,25 @@ async function computeFinalStandings(conn, tournamentId, format) {
     return singleEliminationStandings(conn, tournamentId);
 }
 async function recordResultsAndRebuild(conn, tournamentId, pointsMap = DEFAULT_MEDAL_POINTS) {
-    const [[t]] = await conn.execute('SELECT format FROM tournaments WHERE id = ?', [tournamentId]);
+    const [[t]] = await conn.execute('SELECT format, is_exhibition FROM tournaments WHERE id = ?', [tournamentId]);
     if (!t) return { recorded: 0 };
 
     const standings = await computeFinalStandings(conn, tournamentId, t.format);
+    const [participantRows] = await conn.execute(
+        'SELECT department_id, no_points FROM tournament_participants WHERE tournament_id = ?',
+        [tournamentId]
+    );
+    const noPoints = new Set(participantRows.filter((row) => Number(row.no_points) === 1).map((row) => Number(row.department_id)));
 
     await conn.execute('DELETE FROM tournament_results WHERE tournament_id = ?', [tournamentId]);
 
     for (const s of standings) {
         if (!s.department_id) continue;
-        const medal = s.rank === 1 ? 'gold' : s.rank === 2 ? 'silver' : s.rank === 3 ? 'bronze' : null;
-        const points = pointsMap[s.rank] || 0;
+        const excluded = Number(t.is_exhibition) === 1 || noPoints.has(Number(s.department_id));
+        const medal = excluded
+            ? null
+            : (s.rank === 1 ? 'gold' : s.rank === 2 ? 'silver' : s.rank === 3 ? 'bronze' : null);
+        const points = excluded ? 0 : (pointsMap[s.rank] || 0);
         await conn.execute(
             `INSERT INTO tournament_results (tournament_id, department_id, \`rank\`, medal, sport_fest_points, finalized_at)
              VALUES (?, ?, ?, ?, ?, NOW())`,
@@ -109,7 +117,11 @@ async function rebuildDepartmentScores(conn) {
          FROM tournament_results tr
          LEFT JOIN sport_fest_tournaments sft ON tr.tournament_id = sft.tournament_id
          JOIN departments d ON d.id = tr.department_id
-         WHERE d.is_exhibition = 0
+         JOIN tournaments t ON t.id = tr.tournament_id
+                 JOIN tournament_participants tp
+                     ON tp.tournament_id = tr.tournament_id
+                    AND tp.department_id = tr.department_id
+                 WHERE d.is_exhibition = 0 AND t.is_exhibition = 0 AND tp.no_points = 0
          GROUP BY tr.department_id, sft.sport_fest_id`
     );
 

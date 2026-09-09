@@ -115,6 +115,7 @@ CREATE TABLE IF NOT EXISTS tournaments (
     advance_per_group INT NULL,
     min_players INT NULL,
     category VARCHAR(20) NULL,
+    is_exhibition TINYINT(1) NOT NULL DEFAULT 0,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     CONSTRAINT fk_tour_sport FOREIGN KEY (sport_id) REFERENCES sports(id) ON DELETE CASCADE,
@@ -191,12 +192,16 @@ CREATE TABLE IF NOT EXISTS tournament_participants (
     department_id INT NOT NULL,
     seed INT NULL,
     status VARCHAR(20) DEFAULT 'active',
+    no_points TINYINT(1) NOT NULL DEFAULT 0,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     CONSTRAINT fk_tp_tour FOREIGN KEY (tournament_id) REFERENCES tournaments(id) ON DELETE CASCADE,
     CONSTRAINT fk_tp_dept FOREIGN KEY (department_id) REFERENCES departments(id) ON DELETE CASCADE,
     UNIQUE KEY uq_tp (tournament_id, department_id)
 ) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4;
+ALTER TABLE tournament_participants
+ADD COLUMN IF NOT EXISTS no_points TINYINT(1) NOT NULL DEFAULT 0
+AFTER status;
 CREATE TABLE IF NOT EXISTS matches (
     id INT AUTO_INCREMENT PRIMARY KEY,
     tournament_id INT NOT NULL,
@@ -399,3 +404,6 @@ CREATE TABLE IF NOT EXISTS sport_fest_champions (
 ALTER TABLE sport_fest_events
 ADD COLUMN IF NOT EXISTS champion_count TINYINT UNSIGNED NOT NULL DEFAULT 1
 AFTER is_current;
+ALTER TABLE tournaments
+ADD COLUMN IF NOT EXISTS is_exhibition TINYINT(1) NOT NULL DEFAULT 0
+AFTER category;

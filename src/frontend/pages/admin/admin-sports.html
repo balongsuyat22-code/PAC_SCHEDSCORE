@@ -813,7 +813,7 @@
             if (res.success) { Modal.close('modal-sport'); await loadPage(); }
         }
         async function deactivateSport(id) {
-            if (!confirm('Deactivate this sport? It will be hidden from active listings but its history stays intact.')) return;
+            if (!await Modal.confirm('Deactivate this sport? It will be hidden from active listings but its history stays intact.', 'Deactivate sport')) return;
             const res = await api(`/sports/${id}`, { method: 'DELETE' });
             Toast.show(res.message || (res.success ? 'Sport deactivated' : 'Error'), res.success ? 'success' : 'error');
             if (res.success) await loadPage();

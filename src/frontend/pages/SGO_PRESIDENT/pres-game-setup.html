@@ -2520,6 +2520,9 @@
                 const players = d.players || [];
                 const typeCls = d.is_team_sport ? 'team' : 'solo';
                 const typeLbl = d.is_team_sport ? 'Team' : 'Solo';
+                const noPointsControl = d.no_points
+                    ? '<span class="elig-sub" style="color:var(--orange)">No championship points</span>'
+                    : `<label class="elig-no-points"><input type="checkbox" class="no-points-toggle" data-department-id="${d.department_id}" onclick="event.stopPropagation()"> No points</label>`;
 
                 const playersHtml = players.length
                     ? players.map(p => `
@@ -2534,7 +2537,7 @@
                 return `
           <div class="elig-row ${d.already_added || !d.eligible ? 'disabled' : ''}" data-idx="${idx}">
             <div class="elig-row-head" onclick="toggleEligRow(${idx})">
-              <input type="checkbox" value="${d.department_id}"
+                            <input type="checkbox" class="participant-select" value="${d.department_id}"
                 ${d.already_added ? 'checked disabled' : (d.eligible ? '' : 'disabled')}
                 onclick="event.stopPropagation()">
               <div class="elig-dot" style="background:${d.department_color || '#555'}">${initials(d.department_name)}</div>
@@ -2543,6 +2546,7 @@
                 <div class="elig-sub">${d.reason || (d.eligible ? 'Eligible to add' : '')}</div>
               </div>
               <span class="elig-type ${typeCls}">${typeLbl}</span>
+              ${noPointsControl}
               <span class="elig-count ${countClass}">${d.approved_count}/${d.required}</span>
               <i class="fa-solid fa-chevron-right elig-caret" id="caret-${idx}"></i>
             </div>
@@ -2666,15 +2670,18 @@
         }
 
         async function submitParticipants() {
-            const checked = [...document.querySelectorAll('#dept-checklist input:checked:not(:disabled)')]
-                .map(c => parseInt(c.value, 10));
+            const checked = [...document.querySelectorAll('#dept-checklist .participant-select:checked:not(:disabled)')]
+                .map(c => ({
+                    department_id: parseInt(c.value, 10),
+                    no_points: c.closest('.elig-row')?.querySelector('.no-points-toggle')?.checked || false,
+                }));
             if (!checked.length) {
                 Toast.show('Select at least one eligible department', 'error');
                 return;
             }
             const res = await api(`/tournaments/${currentTournamentId}/participants`, {
                 method: 'POST',
-                body: { department_ids: checked },
+                body: { participants: checked },
             });
             Toast.show(res.message || (res.success ? 'Participants added' : 'Error'), res.success ? 'success' : 'error');
             if (res.success) {
@@ -2684,14 +2691,14 @@
         }
 
         async function generateBracket() {
-            if (!confirm('Generate the bracket now? This will (re)create matches for this tournament.')) return;
+            if (!await Modal.confirm('Generate the bracket now? This will (re)create matches for this tournament.', 'Generate bracket')) return;
             const res = await api(`/tournaments/${currentTournamentId}/generate`, { method: 'POST' });
             Toast.show(res.message || (res.success ? 'Bracket generated!' : 'Error'), res.success ? 'success' : 'error');
             if (res.success) refreshAll();
         }
 
         async function promoteKnockout() {
-            if (!confirm('Promote top finishers from each group into a knockout stage?')) return;
+            if (!await Modal.confirm('Promote top finishers from each group into a knockout stage?', 'Promote finalists')) return;
             const res = await api(`/tournaments/${currentTournamentId}/promote-knockout`, { method: 'POST' });
             Toast.show(res.message || (res.success ? 'Knockout stage generated!' : 'Error'), res.success ? 'success' : 'error');
             if (res.success) refreshAll();
@@ -2869,7 +2876,7 @@
 
             const matchesNeeded = autoScheduleMatchCount();
             if (dates.length * times.length < matchesNeeded) {
-                if (!confirm(`You only have ${dates.length * times.length} slot(s) for ${matchesNeeded} matches — some matches will share a slot time. Continue anyway?`)) return;
+                if (!await Modal.confirm(`You only have ${dates.length * times.length} slot(s) for ${matchesNeeded} matches — some matches will share a slot time. Continue anyway?`, 'Schedule matches')) return;
             }
 
             let res = await api(`/tournaments/${currentTournamentId}/schedule-auto`, {

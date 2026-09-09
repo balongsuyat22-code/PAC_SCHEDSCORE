@@ -689,9 +689,10 @@
             const d = allDepts.find(x => x.id === id);
             if (!d) return;
 
-            const ok = confirm(
+            const ok = await Modal.confirm(
                 `Delete "${d.name}" permanently?\n\n` +
-                `This removes the department and its related records.`
+                `This removes the department and its related records.`,
+                'Delete department'
             );
             if (!ok) return;
 

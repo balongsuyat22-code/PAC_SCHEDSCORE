@@ -710,7 +710,7 @@
                 .catch(() => {
                     // Clipboard API can fail (e.g. non-HTTPS or blocked permission) — show URL inline + prompt fallback.
                     showCopied();
-                    window.prompt('Copy this registration link:', link);
+                    Modal.prompt('Copy this registration link:', link, 'Registration link');
                 });
         }
 

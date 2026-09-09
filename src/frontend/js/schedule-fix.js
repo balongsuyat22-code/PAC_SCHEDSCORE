@@ -195,7 +195,7 @@ async function saveSFSchedule() {
         } else {
             const msg = data.message || 'Failed to schedule match';
             if (typeof Toast !== 'undefined') Toast.show(msg, 'error');
-            else alert('Error: ' + msg);
+            else if (typeof Modal !== 'undefined') await Modal.alert('Error: ' + msg, 'Schedule error');
         }
     } catch (e) {
         console.error('[schedule-fix] Save error:', e);

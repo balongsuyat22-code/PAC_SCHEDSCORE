@@ -1737,7 +1737,7 @@
         }
 
         async function startMatch(id) {
-            if (!confirm('Start this match now? It will be marked as LIVE and available for scoring.')) return;
+            if (!await Modal.confirm('Start this match now? It will be marked as LIVE and available for scoring.', 'Start match')) return;
             const res = await api(`/matches/${id}/start`, { method: 'PATCH' });
             Toast.show(res.message || (res.success ? 'Match is now LIVE!' : 'Error'), res.success ? 'success' : 'error');
             if (res.success) await refresh();

@@ -209,7 +209,7 @@
         }
 
         async function changeLiveScore(matchId, currentA, currentB) {
-            const value = prompt('Enter score as Team A - Team B:', `${currentA}-${currentB}`);
+            const value = await Modal.prompt('Enter score as Team A - Team B:', `${currentA}-${currentB}`, 'Update score');
             if (value === null) return;
             const parts = value.split('-').map(v => Number(v.trim()));
             if (parts.length !== 2 || parts.some(v => !Number.isFinite(v) || v < 0)) {

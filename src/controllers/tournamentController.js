@@ -116,6 +116,7 @@ const getOne = async (req, res, next) => {
               tp.department_id,
               tp.seed,
               tp.status,
+              tp.no_points,
               tp.created_at,
               tp.updated_at,
               d.name AS department_name,
@@ -280,14 +281,16 @@ const getEligibility = async (req, res, next) => {
             playersByDept[p.department_id].push(p);
         });
 
+        const isExhibitionTournament = Number(t.is_exhibition) === 1;
         const data = depts.map((d) => {
             const approved_count = countMap[d.department_id] || 0;
             const already_added = alreadySet.has(Number(d.department_id));
-            const eligible = !already_added && approved_count >= required;
+            const noPointsByDepartment = Number(d.is_exhibition) === 1;
+            const eligible = !already_added && (isExhibitionTournament || noPointsByDepartment || approved_count >= required);
             let reason = null;
             if (already_added) {
                 reason = 'Already in this tournament';
-            } else if (approved_count < required) {
+            } else if (!isExhibitionTournament && !noPointsByDepartment && approved_count < required) {
                 reason = teamGame
                     ? `Team sport needs at least ${required} approved players (has ${approved_count})`
                     : `Needs at least ${required} approved player(s) (has ${approved_count})`;
@@ -300,6 +303,7 @@ const getEligibility = async (req, res, next) => {
                 department_code: d.department_code,
                 division: d.division,
                 is_exhibition: Number(d.is_exhibition) === 1,
+                no_points: noPointsByDepartment,
                 team_name: null,
                 approved_count,
                 required,
@@ -323,6 +327,7 @@ const getEligibility = async (req, res, next) => {
                 min_players: t.min_players,
                 team_size: t.team_size,
                 category: t.category,
+                is_exhibition: isExhibitionTournament,
             },
         });
     } catch (err) {
@@ -334,7 +339,10 @@ const getEligibility = async (req, res, next) => {
 const addParticipants = async (req, res, next) => {
     try {
         const tournamentId = req.params.id;
-        let departmentIds = req.body.department_ids || req.body.departments || [];
+        const requestedParticipants = Array.isArray(req.body.participants) ? req.body.participants : null;
+        let departmentIds = requestedParticipants
+            ? requestedParticipants.map((p) => p.department_id)
+            : (req.body.department_ids || req.body.departments || []);
         if (!Array.isArray(departmentIds)) departmentIds = [departmentIds];
         departmentIds = [
             ...new Set(departmentIds.map((id) => parseInt(id, 10)).filter((id) => id > 0)),
@@ -367,10 +375,25 @@ const addParticipants = async (req, res, next) => {
 
         const rejected = [];
         const toInsert = [];
+        const noPointsByDepartment = new Map(
+            (requestedParticipants || []).map((p) => [parseInt(p.department_id, 10), p.no_points === true || p.no_points === 1 || p.no_points === '1'])
+        );
 
         for (const deptId of departmentIds) {
             if (existingSet.has(deptId)) {
                 rejected.push({ department_id: deptId, reason: 'Already in this tournament' });
+                continue;
+            }
+
+            const [deptRows] = await pool.execute('SELECT is_exhibition FROM departments WHERE id = ? AND is_active = 1', [deptId]);
+            if (!deptRows.length) {
+                rejected.push({ department_id: deptId, reason: 'Department not found or inactive' });
+                continue;
+            }
+            const noPoints = Number(deptRows[0].is_exhibition) === 1 || noPointsByDepartment.get(deptId) === true;
+
+            if (noPoints || Number(t.is_exhibition) === 1) {
+                toInsert.push({ id: deptId, noPoints: true });
                 continue;
             }
 
@@ -391,7 +414,7 @@ const addParticipants = async (req, res, next) => {
                 continue;
             }
 
-            toInsert.push(deptId);
+            toInsert.push({ id: deptId, noPoints: false });
         }
 
         if (!toInsert.length) {
@@ -403,18 +426,18 @@ const addParticipants = async (req, res, next) => {
         }
 
         const added = [];
-        for (const deptId of toInsert) {
+        for (const participant of toInsert) {
             try {
                 await pool.execute(
-                    `INSERT INTO tournament_participants (tournament_id, department_id, status, created_at)
-           VALUES (?, ?, 'active', NOW())`,
-                    [tournamentId, deptId]
+                    `INSERT INTO tournament_participants (tournament_id, department_id, status, no_points, created_at)
+           VALUES (?, ?, 'active', ?, NOW())`,
+                    [tournamentId, participant.id, participant.noPoints ? 1 : 0]
                 );
-                added.push(deptId);
-                existingSet.add(deptId);
+                added.push(participant.id);
+                existingSet.add(participant.id);
             } catch (e) {
                 if (e.code === 'ER_DUP_ENTRY') {
-                    rejected.push({ department_id: deptId, reason: 'Already in this tournament' });
+                    rejected.push({ department_id: participant.id, reason: 'Already in this tournament' });
                 } else {
                     throw e;
                 }
@@ -483,6 +506,7 @@ const create = async (req, res, next) => {
             advance_per_group,
             min_players,
             category,
+            is_exhibition,
         } = req.body;
 
         if (!name || !sport_id) {
@@ -524,8 +548,8 @@ const create = async (req, res, next) => {
             `INSERT INTO tournaments
                 (name, sport_id, sport_fest_id, format, gender, status, max_participants,
                  start_date, end_date, description, created_by, ffa_scoring,
-                 group_count, advance_per_group, min_players, category)
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+                 group_count, advance_per_group, min_players, category, is_exhibition)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
             [
                 name,
                 sport_id,
@@ -543,6 +567,7 @@ const create = async (req, res, next) => {
                 advance_per_group || null,
                 effectiveMin,
                 effectiveCategory,
+                is_exhibition === true || is_exhibition === 1 || is_exhibition === '1' || is_exhibition === 'true' ? 1 : 0,
             ]
         );
 
@@ -594,6 +619,7 @@ const update = async (req, res, next) => {
             advance_per_group,
             min_players,
             category,
+            is_exhibition,
         } = req.body;
 
         let effectiveMin = min_players !== undefined ? parseInt(min_players, 10) : t.min_players;
@@ -617,6 +643,7 @@ const update = async (req, res, next) => {
         advance_per_group = COALESCE(?, advance_per_group),
         min_players = COALESCE(?, min_players),
         category = COALESCE(?, category),
+        is_exhibition = COALESCE(?, is_exhibition),
         updated_at = NOW()
        WHERE id = ?`,
             [
@@ -633,9 +660,19 @@ const update = async (req, res, next) => {
                 advance_per_group ?? null,
                 effectiveMin ?? null,
                 effectiveCategory ?? null,
+                is_exhibition === undefined ? null : (is_exhibition === true || is_exhibition === 1 || is_exhibition === '1' || is_exhibition === 'true' ? 1 : 0),
                 id,
             ]
         );
+
+        if (is_exhibition !== undefined && Number(t.is_exhibition) !== (is_exhibition === true || is_exhibition === 1 || is_exhibition === '1' || is_exhibition === 'true' ? 1 : 0)) {
+            const [[resultCount]] = await pool.execute(
+                'SELECT COUNT(*) AS count FROM tournament_results WHERE tournament_id = ?',
+                [id]
+            );
+            if (Number(resultCount.count) > 0) await recordResultsAndRebuild(pool, id);
+            else await rebuildDepartmentScores(pool);
+        }
 
         res.json({ success: true, message: 'Tournament updated' });
     } catch (err) {

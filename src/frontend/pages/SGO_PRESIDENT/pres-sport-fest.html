@@ -156,9 +156,9 @@
         async function editSeason(id) {
             const s = seasons.find(x => Number(x.id) === Number(id));
             if (!s) return;
-            const name = prompt('Sport Fest name:', s.name);
+            const name = await Modal.prompt('Sport Fest name:', s.name, 'Edit Sport Fest');
             if (name === null) return;
-            const count = prompt('Champions to declare (1 or 2):', String(s.champion_count || 1));
+            const count = await Modal.prompt('Champions to declare (1 or 2):', String(s.champion_count || 1), 'Champion count');
             if (count === null) return;
             const res = await api(`/sport-fest/${id}`, {
                 method: 'PUT', body: JSON.stringify({
@@ -174,7 +174,7 @@
             const res = await api(`/sport-fest/${id}/summary`);
             if (!res.success) return showMessage(res.message || 'Could not load summary', true);
             const champions = (res.data.champions || []).map(c => `${c.division}: ${c.name}`).join(', ') || 'Not declared';
-            alert(`${res.data.event.name}\nChampions: ${champions}\nTournaments: ${(res.data.tournaments || []).length}`);
+            await Modal.alert(`${res.data.event.name}\nChampions: ${champions}\nTournaments: ${(res.data.tournaments || []).length}`, 'Sport Fest summary');
         }
 
         function showMessage(message, error) {
