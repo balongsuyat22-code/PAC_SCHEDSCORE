@@ -891,8 +891,8 @@ const generateBracket = async (req, res, next) => {
         } else if (format === 'free_for_all') {
             await conn.execute(
                 `INSERT INTO matches
-          (tournament_id, sport_id, round_number, match_number, status)
-         VALUES (?, ?, 1, 1, 'scheduled')`,
+          (tournament_id, sport_id, round_number, match_number, bracket_position, bracket_side, status)
+         VALUES (?, ?, 1, 1, 'FFA Event', 'ffa', 'scheduled')`,
                 [req.params.id, t.sport_id]
             );
             created = 1;

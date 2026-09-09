@@ -2371,7 +2371,7 @@
         function tabResults() {
             // FFA: show event completion summary (standings tab has the ranked list)
             if (IS_FFA(tournament.format)) {
-                const ffaMatch = matches.find(m => m.bracket_side === 'ffa' || m.bracket_position === 'FFA Event');
+                const ffaMatch = matches.find(m => m.bracket_side === 'ffa' || m.bracket_position === 'FFA Event' || IS_FFA(m.tournament_format || fmt));
                 const scored = participants.filter(p => !dqList[p.department_id] && p.ffa_result_value != null).length;
                 const total = participants.filter(p => !dqList[p.department_id]).length;
                 const done = ffaMatch?.status === 'completed';
@@ -2692,7 +2692,11 @@
             const fmt = tournament?.format || '';
 
             if (IS_FFA(fmt)) {
-                const ffaMatch = matches.find(m => m.bracket_side === 'ffa' || m.bracket_position === 'FFA Event');
+                const ffaMatch = matches.find(m =>
+                    m.bracket_side === 'ffa' ||
+                    m.bracket_position === 'FFA Event' ||
+                    IS_FFA(m.tournament_format || fmt)
+                );
                 if (!ffaMatch) { Toast.show('No FFA match found. Click Initialize Event first.', 'error'); return; }
                 const slotDates = Object.entries(timeSlots);
                 if (!slotDates.length) { Toast.show('Add time slots first', 'error'); openTSModal(); return; }

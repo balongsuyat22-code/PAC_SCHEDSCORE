@@ -255,8 +255,9 @@ const getAll = async (req, res, next) => {
             LEFT JOIN users referee_user ON m.referee_id = referee_user.id
             LEFT JOIN match_results mr ON m.id = mr.match_id
             WHERE 1 = 1
-              AND (m.status NOT IN ('pending', 'scheduled')
-                   OR m.bracket_side = 'ffa'
+                AND (m.status NOT IN ('pending', 'scheduled')
+                    OR m.bracket_side = 'ffa'
+                    OR t.format IN ('free_for_all', 'team_ranking')
                    OR (m.participant_a_department_id IS NOT NULL
                        AND m.participant_b_department_id IS NOT NULL))
         `;
@@ -472,6 +473,7 @@ const getLive = async (req, res, next) => {
                     LEFT JOIN match_scores ms ON m.id = ms.match_id
                     WHERE m.status IN ('ongoing', 'scheduled')
                       AND (m.bracket_side = 'ffa'
+                          OR t.format IN ('free_for_all', 'team_ranking')
                            OR (m.participant_a_department_id IS NOT NULL
                                AND m.participant_b_department_id IS NOT NULL))
                     GROUP BY m.id
