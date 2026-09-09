@@ -1746,6 +1746,11 @@
             const m = allMatches.find(x => x.id === id);
             if (!m) return;
 
+            if (m.status !== 'ongoing' && m.status !== 'completed') {
+                Toast.show('Start the match before entering scores.', 'error');
+                return;
+            }
+
             const type = matchType(m);
             activeMatchType = type;
             const readOnly = m.status === 'completed';
@@ -1796,7 +1801,7 @@
 
             periodsSection.style.display = '';
             binarySection.style.display = 'none';
-            saveBtn.style.display = '';
+            saveBtn.style.display = readOnly ? 'none' : '';
             saveBtn.innerHTML = `<span class="icon" data-icon="save"></span> Save ${type === 'sets' ? 'Sets' : 'Scores'}`;
             document.getElementById('score-period-col-label').textContent = type === 'sets' ? 'Set' : 'Period';
             document.getElementById('add-period-label').textContent = type === 'sets' ? 'Add Set' : 'Add Period';
@@ -1876,6 +1881,12 @@
         }
 
         async function saveScores() {
+            const match = allMatches.find(m => m.id === activeId);
+            if (!match || match.status !== 'ongoing') {
+                Toast.show('Start the match before entering scores.', 'error');
+                return;
+            }
+
             let saved = 0;
             for (const p of scorePeriods) {
                 const res = await api(`/matches/${activeId}/score`, {

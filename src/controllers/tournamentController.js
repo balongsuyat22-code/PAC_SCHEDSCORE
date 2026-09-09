@@ -1160,7 +1160,11 @@ const finalizeTournament = async (req, res, next) => {
 
         const [open] = await pool.execute(
             `SELECT COUNT(*) AS c FROM matches
-       WHERE tournament_id = ? AND status NOT IN ('completed', 'cancelled', 'walkover')`,
+       WHERE tournament_id = ?
+         AND status NOT IN ('completed', 'cancelled', 'walkover')
+         AND (bracket_side = 'ffa'
+              OR (participant_a_department_id IS NOT NULL
+                  AND participant_b_department_id IS NOT NULL))`,
             [req.params.id]
         );
         if (Number(open[0]?.c || 0) > 0) {
