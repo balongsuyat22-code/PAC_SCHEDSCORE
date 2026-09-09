@@ -1934,7 +1934,7 @@
                 tabs.push({ id: 'standings', label: 'Standings' });
                 if (ongoing) tabs.push({ id: 'results', label: 'Results' });
             }
-            if (!done) tabs.push({ id: 'finalize', label: 'Finalize' });
+            tabs.push({ id: 'finalize', label: done ? 'Recalculate Points' : 'Finalize' });
 
             if (!tabs.find(x => x.id === activeTab)) activeTab = 'overview';
 
@@ -2431,20 +2431,14 @@
         }
 
         function tabFinalize() {
-            if (currentTournament.status === 'completed') {
-                return `<div class="card"><div class="card-body"><div class="section-empty">
-                    <i class="fa-solid fa-circle-check" style="color:var(--green);font-size:28px"></i><br><br>
-                    Tournament already finalized.
-                </div></div></div>`;
-            }
             return `<div class="card">
-                <div class="card-header"><div class="card-title"><i class="fa-solid fa-flag-checkered"></i> Finalize Tournament</div></div>
+                <div class="card-header"><div class="card-title"><i class="fa-solid fa-flag-checkered"></i> ${currentTournament.status === 'completed' ? 'Recalculate Points' : 'Finalize Tournament'}</div></div>
                 <div class="card-body">
                     <p style="color:var(--muted);font-size:13px;margin-bottom:16px">
-                        Finalizing locks standings, awards medals, and updates the leaderboard. Configure points per place, then confirm.
+                        Configure points for 1st, 2nd, 3rd, and additional ranks, then confirm to update the leaderboard.
                     </p>
                     <button class="btn btn-success" onclick="openFinalizeModal()">
-                        <i class="fa-solid fa-flag-checkered"></i> Open Finalize
+                        <i class="fa-solid fa-${currentTournament.status === 'completed' ? 'rotate' : 'flag-checkered'}"></i> ${currentTournament.status === 'completed' ? 'Recalculate Results & Points' : 'Open Finalize'}
                     </button>
                 </div>
             </div>`;

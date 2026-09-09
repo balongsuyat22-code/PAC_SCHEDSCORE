@@ -1191,21 +1191,16 @@ const finalizeTournament = async (req, res, next) => {
         try {
             [claim] = await conn.execute(
                 `UPDATE tournaments SET status = 'completed', points_config = ?, updated_at = NOW()
-                 WHERE id = ? AND status != 'completed'`,
+                 WHERE id = ?`,
                 [JSON.stringify(pointsMap), req.params.id]
             );
         } catch (err) {
             if (err.code !== 'ER_BAD_FIELD_ERROR') throw err;
             [claim] = await conn.execute(
                 `UPDATE tournaments SET status = 'completed', updated_at = NOW()
-                 WHERE id = ? AND status != 'completed'`,
+                 WHERE id = ?`,
                 [req.params.id]
             );
-        }
-        if (claim.affectedRows === 0) {
-            await conn.rollback();
-            conn.release();
-            return res.status(409).json({ success: false, message: 'This tournament was already finalized.' });
         }
 
         const { recorded } = await recordResultsAndRebuild(conn, req.params.id, pointsMap);
@@ -1221,7 +1216,7 @@ const finalizeTournament = async (req, res, next) => {
         res.json({
             success: true,
             message: recorded
-                ? `Tournament finalized — ${recorded} department result(s) recorded.`
+                ? `${t.status === 'completed' ? 'Tournament results recalculated' : 'Tournament finalized'} — ${recorded} department result(s) recorded.`
                 : 'Tournament finalized (no standings could be determined — check the bracket/results were entered).',
             data: { id: req.params.id, status: 'completed', results_recorded: recorded, points_map: pointsMap },
         });

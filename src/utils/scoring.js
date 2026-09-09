@@ -23,17 +23,25 @@ async function ffaStandings(conn, tournamentId) {
 }
 async function singleEliminationStandings(conn, tournamentId) {
     const [matches] = await conn.execute(
-        `SELECT round_number, participant_a_department_id, participant_b_department_id, winner_department_id
+        `SELECT round_number, match_number, bracket_position, bracket_side,
+            participant_a_department_id, participant_b_department_id, winner_department_id
          FROM matches
          WHERE tournament_id = ?
          ORDER BY round_number ASC, match_number ASC`,
         [tournamentId]
     );
-    if (!matches.length) return [];
+    const [participants] = await conn.execute(
+        `SELECT department_id FROM tournament_participants
+         WHERE tournament_id = ? ORDER BY department_id`,
+        [tournamentId]
+    );
+    if (!matches.length || !participants.length) return [];
 
-    const maxRound = Math.max(...matches.map((m) => m.round_number));
-    const final = matches.find((m) => m.round_number === maxRound);
-    if (!final || !final.winner_department_id) return [];
+    const completed = matches.filter((m) => m.winner_department_id);
+    const final = completed.find((m) => m.bracket_side === 'grand_final') || completed
+        .filter((m) => m.bracket_position !== '3rd Place')
+        .sort((a, b) => Number(b.round_number) - Number(a.round_number) || Number(b.match_number) - Number(a.match_number))[0];
+    if (!final) return [];
 
     const loserOf = (m) => {
         if (!m.participant_a_department_id || !m.participant_b_department_id) return null; // bye
@@ -42,19 +50,32 @@ async function singleEliminationStandings(conn, tournamentId) {
             : m.participant_a_department_id;
     };
 
+    const lossInfo = new Map();
+    completed.forEach((match) => {
+        const loser = loserOf(match);
+        if (loser) lossInfo.set(Number(loser), {
+            round: Number(match.round_number) || 0,
+            match: Number(match.match_number) || 0,
+        });
+    });
+
+    const ranked = new Set([Number(final.winner_department_id)]);
     const standings = [{ department_id: final.winner_department_id, rank: 1 }];
     const finalLoser = loserOf(final);
-    if (finalLoser) standings.push({ department_id: finalLoser, rank: 2 });
-
-    const semiRound = maxRound - 1;
-    if (semiRound >= 1) {
-        matches
-            .filter((m) => m.round_number === semiRound && m.winner_department_id)
-            .forEach((m) => {
-                const loser = loserOf(m);
-                if (loser) standings.push({ department_id: loser, rank: 3 });
-            });
+    if (finalLoser) {
+        standings.push({ department_id: finalLoser, rank: 2 });
+        ranked.add(Number(finalLoser));
     }
+
+    participants
+        .map((p) => Number(p.department_id))
+        .filter((id) => !ranked.has(id))
+        .sort((a, b) => {
+            const lossA = lossInfo.get(a) || { round: 0, match: 0 };
+            const lossB = lossInfo.get(b) || { round: 0, match: 0 };
+            return lossB.round - lossA.round || lossB.match - lossA.match || a - b;
+        })
+        .forEach((department_id) => standings.push({ department_id, rank: standings.length + 1 }));
     return standings;
 }
 

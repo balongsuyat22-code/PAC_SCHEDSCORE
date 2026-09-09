@@ -1753,7 +1753,7 @@
 
             const type = matchType(m);
             activeMatchType = type;
-            const readOnly = m.status === 'completed';
+            const readOnly = type === 'binary' && m.status === 'completed';
 
             const nA = m.team_a_name || m.dept_a_name || 'A';
             const nB = m.team_b_name || m.dept_b_name || 'B';
@@ -1764,7 +1764,7 @@
             const titleIcon = type === 'binary' ? (ICON.typeBinary || '') : (type === 'sets' ? (ICON.typeSets || '') : (ICON.dashboard || ADMIN_ICONS.dashboard));
             const titleText = type === 'binary' ? 'Match Result' : (type === 'sets' ? 'Set Scoring' : 'Live Scoring');
             document.getElementById('score-modal-title').innerHTML =
-                `<span class="icon">${titleIcon}</span> ${titleText}${readOnly ? ' (Read Only)' : ''}`;
+                `<span class="icon">${titleIcon}</span> ${titleText}${readOnly ? ' (Read Only)' : (m.status === 'completed' ? ' (Edit)' : '')}`;
 
             const periodsSection = document.getElementById('score-periods-section');
             const binarySection = document.getElementById('score-binary-section');

@@ -16,7 +16,7 @@ const safeDate = (val) => { if (!val) return null; return String(val).split('T')
 
 const canReschedule = (status) => ['pending', 'scheduled'].includes(status);
 const canStart = (status) => ['pending', 'scheduled'].includes(status);
-const canScore = (status) => status === 'ongoing';
+const canScore = (status) => ['ongoing', 'completed'].includes(status);
 const canComplete = (status) => status === 'ongoing';
 
 /** Load names for notification messages */
@@ -787,9 +787,7 @@ const updateScore = async (req, res, next) => {
         if (!canScore(currentStatus)) {
             return res.status(409).json({
                 success: false,
-                message: currentStatus === 'completed'
-                    ? 'This match is already completed — scores are locked.'
-                    : 'Scores can only be entered once the match has started.',
+                message: 'Scores can only be entered after the match has started.',
             });
         }
 
@@ -825,7 +823,7 @@ const updateScore = async (req, res, next) => {
         const [[match]] = await pool.execute(
             `SELECT m.*, t.name AS tournament_name,
                     da.name AS dept_a_name, db.name AS dept_b_name,
-                    s.name AS sport_name
+                    s.name AS sport_name, s.scoring_type
              FROM matches m
              JOIN tournaments t ON m.tournament_id = t.id
              JOIN sports s ON m.sport_id = s.id
@@ -834,6 +832,15 @@ const updateScore = async (req, res, next) => {
              WHERE m.id = ?`,
             [matchId]
         );
+
+        if (match.status === 'completed') {
+            await pool.execute(
+                `UPDATE match_results
+                 SET total_score_a = ?, total_score_b = ?, final_score_display = ?
+                 WHERE match_id = ?`,
+                [totals.total_a, totals.total_b, `${totals.total_a} - ${totals.total_b}`, matchId]
+            );
+        }
 
 
         const scoreUpdate = {

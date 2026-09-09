@@ -95,6 +95,33 @@
         </div>
     </main>
 
+    <div class="modal-overlay" id="modal-edit-live-score">
+        <div class="modal" style="max-width:420px">
+            <div class="modal-header">
+                <div class="modal-title"><i class="fa-solid fa-pen-to-square"></i> Edit Live Score</div>
+                <button class="modal-close" onclick="Modal.close('modal-edit-live-score')"
+                    aria-label="Close">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div id="edit-score-match" style="font-weight:700;margin-bottom:16px"></div>
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+                    <label>Team A
+                        <input id="edit-score-a" class="form-input" type="number" min="0" step="1">
+                    </label>
+                    <label>Team B
+                        <input id="edit-score-b" class="form-input" type="number" min="0" step="1">
+                    </label>
+                </div>
+                <input id="edit-score-match-id" type="hidden">
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="Modal.close('modal-edit-live-score')">Cancel</button>
+                <button class="btn btn-primary" onclick="saveLiveScore()"><i class="fa-solid fa-floppy-disk"></i> Save
+                    Score</button>
+            </div>
+        </div>
+    </div>
+
     <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
     <script src="../../js/api.js"></script>
     <script src="../../js/sgo_president.js"></script>
@@ -193,7 +220,7 @@
                     <i class="fa-solid fa-location-dot"></i> ${m.venue_name || '—'}
                 </div>
                     ${m.score_updated_at ? `<div style="font-size:11px;color:var(--gold);margin-top:6px">SCORE UPDATED · ${m.score_updated_by || 'Authorized user'}</div>` : ''}
-                    <button class="btn btn-secondary btn-sm" style="margin-top:8px" type="button" onclick="changeLiveScore(${m.id}, ${m.live_score_a || 0}, ${m.live_score_b || 0})">Update score</button>
+                    <button class="btn btn-secondary btn-sm" style="margin-top:8px" type="button" onclick="changeLiveScore(${m.id}, ${m.live_score_a || 0}, ${m.live_score_b || 0}, '${(m.dept_a || 'Team A').replace(/'/g, "\\'")}', '${(m.dept_b || 'Team B').replace(/'/g, "\\'")}')">Update score</button>
             </div>
         </div>`).join('');
 
@@ -208,20 +235,31 @@
             });
         }
 
-        async function changeLiveScore(matchId, currentA, currentB) {
-            const value = await Modal.prompt('Enter score as Team A - Team B:', `${currentA}-${currentB}`, 'Update score');
-            if (value === null) return;
-            const parts = value.split('-').map(v => Number(v.trim()));
-            if (parts.length !== 2 || parts.some(v => !Number.isFinite(v) || v < 0)) {
-                Toast.show('Use a format such as 12-9.', 'error');
+        function changeLiveScore(matchId, currentA, currentB, teamA = 'Team A', teamB = 'Team B') {
+            document.getElementById('edit-score-match-id').value = matchId;
+            document.getElementById('edit-score-a').value = currentA;
+            document.getElementById('edit-score-b').value = currentB;
+            document.getElementById('edit-score-match').textContent = `${teamA} vs ${teamB}`;
+            Modal.open('modal-edit-live-score');
+        }
+
+        async function saveLiveScore() {
+            const matchId = document.getElementById('edit-score-match-id').value;
+            const scoreA = Number(document.getElementById('edit-score-a').value);
+            const scoreB = Number(document.getElementById('edit-score-b').value);
+            if (!Number.isFinite(scoreA) || !Number.isFinite(scoreB) || scoreA < 0 || scoreB < 0) {
+                Toast.show('Scores must be zero or higher.', 'error');
                 return;
             }
             const res = await api(`/matches/${matchId}/score`, {
                 method: 'PUT',
-                body: JSON.stringify({ period: 1, period_label: 'Live score', score_a: parts[0], score_b: parts[1] }),
+                body: { period: 1, period_label: 'Live score', score_a: scoreA, score_b: scoreB },
             });
             Toast.show(res.message || (res.success ? 'Score updated.' : 'Could not update score'), res.success ? 'success' : 'error');
-            if (res.success) await loadLive();
+            if (res.success) {
+                Modal.close('modal-edit-live-score');
+                await loadLive();
+            }
         }
 
         async function loadScheduled() {
