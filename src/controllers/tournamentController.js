@@ -469,14 +469,20 @@ const getBracket = async (req, res, next) => {
         m.winner_department_id, m.status, m.scheduled_date, m.scheduled_time,
         m.venue_id, m.referee_id, m.started_at, m.completed_at,
         m.created_at, m.updated_at,
+        m.next_match_id, m.next_match_slot,
+        m.loser_next_match_id, m.loser_next_match_slot,
+        s.name AS sport_name,
         da.name AS dept_a_name, da.color AS dept_a_color,
         db.name AS dept_b_name, db.color AS dept_b_color,
         v.name AS venue_name,
+        CONCAT(ru.first_name,' ',ru.last_name) AS referee_name,
         mr.total_score_a, mr.total_score_b, mr.final_score_display
         FROM matches m
+        LEFT JOIN sports s ON s.id = m.sport_id
         LEFT JOIN departments da ON da.id = m.participant_a_department_id
         LEFT JOIN departments db ON db.id = m.participant_b_department_id
         LEFT JOIN venues v ON v.id = m.venue_id
+        LEFT JOIN users ru ON ru.id = m.referee_id
         LEFT JOIN match_results mr ON mr.match_id = m.id
         WHERE m.tournament_id = ?
         ORDER BY m.round_number ASC, m.match_number ASC, m.id ASC`,

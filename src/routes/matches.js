@@ -3,10 +3,8 @@ const router = express.Router();
 const matchCtrl = require('../controllers/matchController');
 const { authenticate, authorize } = require('../middleware/auth');
 
-// —— Public / static paths FIRST (never after /:id) ——
 router.get('/live', matchCtrl.getLive);
 router.get('/mvps', matchCtrl.getMVPs);
-router.get('/ffa/:tournamentId', matchCtrl.getFFAResults);
 
 router.get('/officers', authenticate, authorize('sgo_president', 'admin'), matchCtrl.getAvailableOfficers);
 router.get('/my-assignments', authenticate, authorize('sgo_officer'), matchCtrl.getMyAssignments);
@@ -19,7 +17,7 @@ router.get(
 
 router.get('/', matchCtrl.getAll);
 
-// —— Param routes with extra segments before bare /:id ——
+router.get('/ffa/:tournamentId', matchCtrl.getFFAResults);
 router.get('/:id/scoreboard', matchCtrl.getScoreboard);
 router.get('/:id/watchers', matchCtrl.getWatchers);
 router.get(
@@ -36,9 +34,10 @@ router.get(
 );
 
 router.get('/:id', matchCtrl.getOne);
-
-// —— Mutations (auth required) ——
 router.use(authenticate);
+
+router.post('/custom', authorize('sgo_president', 'admin'), matchCtrl.createCustom);
+router.patch('/:id/link', authorize('sgo_president', 'admin'), matchCtrl.linkSource);
 
 router.post(
     '/ffa/:tournamentId/results',

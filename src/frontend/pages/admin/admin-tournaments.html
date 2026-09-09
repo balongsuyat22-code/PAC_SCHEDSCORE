@@ -1342,6 +1342,73 @@
         </div>
     </div>
 
+    <!-- Custom match builder -->
+    <div class="modal-overlay" id="modal-custom-match"
+        onclick="if(event.target===this)Modal.close('modal-custom-match')">
+        <div class="modal">
+            <div class="modal-header">
+                <div class="modal-title"><span style="color:var(--gold)">●</span> Add Custom Match</div>
+                <button class="modal-close" onclick="Modal.close('modal-custom-match')">×</button>
+            </div>
+            <div class="modal-body">
+                <div style="font-size:12px;color:var(--muted);margin-bottom:14px">
+                    Build a one-off match — like the SGO Days schedule — outside the auto-generated bracket.
+                    Leave a side's team blank and pick "fill from result" to place a special team ahead of time
+                    (e.g. Faculty/Night Owls) and wait for another match's winner or loser to fill the other side.
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Label</label>
+                    <input type="text" id="cm-label" class="form-input"
+                        placeholder="Day 3 · Pickleball · SGO vs Cheetah">
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label class="form-label">Side A — team</label>
+                        <select id="cm-a-dept" class="form-select"></select>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Side A — or fill from result</label>
+                        <select id="cm-a-src" class="form-select"></select>
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label class="form-label">Side B — team</label>
+                        <select id="cm-b-dept" class="form-select"></select>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Side B — or fill from result</label>
+                        <select id="cm-b-src" class="form-select"></select>
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label class="form-label">Date (optional)</label>
+                        <input type="date" id="cm-date" class="form-input">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Time (optional)</label>
+                        <input type="time" id="cm-time" class="form-input">
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label class="form-label">Venue (optional)</label>
+                        <select id="cm-venue" class="form-select"></select>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Referee (optional)</label>
+                        <select id="cm-referee" class="form-select"></select>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="Modal.close('modal-custom-match')">Cancel</button>
+                <button class="btn btn-primary" onclick="submitCustomMatch()">Create Match</button>
+            </div>
+        </div>
+    </div>
+
     <!-- DQ -->
     <div class="modal-overlay" id="modal-dq" onclick="if(event.target===this)Modal.close('modal-dq')">
         <div class="modal" style="max-width:480px">
@@ -1514,7 +1581,7 @@
 
         const PAGE_ID = new URLSearchParams(window.location.search).get('id');
         let allTournaments = [], allSports = [], activeFilter = 'all', createSlots = [];
-        let tournament = null, participants = [], matches = [], departments = [], venues = [], referees = [];
+        let tournament = null, participants = [], matches = [], bracketMatches = [], departments = [], venues = [], referees = [];
         let timeSlots = {}, activeTab = 'overview', dqList = {};
         let editingMatchId = null, dqTargetId = null, currentSport = {};
 
@@ -1779,8 +1846,12 @@
             referees = rRes.data || [];
             allSports = sRes.data || [];
             currentSport = allSports.find(s => s.id === tournament.sport_id) || { min_players: 1, category: 'individual' };
-            const mRes = await api(`/matches?tournament_id=${PAGE_ID}`);
+            const [mRes, bRes] = await Promise.all([
+                api(`/matches?tournament_id=${PAGE_ID}`),
+                api(`/tournaments/${PAGE_ID}/bracket`),
+            ]);
             matches = mRes.data || [];
+            bracketMatches = bRes.data || [];
             document.title = `${tournament.name} — PAC SCHED-SCORE`;
             populateEditSelects();
             renderDetail();
@@ -1794,15 +1865,17 @@
         }
 
         async function reloadDetail() {
-            const [tR, mR] = await Promise.all([
+            const [tR, mR, bR] = await Promise.all([
                 api(`/tournaments/${PAGE_ID}`),
                 api(`/matches?tournament_id=${PAGE_ID}`),
+                api(`/tournaments/${PAGE_ID}/bracket`),
             ]);
             if (tR.success) {
                 tournament = tR.data;
                 participants = tournament.participants || [];
             }
             matches = mR.data || [];
+            bracketMatches = bR.data || [];
             renderDetail();
         }
 
@@ -2142,17 +2215,45 @@
             </div>`;
         }
 
+        // Matches that feed a winner/loser into another match's slot, keyed by
+        // `${targetMatchId}:${slot}` so a card can say "TBD — winner of ...".
+        function bracketIncomingMap() {
+            const incoming = {};
+            bracketMatches.forEach(m => {
+                if (m.next_match_id) {
+                    incoming[`${m.next_match_id}:${m.next_match_slot || 'a'}`] = { source: m, result: 'winner' };
+                }
+                if (m.loser_next_match_id) {
+                    incoming[`${m.loser_next_match_id}:${m.loser_next_match_slot || 'a'}`] = { source: m, result: 'loser' };
+                }
+            });
+            return incoming;
+        }
+
+        function bracketMatchLabel(m) {
+            if (!m) return '';
+            return readableMatchPosition(m.bracket_position) || `Match #${m.id}`;
+        }
+
         function tabBracket() {
-            if (!matches.length) {
-                if (participants.length < 2) {
+            const addBtn = tournament.status !== 'completed'
+                ? `<button class="btn btn-primary btn-sm" onclick="openAddCustomMatch()">+ Add Custom Match</button>` : '';
+
+            if (!bracketMatches.length) {
+                if (participants.length < 2 && !addBtn) {
                     return `<div class="section-empty">Need at least 2 participants to generate bracket.</div>`;
                 }
-                return `<div class="section-empty">No matches yet. Click <strong>Generate Bracket</strong> to create the bracket.</div>`;
+                return `<div class="section-empty">
+                    No matches yet. ${participants.length >= 2 ? 'Click <strong>Generate Bracket</strong>, or ' : ''}build one manually.
+                    <div style="margin-top:12px">${addBtn}</div>
+                </div>`;
             }
+
+            const incoming = bracketIncomingMap();
 
             // Group by round / bracket_position prefix
             const groups = {};
-            matches.forEach(m => {
+            bracketMatches.forEach(m => {
                 const key = m.round_name || m.bracket_round || m.bracket_side || m.bracket_position || 'Matches';
                 const groupKey = String(key).replace(/\s*#?\d+$/, '').trim() || 'Matches';
                 if (!groups[groupKey]) groups[groupKey] = [];
@@ -2162,7 +2263,8 @@
             const order = Object.keys(groups);
             return `<div class="bracket-view">
                 <div class="bracket-view-header">
-                    <div class="bracket-view-title">Bracket · ${matches.length} match${matches.length !== 1 ? 'es' : ''}</div>
+                    <div class="bracket-view-title">Bracket · ${bracketMatches.length} match${bracketMatches.length !== 1 ? 'es' : ''}</div>
+                    ${addBtn}
                 </div>
                 ${order.map(gName => {
                 const list = groups[gName];
@@ -2170,13 +2272,21 @@
                         <div class="bracket-round-title">${gName}</div>
                         <div class="bracket-matches">
                             ${list.map(m => {
-                    const nA = m.team_a_name || m.dept_a_name || 'TBD';
-                    const nB = m.team_b_name || m.dept_b_name || 'TBD';
+                    const feedA = !m.participant_a_department_id ? incoming[`${m.id}:a`] : null;
+                    const feedB = !m.participant_b_department_id ? incoming[`${m.id}:b`] : null;
+                    const nA = m.team_a_name || m.dept_a_name || (feedA ? `TBD — ${feedA.result} of ${bracketMatchLabel(feedA.source)}` : 'TBD');
+                    const nB = m.team_b_name || m.dept_b_name || (feedB ? `TBD — ${feedB.result} of ${bracketMatchLabel(feedB.source)}` : 'TBD');
                     const cA = m.dept_a_color || '#555';
                     const cB = m.dept_b_color || '#555';
                     const done = m.status === 'completed';
                     const score = done ? formatMatchScoreText(m) : '';
                     const status = m.status || 'pending';
+                    const nextMatch = m.next_match_id ? bracketMatches.find(x => x.id === m.next_match_id) : null;
+                    const loserMatch = m.loser_next_match_id ? bracketMatches.find(x => x.id === m.loser_next_match_id) : null;
+                    const progression = (nextMatch || loserMatch) ? `<div class="bracket-progression" style="margin-top:6px;font-size:11px;color:var(--muted);display:flex;flex-direction:column;gap:2px">
+                                            ${nextMatch ? `<span>↳ Winner → ${bracketMatchLabel(nextMatch)}</span>` : ''}
+                                            ${loserMatch ? `<span>↳ Loser → ${bracketMatchLabel(loserMatch)}</span>` : ''}
+                                        </div>` : '';
                     return `<div class="bracket-match-card status-${status}">
                                     <div class="bracket-match-pos">${readableMatchPosition(m.bracket_position)}</div>
                                     <div class="bracket-match-sides">
@@ -2194,7 +2304,9 @@
                                         ${score ? `<span class="bracket-score">${score}</span>` : `<span class="badge badge-muted">${status}</span>`}
                                         ${m.scheduled_date ? `<span class="bracket-date">${typeof formatDate === 'function' ? formatDate(m.scheduled_date) : m.scheduled_date}${m.scheduled_time ? ' · ' + (typeof formatTime === 'function' ? formatTime(m.scheduled_time) : m.scheduled_time) : ''}</span>` : ''}
                                     </div>
+                                    ${progression}
                                     ${exhibitionPlacementActions(m)}
+                                    ${linkSourceActions(m, incoming)}
                                     ${tournament.status !== 'completed' ? `<button class="btn btn-secondary btn-sm" onclick="openEditMatch(${m.id})">Edit</button>` : ''}
                                 </div>`;
                 }).join('')}
@@ -2608,6 +2720,87 @@
             Toast.show(res.message || (res.success ? 'Exhibition team placed.' : 'Could not place exhibition team'), res.success ? 'success' : 'error');
             if (res.success) await reloadDetail();
         }
+
+        // Lets an open slot (like "Faculty vs TBD") be wired to the winner or
+        // loser of another already-existing match, so it fills in on its own
+        // once that source match is decided.
+        function linkSourceActions(match, incoming) {
+            if (tournament.status === 'completed' || !['pending', 'scheduled'].includes(match.status)) return '';
+            const openSlots = ['a', 'b'].filter(side => !match[`participant_${side}_department_id`] && !incoming[`${match.id}:${side}`]);
+            if (!openSlots.length) return '';
+            const candidates = bracketMatches.filter(x => x.id !== match.id && !['completed', 'cancelled', 'walkover'].includes(x.status));
+            if (!candidates.length) return '';
+            const srcOptions = '<option value="">— choose source —</option>' + candidates.map(c => `
+                <option value="${c.id}|winner">${bracketMatchLabel(c)} · Winner</option>
+                <option value="${c.id}|loser">${bracketMatchLabel(c)} · Loser</option>
+            `).join('');
+            return `<div style="margin-top:8px;display:flex;gap:6px;flex-wrap:wrap;align-items:center">
+                <span style="font-size:11px;color:var(--muted)">Fill from another match's result:</span>
+                ${openSlots.map(side => `
+                    <select class="form-select" style="width:auto;font-size:11px;padding:4px 8px" id="link-src-${match.id}-${side}">${srcOptions}</select>
+                    <button class="btn btn-secondary btn-sm" onclick="submitLinkSource(${match.id},'${side}')">Link to ${side.toUpperCase()}</button>
+                `).join('')}
+            </div>`;
+        }
+
+        async function submitLinkSource(matchId, side) {
+            const sel = document.getElementById(`link-src-${matchId}-${side}`);
+            if (!sel || !sel.value) { Toast.show('Pick a source match first', 'error'); return; }
+            const [sourceId, result] = sel.value.split('|');
+            const res = await api(`/matches/${sourceId}/link`, {
+                method: 'PATCH', body: { target_match_id: matchId, target_slot: side, result },
+            });
+            Toast.show(res.message || (res.success ? 'Linked.' : 'Could not link matches'), res.success ? 'success' : 'error');
+            if (res.success) await reloadDetail();
+        }
+
+        function openAddCustomMatch() {
+            const deptOpts = '<option value="">— TBD / fill from result below —</option>' +
+                departments.map(d => `<option value="${d.id}">${d.name}${Number(d.is_exhibition) === 1 ? ' (exhibition)' : ''}</option>`).join('');
+            ['cm-a-dept', 'cm-b-dept'].forEach(id => { const el = document.getElementById(id); if (el) el.innerHTML = deptOpts; });
+            const srcOpts = '<option value="">— none —</option>' + bracketMatches.map(m => `
+                <option value="${m.id}|winner">${bracketMatchLabel(m)} · Winner</option>
+                <option value="${m.id}|loser">${bracketMatchLabel(m)} · Loser</option>
+            `).join('');
+            ['cm-a-src', 'cm-b-src'].forEach(id => { const el = document.getElementById(id); if (el) el.innerHTML = srcOpts; });
+            ['cm-label', 'cm-date', 'cm-time'].forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
+            const venueSel = document.getElementById('cm-venue');
+            if (venueSel) venueSel.innerHTML = '<option value="">Select venue...</option>' + venues.map(v => `<option value="${v.id}">${v.name}</option>`).join('');
+            const refSel = document.getElementById('cm-referee');
+            if (refSel) refSel.innerHTML = '<option value="">Select referee...</option>' + referees.map(r => `<option value="${r.id}">${r.first_name} ${r.last_name}</option>`).join('');
+            Modal.open('modal-custom-match');
+        }
+
+        function sideFromCustomForm(prefix) {
+            const deptId = parseInt(document.getElementById(`${prefix}-dept`).value) || null;
+            const srcVal = document.getElementById(`${prefix}-src`).value;
+            if (deptId) return { department_id: deptId };
+            if (srcVal) {
+                const [fromMatchId, result] = srcVal.split('|');
+                return { from_match_id: parseInt(fromMatchId), result };
+            }
+            return null;
+        }
+
+        async function submitCustomMatch() {
+            const label = document.getElementById('cm-label').value.trim();
+            if (!label) { Toast.show('Give the match a label', 'error'); return; }
+            const side_a = sideFromCustomForm('cm-a');
+            const side_b = sideFromCustomForm('cm-b');
+            if (!side_a && !side_b) { Toast.show('Set at least one side (a team, or fill-from-result)', 'error'); return; }
+            const body = {
+                tournament_id: PAGE_ID,
+                label,
+                side_a, side_b,
+                scheduled_date: document.getElementById('cm-date').value || null,
+                scheduled_time: document.getElementById('cm-time').value || null,
+                venue_id: parseInt(document.getElementById('cm-venue').value) || null,
+                referee_id: parseInt(document.getElementById('cm-referee').value) || null,
+            };
+            const res = await api('/matches/custom', { method: 'POST', body });
+            Toast.show(res.message || (res.success ? 'Match created.' : 'Could not create match'), res.success ? 'success' : 'error');
+            if (res.success) { Modal.close('modal-custom-match'); await reloadDetail(); }
+        }
         function isKnockoutFormat(fmt) {
             return ['single_elimination', 'double_elimination'].includes(fmt);
         }
@@ -2877,7 +3070,7 @@
         }
 
         function openEditMatch(matchId) {
-            const m = matches.find(x => x.id === matchId);
+            const m = matches.find(x => x.id === matchId) || bracketMatches.find(x => x.id === matchId);
             if (!m) return;
             editingMatchId = matchId;
             document.getElementById('edit-match-preview').innerHTML =

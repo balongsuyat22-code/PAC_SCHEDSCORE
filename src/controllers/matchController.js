@@ -1546,6 +1546,201 @@ const getWatchers = async (req, res, next) => {
     }
 };
 
+/**
+ * Resolve one side of a custom match from the request body.
+ * Either `department_id` (a known team, e.g. Faculty/Night Owls) or
+ * `{ from_match_id, result: 'winner'|'loser' }` (a TBD side that will be
+ * filled in later once that source match is completed) must be given —
+ * never both.
+ */
+const resolveCustomSide = async (side, tournamentId) => {
+    if (!side) return { department_id: null, link: null };
+
+    const departmentId = safeFK(side.department_id);
+    const fromMatchId = safeFK(side.from_match_id);
+
+    if (departmentId && fromMatchId) {
+        const err = new Error('Pick either a specific team or "winner/loser of a match" for a side, not both.');
+        err.statusCode = 400;
+        throw err;
+    }
+
+    if (departmentId) {
+        const [[dept]] = await pool.execute(
+            'SELECT id, name FROM departments WHERE id = ? AND is_active = 1', [departmentId]
+        );
+        if (!dept) {
+            const err = new Error('Selected team was not found or is inactive.');
+            err.statusCode = 400;
+            throw err;
+        }
+        return { department_id: departmentId, link: null };
+    }
+
+    if (fromMatchId) {
+        const result = side.result === 'loser' ? 'loser' : 'winner';
+        const [[source]] = await pool.execute(
+            `SELECT id, tournament_id, next_match_id, loser_next_match_id,
+                    participant_a_department_id, participant_b_department_id
+             FROM matches WHERE id = ?`,
+            [fromMatchId]
+        );
+        if (!source || Number(source.tournament_id) !== Number(tournamentId)) {
+            const err = new Error('Source match was not found in this tournament.');
+            err.statusCode = 400;
+            throw err;
+        }
+        const linkedColumn = result === 'loser' ? 'loser_next_match_id' : 'next_match_id';
+        if (source[linkedColumn]) {
+            const err = new Error(
+                `Match ${fromMatchId} already has its ${result} routed to another match. Unlink it first.`
+            );
+            err.statusCode = 409;
+            throw err;
+        }
+        return { department_id: null, link: { from_match_id: fromMatchId, result } };
+    }
+
+    return { department_id: null, link: null };
+};
+
+/**
+ * Create a one-off custom match — for schedules (like the SGO Days sheet)
+ * that aren't produced by the automatic bracket generator. Either side can
+ * be a known team, or left "TBD" and wired to the winner/loser of another
+ * existing match, so a special team (e.g. Faculty/Night Owls) can be placed
+ * ahead of time while it waits to find out who its opponent will be.
+ */
+const createCustom = async (req, res, next) => {
+    try {
+        const tournamentId = safeFK(req.body.tournament_id);
+        if (!tournamentId) {
+            return res.status(400).json({ success: false, message: 'tournament_id is required.' });
+        }
+        const [[tournament]] = await pool.execute(
+            'SELECT id, sport_id, status FROM tournaments WHERE id = ?', [tournamentId]
+        );
+        if (!tournament) return res.status(404).json({ success: false, message: 'Tournament not found.' });
+        if (tournament.status === 'completed') {
+            return res.status(409).json({ success: false, message: 'This tournament is already finalized.' });
+        }
+
+        const label = String(req.body.label || req.body.bracket_position || '').trim();
+        if (!label) return res.status(400).json({ success: false, message: 'Give the match a label, e.g. "Day 3 · Pickleball · SGO vs Cheetah".' });
+
+        const sportId = safeFK(req.body.sport_id) || tournament.sport_id;
+        const sideA = await resolveCustomSide(req.body.side_a, tournamentId);
+        const sideB = await resolveCustomSide(req.body.side_b, tournamentId);
+
+        if (!sideA.department_id && !sideA.link && !sideB.department_id && !sideB.link) {
+            return res.status(400).json({ success: false, message: 'At least one side needs a team or a "winner/loser of" source match.' });
+        }
+        if (sideA.link && sideB.link && sideA.link.from_match_id === sideB.link.from_match_id) {
+            return res.status(400).json({ success: false, message: 'Both sides cannot come from the same source match.' });
+        }
+
+        const scheduledDate = safeDate(req.body.scheduled_date);
+        const scheduledTime = req.body.scheduled_time || null;
+        const venueId = safeFK(req.body.venue_id);
+        const refereeId = safeFK(req.body.referee_id);
+        const roundNumber = Number.isInteger(parseInt(req.body.round_number)) ? parseInt(req.body.round_number) : null;
+
+        const [[{ nextNum }]] = await pool.execute(
+            'SELECT COALESCE(MAX(match_number), 0) + 1 AS nextNum FROM matches WHERE tournament_id = ?', [tournamentId]
+        );
+
+        const status = sideA.department_id && sideB.department_id ? 'scheduled' : 'pending';
+
+        const [result] = await pool.execute(
+            `INSERT INTO matches
+             (tournament_id, sport_id, round_number, match_number, bracket_position, bracket_side,
+              participant_a_department_id, participant_b_department_id,
+              scheduled_date, scheduled_time, venue_id, referee_id, status)
+             VALUES (?, ?, ?, ?, ?, 'custom', ?, ?, ?, ?, ?, ?, ?)`,
+            [
+                tournamentId, sportId, roundNumber, nextNum, label,
+                sideA.department_id, sideB.department_id,
+                scheduledDate, scheduledTime, venueId, refereeId, status,
+            ]
+        );
+        const matchId = result.insertId;
+
+        for (const [side, slot] of [[sideA, 'a'], [sideB, 'b']]) {
+            if (!side.link) continue;
+            const column = side.link.result === 'loser' ? 'loser_next_match_id' : 'next_match_id';
+            const slotColumn = side.link.result === 'loser' ? 'loser_next_match_slot' : 'next_match_slot';
+            await pool.execute(
+                `UPDATE matches SET ${column} = ?, ${slotColumn} = ? WHERE id = ?`,
+                [matchId, slot, side.link.from_match_id]
+            );
+        }
+
+        await logActivity(req.user.id, 'MATCH_CREATED', 'match', matchId, `Custom match created: ${label}`);
+        emitToTournament(tournamentId, 'match:created', { match_id: matchId, tournament_id: tournamentId, label });
+
+        return res.status(201).json({ success: true, message: 'Custom match created.', data: { id: matchId } });
+    } catch (err) {
+        if (err.statusCode) return res.status(err.statusCode).json({ success: false, message: err.message });
+        next(err);
+    }
+};
+
+/**
+ * Wire an already-existing match's winner or loser into an open slot of
+ * another already-existing match — the retroactive version of the linking
+ * `createCustom` does at creation time. Use this to connect a source match
+ * (e.g. "Game 4") to a match that already has a special team pre-placed
+ * (e.g. "Faculty vs TBD").
+ */
+const linkSource = async (req, res, next) => {
+    try {
+        const sourceId = parseInt(req.params.id, 10);
+        const targetId = safeFK(req.body.target_match_id);
+        const targetSlot = req.body.target_slot === 'b' ? 'b' : 'a';
+        const result = req.body.result === 'loser' ? 'loser' : 'winner';
+        if (!targetId) return res.status(400).json({ success: false, message: 'target_match_id is required.' });
+
+        const [[source]] = await pool.execute(
+            `SELECT id, tournament_id, next_match_id, loser_next_match_id, status FROM matches WHERE id = ?`,
+            [sourceId]
+        );
+        if (!source) return res.status(404).json({ success: false, message: 'Source match not found.' });
+        if (['completed', 'cancelled', 'walkover'].includes(source.status)) {
+            return res.status(409).json({ success: false, message: 'This match is already decided — link it before it starts.' });
+        }
+
+        const column = result === 'loser' ? 'loser_next_match_id' : 'next_match_id';
+        const slotColumn = result === 'loser' ? 'loser_next_match_slot' : 'next_match_slot';
+        if (source[column]) {
+            return res.status(409).json({ success: false, message: `Match ${sourceId} already routes its ${result} elsewhere.` });
+        }
+
+        const [[target]] = await pool.execute(
+            `SELECT id, tournament_id, participant_a_department_id, participant_b_department_id, status
+             FROM matches WHERE id = ?`, [targetId]
+        );
+        if (!target || Number(target.tournament_id) !== Number(source.tournament_id)) {
+            return res.status(400).json({ success: false, message: 'Target match must be in the same tournament.' });
+        }
+        const targetColumn = targetSlot === 'b' ? 'participant_b_department_id' : 'participant_a_department_id';
+        if (target[targetColumn]) {
+            return res.status(409).json({ success: false, message: `Target match's side ${targetSlot.toUpperCase()} is already filled.` });
+        }
+
+        await pool.execute(
+            `UPDATE matches SET ${column} = ?, ${slotColumn} = ? WHERE id = ?`,
+            [targetId, targetSlot, sourceId]
+        );
+
+        await logActivity(req.user.id, 'MATCH_LINKED', 'match', sourceId, `Match ${sourceId} ${result} routed to match ${targetId} (${targetSlot.toUpperCase()})`);
+        emitToTournament(source.tournament_id, 'match:linked', { source_id: sourceId, target_id: targetId, slot: targetSlot, result });
+
+        return res.json({ success: true, message: `Linked — the ${result} of match ${sourceId} will fill side ${targetSlot.toUpperCase()} of match ${targetId}.` });
+    } catch (err) {
+        next(err);
+    }
+};
+
 module.exports = {
     getAll,
     getOne,
@@ -1565,4 +1760,6 @@ module.exports = {
     getScoreHistory,
     getMatchPlayers,
     getWatchers,
+    createCustom,
+    linkSource,
 };
