@@ -1164,6 +1164,10 @@ const finalizeTournament = async (req, res, next) => {
        WHERE tournament_id = ?
          AND status NOT IN ('completed', 'cancelled', 'walkover')
          AND (bracket_side = 'ffa'
+              OR tournament_id IN (
+                  SELECT id FROM tournaments
+                  WHERE format IN ('free_for_all', 'team_ranking', 'group_stage_ffa')
+              )
               OR (participant_a_department_id IS NOT NULL
                   AND participant_b_department_id IS NOT NULL))`,
             [req.params.id]

@@ -81,7 +81,7 @@ async function singleEliminationStandings(conn, tournamentId) {
 
 async function computeFinalStandings(conn, tournamentId, format) {
     if (format === 'round_robin') return roundRobinStandings(conn, tournamentId);
-    if (format === 'free_for_all') return ffaStandings(conn, tournamentId);
+    if (['free_for_all', 'team_ranking', 'group_stage_ffa'].includes(format)) return ffaStandings(conn, tournamentId);
     return singleEliminationStandings(conn, tournamentId);
 }
 async function recordResultsAndRebuild(conn, tournamentId, pointsMap = DEFAULT_MEDAL_POINTS) {

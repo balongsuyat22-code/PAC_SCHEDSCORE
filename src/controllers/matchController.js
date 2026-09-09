@@ -1275,7 +1275,12 @@ const saveFFAResults = async (req, res, next) => {
 
         await conn.execute(
             `UPDATE matches SET status = 'ongoing', started_at = COALESCE(started_at, NOW())
-             WHERE tournament_id = ? AND (bracket_side = 'ffa' OR bracket_position = 'FFA Event')`,
+             WHERE tournament_id = ?
+               AND (bracket_side = 'ffa' OR bracket_position = 'FFA Event'
+                    OR tournament_id IN (
+                        SELECT id FROM tournaments
+                        WHERE format IN ('free_for_all', 'team_ranking', 'group_stage_ffa')
+                    ))`,
             [tournamentId]
         );
 
@@ -1316,14 +1321,24 @@ const completeFFAMatch = async (req, res, next) => {
         const userId = req.user.id;
 
         const [[check]] = await pool.execute(
-            'SELECT COUNT(*) AS count FROM ffa_results WHERE tournament_id = (SELECT tournament_id FROM matches WHERE id = ?)',
+            `SELECT COUNT(*) AS count,
+                    (SELECT COUNT(*) FROM tournament_participants tp
+                     WHERE tp.tournament_id = m.tournament_id) AS participant_count
+             FROM ffa_results fr
+             JOIN matches m ON m.tournament_id = fr.tournament_id
+             WHERE m.id = ? AND fr.result_value IS NOT NULL`,
             [matchId]
         );
-        if (check.count === 0) {
-            return res.status(400).json({ success: false, message: 'No FFA results recorded yet.' });
+        if (Number(check.count) === 0 || Number(check.count) < Number(check.participant_count)) {
+            return res.status(400).json({ success: false, message: 'Record results for every FFA participant before finishing.' });
         }
 
-        const [[m]] = await pool.execute('SELECT tournament_id, status FROM matches WHERE id = ?', [matchId]);
+        const [[m]] = await pool.execute(
+            `SELECT m.tournament_id, m.status, t.format
+             FROM matches m JOIN tournaments t ON t.id = m.tournament_id
+             WHERE m.id = ?`,
+            [matchId]
+        );
         if (!m) return res.status(404).json({ success: false, message: 'Match not found.' });
         if (m.status === 'completed') {
             return res.status(409).json({ success: false, message: 'This FFA event is already completed.' });

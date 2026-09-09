@@ -2223,7 +2223,11 @@
             const withoutScores = activeParticipants.filter(p => p.ffa_result_value === null || p.ffa_result_value === undefined);
             const sorted = [...withScores].sort((a, b) => lowerBetter ? a.ffa_result_value - b.ffa_result_value : b.ffa_result_value - a.ffa_result_value);
             const allRanked = [...sorted, ...withoutScores];
-            const ffaMatch = matches.find(m => m.bracket_side === 'ffa' || m.bracket_position === 'FFA Event');
+            const ffaMatch = matches.find(m =>
+                m.bracket_side === 'ffa' ||
+                m.bracket_position === 'FFA Event' ||
+                IS_FFA(m.tournament_format || tournament.format)
+            );
             const isMatchComplete = ffaMatch?.status === 'completed';
 
             return `
@@ -2422,7 +2426,11 @@
         }
 
         function tabFinalize() {
-            const ffaMatch = matches.find(m => m.bracket_side === 'ffa' || m.bracket_position === 'FFA Event');
+            const ffaMatch = matches.find(m =>
+                m.bracket_side === 'ffa' ||
+                m.bracket_position === 'FFA Event' ||
+                IS_FFA(m.tournament_format || tournament.format)
+            );
             const isFFAComplete = ffaMatch?.status === 'completed';
             const allMatchesComplete = matches.length > 0 && matches.every(m => m.status === 'completed');
             const teamsWithEnough = participants.filter(p => (p.players?.length || 0) >= (currentSport?.min_players || 1));
