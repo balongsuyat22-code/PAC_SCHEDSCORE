@@ -90,8 +90,10 @@ const run = async () => {
             (5, 'College of Nursing', 'CON', 'Nursing Department', 'college', 0),
             (6, 'College of Information Technology', 'CIT', 'Information Technology Department', 'college', 0),
             (7, 'Faculty / Night Owls', 'FAC', 'Exhibition-only faculty team', NULL, 1),
-            (8, 'SGO / SELECOM', 'SGO', 'Exhibition-only student government team', NULL, 1)
+            (8, 'Supreme Goat / SGO / SELECOM', 'SGO', 'Student Officer team', 'senior_high', 0)
             ON DUPLICATE KEY UPDATE
+                name = VALUES(name),
+                description = VALUES(description),
                 division = VALUES(division),
                 is_exhibition = VALUES(is_exhibition)
         `);

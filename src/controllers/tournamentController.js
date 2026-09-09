@@ -5,6 +5,7 @@ const cache = require('../utils/cache');
 const { emitToLeaderboard } = require('../utils/socketEmit');
 const { generateBracket: generateBracketService } = require('../services/bracketService');
 const { notifyRoles } = require('./notificationController');
+const { getFixedBlock, findTeamConflict, timeToMinutes } = require('../services/scheduleConstraints');
 
 function isTeamSport(row) {
     if (!row) return false;
@@ -712,7 +713,7 @@ const remove = async (req, res, next) => {
         // Block if any match has actually started or finished
         const [started] = await pool.execute(
             `SELECT COUNT(*) AS c FROM matches
-             WHERE tournament_id = ?
+             WHERE m.tournament_id = ?
                AND status IN ('ongoing', 'completed', 'in_progress')`,
             [id]
         );
@@ -1013,9 +1014,15 @@ const scheduleRoundRobin = async (req, res, next) => {
         }
 
         const [allMatches] = await pool.execute(
-            `SELECT id, status, round_number, match_number, bracket_side, bracket_position,
-                    participant_a_department_id, participant_b_department_id
-             FROM matches
+            `SELECT m.id, m.status, m.round_number, m.match_number, m.bracket_side, m.bracket_position,
+                    m.participant_a_department_id, m.participant_b_department_id,
+                    s.name AS sport_name, da.name AS dept_a_name, db.name AS dept_b_name,
+                    t.start_date AS tournament_start_date
+                 FROM matches m
+                 JOIN tournaments t ON t.id = m.tournament_id
+                 JOIN sports s ON s.id = m.sport_id
+                 LEFT JOIN departments da ON da.id = m.participant_a_department_id
+                 LEFT JOIN departments db ON db.id = m.participant_b_department_id
              WHERE tournament_id = ?
              ORDER BY
                COALESCE(round_number, 0) ASC,
@@ -1058,7 +1065,26 @@ const scheduleRoundRobin = async (req, res, next) => {
             }
         }
 
-        let ordered = [...matches];
+        const fixedMatches = matches.filter((match) => getFixedBlock(match));
+        const flexibleMatches = matches.filter((match) => !getFixedBlock(match));
+
+        const fixedSchedule = fixedMatches.map((match) => ({ match, block: getFixedBlock(match) }));
+        for (let i = 0; i < fixedSchedule.length; i++) {
+            for (let j = i + 1; j < fixedSchedule.length; j++) {
+                const left = fixedSchedule[i];
+                const right = fixedSchedule[j];
+                if (left.block.date !== right.block.date ||
+                    timeToMinutes(left.block.start) >= timeToMinutes(right.block.end) ||
+                    timeToMinutes(right.block.start) >= timeToMinutes(left.block.end)) continue;
+                const error = new Error(
+                    `SGO fixed schedule conflict: matches ${left.match.id} and ${right.match.id} overlap on ${left.block.date}.`
+                );
+                error.statusCode = 409;
+                throw error;
+            }
+        }
+
+        let ordered = [...flexibleMatches];
         if (format === 'round_robin') {
             for (let i = ordered.length - 1; i > 0; i--) {
                 const j = Math.floor(Math.random() * (i + 1));
@@ -1103,9 +1129,16 @@ const scheduleRoundRobin = async (req, res, next) => {
 
         let updated = 0;
         let officersAssigned = 0;
-        for (let i = 0; i < ordered.length; i++) {
-            const slot = slots[i % slots.length];
-            const referee_id = assignOfficers ? pickOfficer(slot.date, slot.time) : null;
+        const scheduleMatch = async (match, date, time, endTime = null, fixed = null) => {
+            const conflict = fixed
+                ? await findTeamConflict(pool, match.id, fixed.sgo_department_id, date, time, endTime)
+                : null;
+            if (conflict) {
+                const error = new Error(`SGO overlap: match ${match.id} conflicts with match ${conflict.id} at ${date} ${time}.`);
+                error.statusCode = 409;
+                throw error;
+            }
+            const referee_id = assignOfficers ? pickOfficer(date, time) : null;
             if (referee_id) officersAssigned++;
 
             await pool.execute(
@@ -1113,9 +1146,36 @@ const scheduleRoundRobin = async (req, res, next) => {
                  SET scheduled_date = ?, scheduled_time = ?, venue_id = COALESCE(?, venue_id),
                      referee_id = COALESCE(?, referee_id), updated_at = NOW()
                  WHERE id = ?`,
-                [slot.date, slot.time, venueId, referee_id, ordered[i].id]
+                [date, time, fixed?.venue_id || venueId, referee_id, match.id]
             );
             updated++;
+        };
+
+        for (const match of fixedMatches) {
+            const fixed = getFixedBlock(match);
+            let fixedVenue = null;
+            if (fixed.venue) {
+                const [[venue]] = await pool.execute(
+                    `SELECT id FROM venues
+                     WHERE LOWER(name) = LOWER(?) OR LOWER(name) LIKE LOWER(?)
+                     ORDER BY id LIMIT 1`,
+                    [fixed.venue, `%${fixed.venue}%`]
+                );
+                fixedVenue = venue?.id || null;
+                if (!fixedVenue) {
+                    const error = new Error(`Required venue "${fixed.venue}" was not found.`);
+                    error.statusCode = 409;
+                    throw error;
+                }
+            }
+            await scheduleMatch(match, fixed.date, fixed.start, fixed.end, { ...fixed, venue_id: fixedVenue });
+        }
+
+        for (let i = 0; i < ordered.length; i++) {
+            const slot = slots[i % slots.length];
+            const endMinutes = timeToMinutes(slot.time) + 60;
+            const endTime = `${String(Math.floor(endMinutes / 60) % 24).padStart(2, '0')}:${String(endMinutes % 60).padStart(2, '0')}`;
+            await scheduleMatch(ordered[i], slot.date, slot.time, endTime);
         }
 
         const formatLabel = format.replace(/_/g, ' ');
@@ -1136,6 +1196,7 @@ const scheduleRoundRobin = async (req, res, next) => {
         });
     } catch (err) {
         console.error('scheduleRoundRobin error:', err);
+        if (err.statusCode) return res.status(err.statusCode).json({ success: false, message: err.message });
         next(err);
     }
 };
