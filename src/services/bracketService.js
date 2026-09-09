@@ -259,6 +259,17 @@ const generateSingleElimination = async (tournament, participants, pool) => {
 const generateDoubleElimination = async (tournament, participants, pool) => {
     await generateSingleElimination(tournament, participants, pool);
 
+    await pool.execute(
+        `UPDATE matches
+         SET status = 'pending'
+         WHERE tournament_id = ?
+           AND bracket_side IS NULL
+           AND participant_a_department_id IS NULL
+           AND participant_b_department_id IS NULL
+           AND status = 'scheduled'`,
+        [tournament.id]
+    );
+
     const n = participants.length;
     const bracketSize = nextPowerOf2(n);
     const lowerRounds = (Math.log2(bracketSize) - 1) * 2;
@@ -272,7 +283,7 @@ const generateDoubleElimination = async (tournament, participants, pool) => {
                 `INSERT INTO matches
                  (tournament_id, sport_id, round_number, match_number,
                   bracket_position, bracket_side, status)
-                 VALUES (?, ?, ?, ?, ?, 'lower', 'scheduled')`, [tournament.id, tournament.sport_id, round, matchNum++, `LR${round}M${i + 1}`]
+                 VALUES (?, ?, ?, ?, ?, 'lower', 'pending')`, [tournament.id, tournament.sport_id, round, matchNum++, `LR${round}M${i + 1}`]
             );
         }
     }
@@ -282,7 +293,7 @@ const generateDoubleElimination = async (tournament, participants, pool) => {
         `INSERT INTO matches
          (tournament_id, sport_id, round_number, match_number,
           bracket_position, bracket_side, status)
-         VALUES (?, ?, 999, 9999, 'Grand Final', 'grand_final', 'scheduled')`,
+         VALUES (?, ?, 999, 9999, 'Grand Final', 'grand_final', 'pending')`,
         [tournament.id, tournament.sport_id]
     );
 

@@ -385,7 +385,8 @@
                 const initB = (m.dept_b || '?').split(' ').map(w => w[0]).slice(0, 2).join('').toUpperCase();
                 const logoA = m.dept_a_logo ? `<img src="${m.dept_a_logo}" alt="">` : initA;
                 const logoB = m.dept_b_logo ? `<img src="${m.dept_b_logo}" alt="">` : initB;
-                const isFFA = m.bracket_side === 'ffa' || m.bracket_position === 'FFA Event' || (!m.dept_a && !m.dept_b);
+                const isFFA = m.bracket_side === 'ffa' || m.bracket_position === 'FFA Event' ||
+                    m.tournament_format === 'free_for_all' || m.tournament_format === 'team_ranking';
 
                 let scoreA = toWhole(m.live_score_a || 0);
                 let scoreB = toWhole(m.live_score_b || 0);

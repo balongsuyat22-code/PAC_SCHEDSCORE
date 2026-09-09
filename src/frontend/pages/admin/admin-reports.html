@@ -964,8 +964,7 @@
             return m.bracket_side === 'ffa' ||
                 m.bracket_position === 'FFA Event' ||
                 fmt === 'free_for_all' ||
-                fmt === 'team_ranking' ||
-                (!m.dept_a_name && !m.dept_b_name && !m.team_a_name && !m.team_b_name && !m.team_a_dept && !m.team_b_dept);
+                fmt === 'team_ranking';
         }
 
         /** Resolve tournament id from match row (reports API may omit tournament_id). */

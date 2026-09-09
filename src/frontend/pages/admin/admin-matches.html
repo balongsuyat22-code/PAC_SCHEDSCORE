@@ -1234,8 +1234,7 @@
         function matchType(m) {
             const fmt = (m.tournament_format || '').toLowerCase();
             const isFFA = m.bracket_side === 'ffa' || m.bracket_position === 'FFA Event' ||
-                fmt === 'free_for_all' || fmt === 'team_ranking' ||
-                (!m.dept_a_name && !m.dept_b_name && !m.dept_a && !m.dept_b);
+                fmt === 'free_for_all' || fmt === 'team_ranking';
             if (isFFA) return 'ffa';
             const st = (m.scoring_type || '').toLowerCase();
             if (st === 'sets') return 'sets';

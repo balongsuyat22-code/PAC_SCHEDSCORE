@@ -1001,7 +1001,8 @@ const scheduleRoundRobin = async (req, res, next) => {
         }
 
         const [allMatches] = await pool.execute(
-            `SELECT id, status, round_number, match_number, bracket_side, bracket_position
+            `SELECT id, status, round_number, match_number, bracket_side, bracket_position,
+                    participant_a_department_id, participant_b_department_id
              FROM matches
              WHERE tournament_id = ?
              ORDER BY
@@ -1023,7 +1024,11 @@ const scheduleRoundRobin = async (req, res, next) => {
         }
 
         const requiredSlots = allMatches.length;
-        const matches = allMatches.filter((m) => ['pending', 'scheduled'].includes(m.status));
+        const matches = allMatches.filter((m) =>
+            ['pending', 'scheduled'].includes(m.status) &&
+            (m.bracket_side === 'ffa' ||
+                (m.participant_a_department_id && m.participant_b_department_id))
+        );
         const locked = allMatches.length - matches.length;
         if (!matches.length) {
             return res.status(400).json({
