@@ -257,7 +257,7 @@ const getAll = async (req, res, next) => {
             WHERE 1 = 1
                 AND (m.status NOT IN ('pending', 'scheduled')
                     OR m.bracket_side = 'ffa'
-                    OR t.format IN ('free_for_all', 'team_ranking')
+                       OR t.format IN ('free_for_all', 'team_ranking', 'group_stage_ffa')
                    OR (m.participant_a_department_id IS NOT NULL
                        AND m.participant_b_department_id IS NOT NULL))
         `;
@@ -473,7 +473,7 @@ const getLive = async (req, res, next) => {
                     LEFT JOIN match_scores ms ON m.id = ms.match_id
                     WHERE m.status IN ('ongoing', 'scheduled')
                       AND (m.bracket_side = 'ffa'
-                          OR t.format IN ('free_for_all', 'team_ranking')
+                           OR t.format IN ('free_for_all', 'team_ranking', 'group_stage_ffa')
                            OR (m.participant_a_department_id IS NOT NULL
                                AND m.participant_b_department_id IS NOT NULL))
                     GROUP BY m.id
@@ -665,7 +665,7 @@ const startMatch = async (req, res, next) => {
         }
 
         const isFfa = startInfo.bracket_side === 'ffa' ||
-            ['free_for_all', 'team_ranking'].includes(startInfo.tournament_format);
+            ['free_for_all', 'team_ranking', 'group_stage_ffa'].includes(startInfo.tournament_format);
         if ((!startInfo.participant_a_department_id && !isFfa) ||
             (!startInfo.participant_b_department_id && !isFfa)) {
             return res.status(409).json({
