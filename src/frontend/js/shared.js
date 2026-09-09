@@ -142,12 +142,12 @@ const Toast = {
 #sf-toast {
   position: fixed;
   top: max(72px, calc(env(safe-area-inset-top, 0px) + 56px));
-  left: 50%;
-  transform: translateX(-50%) translateY(-8px);
+    right: 24px;
+    transform: translateY(-8px);
   z-index: 10000;
     width: fit-content;
     min-width: 0;
-  max-width: min(400px, calc(100vw - 24px));
+    max-width: min(340px, calc(100vw - 32px));
   padding: 12px 16px;
   border-radius: 12px;
   font-size: 14px;
@@ -168,7 +168,7 @@ const Toast = {
   opacity: 1;
   visibility: visible;
   pointer-events: auto;
-  transform: translateX(-50%) translateY(0);
+    transform: translateY(0);
 }
 #sf-toast.success {
   background: #14532d;
@@ -183,7 +183,13 @@ const Toast = {
 #sf-toast.info {
   background: #1e3a5f;
   color: #bfdbfe;
-  border-color: rgba(59,130,246,.5);
+    border-color: rgba(59,130,246,.5);
+}
+@media (max-width: 600px) {
+    #sf-toast {
+        right: 16px;
+        max-width: calc(100vw - 32px);
+    }
 }`;
         document.head.appendChild(s);
     },

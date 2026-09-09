@@ -672,15 +672,14 @@
             if (!d) return;
 
             const ok = confirm(
-                `Deactivate "${d.name}"?\n\n` +
-                `This is blocked if they are still in an active tournament.\n` +
-                `Past results and scores are kept.`
+                `Delete "${d.name}" permanently?\n\n` +
+                `This removes the department and its related records.`
             );
             if (!ok) return;
 
             const res = await api(`/departments/${id}`, { method: 'DELETE' });
             Toast.show(
-                res.message || (res.success ? 'Deactivated' : 'Error'),
+                res.message || (res.success ? 'Deleted' : 'Error'),
                 res.success ? 'success' : 'error'
             );
             if (res.success) await loadPage();

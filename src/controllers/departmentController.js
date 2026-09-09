@@ -2,6 +2,8 @@ const { pool } = require('../config/database');
 const { logActivity } = require('../utils/logger');
 const { resolveSportFestId } = require('../utils/season');
 
+const parseCheckbox = (value) => value === true || value === 1 || value === '1' || value === 'true';
+
 const getAll = async (req, res, next) => {
     try {
         const { sportFestId, unscoped } = await resolveSportFestId(req.query.season_id);
@@ -210,9 +212,15 @@ const create = async (req, res, next) => {
             return res.status(400).json({ success: false, message: 'Name and code are required.' });
         }
 
-        const [dup] = await pool.execute('SELECT id FROM departments WHERE code = ?', [code.toUpperCase()]);
+        const normalizedName = String(name).trim();
+        const normalizedCode = String(code).trim().toUpperCase();
+        const [dup] = await pool.execute(
+            'SELECT id, name, code FROM departments WHERE name = ? OR code = ? LIMIT 1',
+            [normalizedName, normalizedCode]
+        );
         if (dup.length) {
-            return res.status(409).json({ success: false, message: 'A department with this code already exists.' });
+            const field = dup[0].code === normalizedCode ? 'code' : 'name';
+            return res.status(409).json({ success: false, message: `A department with this ${field} already exists.` });
         }
 
         let finalLogoUrl = logo_url || null;
@@ -224,14 +232,14 @@ const create = async (req, res, next) => {
             `INSERT INTO departments (name, code, description, color, logo_url, short_name, division, is_exhibition)
              VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
             [
-                name,
-                code.toUpperCase(),
+                normalizedName,
+                normalizedCode,
                 description || null,
                 color || '#3B82F6',
                 finalLogoUrl,
                 short_name || null,
                 division || null,
-                is_exhibition ? 1 : 0,
+                parseCheckbox(is_exhibition) ? 1 : 0,
             ]
         );
 
@@ -248,7 +256,7 @@ const create = async (req, res, next) => {
             'DEPARTMENT_CREATED',
             'department',
             result.insertId,
-            `Department created: ${name} (${code.toUpperCase()})`
+            `Department created: ${normalizedName} (${normalizedCode})`
         );
 
         return res.status(201).json({
@@ -279,16 +287,25 @@ const update = async (req, res, next) => {
             finalLogoUrl = `/uploads/departments/${req.file.filename}`;
         }
 
-        const finalName = name != null && String(name).trim() !== '' ? name : cur.name;
+        const finalName = name != null && String(name).trim() !== '' ? String(name).trim() : cur.name;
         const finalCode = code != null && String(code).trim() !== ''
-            ? String(code).toUpperCase()
+            ? String(code).trim().toUpperCase()
             : cur.code;
+
+        const [duplicate] = await pool.execute(
+            'SELECT id, name, code FROM departments WHERE id <> ? AND (name = ? OR code = ?) LIMIT 1',
+            [req.params.id, finalName.trim(), finalCode.trim().toUpperCase()]
+        );
+        if (duplicate.length) {
+            const field = duplicate[0].code === finalCode.trim().toUpperCase() ? 'code' : 'name';
+            return res.status(409).json({ success: false, message: `A department with this ${field} already exists.` });
+        }
         const finalDescription = description !== undefined ? (description || null) : cur.description;
         const finalColor = color != null && String(color).trim() !== '' ? color : (cur.color || '#3B82F6');
         const finalShortName = short_name !== undefined ? (short_name || null) : cur.short_name;
         const finalDivision = division !== undefined ? (division || null) : cur.division;
-        const finalExhibition = is_exhibition !== undefined ? (is_exhibition ? 1 : 0) : cur.is_exhibition;
-        const finalActive = is_active !== undefined ? (is_active ? 1 : 0) : cur.is_active;
+        const finalExhibition = is_exhibition !== undefined ? (parseCheckbox(is_exhibition) ? 1 : 0) : cur.is_exhibition;
+        const finalActive = is_active !== undefined ? (parseCheckbox(is_active) ? 1 : 0) : cur.is_active;
 
         await pool.execute(
             `UPDATE departments
@@ -346,17 +363,21 @@ const remove = async (req, res, next) => {
             });
         }
 
-        await pool.execute('UPDATE departments SET is_active = 0, updated_at = NOW() WHERE id = ?', [req.params.id]);
+        await pool.execute('DELETE FROM sport_fest_champions WHERE department_id = ?', [req.params.id]);
+        const [result] = await pool.execute('DELETE FROM departments WHERE id = ?', [req.params.id]);
+        if (!result.affectedRows) {
+            return res.status(404).json({ success: false, message: 'Department not found.' });
+        }
 
         await logActivity(
             req.user.id,
-            'DEPARTMENT_DEACTIVATED',
+            'DEPARTMENT_DELETED',
             'department',
             req.params.id,
-            'Department deactivated'
+            'Department permanently deleted'
         );
 
-        return res.json({ success: true, message: 'Department deactivated successfully.' });
+        return res.json({ success: true, message: 'Department deleted successfully.' });
     } catch (err) {
         next(err);
     }

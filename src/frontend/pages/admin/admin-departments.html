@@ -836,24 +836,22 @@
         }
 
         /**
-         * Soft-deactivate a grade/strand.
-         * Backend blocks if still in draft/registration/ongoing tournaments
-         * or has pending/scheduled/ongoing matches.
+         * Permanently delete a grade/strand.
+         * Backend blocks deletion if it is still in an active tournament.
          */
         async function deleteDept(id) {
             const d = allDepts.find(x => x.id === id);
             if (!d) return;
 
             const ok = confirm(
-                `Deactivate "${d.name}"?\n\n` +
-                `This is blocked if they are still in a tournament or have pending/scheduled/ongoing matches.\n` +
-                `Past results and scores are kept.`
+                `Delete "${d.name}" permanently?\n\n` +
+                `This removes the department and its related records.`
             );
             if (!ok) return;
 
             const res = await api(`/departments/${id}`, { method: 'DELETE' });
             Toast.show(
-                res.message || (res.success ? 'Deactivated' : 'Error'),
+                res.message || (res.success ? 'Deleted' : 'Error'),
                 res.success ? 'success' : 'error'
             );
             if (res.success) await loadPage();
