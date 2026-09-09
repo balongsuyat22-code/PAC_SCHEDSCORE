@@ -18,6 +18,7 @@ router.delete('/:id', authenticate, authorize('sgo_president', 'admin'), ctrl.re
 router.post('/:id/participants', authenticate, authorize('sgo_president', 'admin'), ctrl.addParticipants);
 router.delete('/:id/participants/:departmentId', authenticate, authorize('sgo_president', 'admin'), ctrl.removeParticipant);
 router.post('/:id/generate', authenticate, authorize('sgo_president', 'admin'), ctrl.generateBracket);
+router.post('/:id/generate-bracket', authenticate, authorize('sgo_president', 'admin'), ctrl.generateBracket);
 router.post('/:id/promote-knockout', authenticate, authorize('sgo_president', 'admin'), ctrl.promoteKnockout);
 router.post('/:id/schedule-round-robin', authenticate, authorize('sgo_president', 'admin'), ctrl.scheduleRoundRobin);
 router.post('/:id/finalize', authenticate, authorize('sgo_president', 'admin'), ctrl.finalizeTournament);
