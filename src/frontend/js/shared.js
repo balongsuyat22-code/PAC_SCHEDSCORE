@@ -148,8 +148,8 @@ const Toast = {
   z-index: 10000;
     width: fit-content;
     min-width: 0;
-    max-width: min(260px, calc(100vw - 40px));
-    padding: 7px 10px;
+    max-width: min(220px, calc(100vw - 24px));
+    padding: 5px 8px;
     border-radius: 7px;
     font-size: 12px;
     line-height: 1.25;

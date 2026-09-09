@@ -654,18 +654,11 @@ const startMatch = async (req, res, next) => {
         const warnings = [];
         if (!startInfo.scheduled_date || !startInfo.scheduled_time) {
             warnings.push('This match has no scheduled date and time. Confirm the event schedule before starting.');
-            if (req.user.role === 'sgo_officer') {
-                return res.status(409).json({
-                    success: false,
-                    code: 'MISSING_SCHEDULE',
-                    warning: true,
-                    message: warnings[0],
-                });
-            }
         }
 
         const isFfa = startInfo.bracket_side === 'ffa' ||
-            ['free_for_all', 'team_ranking', 'group_stage_ffa'].includes(startInfo.tournament_format);
+            ['free_for_all', 'team_ranking', 'group_stage_ffa']
+                .includes(String(startInfo.tournament_format || '').toLowerCase());
         if ((!startInfo.participant_a_department_id && !isFfa) ||
             (!startInfo.participant_b_department_id && !isFfa)) {
             return res.status(409).json({
@@ -685,16 +678,7 @@ const startMatch = async (req, res, next) => {
                 const now = new Date();
                 if (now < scheduledAt) {
                     const message = `This match is scheduled for ${dateText} ${timeText}. It cannot start yet.`;
-                    if (req.user.role === 'sgo_officer') {
-                        return res.status(409).json({
-                            success: false,
-                            code: 'START_TOO_EARLY',
-                            warning: true,
-                            scheduled_at: scheduledAt.toISOString(),
-                            message,
-                        });
-                    }
-                    warnings.push(`${message} Admin/President override used.`);
+                    warnings.push(`${message} Officer override used.`);
                 } else if (now.getTime() - scheduledAt.getTime() > 30 * 60 * 1000) {
                     warnings.push('This match is more than 30 minutes late. Confirm the venue and participants before starting.');
                 }

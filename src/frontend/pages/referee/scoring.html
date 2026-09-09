@@ -13,8 +13,8 @@
 
     <style>
         #sf-toast {
-            max-width: 240px !important;
-            padding: 6px 9px !important;
+            max-width: 220px !important;
+            padding: 5px 8px !important;
             font-size: 12px !important;
             line-height: 1.2 !important;
         }
@@ -1549,10 +1549,10 @@
                 return 'This match has no scheduled date and time. Ask the scheduler to complete it first.';
             }
             const scheduled = new Date(`${String(match.scheduled_date).slice(0, 10)}T${String(match.scheduled_time).slice(0, 8)}`);
-            if (!Number.isNaN(scheduled.getTime()) && Date.now() < scheduled.getTime()) {
-                return `This match cannot start yet. Scheduled for ${formatDate(match.scheduled_date)} at ${formatTime(match.scheduled_time)}.`;
-            }
-            if (!match.participant_a_department_id || (!match.participant_b_department_id && match.bracket_side !== 'ffa')) {
+            const isFfa = match.bracket_side === 'ffa' ||
+                ['free_for_all', 'team_ranking', 'group_stage_ffa'].includes(String(match.tournament_format || '').toLowerCase());
+            if ((!match.participant_a_department_id && !isFfa) ||
+                (!match.participant_b_department_id && !isFfa)) {
                 return 'Both participants must be assigned before this match can start.';
             }
             return '';
