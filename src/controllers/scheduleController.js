@@ -56,6 +56,7 @@ const getToday = async (req, res, next) => {
             params.push(sportFestId);
         }
 
+        // Public endpoint — never show TBD sides
         const [rows] = await pool.execute(`
     SELECT 
         m.id as match_id,
@@ -77,6 +78,14 @@ const getToday = async (req, res, next) => {
     LEFT JOIN users ru ON m.referee_id = ru.id
     WHERE m.scheduled_date = CURDATE() 
       AND m.status NOT IN ('cancelled')
+      AND (
+          m.status NOT IN ('pending', 'scheduled')
+          OR m.bracket_side = 'ffa'
+          OR t.format IN ('free_for_all', 'team_ranking', 'group_stage_ffa')
+          OR m.bracket_side = 'exhibition'
+          OR (m.participant_a_department_id IS NOT NULL
+              AND m.participant_b_department_id IS NOT NULL)
+      )
       ${seasonClause}
     ORDER BY m.scheduled_time ASC
 `, params);

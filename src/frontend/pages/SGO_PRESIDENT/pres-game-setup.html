@@ -1343,7 +1343,53 @@
             </div>
         </div>
     </div>
-
+    <!-- Per-match schedule editor (works with TBD sides) -->
+    <div class="modal-overlay" id="modal-match-schedule">
+        <div class="modal" style="max-width:480px">
+            <div class="modal-header">
+                <div class="modal-title"><i class="fa-solid fa-calendar-pen"></i> Schedule Match</div>
+                <button class="modal-close" onclick="Modal.close('modal-match-schedule')" aria-label="Close">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+            <div class="modal-body">
+                <div id="ms-preview" style="margin-bottom:16px"></div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label class="form-label">Date</label>
+                        <input type="date" id="ms-date" class="form-input">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Time</label>
+                        <input type="time" id="ms-time" class="form-input">
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label class="form-label">Venue</label>
+                        <select id="ms-venue" class="form-select">
+                            <option value="">No venue</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Referee / Officer</label>
+                        <select id="ms-referee" class="form-select">
+                            <option value="">No referee</option>
+                        </select>
+                    </div>
+                </div>
+                <p style="font-size:12px;color:var(--muted);margin:0">
+                    You can set date &amp; officer even when one side is still TBD. Clear the date field to unschedule.
+                </p>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="Modal.close('modal-match-schedule')">Cancel</button>
+                <button class="btn btn-primary" id="ms-save-btn" onclick="submitMatchSchedule()">
+                    <i class="fa-solid fa-floppy-disk"></i> Save Schedule
+                </button>
+            </div>
+        </div>
+    </div>
     <div class="modal-overlay" id="modal-ffa-schedule">
         <div class="modal">
             <div class="modal-header">
@@ -1632,6 +1678,11 @@
             const { nA, nB, cA, cB } = matchSideNames(m);
             const score = matchScoreText(m);
             const done = m.status === 'completed';
+            const cancelled = m.status === 'cancelled';
+            const canEditSched = !done && !cancelled
+                && ['pending', 'scheduled'].includes(String(m.status || '').toLowerCase())
+                && currentTournament?.status !== 'completed'
+                && opts.allowSchedule !== false;
             const when = m.scheduled_date
                 ? `${fd(m.scheduled_date)}${m.scheduled_time ? ' · ' + ft(m.scheduled_time) : ''}`
                 : (opts.unscheduledLabel || '');
@@ -1639,14 +1690,23 @@
                 ? `<span class="badge" style="background:rgba(34,197,94,.15);color:var(--green)">Done</span>`
                 : m.scheduled_date
                     ? `<span class="badge badge-muted">${m.status || 'scheduled'}</span>`
-                    : `<span class="badge" style="background:rgba(249,115,22,.15);color:var(--orange)">Pending</span>`;
+                    : `<span class="badge" style="background:rgba(249,115,22,.15);color:var(--orange)">Unscheduled</span>`;
             const pos = opts.showPos !== false && m.bracket_position
                 ? `<div class="bracket-match-pos">${m.bracket_position}</div>` : '';
             const metaRight = score
                 ? `<span class="bracket-score">${score}</span>`
                 : (opts.showStatus !== false ? stBadge : '');
+            const refLine = m.referee_name
+                ? `<span class="bracket-date" style="color:var(--muted)"><i class="fa-solid fa-whistle" style="opacity:.7"></i> ${m.referee_name}</span>`
+                : '';
             const dateLine = when || m.venue_name
                 ? `<span class="bracket-date">${when}${m.venue_name ? (when ? ' · ' : '') + m.venue_name : ''}</span>`
+                : '';
+            const schedBtn = canEditSched
+                ? `<button type="button" class="btn btn-secondary btn-sm" style="padding:4px 10px;font-size:11px;white-space:nowrap"
+                        onclick="openMatchSchedule(${m.id})" title="Set or edit date, time, venue &amp; officer">
+                        <i class="fa-solid fa-calendar-pen"></i> ${m.scheduled_date ? 'Edit' : 'Schedule'}
+                   </button>`
                 : '';
 
             return `<div class="bracket-match-card">
@@ -1659,9 +1719,161 @@
                 <div class="bracket-match-meta">
                     ${metaRight}
                     ${dateLine}
+                    ${refLine}
+                    ${schedBtn}
                 </div>
             </div>`;
         }
+
+        async function loadVenueOptionsForSchedule() {
+            const res = await api('/venues');
+            venuesCache = res.data || [];
+            const opts = '<option value="">No venue / assign later</option>' +
+                venuesCache.map(v => `<option value="${v.id}">${v.name}</option>`).join('');
+            ['as-venue', 'ffa-venue', 'ms-venue'].forEach(id => {
+                const sel = document.getElementById(id);
+                if (sel) sel.innerHTML = opts;
+            });
+        }
+
+        async function loadOfficerOptionsForSchedule() {
+            const res = await api('/matches/officers');
+            officersCache = res.success ? (res.data || []) : [];
+            const opts = '<option value="">Unassigned</option>' +
+                officersCache.map(o =>
+                    `<option value="${o.id}">${o.first_name} ${o.last_name}${o.active_assignments ? ` (${o.active_assignments} active)` : ''}</option>`
+                ).join('');
+            ['ffa-referee', 'ms-referee'].forEach(id => {
+                const sel = document.getElementById(id);
+                if (sel) sel.innerHTML = opts;
+            });
+        }
+
+        function tabSchedule() {
+            const matches = currentBracketMatches || [];
+            const isFfa = isFfaFormat(currentTournament.format);
+
+            if (isFfa) return tabFfaEventCard();
+
+            const unscheduled = matches.filter(m => !m.scheduled_date && !['completed', 'cancelled'].includes(m.status));
+            const scheduled = matches.filter(m => m.scheduled_date);
+            const dates = [...new Set(scheduled.map(m => m.scheduled_date).filter(Boolean))].sort();
+            const canAuto = ['round_robin', 'single_elimination', 'double_elimination', 'division_gauntlet'].includes(currentTournament.format)
+                && currentTournament.status !== 'completed';
+
+            if (!matches.length) {
+                return `<div class="card"><div class="card-body">
+                    <div class="section-empty">No matches yet. Generate the bracket first.</div>
+                </div></div>`;
+            }
+
+            let html = '';
+            if (canAuto || unscheduled.length) {
+                html += `<div class="card" style="margin-bottom:14px"><div class="card-body" style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap">
+                    <div style="font-size:13px;color:var(--muted)">
+                        <strong style="color:var(--text)">${unscheduled.length}</strong> unscheduled ·
+                        <strong style="color:var(--text)">${scheduled.length}</strong> with a date
+                        <div style="font-size:12px;margin-top:4px">You can set date, time, venue &amp; officer on any match — even when a side is still TBD.</div>
+                    </div>
+                    <div style="display:flex;gap:8px;flex-wrap:wrap">
+                        ${canAuto ? `<button class="btn btn-secondary btn-sm" onclick="openAutoSchedule()"><i class="fa-solid fa-dice"></i> Auto-Schedule</button>` : ''}
+                    </div>
+                </div></div>`;
+            }
+
+            if (unscheduled.length) {
+                html += `<div class="timeline-day">
+                    <div class="timeline-day-header" style="color:var(--orange)">Unscheduled (${unscheduled.length})</div>
+                    <div class="bracket-matches">${unscheduled.map(m => matchCardHtml(m, { showPos: true, unscheduledLabel: 'No date set' })).join('')}</div>
+                </div>`;
+            }
+
+            if (!dates.length && !unscheduled.length) {
+                html += `<div class="card"><div class="card-body"><div class="section-empty">All matches are completed or cancelled.</div></div></div>`;
+            }
+
+            html += dates.map(date => {
+                const dayMatches = scheduled.filter(m => m.scheduled_date === date)
+                    .sort((a, b) => String(a.scheduled_time || '').localeCompare(String(b.scheduled_time || '')));
+                const cards = dayMatches.map(m => matchCardHtml(m, { showPos: true })).join('');
+                return `<div class="timeline-day">
+                    <div class="timeline-day-header">${fd(date)}</div>
+                    <div class="bracket-matches">${cards}</div>
+                </div>`;
+            }).join('');
+
+            return html;
+        }
+
+        let _msMatchId = null;
+
+        async function openMatchSchedule(matchId) {
+            if (currentTournament?.status === 'completed') {
+                Toast.show('This tournament is finalized — its schedule is locked.', 'error');
+                return;
+            }
+            const m = (currentBracketMatches || []).find(x => Number(x.id) === Number(matchId));
+            if (!m) {
+                Toast.show('Match not found in this tournament.', 'error');
+                return;
+            }
+            if (!['pending', 'scheduled'].includes(String(m.status || '').toLowerCase())) {
+                Toast.show('Only pending or scheduled matches can be rescheduled.', 'error');
+                return;
+            }
+
+            _msMatchId = matchId;
+            await loadVenueOptionsForSchedule();
+            await loadOfficerOptionsForSchedule();
+
+            const { nA, nB, cA, cB } = matchSideNames(m);
+            document.getElementById('ms-preview').innerHTML = `
+                <div style="display:flex;align-items:center;gap:12px;background:var(--bg3);border-radius:10px;padding:14px 16px;flex-wrap:wrap">
+                    <span style="width:10px;height:10px;border-radius:50%;background:${cA || '#555'};flex-shrink:0"></span>
+                    <strong style="flex:1;min-width:80px">${nA}</strong>
+                    <span style="color:var(--muted);font-size:13px">vs</span>
+                    <strong style="flex:1;min-width:80px;text-align:right">${nB}</strong>
+                    <span style="width:10px;height:10px;border-radius:50%;background:${cB || '#555'};flex-shrink:0"></span>
+                </div>
+                ${m.bracket_position ? `<div style="font-size:12px;color:var(--muted);margin-top:8px">${m.bracket_position}</div>` : ''}
+                ${(!m.participant_a_department_id || !m.participant_b_department_id)
+                    ? `<div style="font-size:12px;color:var(--gold);margin-top:8px"><i class="fa-solid fa-circle-info"></i> One or both sides are still TBD — you can still lock in date, time, venue &amp; officer now.</div>`
+                    : ''}`;
+
+            document.getElementById('ms-date').value = m.scheduled_date || '';
+            document.getElementById('ms-time').value = m.scheduled_time ? String(m.scheduled_time).slice(0, 5) : '';
+            const vSel = document.getElementById('ms-venue');
+            const rSel = document.getElementById('ms-referee');
+            if (vSel) vSel.value = m.venue_id ? String(m.venue_id) : '';
+            if (rSel) rSel.value = (m.referee_user_id || m.referee_id) ? String(m.referee_user_id || m.referee_id) : '';
+
+            Modal.open('modal-match-schedule');
+        }
+
+        async function submitMatchSchedule() {
+            if (!_msMatchId) return;
+            const body = {
+                scheduled_date: document.getElementById('ms-date').value || null,
+                scheduled_time: document.getElementById('ms-time').value || null,
+                venue_id: document.getElementById('ms-venue').value || null,
+                referee_id: document.getElementById('ms-referee').value || null,
+            };
+            const btn = document.getElementById('ms-save-btn');
+            if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Saving…'; }
+            try {
+                const res = await api(`/matches/${_msMatchId}/schedule`, { method: 'PUT', body });
+                Toast.show(res.message || (res.success ? 'Schedule saved.' : 'Error'), res.success ? 'success' : 'error');
+                if (res.success) {
+                    Modal.close('modal-match-schedule');
+                    _msMatchId = null;
+                    await refreshAll();
+                }
+            } finally {
+                if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fa-solid fa-floppy-disk"></i> Save Schedule'; }
+            }
+        }
+
+
 
         document.addEventListener('DOMContentLoaded', async () => {
             Auth.requireAuth('sgo_president');

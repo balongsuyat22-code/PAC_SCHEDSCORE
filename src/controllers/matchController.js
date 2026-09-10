@@ -256,14 +256,25 @@ const getAll = async (req, res, next) => {
             LEFT JOIN users referee_user ON m.referee_id = referee_user.id
             LEFT JOIN match_results mr ON m.id = mr.match_id
             WHERE 1 = 1
-                AND (m.status NOT IN ('pending', 'scheduled')
-                    OR m.bracket_side = 'ffa'
-                       OR t.format IN ('free_for_all', 'team_ranking', 'group_stage_ffa')
-                       OR m.bracket_side = 'exhibition'
-                   OR (m.participant_a_department_id IS NOT NULL
-                       AND m.participant_b_department_id IS NOT NULL))
         `;
         const params = [];
+
+        // Admin + SGO President: see TBD / one-sided pending slots (for scheduling).
+        // Visitor, dean, referee, unauthenticated: hide until both sides are set
+        // (or the match is FFA / exhibition / already started / completed).
+        const canSeeTbd = callerRole === 'admin' || callerRole === 'sgo_president';
+        if (!canSeeTbd) {
+            query += `
+                AND (m.status NOT IN ('pending', 'scheduled')
+                    OR m.bracket_side = 'ffa'
+                    OR t.format IN ('free_for_all', 'team_ranking', 'group_stage_ffa')
+                    OR m.bracket_side = 'exhibition'
+                    OR (m.participant_a_department_id IS NOT NULL
+                        AND m.participant_b_department_id IS NOT NULL))
+            `;
+        } else {
+            query += ` AND m.status != 'cancelled' `;
+        }
 
         if (sportFestId) {
             query += ` AND EXISTS (
@@ -513,7 +524,16 @@ const getMyAssignments = async (req, res, next) => {
              LEFT JOIN departments da ON m.participant_a_department_id = da.id
              LEFT JOIN departments db ON m.participant_b_department_id = db.id
              LEFT JOIN venues      v  ON m.venue_id                    = v.id
-             WHERE m.referee_id = ? AND m.status NOT IN ('cancelled','completed')
+             WHERE m.referee_id = ?
+               AND m.status NOT IN ('cancelled','completed')
+               AND (
+                   m.status NOT IN ('pending', 'scheduled')
+                   OR m.bracket_side = 'ffa'
+                   OR t.format IN ('free_for_all', 'team_ranking', 'group_stage_ffa')
+                   OR m.bracket_side = 'exhibition'
+                   OR (m.participant_a_department_id IS NOT NULL
+                       AND m.participant_b_department_id IS NOT NULL)
+               )
              ORDER BY m.scheduled_date ASC, m.scheduled_time ASC`,
             [req.user.id]
         );

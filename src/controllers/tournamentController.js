@@ -462,8 +462,26 @@ const addParticipants = async (req, res, next) => {
 
 const getBracket = async (req, res, next) => {
     try {
-        const [rows] = await pool.execute(
-            `SELECT m.id, m.tournament_id, m.sport_id, m.round_number, m.match_number,
+        // Optional auth: president/admin see TBD sides; visitor/dean/referee do not.
+        let role = req.user?.role || null;
+        if (!role) {
+            try {
+                const hdr = req.headers.authorization || '';
+                const token = hdr.startsWith('Bearer ') ? hdr.slice(7) : null;
+                if (token) {
+                    const jwt = require('jsonwebtoken');
+                    const secret = process.env.JWT_SECRET || process.env.TOKEN_SECRET || 'secret';
+                    const decoded = jwt.verify(token, secret);
+                    role = decoded.role || decoded.user?.role || null;
+                }
+            } catch (_) {
+                role = null;
+            }
+        }
+        const canSeeTbd = role === 'admin' || role === 'sgo_president';
+
+        let sql = `
+        SELECT m.id, m.tournament_id, m.sport_id, m.round_number, m.match_number,
         m.bracket_position, m.bracket_side,
         m.participant_a_department_id, m.participant_b_department_id,
         m.winner_department_id, m.status, m.scheduled_date, m.scheduled_time,
@@ -484,10 +502,24 @@ const getBracket = async (req, res, next) => {
         LEFT JOIN venues v ON v.id = m.venue_id
         LEFT JOIN users ru ON ru.id = m.referee_id
         LEFT JOIN match_results mr ON mr.match_id = m.id
-        WHERE m.tournament_id = ?
-        ORDER BY m.round_number ASC, m.match_number ASC, m.id ASC`,
-            [req.params.id]
-        );
+        LEFT JOIN tournaments t ON t.id = m.tournament_id
+        WHERE m.tournament_id = ?`;
+
+        if (!canSeeTbd) {
+            sql += `
+            AND (
+                m.status NOT IN ('pending', 'scheduled')
+                OR m.bracket_side = 'ffa'
+                OR t.format IN ('free_for_all', 'team_ranking', 'group_stage_ffa')
+                OR m.bracket_side = 'exhibition'
+                OR (m.participant_a_department_id IS NOT NULL
+                    AND m.participant_b_department_id IS NOT NULL)
+            )`;
+        }
+
+        sql += ` ORDER BY m.round_number ASC, m.match_number ASC, m.id ASC`;
+
+        const [rows] = await pool.execute(sql, [req.params.id]);
         res.json({ success: true, data: rows });
     } catch (err) {
         console.error('getBracket error:', err);
