@@ -574,40 +574,8 @@ const schedule = async (req, res, next) => {
         const finalVenue = safeFK(req.body.venue_id);
         const finalReferee = safeFK(req.body.referee_id);
 
-        const [[scheduleMatch]] = await pool.execute(
-            `SELECT m.id, m.participant_a_department_id, m.participant_b_department_id,
-                    s.name AS sport_name, da.name AS dept_a_name, db.name AS dept_b_name,
-                    t.start_date AS tournament_start_date
-             FROM matches m
-             JOIN tournaments t ON t.id = m.tournament_id
-             JOIN sports s ON s.id = m.sport_id
-             LEFT JOIN departments da ON da.id = m.participant_a_department_id
-             LEFT JOIN departments db ON db.id = m.participant_b_department_id
-             WHERE m.id = ?`, [matchId]
-        );
-        const fixed = scheduleMatch && getFixedBlock(scheduleMatch);
-        if (fixed && (finalDate !== fixed.date || finalTime !== fixed.start)) {
-            return res.status(409).json({
-                success: false,
-                message: `This SGO fixture is fixed for ${fixed.date} at ${fixed.start}-${fixed.end} and cannot be moved.`,
-            });
-        }
-
-        if (fixed?.venue) {
-            const [[venue]] = await pool.execute(
-                `SELECT id FROM venues
-                 WHERE LOWER(name) = LOWER(?) OR LOWER(name) LIKE LOWER(?)
-                 ORDER BY id LIMIT 1`,
-                [fixed.venue, `%${fixed.venue}%`]
-            );
-            if (!venue?.id) {
-                return res.status(409).json({ success: false, message: `Required venue "${fixed.venue}" was not found.` });
-            }
-            if (finalVenue !== venue.id) {
-                return res.status(409).json({ success: false, message: `This SGO fixture must use ${fixed.venue}.` });
-            }
-        }
-
+        // Admin + SGO President may freely edit any pending/scheduled match.
+        // Fixed SGO fixture blocks are NOT enforced.
         const currentStatus = await getMatchStatus(matchId);
         if (currentStatus === null) {
             return res.status(404).json({ success: false, message: 'Match not found.' });
@@ -627,38 +595,25 @@ const schedule = async (req, res, next) => {
                 [finalReferee]
             );
             if (!officerCheck.length) {
-                return res.status(400).json({ success: false, message: 'Selected user is not an active SGO Officer.' });
+                return res.status(400).json({
+                    success: false,
+                    message: 'Selected user is not an active SGO Officer.',
+                });
             }
         }
 
+        // Only hard conflict left: same officer at the exact same date+time
         if (finalReferee && finalDate && finalTime) {
             const [conflicts] = await pool.execute(
                 `SELECT id FROM matches
-                 WHERE referee_id = ? AND scheduled_date = ? AND scheduled_time = ? AND id != ?`,
+                 WHERE referee_id = ? AND scheduled_date = ? AND scheduled_time = ? AND id != ?
+                   AND status IN ('pending', 'scheduled', 'ongoing')`,
                 [finalReferee, finalDate, finalTime, matchId]
             );
             if (conflicts.length) {
-                return res.status(409).json({ success: false, message: 'Selected officer is already assigned to another match at this time.' });
-            }
-        }
-
-        if (finalVenue && finalDate && finalTime) {
-            const [vConflicts] = await pool.execute(
-                `SELECT id FROM matches
-                 WHERE venue_id = ? AND scheduled_date = ? AND scheduled_time = ? AND id != ?`,
-                [finalVenue, finalDate, finalTime, matchId]
-            );
-            if (vConflicts.length) {
-                return res.status(409).json({ success: false, message: 'Selected venue is already booked at this time.' });
-            }
-        }
-
-        if (fixed) {
-            const conflict = await findTeamConflict(pool, matchId, fixed.sgo_department_id, fixed.date, fixed.start, fixed.end);
-            if (conflict) {
                 return res.status(409).json({
                     success: false,
-                    message: `SGO cannot be scheduled twice at ${fixed.date} ${fixed.start}; it conflicts with match ${conflict.id}.`,
+                    message: 'Selected officer is already assigned to another match at this time. Pick a different officer or time.',
                 });
             }
         }
@@ -687,7 +642,6 @@ const schedule = async (req, res, next) => {
             referee_id: finalReferee,
         });
 
-        // Real-time + persisted notifications
         await notifyMatchEvent('scheduled', matchId, {
             scheduled_date: finalDate,
             scheduled_time: finalTime,

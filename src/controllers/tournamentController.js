@@ -52,7 +52,14 @@ async function getTournamentWithSport(tournamentId) {
             s.is_team_sport AS sport_is_team_sport,
             s.scoring_type,
             s.sets_to_win,
-            s.icon AS sport_icon
+            s.icon AS sport_icon,
+            (
+                SELECT sft.sport_fest_id
+                FROM sport_fest_tournaments sft
+                WHERE sft.tournament_id = t.id
+                ORDER BY sft.sport_fest_id DESC
+                LIMIT 1
+            ) AS linked_sport_fest_id
      FROM tournaments t
      JOIN sports s ON s.id = t.sport_id
      WHERE t.id = ?
@@ -61,12 +68,17 @@ async function getTournamentWithSport(tournamentId) {
     );
     if (!rows.length) return null;
     const t = rows[0];
+    let seasonId = t.sport_fest_id || t.linked_sport_fest_id || null;
+    if (!seasonId) {
+        try { seasonId = await getActiveSportFestId(); } catch (_) { seasonId = null; }
+    }
     return {
         ...t,
         category: t.category || t.sport_category,
         min_players: t.min_players != null ? t.min_players : t.sport_min_players,
         team_size: t.sport_team_size,
         is_team_sport: t.sport_is_team_sport,
+        resolved_sport_fest_id: seasonId,
     };
 }
 
@@ -249,33 +261,42 @@ const getEligibility = async (req, res, next) => {
             `SELECT d.id AS department_id,
               d.name AS department_name,
               d.color AS department_color,
-                            d.code AS department_code,
-                            d.division,
-                            d.is_exhibition
+              d.code AS department_code,
+              d.division,
+              d.is_exhibition
        FROM departments d
        WHERE d.is_active = 1
        ORDER BY d.name`
         );
 
-        const [counts] = await pool.execute(
-            `SELECT department_id, COUNT(*) AS approved_count
+        // Scope player counts/lists to THIS tournament's season only
+        const seasonId = t.resolved_sport_fest_id || t.sport_fest_id || null;
+
+        let countSql = `SELECT department_id, COUNT(*) AS approved_count
        FROM players
-       WHERE sport_id = ? AND status = 'approved'
-       GROUP BY department_id`,
-            [t.sport_id]
-        );
+       WHERE sport_id = ? AND status = 'approved'`;
+        const countParams = [t.sport_id];
+        if (seasonId) {
+            countSql += ' AND sport_fest_id = ?';
+            countParams.push(seasonId);
+        }
+        countSql += ' GROUP BY department_id';
+        const [counts] = await pool.execute(countSql, countParams);
         const countMap = {};
         counts.forEach((r) => {
             countMap[r.department_id] = Number(r.approved_count);
         });
 
-        const [players] = await pool.execute(
-            `SELECT id, department_id, first_name, last_name, jersey_number, status
+        let playerSql = `SELECT id, department_id, first_name, last_name, jersey_number, status
        FROM players
-       WHERE sport_id = ?
-       ORDER BY last_name, first_name`,
-            [t.sport_id]
-        );
+       WHERE sport_id = ?`;
+        const playerParams = [t.sport_id];
+        if (seasonId) {
+            playerSql += ' AND sport_fest_id = ?';
+            playerParams.push(seasonId);
+        }
+        playerSql += ' ORDER BY last_name, first_name';
+        const [players] = await pool.execute(playerSql, playerParams);
         const playersByDept = {};
         players.forEach((p) => {
             if (!playersByDept[p.department_id]) playersByDept[p.department_id] = [];
@@ -327,8 +348,7 @@ const getEligibility = async (req, res, next) => {
                 required_players: required,
                 min_players: t.min_players,
                 team_size: t.team_size,
-                category: t.category,
-                is_exhibition: isExhibitionTournament,
+                sport_fest_id: seasonId,
             },
         });
     } catch (err) {
