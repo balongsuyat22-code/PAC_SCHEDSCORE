@@ -1452,8 +1452,87 @@
         </div>
     </div>
 
+    <!-- Custom match builder -->
+    <div class="modal-overlay" id="modal-custom-match">
+        <div class="modal">
+            <div class="modal-header">
+                <div class="modal-title"><i class="fa-solid fa-clipboard-list"></i> Add Custom Match</div>
+                <button class="modal-close" onclick="Modal.close('modal-custom-match')" aria-label="Close">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+            <div class="modal-body">
+                <p style="color:var(--text2);font-size:13px;margin-bottom:14px">
+                    Build a one-off match — like the SGO Days schedule — outside the auto-generated bracket.
+                    Leave a side's team blank and pick "fill from result" to place a special team ahead of time
+                    (e.g. Faculty/Night Owls) and wait for another match's winner or loser to fill the other side.
+                </p>
+                <div class="form-group">
+                    <label class="form-label">Label</label>
+                    <input type="text" id="cm-label" class="form-input"
+                        placeholder="Day 3 · Pickleball · SGO vs Cheetah">
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label class="form-label">Side A — team</label>
+                        <select id="cm-a-dept" class="form-select"></select>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Side A — or fill from result</label>
+                        <select id="cm-a-src" class="form-select"></select>
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label class="form-label">Side B — team</label>
+                        <select id="cm-b-dept" class="form-select"></select>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Side B — or fill from result</label>
+                        <select id="cm-b-src" class="form-select"></select>
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label class="form-label"><i class="fa-solid fa-calendar"
+                                style="margin-right:4px;opacity:.7"></i> Date (optional)</label>
+                        <input type="date" id="cm-date" class="form-input">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label"><i class="fa-solid fa-clock" style="margin-right:4px;opacity:.7"></i>
+                            Time (optional)</label>
+                        <input type="time" id="cm-time" class="form-input">
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label class="form-label"><i class="fa-solid fa-location-dot"
+                                style="margin-right:4px;opacity:.7"></i> Venue (optional)</label>
+                        <select id="cm-venue" class="form-select">
+                            <option value="">Select venue...</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label"><i class="fa-solid fa-user" style="margin-right:4px;opacity:.7"></i>
+                            Referee (optional)</label>
+                        <select id="cm-referee" class="form-select">
+                            <option value="">Select referee...</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="Modal.close('modal-custom-match')">Cancel</button>
+                <button class="btn btn-primary" onclick="submitCustomMatch()">
+                    <i class="fa-solid fa-plus"></i> Create Match
+                </button>
+            </div>
+        </div>
+    </div>
+
     <script src="../../js/bracket-design.js"></script>
     <script>
+
 
         let currentTournamentId = null;
         let currentTournament = null;
@@ -1463,6 +1542,7 @@
         let eligibilityMeta = null;
         let venuesCache = [];
         let officersCache = [];
+        let deptsCache = [];
         let allSports = [];
         let pointsRows = [];
 
@@ -1784,6 +1864,67 @@
                         `<option value="${o.id}">${o.first_name} ${o.last_name}${o.active_assignments ? ` (${o.active_assignments} active)` : ''}</option>`
                     ).join('');
             }
+        }
+
+        function customMatchSourceLabel(m) {
+            return m.bracket_position || `Match #${m.id}`;
+        }
+
+        async function openAddCustomMatch() {
+            if (!deptsCache.length) {
+                const res = await api('/departments');
+                deptsCache = res.success ? (res.data || []) : [];
+            }
+            const deptOpts = '<option value="">— TBD / fill from result below —</option>' +
+                deptsCache.map(d => `<option value="${d.id}">${d.name}${Number(d.is_exhibition) === 1 ? ' (exhibition)' : ''}</option>`).join('');
+            ['cm-a-dept', 'cm-b-dept'].forEach(id => { const el = document.getElementById(id); if (el) el.innerHTML = deptOpts; });
+
+            const matches = currentBracketMatches || [];
+            const srcOpts = '<option value="">— none —</option>' + matches.map(m => `
+                <option value="${m.id}|winner">${customMatchSourceLabel(m)} · Winner</option>
+                <option value="${m.id}|loser">${customMatchSourceLabel(m)} · Loser</option>
+            `).join('');
+            ['cm-a-src', 'cm-b-src'].forEach(id => { const el = document.getElementById(id); if (el) el.innerHTML = srcOpts; });
+
+            ['cm-label', 'cm-date', 'cm-time'].forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
+
+            const venueSel = document.getElementById('cm-venue');
+            if (venueSel) venueSel.innerHTML = '<option value="">Select venue...</option>' + venuesCache.map(v => `<option value="${v.id}">${v.name}</option>`).join('');
+            const refSel = document.getElementById('cm-referee');
+            if (refSel) refSel.innerHTML = '<option value="">Select referee...</option>' + officersCache.map(o => `<option value="${o.id}">${o.first_name} ${o.last_name}</option>`).join('');
+
+            Modal.open('modal-custom-match');
+        }
+
+        function sideFromCustomForm(prefix) {
+            const deptId = parseInt(document.getElementById(`${prefix}-dept`).value) || null;
+            const srcVal = document.getElementById(`${prefix}-src`).value;
+            if (deptId) return { department_id: deptId };
+            if (srcVal) {
+                const [fromMatchId, result] = srcVal.split('|');
+                return { from_match_id: parseInt(fromMatchId), result };
+            }
+            return null;
+        }
+
+        async function submitCustomMatch() {
+            const label = document.getElementById('cm-label').value.trim();
+            if (!label) { Toast.show('Give the match a label', 'error'); return; }
+            const side_a = sideFromCustomForm('cm-a');
+            const side_b = sideFromCustomForm('cm-b');
+            if (!side_a && !side_b) { Toast.show('Set at least one side (a team, or fill-from-result)', 'error'); return; }
+            const body = {
+                tournament_id: currentTournamentId,
+                label,
+                side_a, side_b,
+                scheduled_date: document.getElementById('cm-date').value || null,
+                scheduled_time: document.getElementById('cm-time').value || null,
+                venue_id: parseInt(document.getElementById('cm-venue').value) || null,
+                referee_id: parseInt(document.getElementById('cm-referee').value) || null,
+            };
+            const res = await api('/matches/custom', { method: 'POST', body });
+            Toast.show(res.message || (res.success ? 'Match created.' : 'Could not create match'), res.success ? 'success' : 'error');
+            if (res.success) { Modal.close('modal-custom-match'); await refreshAll(); }
         }
 
         async function refreshAll() {
@@ -2217,16 +2358,21 @@
 
         function tabBracket() {
             const matches = currentBracketMatches || [];
+            const addBtn = currentTournament && currentTournament.status !== 'completed'
+                ? `<button class="btn btn-primary btn-sm" onclick="openAddCustomMatch()"><i class="fa-solid fa-plus"></i> Add Custom Match</button>` : '';
+
             if (!matches.length) {
                 return `<div class="card"><div class="card-body">
-                    <div class="section-empty">No matches yet. Add participants and generate the bracket.</div>
+                    <div class="section-empty">No matches yet. Add participants and generate the bracket.
+                        ${addBtn ? `<div style="margin-top:12px">${addBtn}</div>` : ''}
+                    </div>
                 </div></div>`;
             }
 
 
             if (typeof renderBracketByFormat === 'function') {
                 const body = renderBracketByFormat(matches, currentTournament.participants || [], currentTournament);
-                return `<div class="card"><div class="card-header"><div class="card-title"><i class="fa-solid fa-trophy"></i> Bracket</div></div>
+                return `<div class="card"><div class="card-header"><div class="card-title"><i class="fa-solid fa-trophy"></i> Bracket</div>${addBtn}</div>
                     <div class="card-body">${body}</div></div>`;
             }
 
@@ -2249,7 +2395,7 @@
             }).join('');
 
             return `<div class="card">
-                <div class="card-header"><div class="card-title"><i class="fa-solid fa-trophy"></i> Bracket · ${matches.length} match${matches.length !== 1 ? 'es' : ''}</div></div>
+                <div class="card-header"><div class="card-title"><i class="fa-solid fa-trophy"></i> Bracket · ${matches.length} match${matches.length !== 1 ? 'es' : ''}</div>${addBtn}</div>
                 <div class="card-body"><div class="bracket-view">${body}</div></div>
             </div>`;
         }
