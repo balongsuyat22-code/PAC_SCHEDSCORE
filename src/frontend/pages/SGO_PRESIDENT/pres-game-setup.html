@@ -2383,29 +2383,48 @@
             const t = currentTournament;
             const parts = t.participants || [];
             const isFfa = isFfaFormat(t.format);
-            const done = currentBracketMatches.filter(m => m.status === 'completed').length;
-            const pct = currentBracketMatches.length ? Math.round((done / currentBracketMatches.length) * 100) : 0;
+            const matches = currentBracketMatches || [];
+            const done = matches.filter(m => m.status === 'completed').length;
+            const pct = matches.length ? Math.round((done / matches.length) * 100) : 0;
+
+            // Athlete readiness (admin-style overview)
+            const totalPlayers = parts.reduce((sum, p) => {
+                const n = p.players?.length ?? p.approved_count ?? p.player_count ?? 0;
+                return sum + Number(n || 0);
+            }, 0);
+            const minReq = Number(t.min_players || t.required_players || 0) || 1;
+            const teamsWithEnough = parts.filter(p => {
+                const n = p.players?.length ?? p.approved_count ?? p.player_count ?? 0;
+                return Number(n || 0) >= minReq;
+            }).length;
+
             const matchLabel = isFfa ? 'Event' : 'Matches';
-            const matchVal = isFfa ? (currentBracketMatches[0]?.status === 'completed' ? 'Done' : (currentBracketMatches.length ? 'Ready' : '—')) : currentBracketMatches.length;
+            const matchVal = isFfa
+                ? (matches[0]?.status === 'completed' ? 'Done' : (matches.length ? 'Ready' : '—'))
+                : matches.length;
 
             return `
-            <div class="grid-3" style="margin-bottom:16px">
-                <div class="stat-card stat-blue">
-                    <div class="stat-icon"><i class="fa-solid fa-users"></i></div>
-                    <div class="stat-value">${parts.length}${t.max_participants ? `<span style="font-size:16px;color:var(--muted)">/${t.max_participants}</span>` : ''}</div>
-                    <div class="stat-label">Participants</div>
-                </div>
-                <div class="stat-card stat-gold">
-                    <div class="stat-icon"><i class="fa-solid fa-${isFfa ? 'bolt' : 'diagram-project'}"></i></div>
-                    <div class="stat-value">${matchVal}</div>
-                    <div class="stat-label">${matchLabel}</div>
-                </div>
-                <div class="stat-card stat-green">
-                    <div class="stat-icon"><i class="fa-solid fa-chart-simple"></i></div>
-                    <div class="stat-value">${isFfa ? (done ? '100%' : '0%') : pct + '%'}</div>
-                    <div class="stat-label">Completed</div>
-                </div>
+            <div class="stats-grid" style="margin-bottom:16px">
+                <div class="stat-card"><div class="stat-value">${parts.length}${t.max_participants ? `<span style="font-size:16px;color:var(--muted)">/${t.max_participants}</span>` : ''}</div><div class="stat-label">Teams / Depts</div></div>
+                <div class="stat-card"><div class="stat-value">${totalPlayers}</div><div class="stat-label">Total Athletes</div></div>
+                <div class="stat-card"><div class="stat-value">${teamsWithEnough}/${parts.length || 0}</div><div class="stat-label">Teams Ready</div></div>
+                <div class="stat-card"><div class="stat-value">${matchVal}</div><div class="stat-label">${matchLabel}</div></div>
             </div>
+            ${teamsWithEnough < parts.length && parts.length ? `<div class="warning-banner" style="background:rgba(232,50,59,0.1);border:1px solid rgba(232,50,59,0.3);border-radius:10px;padding:12px 16px;margin-bottom:16px;display:flex;align-items:center;gap:12px;font-size:13px"><div><strong>Incomplete teams:</strong> ${parts.length - teamsWithEnough} team(s) may need more players.</div></div>` : ''}
+            <div class="info-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:12px;margin-bottom:16px">
+                ${[
+                    ['Status', (t.status || '—')],
+                    ['Sport', t.sport_name || '—'],
+                    ['Format', formatLabel(t.format)],
+                    ['Gender', (t.gender || 'open')],
+                    ['Participants', `${parts.length}${t.max_participants ? ' / ' + t.max_participants : ''}`],
+                    ['Completed', isFfa ? (done ? '100%' : '0%') : (pct + '%')],
+                ].map(([l, v]) => `<div class="info-item" style="background:var(--bg3);border:1px solid var(--border);border-radius:10px;padding:14px 16px"><div class="info-item-label" style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:1px;font-weight:700;margin-bottom:6px">${l}</div><div class="info-item-val" style="font-size:15px;font-weight:700;text-transform:capitalize">${v}</div></div>`).join('')}
+            </div>
+            ${!isFfa ? `<div class="card" style="margin-bottom:16px">
+                <div class="card-header"><div class="card-title">Match Progress</div><span style="font-size:12px;color:var(--muted)">${done} / ${matches.length} done</span></div>
+                <div class="card-body"><div style="background:var(--bg3);border-radius:8px;height:10px;overflow:hidden"><div style="height:100%;width:${pct}%;background:var(--gold);border-radius:8px;transition:width .3s"></div></div></div>
+            </div>` : ''}
             ${isFfa ? `<div class="card" style="margin-bottom:16px">
                 <div class="card-body" style="padding:0">
                     <div class="ffa-card">
@@ -2418,6 +2437,7 @@
                 <div class="card-body" style="color:var(--muted);font-size:13px">${t.description}</div></div>` : (isFfa ? '' : `<div class="card"><div class="card-body"><div class="section-empty" style="padding:20px">No description.</div></div></div>`)
                 }`;
         }
+
 
         function tabSchedule() {
             const matches = currentBracketMatches || [];

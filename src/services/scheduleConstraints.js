@@ -54,6 +54,42 @@ function rangesOverlap(startA, endA, startB, endB) {
     return startA < endB && startB < endA;
 }
 
+function randomizeWithoutConsecutiveTeams(matches, attempts = 200) {
+    if (matches.length < 2) return [...matches];
+
+    const teamsFor = (match) => new Set([
+        match.participant_a_department_id,
+        match.participant_b_department_id,
+    ].filter(Boolean));
+    const sharesTeam = (left, right) => {
+        const rightTeams = teamsFor(right);
+        return [...teamsFor(left)].some((teamId) => rightTeams.has(teamId));
+    };
+
+    let best = [];
+    for (let attempt = 0; attempt < attempts; attempt++) {
+        const remaining = [...matches];
+        const order = [];
+
+        while (remaining.length) {
+            const previous = order[order.length - 1];
+            const available = previous
+                ? remaining.filter((match) => !sharesTeam(previous, match))
+                : remaining;
+            if (!available.length) break;
+
+            const next = available[Math.floor(Math.random() * available.length)];
+            order.push(next);
+            remaining.splice(remaining.indexOf(next), 1);
+        }
+
+        if (order.length > best.length) best = order;
+        if (order.length === matches.length) return order;
+    }
+
+    return best;
+}
+
 async function findTeamConflict(pool, matchId, departmentId, date, start, end) {
     if (!departmentId || !date || !start || !end) return null;
     const [rows] = await pool.execute(
@@ -76,4 +112,10 @@ async function findTeamConflict(pool, matchId, departmentId, date, start, end) {
     return conflict || null;
 }
 
-module.exports = { FIXED_BLOCKS, getFixedBlock, findTeamConflict, timeToMinutes };
+module.exports = {
+    FIXED_BLOCKS,
+    getFixedBlock,
+    findTeamConflict,
+    randomizeWithoutConsecutiveTeams,
+    timeToMinutes,
+};

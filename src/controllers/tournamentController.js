@@ -5,7 +5,12 @@ const cache = require('../utils/cache');
 const { emitToLeaderboard } = require('../utils/socketEmit');
 const { generateBracket: generateBracketService } = require('../services/bracketService');
 const { notifyRoles } = require('./notificationController');
-const { getFixedBlock, findTeamConflict, timeToMinutes } = require('../services/scheduleConstraints');
+const {
+    getFixedBlock,
+    findTeamConflict,
+    randomizeWithoutConsecutiveTeams,
+    timeToMinutes,
+} = require('../services/scheduleConstraints');
 
 function isTeamSport(row) {
     if (!row) return false;
@@ -1113,9 +1118,13 @@ const scheduleRoundRobin = async (req, res, next) => {
 
         let ordered = [...flexibleMatches];
         if (format === 'round_robin') {
-            for (let i = ordered.length - 1; i > 0; i--) {
-                const j = Math.floor(Math.random() * (i + 1));
-                [ordered[i], ordered[j]] = [ordered[j], ordered[i]];
+            ordered = randomizeWithoutConsecutiveTeams(ordered);
+            if (ordered.length !== flexibleMatches.length) {
+                const error = new Error(
+                    'Could not create a round-robin order without consecutive matches involving the same team. Add more teams or split the schedule.'
+                );
+                error.statusCode = 409;
+                throw error;
             }
         }
 
