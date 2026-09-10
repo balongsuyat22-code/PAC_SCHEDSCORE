@@ -10,49 +10,97 @@
         rel="stylesheet">
     <link rel="stylesheet" href="../../css/shared.css">
     <style>
+        .champions-area {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 16px;
+            margin-bottom: 24px;
+        }
+
         .champion-hero {
             background: linear-gradient(135deg, #1A1400, #2A2000);
             border: 1px solid rgba(245, 184, 0, .35);
             border-radius: 16px;
-            padding: 32px 36px;
-            margin-bottom: 24px;
+            padding: 28px 28px;
             text-align: center;
             position: relative;
-            overflow: hidden
+            overflow: hidden;
         }
 
         .champion-hero::before {
             content: '';
             position: absolute;
             inset: 0;
-            background: radial-gradient(ellipse 70% 70% at 50% 50%, rgba(245, 184, 0, .07), transparent)
+            background: radial-gradient(ellipse 70% 70% at 50% 50%, rgba(245, 184, 0, .07), transparent);
+        }
+
+        .champion-hero.leader-mode {
+            background: linear-gradient(135deg, #0f1520, #1a2233);
+            border-color: rgba(99, 102, 241, .35);
         }
 
         .ch-label {
             font-size: 11px;
             font-weight: 700;
-            letter-spacing: 3px;
+            letter-spacing: 2px;
             text-transform: uppercase;
             color: var(--gold);
             margin: 8px 0 4px;
-            position: relative
+            position: relative;
+        }
+
+        .ch-division {
+            display: inline-block;
+            font-size: 10px;
+            font-weight: 800;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+            padding: 3px 10px;
+            border-radius: 20px;
+            background: rgba(245, 184, 0, .15);
+            color: var(--gold);
+            margin-bottom: 6px;
+            position: relative;
         }
 
         .ch-name {
             font-family: 'Barlow Condensed', sans-serif;
-            font-size: 46px;
+            font-size: 36px;
             font-weight: 900;
             text-transform: uppercase;
             position: relative;
-            word-break: break-word
+            word-break: break-word;
+            line-height: 1.1;
         }
 
         .ch-pts {
             font-family: 'Barlow Condensed', sans-serif;
-            font-size: 26px;
+            font-size: 22px;
             font-weight: 900;
             color: var(--gold);
-            position: relative
+            position: relative;
+            margin-top: 4px;
+        }
+
+        .division-block {
+            margin-bottom: 28px;
+        }
+
+        .division-hdr {
+            font-family: 'Barlow Condensed', sans-serif;
+            font-size: 15px;
+            font-weight: 800;
+            text-transform: uppercase;
+            letter-spacing: 1.5px;
+            color: var(--gold);
+            margin-bottom: 10px;
+            padding: 8px 14px;
+            background: rgba(245, 184, 0, .08);
+            border: 1px solid rgba(245, 184, 0, .2);
+            border-radius: 8px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
         }
 
         .lb-tabs {
@@ -63,7 +111,7 @@
             border: 1px solid var(--border);
             border-radius: 10px;
             padding: 4px;
-            flex-wrap: wrap
+            flex-wrap: wrap;
         }
 
         .lb-tab {
@@ -76,12 +124,12 @@
             font-size: 13px;
             font-weight: 600;
             color: var(--muted);
-            transition: all .15s
+            transition: all .15s;
         }
 
         .lb-tab.active {
             background: var(--bg3);
-            color: var(--text)
+            color: var(--text);
         }
 
         .lb-table {
@@ -89,7 +137,7 @@
             border: 1px solid var(--border);
             border-radius: 14px;
             overflow: hidden;
-            overflow-x: auto
+            overflow-x: auto;
         }
 
         .lb-thead,
@@ -98,7 +146,7 @@
             grid-template-columns: 56px 1fr 70px 70px 70px 70px 90px;
             padding: 10px 20px;
             align-items: center;
-            min-width: 640px
+            min-width: 640px;
         }
 
         .lb-thead {
@@ -108,40 +156,44 @@
             letter-spacing: 1.5px;
             text-transform: uppercase;
             color: var(--muted);
-            border-bottom: 1px solid var(--border)
+            border-bottom: 1px solid var(--border);
         }
 
         .lb-row {
             padding: 14px 20px;
             border-bottom: 1px solid rgba(255, 255, 255, .04);
-            transition: background .1s
+            transition: background .1s;
         }
 
         .lb-row:hover {
-            background: rgba(255, 255, 255, .02)
+            background: rgba(255, 255, 255, .02);
         }
 
         .lb-row:last-child {
-            border-bottom: none
+            border-bottom: none;
         }
 
         .lb-row.rank-1 {
-            background: rgba(255, 215, 0, .04)
+            background: rgba(255, 215, 0, .04);
         }
 
         .lb-row.rank-2 {
-            background: rgba(192, 192, 192, .03)
+            background: rgba(192, 192, 192, .03);
         }
 
         .lb-row.rank-3 {
-            background: rgba(205, 127, 50, .03)
+            background: rgba(205, 127, 50, .03);
+        }
+
+        .lb-row.is-champion {
+            box-shadow: inset 3px 0 0 var(--gold);
         }
 
         .lb-rank-num {
             font-family: 'Barlow Condensed', sans-serif;
             font-size: 22px;
             font-weight: 900;
-            text-align: center
+            text-align: center;
         }
 
         .lb-dept-name {
@@ -156,7 +208,7 @@
             display: flex;
             align-items: center;
             gap: 12px;
-            min-width: 0
+            min-width: 0;
         }
 
         .lb-dept-logo {
@@ -171,21 +223,21 @@
             font-weight: 900;
             color: #fff;
             overflow: hidden;
-            flex-shrink: 0
+            flex-shrink: 0;
         }
 
         .lb-dept-logo img {
             width: 100%;
             height: 100%;
             object-fit: cover;
-            border-radius: 8px
+            border-radius: 8px;
         }
 
         .lb-num {
             font-family: 'Barlow Condensed', sans-serif;
             font-size: 20px;
             font-weight: 800;
-            text-align: center
+            text-align: center;
         }
 
         .lb-pts {
@@ -193,7 +245,7 @@
             font-size: 24px;
             font-weight: 900;
             color: var(--gold);
-            text-align: right
+            text-align: right;
         }
 
         .lb-bar {
@@ -202,12 +254,12 @@
             border-radius: 2px;
             margin-top: 4px;
             width: min(120px, 100%);
-            overflow: hidden
+            overflow: hidden;
         }
 
         .lb-bar-fill {
             height: 100%;
-            border-radius: 2px
+            border-radius: 2px;
         }
 
         .sport-section-hdr {
@@ -219,7 +271,7 @@
             font-weight: 800;
             text-transform: uppercase;
             letter-spacing: 1px;
-            color: var(--muted)
+            color: var(--muted);
         }
 
         .sport-lb-row {
@@ -227,18 +279,18 @@
             align-items: center;
             gap: 14px;
             padding: 10px 16px;
-            border-bottom: 1px solid rgba(255, 255, 255, .04)
+            border-bottom: 1px solid rgba(255, 255, 255, .04);
         }
 
         .sport-lb-row:last-child {
-            border-bottom: none
+            border-bottom: none;
         }
 
         .sport-lb-pts {
             font-family: 'Barlow Condensed', sans-serif;
             font-size: 18px;
             font-weight: 800;
-            color: var(--gold)
+            color: var(--gold);
         }
 
         .prog-bar {
@@ -246,20 +298,20 @@
             background: var(--bg4);
             border-radius: 4px;
             overflow: hidden;
-            margin: 8px 0
+            margin: 8px 0;
         }
 
         .prog-fill {
             height: 100%;
             background: linear-gradient(90deg, var(--gold), #ffc700);
             border-radius: 4px;
-            transition: width .6s
+            transition: width .6s;
         }
 
         .prog-grid {
             display: grid;
             grid-template-columns: repeat(3, 1fr);
-            gap: 16px
+            gap: 16px;
         }
 
         @media(max-width:900px) {
@@ -279,26 +331,23 @@
             .lb-row>*:nth-child(3),
             .lb-row>*:nth-child(4),
             .lb-row>*:nth-child(5) {
-                display: none
+                display: none;
             }
 
             .ch-name {
-                font-size: 32px
+                font-size: 28px;
             }
 
             .champion-hero {
-                padding: 24px 18px
+                padding: 22px 16px;
             }
 
             .prog-grid {
-                grid-template-columns: 1fr
+                grid-template-columns: 1fr;
             }
         }
 
         @media(max-width:600px) {
-
-            /* Tabs: was a full vertical stack (4 rows tall) — scroll
-               horizontally in one compact row instead. */
             .lb-tabs {
                 flex-wrap: nowrap;
                 overflow-x: auto;
@@ -313,33 +362,12 @@
                 padding: 8px 14px;
             }
 
-            /* Department color box: at this width it's squeezed next to
-               the name and looks cramped/uneven — drop it and put the
-               department's color on the rank number instead as a small
-               underline, so the color cue survives without eating space. */
             .lb-dept-logo {
                 display: none;
             }
 
             .lb-dept-cell {
                 gap: 0;
-            }
-
-            .lb-rank-num {
-                display: flex;
-                flex-direction: column;
-                align-items: center;
-                gap: 3px;
-                font-size: 18px;
-            }
-
-            .lb-rank-num::after {
-                content: '';
-                display: block;
-                width: 16px;
-                height: 4px;
-                border-radius: 2px;
-                background: var(--dept-color, #555);
             }
 
             .lb-thead,
@@ -364,7 +392,6 @@
 </head>
 
 <body>
-    <!-- Sidebar injected by renderSidebar -->
     <main class="main">
         <div class="topbar">
             <button class="burger-menu" id="burger-menu" aria-label="Toggle navigation menu" type="button">
@@ -374,7 +401,11 @@
                         <line x1="3" y1="18" x2="21" y2="18"></line>
                     </svg></span>
             </button>
-            <div class="topbar-title">Leaderboard</div>
+            <div class="topbar-title" style="display:flex;align-items:center;gap:8px;">
+                Leaderboard
+                <span id="rt-live-pill"
+                    style="display:none;font-size:10px;font-weight:800;letter-spacing:1px;padding:3px 8px;border-radius:20px;background:rgba(34,197,94,0.15);color:var(--green);text-transform:uppercase">LIVE</span>
+            </div>
             <div class="topbar-actions">
                 <button class="btn btn-secondary btn-sm" onclick="loadPage()">Refresh</button>
                 <button class="btn btn-primary btn-sm" onclick="recalculate()">Recalculate</button>
@@ -389,20 +420,9 @@
                 <div class="lb-tab" onclick="switchTab('progress',this)">Progress</div>
             </div>
             <div id="tab-overall">
-                <div class="lb-table">
-                    <div class="lb-thead">
-                        <div style="text-align:center">#</div>
-                        <div>Department</div>
-                        <div style="text-align:center">Gold</div>
-                        <div style="text-align:center">Silver</div>
-                        <div style="text-align:center">Bronze</div>
-                        <div style="text-align:center">Events</div>
-                        <div style="text-align:right">Points</div>
-                    </div>
-                    <div id="lb-overall-body">
-                        <div class="empty-state" style="padding:40px">
-                            <div class="empty-text">Loading...</div>
-                        </div>
+                <div id="lb-overall-body">
+                    <div class="empty-state" style="padding:40px">
+                        <div class="empty-text">Loading...</div>
                     </div>
                 </div>
             </div>
@@ -455,25 +475,335 @@
     <script src="../../js/admin-sidebar.js"></script>
     <script>
         let lbData = [], bySportData = [], champData = null;
+        let _lbRtTimer = null;
+
+        const DIV_ORDER = ['junior_high', 'senior_high', 'college', 'junior', 'senior'];
+        const DIV_LABEL = {
+            junior_high: 'Junior High',
+            senior_high: 'Senior High',
+            college: 'College',
+            junior: 'Junior',
+            senior: 'Senior',
+        };
+
+        function normalizeDivision(d) {
+            if (!d) return 'overall';
+            const s = String(d).toLowerCase().replace(/\s+/g, '_');
+            if (s.includes('junior')) return s.includes('high') ? 'junior_high' : 'junior';
+            if (s.includes('senior')) return s.includes('high') ? 'senior_high' : 'senior';
+            if (s.includes('college')) return 'college';
+            return s;
+        }
+
+        function divisionLabel(d) {
+            const key = normalizeDivision(d);
+            return DIV_LABEL[key] || String(d || 'Overall').replace(/_/g, ' ');
+        }
+
+        function groupByDivision(rows) {
+            const map = {};
+            (rows || []).forEach(r => {
+                const key = normalizeDivision(r.division);
+                if (!map[key]) map[key] = [];
+                map[key].push(r);
+            });
+            const keys = Object.keys(map).sort((a, b) => {
+                const ia = DIV_ORDER.indexOf(a);
+                const ib = DIV_ORDER.indexOf(b);
+                if (ia === -1 && ib === -1) return a.localeCompare(b);
+                if (ia === -1) return 1;
+                if (ib === -1) return -1;
+                return ia - ib;
+            });
+            return keys.map(k => ({ key: k, label: divisionLabel(k), rows: map[k] }));
+        }
+
+        function championIdSet() {
+            const set = new Set();
+            const list = champData?.champions || [];
+            list.forEach(c => {
+                if (c.department_id != null) set.add(Number(c.department_id));
+                if (c.id != null) set.add(Number(c.id));
+            });
+            const single = champData?.champion;
+            if (single) {
+                if (single.department_id != null) set.add(Number(single.department_id));
+                if (single.id != null) set.add(Number(single.id));
+            }
+            return set;
+        }
+
         document.addEventListener('DOMContentLoaded', async () => {
             Auth.requireAuth('admin');
             renderSidebar('leaderboard');
             await loadPage();
-
-            let t = null;
-            const soft = () => { clearTimeout(t); t = setTimeout(() => loadPage(), 500); };
-            window.addEventListener('sf:leaderboard', soft);
-            window.addEventListener('sf:champion', soft);
-            window.addEventListener('sf:match', soft);
+            bindRealtime();
         });
-        async function loadPage() { const [lbRes, champRes, sportRes] = await Promise.all([api('/leaderboard'), api('/leaderboard/overall-champion'), api('/leaderboard/by-sport')]); lbData = lbRes.data || []; champData = champRes.data || null; bySportData = sportRes.data || []; renderChampion(); renderOverall(); renderMedals(); renderBySport(); renderProgress() }
-        function switchTab(name, el) { ['overall', 'medals', 'bysport', 'progress'].forEach(t => document.getElementById(`tab-${t}`).style.display = t === name ? '' : 'none'); document.querySelectorAll('.lb-tab').forEach(b => b.classList.remove('active')); el.classList.add('active') }
-        function renderChampion() { const el = document.getElementById('champion-section'); const leader = champData?.champion || champData?.current_leader; if (!leader) { el.innerHTML = ''; return } el.innerHTML = `<div class="champion-hero"><div class="ch-label">${champData.is_final ? 'SPORT FEST OVERALL CHAMPION' : 'CURRENT LEADER'}</div><div class="ch-name">${leader.name}</div><div class="ch-pts">${leader.total_points} POINTS</div><div style="font-size:16px;position:relative;margin-top:4px">Gold ${leader.gold_medals || 0} · Silver ${leader.silver_medals || 0} · Bronze ${leader.bronze_medals || 0}</div><div style="font-size:13px;color:var(--muted);margin-top:8px;position:relative">${champData.message || ''}</div></div>` }
-        function renderOverall() { const el = document.getElementById('lb-overall-body'); const max = lbData[0]?.total_points || 1; if (!lbData.length) { el.innerHTML = `<div class="empty-state" style="padding:40px"><div class="empty-text">No standings yet</div></div>`; return } el.innerHTML = lbData.map((d, i) => { const rank = i + 1, bar = Math.min((d.total_points / max) * 100, 100); const rkColor = rank === 1 ? '#FFD700' : rank === 2 ? '#C0C0C0' : rank === 3 ? '#CD7F32' : 'var(--muted)'; const init = (d.name || '?').split(' ').map(w => w[0]).slice(0, 2).join('').toUpperCase(); const logoHtml = d.logo_url ? `<img src="${d.logo_url}" alt="" onerror="this.style.display='none'">` : init; return `<div class="lb-row ${rank <= 3 ? `rank-${rank}` : ''}" style="--dept-color:${d.color || '#555'}"><div class="lb-rank-num" style="color:${rkColor}">${rank}</div><div class="lb-dept-cell"><div class="lb-dept-logo" style="background:${d.color || '#555'}">${logoHtml}</div><div style="min-width:0"><div class="lb-dept-name">${d.name}</div><div class="lb-bar"><div class="lb-bar-fill" style="width:${bar}%;background:${d.color || 'var(--gold)'}"></div></div></div></div><div class="lb-num" style="color:#FFD700">${d.gold_medals || 0}</div><div class="lb-num" style="color:#C0C0C0">${d.silver_medals || 0}</div><div class="lb-num" style="color:#CD7F32">${d.bronze_medals || 0}</div><div class="lb-num" style="color:var(--muted)">${d.total_participations || 0}</div><div class="lb-pts">${d.total_points || 0}</div></div>` }).join('') }
-        function renderMedals() { const sorted = [...lbData].sort((a, b) => (b.gold_medals - a.gold_medals) || (b.silver_medals - a.silver_medals) || (b.bronze_medals - a.bronze_medals)); document.getElementById('lb-medals-body').innerHTML = sorted.map((d, i) => { const init = (d.name || '?').split(' ').map(w => w[0]).slice(0, 2).join('').toUpperCase(); return `<tr style="border-bottom:1px solid rgba(255,255,255,.04)"><td style="padding:10px 20px;font-family:'Barlow Condensed',sans-serif;font-size:18px;font-weight:900;color:var(--muted)">${i + 1}</td><td style="padding:10px 20px"><div style="display:flex;align-items:center;gap:10px"><div style="width:32px;height:32px;border-radius:8px;background:${d.color || '#555'};display:flex;align-items:center;justify-content:center;font-family:'Barlow Condensed',sans-serif;font-size:12px;font-weight:900;color:#fff">${init}</div><span style="font-weight:600">${d.name}</span></div></td><td style="text-align:center;font-family:'Barlow Condensed',sans-serif;font-size:20px;font-weight:800;color:#FFD700;padding:10px">${d.gold_medals || 0}</td><td style="text-align:center;font-family:'Barlow Condensed',sans-serif;font-size:20px;font-weight:800;color:#C0C0C0;padding:10px">${d.silver_medals || 0}</td><td style="text-align:center;font-family:'Barlow Condensed',sans-serif;font-size:20px;font-weight:800;color:#CD7F32;padding:10px">${d.bronze_medals || 0}</td><td style="text-align:center;font-family:'Barlow Condensed',sans-serif;font-size:20px;font-weight:800;padding:10px">${(d.gold_medals || 0) + (d.silver_medals || 0) + (d.bronze_medals || 0)}</td></tr>` }).join('') }
-        function renderBySport() { const el = document.getElementById('lb-bysport-body'); if (!bySportData.length) { el.innerHTML = `<div class="empty-state" style="padding:40px"><div class="empty-text">No sport results yet</div></div>`; return } const grouped = {}; bySportData.forEach(r => { (grouped[r.sport_name] = grouped[r.sport_name] || []).push(r) }); el.innerHTML = Object.entries(grouped).map(([sport, rows]) => `<div class="sport-section-hdr">${sport}</div>${rows.sort((a, b) => (b.sport_points || 0) - (a.sport_points || 0)).map((r, i) => `<div class="sport-lb-row"><div style="font-family:'Barlow Condensed',sans-serif;font-size:18px;font-weight:900;width:28px;text-align:center;color:${i === 0 ? '#FFD700' : i === 1 ? '#C0C0C0' : i === 2 ? '#CD7F32' : 'var(--muted)'}">${i + 1}</div><div style="flex:1;font-size:13px;font-weight:600">${r.department_name}</div><div class="sport-lb-pts">+${r.sport_points || 0}</div></div>`).join('')}`).join('') }
-        function renderProgress() { const el = document.getElementById('lb-progress-body'); const s = champData?.tournament_stats; if (!s) { el.innerHTML = `<div class="empty-state" style="padding:40px"><div class="empty-text">No data</div></div>`; return } const pct = s.total_tournaments ? Math.round((s.completed_tournaments / s.total_tournaments) * 100) : 0; el.innerHTML = `<div class="card" style="margin-bottom:16px"><div class="card-header"><div class="card-title">Event Completion</div></div><div class="card-body"><div style="display:flex;justify-content:space-between;font-size:13px;color:var(--muted);margin-bottom:6px"><span>Completed</span><span style="color:var(--gold);font-weight:700">${s.completed_tournaments}/${s.total_tournaments}</span></div><div class="prog-bar"><div class="prog-fill" style="width:${pct}%"></div></div></div></div><div class="prog-grid">${[[s.completed_tournaments, 'Completed', 'var(--green)'], [s.ongoing_tournaments, 'Live Now', 'var(--red)'], [s.upcoming_tournaments, 'Upcoming', 'var(--muted)']].map(([v, l, c]) => `<div style="background:var(--bg2);border:1px solid var(--border);border-radius:12px;padding:20px;text-align:center"><div style="font-family:'Barlow Condensed',sans-serif;font-size:36px;font-weight:900;color:${c}">${v}</div><div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin-top:4px">${l}</div></div>`).join('')}</div>` }
-        async function recalculate() { const res = await api('/leaderboard/recalculate', { method: 'POST' }); Toast.show(res.message || (res.success ? 'Recalculated!' : 'Error'), res.success ? 'success' : 'error'); if (res.success) await loadPage() }
+
+        function bindRealtime() {
+            if (typeof Realtime !== 'undefined') {
+                try { Realtime.connect(); } catch (_) { }
+            }
+            const soft = () => {
+                clearTimeout(_lbRtTimer);
+                _lbRtTimer = setTimeout(() => loadPage({ silent: true }), 450);
+            };
+            ['sf:leaderboard', 'sf:champion', 'sf:match', 'sf:score'].forEach(ev =>
+                window.addEventListener(ev, soft)
+            );
+            const syncPill = () => {
+                const pill = document.getElementById('rt-live-pill');
+                if (!pill) return;
+                const on = typeof Realtime !== 'undefined' && Realtime.connected;
+                pill.style.display = on ? 'inline-flex' : 'none';
+            };
+            syncPill();
+            setInterval(syncPill, 3000);
+        }
+
+        async function loadPage(opts = {}) {
+            try {
+                const [lbRes, champRes, sportRes] = await Promise.all([
+                    api('/leaderboard'),
+                    api('/leaderboard/overall-champion'),
+                    api('/leaderboard/by-sport'),
+                ]);
+                lbData = (lbRes && lbRes.data) || [];
+                champData = (champRes && champRes.data) || null;
+                bySportData = (sportRes && sportRes.data) || [];
+                renderChampion();
+                renderOverall();
+                renderMedals();
+                renderBySport();
+                renderProgress();
+            } catch (err) {
+                console.error('[admin-leaderboard]', err);
+                if (!opts.silent) {
+                    Toast.show('Failed to load leaderboard', 'error');
+                }
+            }
+        }
+
+        function switchTab(name, el) {
+            ['overall', 'medals', 'bysport', 'progress'].forEach(t => {
+                const node = document.getElementById('tab-' + t);
+                if (node) node.style.display = t === name ? '' : 'none';
+            });
+            document.querySelectorAll('.lb-tab').forEach(b => b.classList.remove('active'));
+            if (el) el.classList.add('active');
+        }
+
+        function renderChampion() {
+            const el = document.getElementById('champion-section');
+            if (!el) return;
+
+            const champs = Array.isArray(champData?.champions) ? champData.champions.filter(Boolean) : [];
+            const isFinal = !!champData?.is_final;
+
+            // Prefer multi-champion cards when declared
+            if (champs.length >= 1) {
+                el.innerHTML = '<div class="champions-area">' + champs.map(c => {
+                    const div = divisionLabel(c.division);
+                    return `
+                    <div class="champion-hero">
+                        <div class="ch-division">${escapeHtml(div)}</div>
+                        <div class="ch-label">${isFinal ? 'SPORT FEST CHAMPION' : 'DECLARED CHAMPION'}</div>
+                        <div class="ch-name">${escapeHtml(c.name)}</div>
+                        <div class="ch-pts">${c.total_points != null ? c.total_points : '—'} POINTS</div>
+                        <div style="font-size:14px;position:relative;margin-top:4px">
+                            Gold ${c.gold_medals || 0}
+                        </div>
+                    </div>`;
+                }).join('') + '</div>' +
+                    (champData?.message
+                        ? `<div style="text-align:center;font-size:13px;color:var(--muted);margin:-8px 0 16px">${escapeHtml(champData.message)}</div>`
+                        : '');
+                return;
+            }
+
+            // Fallback: single overall champion or current leader
+            const leader = champData?.champion || champData?.current_leader;
+            if (!leader) {
+                el.innerHTML = '';
+                return;
+            }
+            const label = isFinal ? 'SPORT FEST OVERALL CHAMPION' : 'CURRENT LEADER';
+            el.innerHTML = `
+                <div class="champions-area">
+                    <div class="champion-hero ${isFinal ? '' : 'leader-mode'}">
+                        <div class="ch-label">${label}</div>
+                        <div class="ch-name">${escapeHtml(leader.name)}</div>
+                        <div class="ch-pts">${leader.total_points || 0} POINTS</div>
+                        <div style="font-size:14px;position:relative;margin-top:4px">
+                            Gold ${leader.gold_medals || 0} · Silver ${leader.silver_medals || 0} · Bronze ${leader.bronze_medals || 0}
+                        </div>
+                        <div style="font-size:13px;color:var(--muted);margin-top:8px;position:relative">${escapeHtml(champData?.message || '')}</div>
+                    </div>
+                </div>`;
+        }
+
+        function renderDivisionTable(rows, champIds) {
+            const max = rows[0]?.total_points || 1;
+            const thead = `
+                <div class="lb-thead">
+                    <div style="text-align:center">#</div>
+                    <div>Department</div>
+                    <div style="text-align:center">Gold</div>
+                    <div style="text-align:center">Silver</div>
+                    <div style="text-align:center">Bronze</div>
+                    <div style="text-align:center">Events</div>
+                    <div style="text-align:right">Points</div>
+                </div>`;
+            const body = rows.map((d, i) => {
+                const rank = d.rank != null ? Number(d.rank) : (i + 1);
+                const bar = Math.min((Number(d.total_points || 0) / max) * 100, 100);
+                const rkColor = rank === 1 ? '#FFD700' : rank === 2 ? '#C0C0C0' : rank === 3 ? '#CD7F32' : 'var(--muted)';
+                const init = (d.name || '?').split(' ').map(w => w[0]).slice(0, 2).join('').toUpperCase();
+                const logoHtml = d.logo_url
+                    ? `<img src="${d.logo_url}" alt="" onerror="this.style.display='none'">`
+                    : init;
+                const isChamp = champIds.has(Number(d.id));
+                return `
+                <div class="lb-row ${rank <= 3 ? 'rank-' + rank : ''} ${isChamp ? 'is-champion' : ''}" style="--dept-color:${d.color || '#555'}">
+                    <div class="lb-rank-num" style="color:${rkColor}">${rank}</div>
+                    <div class="lb-dept-cell">
+                        <div class="lb-dept-logo" style="background:${d.color || '#555'}">${logoHtml}</div>
+                        <div style="min-width:0">
+                            <div class="lb-dept-name">${escapeHtml(d.name)}${isChamp ? ' <span style="color:var(--gold);font-size:11px">★</span>' : ''}</div>
+                            <div class="lb-bar"><div class="lb-bar-fill" style="width:${bar}%;background:${d.color || 'var(--gold)'}"></div></div>
+                        </div>
+                    </div>
+                    <div class="lb-num" style="color:#FFD700">${d.gold_medals || 0}</div>
+                    <div class="lb-num" style="color:#C0C0C0">${d.silver_medals || 0}</div>
+                    <div class="lb-num" style="color:#CD7F32">${d.bronze_medals || 0}</div>
+                    <div class="lb-num" style="color:var(--muted)">${d.total_participations || 0}</div>
+                    <div class="lb-pts">${d.total_points || 0}</div>
+                </div>`;
+            }).join('');
+            return `<div class="lb-table">${thead}${body}</div>`;
+        }
+
+        function renderOverall() {
+            const el = document.getElementById('lb-overall-body');
+            if (!el) return;
+            if (!lbData.length) {
+                el.innerHTML = `<div class="empty-state" style="padding:40px"><div class="empty-text">No standings yet</div></div>`;
+                return;
+            }
+
+            const champIds = championIdSet();
+            const groups = groupByDivision(lbData);
+
+            // If only one effective group (or no division data), single table
+            if (groups.length <= 1) {
+                el.innerHTML = renderDivisionTable(lbData, champIds);
+                return;
+            }
+
+            el.innerHTML = groups.map(g => `
+                <div class="division-block">
+                    <div class="division-hdr">
+                        <span>${escapeHtml(g.label)}</span>
+                        <span style="font-size:12px;font-weight:400;color:var(--muted)">${g.rows.length} depts</span>
+                    </div>
+                    ${renderDivisionTable(g.rows, champIds)}
+                </div>
+            `).join('');
+        }
+
+        function renderMedals() {
+            const sorted = [...lbData].sort((a, b) =>
+                (b.gold_medals - a.gold_medals) ||
+                (b.silver_medals - a.silver_medals) ||
+                (b.bronze_medals - a.bronze_medals)
+            );
+            document.getElementById('lb-medals-body').innerHTML = sorted.map((d, i) => {
+                const init = (d.name || '?').split(' ').map(w => w[0]).slice(0, 2).join('').toUpperCase();
+                return `<tr style="border-bottom:1px solid rgba(255,255,255,.04)">
+                    <td style="padding:10px 20px;font-family:'Barlow Condensed',sans-serif;font-size:18px;font-weight:900;color:var(--muted)">${i + 1}</td>
+                    <td style="padding:10px 20px">
+                        <div style="display:flex;align-items:center;gap:10px">
+                            <div style="width:32px;height:32px;border-radius:8px;background:${d.color || '#555'};display:flex;align-items:center;justify-content:center;font-family:'Barlow Condensed',sans-serif;font-size:12px;font-weight:900;color:#fff">${init}</div>
+                            <span style="font-weight:600">${escapeHtml(d.name)}</span>
+                        </div>
+                    </td>
+                    <td style="text-align:center;font-family:'Barlow Condensed',sans-serif;font-size:20px;font-weight:800;color:#FFD700;padding:10px">${d.gold_medals || 0}</td>
+                    <td style="text-align:center;font-family:'Barlow Condensed',sans-serif;font-size:20px;font-weight:800;color:#C0C0C0;padding:10px">${d.silver_medals || 0}</td>
+                    <td style="text-align:center;font-family:'Barlow Condensed',sans-serif;font-size:20px;font-weight:800;color:#CD7F32;padding:10px">${d.bronze_medals || 0}</td>
+                    <td style="text-align:center;font-family:'Barlow Condensed',sans-serif;font-size:20px;font-weight:800;padding:10px">${(d.gold_medals || 0) + (d.silver_medals || 0) + (d.bronze_medals || 0)}</td>
+                </tr>`;
+            }).join('');
+        }
+
+        function renderBySport() {
+            const el = document.getElementById('lb-bysport-body');
+            if (!bySportData.length) {
+                el.innerHTML = `<div class="empty-state" style="padding:40px"><div class="empty-text">No sport results yet</div></div>`;
+                return;
+            }
+            const grouped = {};
+            bySportData.forEach(r => {
+                (grouped[r.sport_name] = grouped[r.sport_name] || []).push(r);
+            });
+            el.innerHTML = Object.entries(grouped).map(([sport, rows]) =>
+                `<div class="sport-section-hdr">${escapeHtml(sport)}</div>` +
+                rows.sort((a, b) => (b.sport_points || 0) - (a.sport_points || 0)).map((r, i) =>
+                    `<div class="sport-lb-row">
+                        <div style="font-family:'Barlow Condensed',sans-serif;font-size:18px;font-weight:900;width:28px;text-align:center;color:${i === 0 ? '#FFD700' : i === 1 ? '#C0C0C0' : i === 2 ? '#CD7F32' : 'var(--muted)'}">${i + 1}</div>
+                        <div style="flex:1;font-size:13px;font-weight:600">${escapeHtml(r.department_name)}</div>
+                        <div class="sport-lb-pts">+${r.sport_points || 0}</div>
+                    </div>`
+                ).join('')
+            ).join('');
+        }
+
+        function renderProgress() {
+            const el = document.getElementById('lb-progress-body');
+            const s = champData?.tournament_stats;
+            if (!s) {
+                el.innerHTML = `<div class="empty-state" style="padding:40px"><div class="empty-text">No data</div></div>`;
+                return;
+            }
+            const pct = s.total_tournaments
+                ? Math.round((s.completed_tournaments / s.total_tournaments) * 100)
+                : 0;
+            el.innerHTML = `
+                <div class="card" style="margin-bottom:16px">
+                    <div class="card-header"><div class="card-title">Event Completion</div></div>
+                    <div class="card-body">
+                        <div style="display:flex;justify-content:space-between;font-size:13px;color:var(--muted);margin-bottom:6px">
+                            <span>Completed</span>
+                            <span style="color:var(--gold);font-weight:700">${s.completed_tournaments}/${s.total_tournaments}</span>
+                        </div>
+                        <div class="prog-bar"><div class="prog-fill" style="width:${pct}%"></div></div>
+                    </div>
+                </div>
+                <div class="prog-grid">
+                    ${[
+                    [s.completed_tournaments, 'Completed', 'var(--green)'],
+                    [s.ongoing_tournaments, 'Live Now', 'var(--red)'],
+                    [s.upcoming_tournaments, 'Upcoming', 'var(--muted)'],
+                ].map(([v, l, c]) => `
+                        <div style="background:var(--bg2);border:1px solid var(--border);border-radius:12px;padding:20px;text-align:center">
+                            <div style="font-family:'Barlow Condensed',sans-serif;font-size:36px;font-weight:900;color:${c}">${v}</div>
+                            <div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin-top:4px">${l}</div>
+                        </div>`).join('')}
+                </div>`;
+        }
+
+        async function recalculate() {
+            const res = await api('/leaderboard/recalculate', { method: 'POST' });
+            Toast.show(res.message || (res.success ? 'Recalculated!' : 'Error'), res.success ? 'success' : 'error');
+            if (res.success) await loadPage();
+        }
+
+        function escapeHtml(str) {
+            return String(str || '')
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;');
+        }
     </script>
 </body>
 

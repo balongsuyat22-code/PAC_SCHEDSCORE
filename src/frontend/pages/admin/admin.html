@@ -798,8 +798,36 @@
         }
 
         function renderChampion(data) {
-            const leader = data.champion || data.current_leader;
             const el = document.getElementById('champion-area');
+            if (!el) return;
+
+            const champs = Array.isArray(data?.champions) ? data.champions.filter(Boolean) : [];
+            if (champs.length >= 1) {
+                el.innerHTML = `
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:16px;margin-bottom:24px">
+            ${champs.map(c => {
+                    const div = (c.division || '').replace(/_/g, ' ').toUpperCase() || 'CHAMPION';
+                    return `
+                <div class="champion-banner">
+                    <div class="champion-trophy"><span class="icon">${data.is_final ? ICON.trophy : ICON.trendUp}</span></div>
+                    <div class="champion-info">
+                        <div class="champion-label">${data.is_final ? 'SPORT FEST CHAMPION' : 'DECLARED CHAMPION'} · ${div}</div>
+                        <div class="champion-name">${c.name}</div>
+                        <div class="champion-sub">
+                            <span class="medal-icon">${ICON.medal}</span>${c.gold_medals || 0} gold
+                        </div>
+                    </div>
+                    <div class="champion-pts-box">
+                        <div class="champion-pts">${c.total_points || 0}</div>
+                        <div class="champion-pts-lbl">Total Points</div>
+                    </div>
+                </div>`;
+                }).join('')}
+        </div>`;
+                return;
+            }
+
+            const leader = data.champion || data.current_leader;
             if (!leader) { el.innerHTML = ''; return; }
 
             el.innerHTML = `
@@ -820,6 +848,7 @@
             </div>
         </div>`;
         }
+
 
         function renderUpcoming(matches) {
             const el = document.getElementById('upcoming-matches');
