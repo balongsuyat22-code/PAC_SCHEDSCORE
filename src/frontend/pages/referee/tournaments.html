@@ -179,6 +179,38 @@
             flex-wrap: wrap;
         }
 
+        .live-pill {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 11px;
+            font-weight: 700;
+            color: var(--green);
+            margin-left: 8px;
+        }
+
+        .live-pill::before {
+            content: '';
+            width: 7px;
+            height: 7px;
+            border-radius: 50%;
+            background: var(--green);
+            box-shadow: 0 0 0 3px rgba(34, 197, 94, 0.25);
+            animation: livePulse 1.6s infinite;
+        }
+
+        @keyframes livePulse {
+
+            0%,
+            100% {
+                box-shadow: 0 0 0 3px rgba(34, 197, 94, 0.25);
+            }
+
+            50% {
+                box-shadow: 0 0 0 6px rgba(34, 197, 94, 0.05);
+            }
+        }
+
         @media (max-width: 640px) {
             .card-grid {
                 grid-template-columns: 1fr;
@@ -263,8 +295,9 @@
                                 <path d="M12 18v-2h-.5" />
                             </svg></span>
                         Tournaments
+                        <span class="live-pill" id="rt-live-pill" style="display:none">LIVE</span>
                     </div>
-                    <div class="page-sub">All active and upcoming SportFest tournaments.</div>
+                    <div class="page-sub">All active and upcoming SportFest tournaments · updates live</div>
                 </div>
                 <button class="btn btn-secondary btn-sm" onclick="loadTournaments()">
                     <svg viewBox="0 0 24 24">
@@ -371,29 +404,55 @@
         let allTournaments = [];
         let currentFilter = 'all';
         let currentView = 'table';
+        let _tourneyReloadTimer = null;
 
         document.addEventListener('DOMContentLoaded', () => {
-
             if (!Auth.requireAuth('sgo_officer')) return;
 
             renderRefereeSidebar('tournaments');
             renderRefereeTopbar();
             loadTournaments();
+            bindRealtime();
         });
 
-        async function loadTournaments() {
-            document.getElementById('tourney-body').innerHTML =
-                `<tr><td colspan="5"><div class="empty-state">
-                    <div class="empty-icon"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg></div>
-                    <div class="empty-text">Loading...</div>
-                </div></td></tr>`;
-            document.getElementById('tourney-grid').innerHTML = '';
+        function bindRealtime() {
+            if (typeof Realtime === 'undefined') return;
+            Realtime.connect().catch(() => { });
+
+            const softReload = () => {
+                clearTimeout(_tourneyReloadTimer);
+                _tourneyReloadTimer = setTimeout(() => loadTournaments({ silent: true }), 400);
+            };
+
+            window.addEventListener('sf:match', softReload);
+            window.addEventListener('sf:bracket', softReload);
+            window.addEventListener('sf:leaderboard', softReload);
+            window.addEventListener('sf:ffa', softReload);
+
+            const pill = document.getElementById('rt-live-pill');
+            const syncPill = () => {
+                if (!pill) return;
+                pill.style.display = Realtime.connected ? 'inline-flex' : 'none';
+            };
+            syncPill();
+            setInterval(syncPill, 2000);
+        }
+
+        async function loadTournaments(opts = {}) {
+            if (!opts.silent) {
+                document.getElementById('tourney-body').innerHTML =
+                    `<tr><td colspan="5"><div class="empty-state">
+                        <div class="empty-icon"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg></div>
+                        <div class="empty-text">Loading...</div>
+                    </div></td></tr>`;
+                document.getElementById('tourney-grid').innerHTML = '';
+            }
             try {
                 const res = await api('/tournaments');
                 allTournaments = (res.success && res.data) ? res.data : [];
             } catch (e) {
                 console.error(e);
-                allTournaments = [];
+                if (!opts.silent) allTournaments = [];
             }
             renderStats();
             render();

@@ -199,6 +199,38 @@
             flex-wrap: wrap;
         }
 
+        .live-pill {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 11px;
+            font-weight: 700;
+            color: var(--green);
+            margin-left: 8px;
+        }
+
+        .live-pill::before {
+            content: '';
+            width: 7px;
+            height: 7px;
+            border-radius: 50%;
+            background: var(--green);
+            box-shadow: 0 0 0 3px rgba(34, 197, 94, 0.25);
+            animation: livePulse 1.6s infinite;
+        }
+
+        @keyframes livePulse {
+
+            0%,
+            100% {
+                box-shadow: 0 0 0 3px rgba(34, 197, 94, 0.25);
+            }
+
+            50% {
+                box-shadow: 0 0 0 6px rgba(34, 197, 94, 0.05);
+            }
+        }
+
         @media (max-width: 720px) {
 
             thead th:nth-child(2),
@@ -253,8 +285,9 @@
                                 <path d="M12 7v5l4 2" />
                             </svg></span>
                         Match History
+                        <span class="live-pill" id="rt-live-pill" style="display:none">LIVE</span>
                     </div>
-                    <div class="page-sub">Archive of all matches you have finalised.</div>
+                    <div class="page-sub">Archive of all matches you have finalised · updates live</div>
                 </div>
                 <button class="btn btn-secondary btn-sm" onclick="loadHistory()">
                     <svg viewBox="0 0 24 24">
@@ -322,8 +355,8 @@
     <script src="../../js/referee-sidebar.js"></script>
     <script>
         let ffaDataCache = {};
+        let _histReloadTimer = null;
 
-        /** Strip trailing .00 — 20.00 → 20, 12.50 → 12.5 */
         function fmtScore(n) {
             if (n == null || n === '') return '—';
             if (typeof n === 'string' && /[–-]/.test(n) && !/^[\d.+-]+$/.test(n.trim())) {
@@ -583,7 +616,7 @@
                 </div>`;
         }
 
-        async function loadHistory() {
+        async function loadHistory(opts = {}) {
             const user = Auth.getUser();
             if (!user) {
                 window.location.href = '/login';
@@ -592,11 +625,13 @@
 
             const tbody = document.getElementById('history-body');
             const cards = document.getElementById('hist-cards');
-            tbody.innerHTML = `<tr><td colspan="5"><div class="empty-state">
-                <div class="empty-icon"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg></div>
-                <div class="empty-text">Loading history...</div>
-            </div></td></tr>`;
-            if (cards) cards.innerHTML = '';
+            if (!opts.silent) {
+                tbody.innerHTML = `<tr><td colspan="5"><div class="empty-state">
+                    <div class="empty-icon"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg></div>
+                    <div class="empty-text">Loading history...</div>
+                </div></td></tr>`;
+                if (cards) cards.innerHTML = '';
+            }
 
             try {
                 const res = await api(`/matches?status=completed`);
@@ -619,6 +654,7 @@
                     m.referee_name === `${user.first_name} ${user.last_name}`
                 );
 
+                ffaDataCache = {};
                 for (const match of userMatches) {
                     if (isFFAMatch(match) && match.tournament_id) {
                         await loadFFAData(match.tournament_id);
@@ -658,10 +694,37 @@
 
             } catch (err) {
                 console.error('Error loading history:', err);
-                tbody.innerHTML = `<tr><td colspan="5"><div class="empty-state" style="color:#ef4444;">
-                    Failed to load history. Please try again.
-                </div></td></tr>`;
+                if (!opts.silent) {
+                    tbody.innerHTML = `<tr><td colspan="5"><div class="empty-state" style="color:#ef4444;">
+                        Failed to load history. Please try again.
+                    </div></td></tr>`;
+                }
             }
+        }
+
+        function bindRealtime() {
+            if (typeof Realtime === 'undefined') return;
+            Realtime.connect().catch(() => { });
+
+            const softReload = () => {
+                clearTimeout(_histReloadTimer);
+                _histReloadTimer = setTimeout(() => loadHistory({ silent: true }), 400);
+            };
+
+            // New finalised results show up here
+            window.addEventListener('sf:match', (e) => {
+                if (e.detail?.action === 'completed' || e.detail?.action === 'score') softReload();
+            });
+            window.addEventListener('sf:leaderboard', softReload);
+            window.addEventListener('sf:ffa', softReload);
+
+            const pill = document.getElementById('rt-live-pill');
+            const syncPill = () => {
+                if (!pill) return;
+                pill.style.display = Realtime.connected ? 'inline-flex' : 'none';
+            };
+            syncPill();
+            setInterval(syncPill, 2000);
         }
 
         document.addEventListener('DOMContentLoaded', async () => {
@@ -670,6 +733,7 @@
             if (typeof renderRefereeSidebar === 'function') renderRefereeSidebar('history');
             if (typeof renderRefereeTopbar === 'function') await renderRefereeTopbar();
             await loadHistory();
+            bindRealtime();
         });
     </script>
 </body>

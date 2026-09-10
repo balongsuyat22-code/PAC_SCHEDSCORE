@@ -246,6 +246,38 @@
             letter-spacing: 1px;
         }
 
+        .live-pill {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 11px;
+            font-weight: 700;
+            color: var(--green);
+            margin-left: 8px;
+        }
+
+        .live-pill::before {
+            content: '';
+            width: 7px;
+            height: 7px;
+            border-radius: 50%;
+            background: var(--green);
+            box-shadow: 0 0 0 3px rgba(34, 197, 94, 0.25);
+            animation: livePulse 1.6s infinite;
+        }
+
+        @keyframes livePulse {
+
+            0%,
+            100% {
+                box-shadow: 0 0 0 3px rgba(34, 197, 94, 0.25);
+            }
+
+            50% {
+                box-shadow: 0 0 0 6px rgba(34, 197, 94, 0.05);
+            }
+        }
+
         @media (max-width: 640px) {
             .content {
                 padding-left: 10px !important;
@@ -337,8 +369,9 @@
                                 <path d="M18 2H6v7a6 6 0 0 0 12 0V2Z" />
                             </svg></span>
                         Leaderboard
+                        <span class="live-pill" id="rt-live-pill" style="display:none">LIVE</span>
                     </div>
-                    <div class="page-sub">Overall department standings and medal tallies.</div>
+                    <div class="page-sub">Overall department standings and medal tallies · updates live</div>
                 </div>
                 <button class="btn btn-secondary btn-sm" onclick="loadLeaderboard()">
                     <svg viewBox="0 0 24 24">
@@ -370,21 +403,51 @@
     <script src="../../js/shared.js"></script>
     <script src="../../js/referee-sidebar.js"></script>
     <script>
+        let _lbReloadTimer = null;
+
         document.addEventListener('DOMContentLoaded', async () => {
             if (typeof Auth !== 'undefined' && Auth.requireAuth && !Auth.requireAuth('sgo_officer')) return;
             renderRefereeSidebar('leaderboard');
             renderRefereeTopbar();
-            loadLeaderboard();
+            await loadLeaderboard();
+            bindRealtime();
         });
 
-        async function loadLeaderboard() {
+        function bindRealtime() {
+            if (typeof Realtime === 'undefined') return;
+            Realtime.connect().catch(() => { });
+
+            const softReload = () => {
+                clearTimeout(_lbReloadTimer);
+                _lbReloadTimer = setTimeout(() => loadLeaderboard({ silent: true }), 400);
+            };
+
+            window.addEventListener('sf:leaderboard', softReload);
+            window.addEventListener('sf:champion', softReload);
+            window.addEventListener('sf:match', (e) => {
+                if (e.detail?.action === 'completed') softReload();
+            });
+
+            // Connection indicator
+            const pill = document.getElementById('rt-live-pill');
+            const syncPill = () => {
+                if (!pill) return;
+                pill.style.display = Realtime.connected ? 'inline-flex' : 'none';
+            };
+            syncPill();
+            setInterval(syncPill, 2000);
+        }
+
+        async function loadLeaderboard(opts = {}) {
             const podiumEl = document.getElementById('podium');
             const listEl = document.getElementById('leaderboard-list');
 
-            listEl.innerHTML = `<div class="empty-state">
-                <div class="empty-icon"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg></div>
-                <div class="empty-text">Loading standings...</div>
-            </div>`;
+            if (!opts.silent) {
+                listEl.innerHTML = `<div class="empty-state">
+                    <div class="empty-icon"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg></div>
+                    <div class="empty-text">Loading standings...</div>
+                </div>`;
+            }
 
             try {
                 const res = await api('/leaderboard');
@@ -436,7 +499,9 @@
 
             } catch (err) {
                 console.error(err);
-                listEl.innerHTML = `<div class="empty-state" style="color:#ef4444;">Failed to load leaderboard. Please try again.</div>`;
+                if (!opts.silent) {
+                    listEl.innerHTML = `<div class="empty-state" style="color:#ef4444;">Failed to load leaderboard. Please try again.</div>`;
+                }
             }
         }
     </script>

@@ -134,26 +134,71 @@ function filterTable(tableId, query) {
 }
 
 const Toast = {
-    // NOTE: intentionally uses the shared `.toast` class from shared.css
-    // (same markup/behavior as api.js's Toast) so admin and president
-    // toasts render identically. Do not inject a competing inline
-    // stylesheet here — an ID-scoped style block would out-specificity
-    // the shared CSS and cause the two apps to drift apart again.
+    _ensureStyles() {
+        if (document.getElementById('sf-toast-styles')) return;
+        const s = document.createElement('style');
+        s.id = 'sf-toast-styles';
+        s.textContent = `
+#sf-toast {
+  position: fixed !important;
+  top: max(72px, env(safe-area-inset-top, 0px) + 56px) !important;
+  left: 50% !important;
+  right: auto !important;
+  transform: translateX(-50%) translateY(-12px) !important;
+  z-index: 99999 !important;
+  max-width: min(320px, calc(100vw - 24px)) !important;
+  width: max-content !important;
+  padding: 10px 14px !important;
+  border-radius: 10px !important;
+  font-size: 13px !important;
+  line-height: 1.35 !important;
+  font-family: 'Barlow', system-ui, sans-serif !important;
+  font-weight: 600 !important;
+  box-shadow: 0 8px 28px rgba(0,0,0,.45) !important;
+  pointer-events: none !important;
+  opacity: 0 !important;
+  visibility: hidden !important;
+  transition: opacity .2s ease, transform .2s ease, visibility .2s !important;
+  word-break: break-word !important;
+  border: 1px solid transparent !important;
+}
+#sf-toast.show {
+  opacity: 1 !important;
+  visibility: visible !important;
+  transform: translateX(-50%) translateY(0) !important;
+}
+#sf-toast.success {
+  background: #14532d !important;
+  color: #bbf7d0 !important;
+  border-color: rgba(34,197,94,.45) !important;
+}
+#sf-toast.error {
+  background: #7f1d1d !important;
+  color: #fecaca !important;
+  border-color: rgba(239,68,68,.45) !important;
+}
+#sf-toast.info {
+  background: #1e3a5f !important;
+  color: #bfdbfe !important;
+  border-color: rgba(59,130,246,.45) !important;
+}
+`;
+        document.head.appendChild(s);
+    },
     show(msg, type = 'success', duration = 3000) {
+        this._ensureStyles();
         let t = document.getElementById('sf-toast');
         if (!t) {
             t = document.createElement('div');
             t.id = 'sf-toast';
-            t.className = 'toast';
             document.body.appendChild(t);
         }
-        const icons = { success: 'OK', error: 'ERR', info: 'i' };
-        t.innerHTML = `<span style="font-weight:800;margin-right:6px">${icons[type] || '•'}</span> ${msg}`;
+        const icons = { success: '✓', error: '!', info: 'i' };
+        t.innerHTML = `<span style="font-weight:800;margin-right:6px">${icons[type] || '•'}</span>${msg}`;
         t.className = `toast ${type} show`;
         clearTimeout(t._timer);
         t._timer = setTimeout(() => t.classList.remove('show'), duration);
     },
-
     hide() {
         const t = document.getElementById('sf-toast');
         if (!t) return;
@@ -162,6 +207,7 @@ const Toast = {
     }
 };
 window.Toast = Toast;
+
 
 const Modal = {
     open(id) { document.getElementById(id)?.classList.add('open'); },

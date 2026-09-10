@@ -1332,6 +1332,7 @@
             renderRefereeTopbar();
             startClock();
             await loadMyMatches();
+            bindScoringRealtime();
 
             const urlParams = new URLSearchParams(window.location.search);
             const matchId = urlParams.get('id');
@@ -1529,6 +1530,8 @@
             renderScoreboard();
             renderMatchList();
         }
+
+
 
         async function startCurrentMatch() {
             if (isSaving || !selectedMatch) return;
@@ -2543,6 +2546,47 @@ value="${p.ffa_result_value != null ? fmtScore(p.ffa_result_value, isFfaTime()) 
             } else {
                 Toast.show(res.message || 'Error completing match', 'error');
             }
+        }
+        // ── Realtime: keep match list + selected scoreboard in sync ──
+        let _scoringRtTimer = null;
+
+        function bindScoringRealtime() {
+            if (typeof Realtime === 'undefined') return;
+            Realtime.connect().catch(() => { });
+
+            const softReloadList = () => {
+                clearTimeout(_scoringRtTimer);
+                _scoringRtTimer = setTimeout(async () => {
+                    await loadMyMatches();
+                    // If selected match was completed elsewhere, clear board
+                    if (selectedMatch) {
+                        const still = (window._myMatches || []).find(m =>
+                            (m.id === selectedMatch.id || m.match_id === selectedMatch.id)
+                        );
+                        if (still && still.status === 'completed' && selectedMatch.status !== 'completed') {
+                            selectedMatch = still;
+                            if (typeof renderScoreboard === 'function') renderScoreboard();
+                        }
+                    }
+                }, 300);
+            };
+
+            window.addEventListener('sf:match', softReloadList);
+            window.addEventListener('sf:live', softReloadList);
+            window.addEventListener('sf:score', (e) => {
+                // Optional: if another device updates THIS match, re-apply scores
+                const d = e.detail || {};
+                const mid = d.match_id || d.id;
+                if (selectedMatch && mid && String(mid) === String(selectedMatch.id)) {
+                    if (d.score_a != null) scores.a = d.score_a;
+                    if (d.score_b != null) scores.b = d.score_b;
+                    const displayEl = document.getElementById('display-main');
+                    if (displayEl && typeof renderMainScore === 'function') {
+                        displayEl.innerHTML = renderMainScore(scores.a, scores.b);
+                    }
+                }
+                softReloadList();
+            });
         }
 
     </script>

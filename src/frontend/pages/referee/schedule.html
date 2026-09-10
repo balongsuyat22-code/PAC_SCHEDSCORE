@@ -192,6 +192,38 @@
             -webkit-tap-highlight-color: transparent;
         }
 
+        .live-pill {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 11px;
+            font-weight: 700;
+            color: var(--green);
+            margin-left: 8px;
+        }
+
+        .live-pill::before {
+            content: '';
+            width: 7px;
+            height: 7px;
+            border-radius: 50%;
+            background: var(--green);
+            box-shadow: 0 0 0 3px rgba(34, 197, 94, 0.25);
+            animation: livePulse 1.6s infinite;
+        }
+
+        @keyframes livePulse {
+
+            0%,
+            100% {
+                box-shadow: 0 0 0 3px rgba(34, 197, 94, 0.25);
+            }
+
+            50% {
+                box-shadow: 0 0 0 6px rgba(34, 197, 94, 0.05);
+            }
+        }
+
         @media (max-width: 640px) {
             .timeline {
                 padding-left: 32px;
@@ -261,8 +293,9 @@
                                 <line x1="3" x2="21" y1="10" y2="10" />
                             </svg></span>
                         Today's Timeline
+                        <span class="live-pill" id="rt-live-pill" style="display:none">LIVE</span>
                     </div>
-                    <div class="page-sub">Your match sequence for today.</div>
+                    <div class="page-sub">Your match sequence for today · updates live</div>
                 </div>
                 <button class="btn btn-secondary btn-sm" onclick="loadSchedule()">
                     <svg viewBox="0 0 24 24">
@@ -298,13 +331,38 @@
     <script src="../../js/shared.js"></script>
     <script src="../../js/referee-sidebar.js"></script>
     <script>
+        let _schedReloadTimer = null;
+
         document.addEventListener('DOMContentLoaded', async () => {
             if (typeof Auth !== 'undefined' && Auth.requireAuth && !Auth.requireAuth('sgo_officer')) return;
             renderRefereeSidebar('schedule');
             renderRefereeTopbar();
             startClock();
             await loadSchedule();
+            bindRealtime();
         });
+
+        function bindRealtime() {
+            if (typeof Realtime === 'undefined') return;
+            Realtime.connect().catch(() => { });
+
+            const softReload = () => {
+                clearTimeout(_schedReloadTimer);
+                _schedReloadTimer = setTimeout(() => loadSchedule({ silent: true }), 350);
+            };
+
+            window.addEventListener('sf:match', softReload);
+            window.addEventListener('sf:live', softReload);
+            window.addEventListener('sf:notif', softReload);
+
+            const pill = document.getElementById('rt-live-pill');
+            const syncPill = () => {
+                if (!pill) return;
+                pill.style.display = Realtime.connected ? 'inline-flex' : 'none';
+            };
+            syncPill();
+            setInterval(syncPill, 2000);
+        }
 
         function startClock() {
             const now = new Date();
@@ -319,71 +377,111 @@
             setInterval(tick, 1000);
         }
 
-        /**
-         * Build the scoring page URL using the app's clean route (no .html).
-         * Relative "scoring.html" resolves to /referee/scoring.html which is not registered.
-         * Prefer absolute path under /referee so it works from any nested referee URL.
-         */
         function scoringUrl(matchId) {
             if (matchId == null || matchId === '') return '#';
             return `/referee/scoring?id=${encodeURIComponent(matchId)}`;
         }
 
-        async function loadSchedule() {
+        async function loadSchedule(opts = {}) {
             const el = document.getElementById('schedule-timeline');
-            el.innerHTML = `<div class="empty-state">
-                <div class="empty-icon"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg></div>
-                <div class="empty-text">Loading schedule...</div>
-            </div>`;
+            if (!opts.silent) {
+                el.innerHTML = `<div class="empty-state">
+            <div class="empty-icon"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg></div>
+            <div class="empty-text">Loading schedule...</div>
+        </div>`;
+            }
 
             try {
-                const res = await api('/schedules/today');
-                if (!res.success || !res.data?.length) {
+                const user = Auth.getUser();
+                // Prefer referee-scoped matches; fall back to public today list
+                let rows = [];
+                try {
+                    const resMine = await api('/matches?status=scheduled,ongoing,pending');
+                    if (resMine.success && Array.isArray(resMine.data)) {
+                        const today = new Date();
+                        const y = today.getFullYear();
+                        const m = String(today.getMonth() + 1).padStart(2, '0');
+                        const d = String(today.getDate()).padStart(2, '0');
+                        const todayStr = `${y}-${m}-${d}`;
+
+                        rows = resMine.data.filter(m => {
+                            const isMine = !user || m.referee_id == user.id ||
+                                m.referee_name === `${user.first_name} ${user.last_name}`;
+                            const dateStr = String(m.scheduled_date || '').slice(0, 10);
+                            const isToday = !dateStr || dateStr === todayStr;
+                            return isMine && isToday && m.status !== 'cancelled' && m.status !== 'completed';
+                        });
+                    }
+                } catch (_) { }
+
+                if (!rows.length) {
+                    const res = await api('/schedules/today');
+                    if (res.success && Array.isArray(res.data)) {
+                        rows = res.data;
+                        // If logged in, prefer matches assigned to this referee
+                        if (user) {
+                            const mine = rows.filter(m =>
+                                m.referee_id == user.id ||
+                                m.referee_name === `${user.first_name} ${user.last_name}`
+                            );
+                            if (mine.length) rows = mine;
+                        }
+                    }
+                }
+
+                if (!rows.length) {
                     el.innerHTML = `<div class="empty-state">
-                        <div class="empty-icon"><svg viewBox="0 0 24 24"><polyline points="22 12 16 12 14 15 10 15 8 12 2 12"/><path d="M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"/></svg></div>
-                        <div class="empty-text">No matches assigned for today.</div>
-                    </div>`;
+                <div class="empty-icon"><svg viewBox="0 0 24 24"><polyline points="22 12 16 12 14 15 10 15 8 12 2 12"/><path d="M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"/></svg></div>
+                <div class="empty-text">No matches assigned for today.</div>
+            </div>`;
                     return;
                 }
 
-                el.innerHTML = res.data.map(m => {
-                    const isFFA = (m.tournament_format || '').toLowerCase() === 'free_for_all' ||
-                        (m.tournament_format || '').toLowerCase() === 'team_ranking';
-                    const nameA = m.team_a_name || m.dept_a || m.dept_a_name || 'TBD';
-                    const nameB = m.team_b_name || m.dept_b || m.dept_b_name || 'TBD';
+                // Sort by time
+                rows.sort((a, b) => String(a.scheduled_time || '').localeCompare(String(b.scheduled_time || '')));
+
+                el.innerHTML = rows.map(m => {
+                    const isFFA = ['free_for_all', 'team_ranking', 'group_stage_ffa'].includes(
+                        String(m.tournament_format || '').toLowerCase()
+                    ) || m.bracket_side === 'ffa';
+
+                    const nameA = m.team_a_name || m.dept_a_name || m.dept_a || 'TBD';
+                    const nameB = m.team_b_name || m.dept_b_name || m.dept_b || 'TBD';
                     const matchup = isFFA
                         ? (m.tournament_name || 'FFA Event')
                         : `${nameA}<span class="timeline-vs">vs</span>${nameB}`;
+
                     const isLive = m.status === 'ongoing';
-                    // /schedules/today aliases m.id AS match_id — support both shapes
                     const matchId = m.match_id ?? m.id;
                     const href = scoringUrl(matchId);
-                    const action = ['scheduled', 'ongoing'].includes(m.status)
+                    const action = ['scheduled', 'ongoing', 'pending'].includes(m.status)
                         ? `<a href="${href}" class="btn btn-primary btn-sm">Score</a>`
                         : `<a href="${href}" class="btn btn-secondary btn-sm">Review</a>`;
 
                     return `
-                        <div class="timeline-item">
-                            <div class="timeline-dot ${isLive ? 'dot-live' : ''}"></div>
-                            <div class="timeline-card ${isLive ? 'card-live' : ''}">
-                                <div class="timeline-time">${typeof formatTime === 'function' ? formatTime(m.scheduled_time) : (m.scheduled_time || 'TBD')}</div>
-                                <div class="timeline-matchup">${matchup}</div>
-                                <div class="timeline-meta">
-                                    ${m.sport_name || 'Sport'}
-                                    · ${m.venue_name || 'TBD'}
-                                </div>
-                                <div class="timeline-footer">
-                                    ${typeof statusBadge === 'function' ? statusBadge(m.status) : m.status}
-                                    ${action}
-                                </div>
-                            </div>
-                        </div>`;
+                <div class="timeline-item">
+                    <div class="timeline-dot ${isLive ? 'dot-live' : ''}"></div>
+                    <div class="timeline-card ${isLive ? 'card-live' : ''}">
+                        <div class="timeline-time">${typeof formatTime === 'function' ? formatTime(m.scheduled_time) : (m.scheduled_time || 'TBD')}</div>
+                        <div class="timeline-matchup">${matchup}</div>
+                        <div class="timeline-meta">
+                            ${m.sport_name || 'Sport'} · ${m.venue_name || 'TBD'}
+                        </div>
+                        <div class="timeline-footer">
+                            ${typeof statusBadge === 'function' ? statusBadge(m.status) : (m.status || '')}
+                            ${action}
+                        </div>
+                    </div>
+                </div>`;
                 }).join('');
             } catch (err) {
                 console.error(err);
-                el.innerHTML = `<div class="empty-state" style="color:#ef4444;">Failed to load schedule.</div>`;
+                if (!opts.silent) {
+                    el.innerHTML = `<div class="empty-state" style="color:#ef4444;">Failed to load schedule.</div>`;
+                }
             }
         }
+
     </script>
 </body>
 

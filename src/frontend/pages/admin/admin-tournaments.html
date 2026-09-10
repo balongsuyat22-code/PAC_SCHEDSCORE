@@ -672,6 +672,43 @@
             font-size: 18px;
         }
 
+        .as-day-card {
+            background: var(--bg3);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 12px 14px;
+            margin-bottom: 10px;
+        }
+
+        .as-day-card-head {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 10px;
+            flex-wrap: wrap;
+        }
+
+        .as-day-label {
+            font-family: 'Barlow Condensed', sans-serif;
+            font-weight: 800;
+            font-size: 15px;
+            color: var(--gold);
+            min-width: 52px;
+        }
+
+        .as-day-times {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            margin-top: 6px;
+        }
+
+        .as-day-time-row {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+        }
+
         @media (max-width: 560px) {
             .de-as-steps {
                 grid-template-columns: 1fr;
@@ -1230,11 +1267,23 @@
             <div class="modal-body">
                 <div id="as-format-intro"></div>
                 <p style="font-size:13px;color:var(--muted);margin-bottom:12px" id="as-modal-desc">
-                    Assign default venue and referee for pending matches. Dates and times come from your Time Slots.
+                    Build a day-by-day calendar. Each day has its own times — they are not shared across days.
                 </p>
                 <div class="as-slot-summary" id="as-slot-summary">
                     Checking available slots…
                 </div>
+
+                <div class="form-group">
+                    <label class="form-label"><i class="fa-solid fa-calendar-days"
+                            style="margin-right:4px;opacity:.7"></i>
+                        Competition days</label>
+                    <div id="as-days" style="display:flex;flex-direction:column;gap:4px"></div>
+                    <button type="button" class="btn btn-secondary btn-sm" onclick="addScheduleDay()"
+                        style="margin-top:8px">
+                        <i class="fa-solid fa-plus"></i> Add Day
+                    </button>
+                </div>
+
                 <div class="form-group">
                     <label class="form-label">Default Venue</label>
                     <select id="config-venue" class="form-select">
@@ -1247,12 +1296,16 @@
                         <option value="">Select referee...</option>
                     </select>
                 </div>
+                <div class="officer-toggle" style="display:flex;align-items:center;gap:8px;margin-bottom:10px">
+                    <input type="checkbox" id="as-assign-officers" checked>
+                    <label for="as-assign-officers" style="font-size:13px;color:var(--text2)">Auto-assign SGO officers
+                        (skip busy slots)</label>
+                </div>
                 <div id="as-format-note"></div>
             </div>
             <p style="font-size:12px;color:var(--muted);padding:0 20px 12px;margin:0;" id="as-footer-hint">
-                This bulk-assigns dates/times/venues to every unscheduled match in this tournament.
-                To adjust a single match afterward, use its edit action or go to
-                <a href="/admin/matches" style="color:var(--gold);">Matches</a>.
+                <strong>Assign &amp; Schedule</strong> places matches in order onto your day slots (client-side).
+                <strong>Smart Schedule</strong> uses the server conflict engine so the same team is never double-booked.
             </p>
             <div class="modal-footer">
                 <button class="btn btn-secondary" onclick="Modal.close('modal-schedule-config')">Cancel</button>
@@ -2773,23 +2826,195 @@
                 if (note) note.innerHTML = '';
             }
 
-            const summary = document.getElementById('as-slot-summary');
-            if (summary) {
-                const free = countFreeSlots();
-                const toDo = IS_FFA(fmt)
-                    ? 1
-                    : (matches || []).filter(isSchedulableMatch).length;
-                const ok = free.length >= toDo;
-                summary.style.borderColor = ok ? 'rgba(34,197,94,.35)' : 'rgba(232,50,59,.35)';
-                summary.innerHTML = ok
-                    ? `<strong>${free.length}</strong> free slot(s) · <strong>${toDo}</strong> match(es) to place — ready.`
-                    : `<strong style="color:var(--red)">${free.length}</strong> free slot(s) · <strong>${toDo}</strong> match(es) needed — add more Time Slots.`;
+            // Slot summary is driven by the per-day builder once the modal is open
+            if (document.getElementById('as-days')?.querySelector('.as-day-card')) {
+                refreshAsSlotSummary();
+            } else {
+                const summary = document.getElementById('as-slot-summary');
+                if (summary) {
+                    const free = countFreeSlots();
+                    const toDo = IS_FFA(fmt)
+                        ? 1
+                        : (matches || []).filter(isSchedulableMatch).length;
+                    const ok = free.length >= toDo;
+                    summary.style.borderColor = ok ? 'rgba(34,197,94,.35)' : 'rgba(232,50,59,.35)';
+                    summary.innerHTML = ok
+                        ? `<strong>${free.length}</strong> free slot(s) · <strong>${toDo}</strong> match(es) to place — ready.`
+                        : `<strong style="color:var(--red)">${free.length}</strong> free slot(s) · <strong>${toDo}</strong> match(es) needed — add days/times below.`;
+                }
             }
+        }
+
+
+        /* ── Per-day schedule builder (same model as president game-setup) ── */
+        let _asDaySeq = 0;
+
+        function renumberScheduleDays() {
+            document.querySelectorAll('#as-days .as-day-card').forEach((card, i) => {
+                const lbl = card.querySelector('.as-day-label');
+                if (lbl) lbl.textContent = `Day ${i + 1}`;
+            });
+        }
+
+        function addScheduleDay(dateValue = '', times = null) {
+            const host = document.getElementById('as-days');
+            if (!host) return;
+            _asDaySeq += 1;
+            const id = _asDaySeq;
+            const defaultTimes = times && times.length ? times : ['08:00', '09:00', '10:00'];
+            const card = document.createElement('div');
+            card.className = 'as-day-card';
+            card.dataset.dayId = String(id);
+            card.innerHTML = `
+                <div class="as-day-card-head">
+                    <span class="as-day-label">Day</span>
+                    <input type="date" class="form-input as-day-date" value="${dateValue || ''}" style="flex:1;min-width:140px">
+                    <button type="button" class="btn btn-secondary btn-sm" title="Remove day"
+                        onclick="removeScheduleDay(this)">
+                        <i class="fa-solid fa-xmark"></i>
+                    </button>
+                </div>
+                <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);margin-bottom:4px">
+                    Time slots for this day
+                </div>
+                <div class="as-day-times" data-day-times="${id}"></div>
+                <button type="button" class="btn btn-secondary btn-sm" style="margin-top:8px"
+                    onclick="addTimeToDay(${id})">
+                    <i class="fa-solid fa-plus"></i> Add time
+                </button>`;
+            host.appendChild(card);
+            const timesHost = card.querySelector('.as-day-times');
+            defaultTimes.forEach(t => addTimeToDay(id, t, timesHost));
+            card.querySelector('.as-day-date').addEventListener('input', refreshAsSlotSummary);
+            renumberScheduleDays();
+            refreshAsSlotSummary();
+        }
+
+        function removeScheduleDay(btn) {
+            const card = btn.closest('.as-day-card');
+            if (!card) return;
+            const host = document.getElementById('as-days');
+            if (host && host.querySelectorAll('.as-day-card').length <= 1) {
+                Toast.show('Keep at least one day', 'error');
+                return;
+            }
+            card.remove();
+            renumberScheduleDays();
+            refreshAsSlotSummary();
+        }
+
+        function addTimeToDay(dayId, value = '', timesHost = null) {
+            const host = timesHost || document.querySelector(`.as-day-times[data-day-times="${dayId}"]`);
+            if (!host) return;
+            let v = value;
+            if (!v) {
+                const inputs = host.querySelectorAll('.as-day-time');
+                if (inputs.length) {
+                    const last = inputs[inputs.length - 1].value || '08:00';
+                    const [h, m] = last.split(':').map(Number);
+                    const nh = Math.min((h || 8) + 1, 23);
+                    v = `${String(nh).padStart(2, '0')}:${String(m || 0).padStart(2, '0')}`;
+                } else {
+                    v = '08:00';
+                }
+            }
+            const row = document.createElement('div');
+            row.className = 'as-day-time-row';
+            row.innerHTML = `
+                <input type="time" class="form-input as-day-time" value="${v}" style="flex:1">
+                <button type="button" class="btn btn-secondary btn-sm" title="Remove time"
+                    onclick="this.closest('.as-day-time-row').remove();refreshAsSlotSummary()">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>`;
+            host.appendChild(row);
+            row.querySelector('input').addEventListener('input', refreshAsSlotSummary);
+            refreshAsSlotSummary();
+        }
+
+        function collectDayPlans() {
+            const plans = [];
+            document.querySelectorAll('#as-days .as-day-card').forEach(card => {
+                const date = card.querySelector('.as-day-date')?.value || '';
+                const times = [...new Set(
+                    [...card.querySelectorAll('.as-day-time')].map(i => i.value).filter(Boolean)
+                )].sort();
+                if (date || times.length) plans.push({ date, times });
+            });
+            return plans;
+        }
+
+        function collectFlatSlots(plans) {
+            const slots = [];
+            (plans || collectDayPlans()).forEach(p => {
+                if (!p.date) return;
+                p.times.forEach(time => slots.push({ date: p.date, time }));
+            });
+            return slots;
+        }
+
+        /** Persist day plans into timeSlots so legacy Time Slots views stay in sync */
+        function syncDayPlansToTimeSlots(plans) {
+            const next = {};
+            (plans || []).forEach(p => {
+                if (!p.date || !p.times.length) return;
+                next[p.date] = p.times.map(t => {
+                    const [h, m] = t.split(':').map(Number);
+                    const endH = Math.min((h || 0) + 1, 23);
+                    const end = `${String(endH).padStart(2, '0')}:${String(m || 0).padStart(2, '0')}`;
+                    return { start: t, end };
+                });
+            });
+            timeSlots = next;
+            if (typeof saveTSData === 'function') saveTSData();
+        }
+
+        function refreshAsSlotSummary() {
+            const summary = document.getElementById('as-slot-summary');
+            if (!summary) return;
+            const fmt = tournament?.format || '';
+            const plans = collectDayPlans();
+            const slots = collectFlatSlots(plans);
+            const toDo = (typeof IS_FFA === 'function' && IS_FFA(fmt))
+                ? 1
+                : (matches || []).filter(m => typeof isSchedulableMatch === 'function'
+                    ? isSchedulableMatch(m)
+                    : ['pending', 'scheduled'].includes(String(m.status || '').toLowerCase())).length;
+            const free = slots.length;
+            const incomplete = plans.filter(p => !p.date || !p.times.length).length;
+            if (incomplete) {
+                summary.style.borderColor = 'rgba(232,50,59,.35)';
+                summary.innerHTML = `<strong style="color:var(--red)">${incomplete}</strong> day(s) still need a date and at least one time.`;
+                return;
+            }
+            const ok = free >= toDo;
+            summary.style.borderColor = ok ? 'rgba(34,197,94,.35)' : 'rgba(232,50,59,.35)';
+            summary.innerHTML = ok
+                ? `<strong>${free}</strong> slot(s) across <strong>${plans.length}</strong> day(s) · <strong>${toDo}</strong> match(es) to place — ready.`
+                : `<strong style="color:var(--red)">${free}</strong> slot(s) · <strong>${toDo}</strong> match(es) needed — add another day or more times.`;
         }
 
         function openScheduleConfig() {
             const fmt = tournament?.format || '';
             renderAdminScheduleIntro(fmt);
+
+            const host = document.getElementById('as-days');
+            if (host) {
+                host.innerHTML = '';
+                _asDaySeq = 0;
+                const entries = Object.entries(timeSlots || {})
+                    .filter(([, slots]) => Array.isArray(slots) && slots.length)
+                    .sort(([a], [b]) => a.localeCompare(b));
+                if (entries.length) {
+                    entries.forEach(([date, slots]) => {
+                        const times = slots.map(s => String(s.start || '').slice(0, 5)).filter(Boolean);
+                        addScheduleDay(date, times.length ? times : ['08:00']);
+                    });
+                } else {
+                    const seed = (tournament?.start_date || '').toString().slice(0, 10);
+                    addScheduleDay(seed, ['08:00', '09:00', '10:00']);
+                }
+            }
+            refreshAsSlotSummary();
             Modal.open('modal-schedule-config');
         }
 
@@ -2871,6 +3096,15 @@
             const defaultReferee = document.getElementById('config-referee')?.value;
             const fmt = tournament?.format || '';
 
+            const plans = collectDayPlans();
+            const incomplete = plans.filter(p => !p.date || !p.times.length);
+            if (!plans.length || incomplete.length) {
+                Toast.show('Every day needs a date and at least one time slot', 'error');
+                return;
+            }
+            const freeSlots = collectFlatSlots(plans);
+            syncDayPlansToTimeSlots(plans);
+
             if (IS_FFA(fmt)) {
                 const ffaMatch = matches.find(m =>
                     m.bracket_side === 'ffa' ||
@@ -2878,18 +3112,13 @@
                     IS_FFA(m.tournament_format || fmt)
                 );
                 if (!ffaMatch) { Toast.show('No FFA match found. Click Initialize Event first.', 'error'); return; }
-                const slotDates = Object.entries(timeSlots);
-                if (!slotDates.length) { Toast.show('Add time slots first', 'error'); openTSModal(); return; }
-                slotDates.sort(([a], [b]) => a.localeCompare(b));
-                const [date, slots] = slotDates[0];
-                if (!slots.length) { Toast.show('No time slots configured', 'error'); return; }
-                const slot = slots[0];
-                const body = { scheduled_date: date, scheduled_time: slot.start };
+                const slot = freeSlots[0];
+                const body = { scheduled_date: slot.date, scheduled_time: slot.time };
                 if (defaultVenue) body.venue_id = parseInt(defaultVenue);
                 if (defaultReferee) body.referee_id = parseInt(defaultReferee);
                 const res = await api(`/matches/${ffaMatch.id}/schedule`, { method: 'PATCH', body });
                 if (res.success) {
-                    Toast.show(`FFA event scheduled for ${typeof formatDate === 'function' ? formatDate(date) : date}`, 'success');
+                    Toast.show(`FFA event scheduled for ${typeof formatDate === 'function' ? formatDate(slot.date) : slot.date}`, 'success');
                     await reloadDetail();
                     Modal.close('modal-schedule-config');
                     switchTab('schedule');
@@ -2900,35 +3129,19 @@
             let toSchedule = matches.filter(isSchedulableMatch);
             if (!toSchedule.length) { Toast.show('All matches already scheduled', 'info'); return; }
 
-            // Knockout: chronological bracket order (upper → lower → grand final)
             if (isKnockoutFormat(fmt)) {
                 toSchedule = sortMatchesForSchedule(toSchedule);
             }
 
-            const slotDates = Object.entries(timeSlots);
-            if (!slotDates.length) { Toast.show('Add time slots first', 'error'); openTSModal(); return; }
-
-            const allSlots = [];
-            slotDates.sort(([a], [b]) => a.localeCompare(b)).forEach(([date, slots]) => {
-                slots.forEach(slot => allSlots.push({ date, start: slot.start }));
-            });
-            const occupiedSlots = new Set();
-            matches.forEach(m => {
-                if (m.scheduled_date && m.scheduled_time && m.status !== 'pending') {
-                    occupiedSlots.add(`${m.scheduled_date}_${String(m.scheduled_time).slice(0, 5)}`);
-                }
-            });
-            const freeSlots = allSlots.filter(s => !occupiedSlots.has(`${s.date}_${s.start}`));
             if (freeSlots.length < toSchedule.length) {
-                Toast.show(`Only ${freeSlots.length} free slots for ${toSchedule.length} matches. Add more Time Slots.`, 'error');
-                openTSModal();
+                Toast.show(`Only ${freeSlots.length} slots for ${toSchedule.length} matches. Add another day or more times.`, 'error');
                 return;
             }
             let scheduled = 0;
             for (let i = 0; i < toSchedule.length; i++) {
                 const m = toSchedule[i];
                 const slot = freeSlots[i];
-                const body = { scheduled_date: slot.date, scheduled_time: slot.start };
+                const body = { scheduled_date: slot.date, scheduled_time: slot.time };
                 if (defaultVenue) body.venue_id = parseInt(defaultVenue);
                 if (defaultReferee) body.referee_id = parseInt(defaultReferee);
                 const res = await api(`/matches/${m.id}/schedule`, { method: 'PATCH', body });
@@ -2941,6 +3154,7 @@
             switchTab('schedule');
         }
 
+
         // Server-side smart scheduler: ignores Time Slots entirely, walks the
         // tournament's flexible fixtures, skips permanently-locked school
         // blocks, and places every match into a window where findTeamConflict()
@@ -2949,17 +3163,26 @@
             const btn = document.getElementById('as-smart-btn');
             const defaultVenue = document.getElementById('config-venue')?.value;
             const defaultReferee = document.getElementById('config-referee')?.value;
-            // Build per-day plans from Time Slots (each date keeps its own times)
-            const day_plans = Object.entries(timeSlots || {})
-                .filter(([, slots]) => Array.isArray(slots) && slots.length)
-                .sort(([a], [b]) => a.localeCompare(b))
-                .map(([date, slots]) => ({
-                    date,
-                    times: [...new Set(slots.map(s => String(s.start || '').slice(0, 5)).filter(Boolean))].sort(),
-                }))
-                .filter(p => p.times.length);
-            const slots = [];
-            day_plans.forEach(p => p.times.forEach(time => slots.push({ date: p.date, time })));
+            const assignOfficers = !!document.getElementById('as-assign-officers')?.checked;
+
+            // Prefer live day cards; fall back to saved timeSlots
+            let day_plans = collectDayPlans().filter(p => p.date && p.times.length);
+            if (!day_plans.length) {
+                day_plans = Object.entries(timeSlots || {})
+                    .filter(([, slots]) => Array.isArray(slots) && slots.length)
+                    .sort(([a], [b]) => a.localeCompare(b))
+                    .map(([date, slots]) => ({
+                        date,
+                        times: [...new Set(slots.map(s => String(s.start || '').slice(0, 5)).filter(Boolean))].sort(),
+                    }))
+                    .filter(p => p.times.length);
+            }
+            if (!day_plans.length) {
+                Toast.show('Add at least one day with a date and time slots', 'error');
+                return;
+            }
+            syncDayPlansToTimeSlots(day_plans);
+            const slots = collectFlatSlots(day_plans);
 
             if (btn) { btn.disabled = true; btn.textContent = 'Scheduling…'; }
             try {
@@ -2971,8 +3194,7 @@
                         day_plans,
                         slots,
                         dates: day_plans.map(p => p.date),
-                        // legacy: do not send a global times list that would cartesian-product
-                        assign_officers: true,
+                        assign_officers: assignOfficers,
                     },
                 });
                 if (res.success) {

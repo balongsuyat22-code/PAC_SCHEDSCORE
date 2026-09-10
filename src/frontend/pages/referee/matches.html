@@ -127,6 +127,38 @@
             color: var(--gold);
         }
 
+        .live-pill {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 11px;
+            font-weight: 700;
+            color: var(--green);
+            margin-left: 8px;
+        }
+
+        .live-pill::before {
+            content: '';
+            width: 7px;
+            height: 7px;
+            border-radius: 50%;
+            background: var(--green);
+            box-shadow: 0 0 0 3px rgba(34, 197, 94, 0.25);
+            animation: livePulse 1.6s infinite;
+        }
+
+        @keyframes livePulse {
+
+            0%,
+            100% {
+                box-shadow: 0 0 0 3px rgba(34, 197, 94, 0.25);
+            }
+
+            50% {
+                box-shadow: 0 0 0 6px rgba(34, 197, 94, 0.05);
+            }
+        }
+
         @media (max-width: 720px) {
 
             thead th:nth-child(4),
@@ -191,8 +223,9 @@
                                 <path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2" />
                             </svg></span>
                         My Assigned Matches
+                        <span class="live-pill" id="rt-live-pill" style="display:none">LIVE</span>
                     </div>
-                    <div class="page-sub">Manage and track your referee assignments.</div>
+                    <div class="page-sub">Manage and track your referee assignments · updates live</div>
                 </div>
                 <button class="btn btn-secondary btn-sm" onclick="loadMatches()">
                     <svg viewBox="0 0 24 24">
@@ -271,32 +304,53 @@
     <script>
         let allAssignedMatches = [];
         let currentTab = 'active';
+        let _matchReloadTimer = null;
 
         document.addEventListener('DOMContentLoaded', async () => {
             if (typeof Auth !== 'undefined' && Auth.requireAuth && !Auth.requireAuth('sgo_officer')) return;
             renderRefereeSidebar('matches');
             renderRefereeTopbar();
             await loadMatches();
+            bindRealtime();
         });
 
-        async function loadMatches() {
+        function bindRealtime() {
+            if (typeof Realtime === 'undefined') return;
+            Realtime.connect().catch(() => { });
+
+            const softReload = () => {
+                clearTimeout(_matchReloadTimer);
+                _matchReloadTimer = setTimeout(() => loadMatches({ silent: true }), 350);
+            };
+
+            // Any match lifecycle change for this referee
+            window.addEventListener('sf:match', softReload);
+            window.addEventListener('sf:live', softReload);
+            window.addEventListener('sf:score', softReload);
+            window.addEventListener('sf:notif', softReload);
+
+            const pill = document.getElementById('rt-live-pill');
+            const syncPill = () => {
+                if (!pill) return;
+                pill.style.display = Realtime.connected ? 'inline-flex' : 'none';
+            };
+            syncPill();
+            setInterval(syncPill, 2000);
+        }
+
+        async function loadMatches(opts = {}) {
             const user = Auth.getUser();
             if (!user) return;
             try {
                 const res = await api(`/matches?referee_id=${user.id}`);
                 allAssignedMatches = (res.success && res.data) ? res.data : [];
             } catch (e) {
-                allAssignedMatches = [];
+                if (!opts.silent) allAssignedMatches = [];
             }
             renderStats();
             renderMatchTable();
         }
 
-        /**
-         * Format a score for display:
-         * - non-time sports: whole numbers (12 not 12.00)
-         * - time sports: up to 2 decimals, trailing zeros stripped (12.5 not 12.50; 12 not 12.00)
-         */
         function fmtScoreLabel(n, scoringType) {
             const x = Number(n);
             if (!Number.isFinite(x)) return '—';
@@ -304,14 +358,12 @@
             if (!isTime) {
                 return String(Math.round(x));
             }
-            // time: keep meaningful decimals only
-            const fixed = x.toFixed(2);           // "12.00" | "12.50" | "12.34"
-            return fixed.replace(/\.?0+$/, '');    // "12" | "12.5" | "12.34"
+            const fixed = x.toFixed(2);
+            return fixed.replace(/\.?0+$/, '');
         }
 
         function scoringUrl(matchId) {
             if (matchId == null || matchId === '') return '#';
-            // Clean app route — scoring.html is not registered under /referee/
             return `/referee/scoring?id=${encodeURIComponent(matchId)}`;
         }
 
@@ -341,8 +393,8 @@
         }
 
         function scoreLine(m) {
-            const a = m.total_score_a ?? m.score_a;
-            const b = m.total_score_b ?? m.score_b;
+            const a = m.total_score_a ?? m.score_a ?? m.live_total_a;
+            const b = m.total_score_b ?? m.score_b ?? m.live_total_b;
             if (a == null && b == null) return '';
             const st = m.scoring_type;
             return `<span class="mc-score">${fmtScoreLabel(a, st)} – ${fmtScoreLabel(b, st)}</span>`;
