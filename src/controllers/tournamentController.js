@@ -154,12 +154,17 @@ const getOne = async (req, res, next) => {
         const playersByDept = {};
         if (deptIds.length) {
             const ph = deptIds.map(() => '?').join(',');
+            const playerParams = [...deptIds, t.sport_id];
+            const seasonFilter = t.resolved_sport_fest_id
+                ? ' AND sport_fest_id = ?'
+                : '';
+            if (t.resolved_sport_fest_id) playerParams.push(t.resolved_sport_fest_id);
             const [players] = await pool.execute(
                 `SELECT id, department_id, first_name, last_name, jersey_number, status, sport_id, position
          FROM players
-         WHERE department_id IN (${ph}) AND sport_id = ?
+         WHERE department_id IN (${ph}) AND sport_id = ?${seasonFilter}
          ORDER BY status = 'approved' DESC, last_name, first_name`,
-                [...deptIds, t.sport_id]
+                playerParams
             );
             players.forEach((p) => {
                 if (!playersByDept[p.department_id]) playersByDept[p.department_id] = [];
@@ -211,13 +216,18 @@ const getParticipants = async (req, res, next) => {
         const playersByDept = {};
         if (deptIds.length) {
             const ph = deptIds.map(() => '?').join(',');
+            const playerParams = [...deptIds, t.sport_id];
+            const seasonFilter = t.resolved_sport_fest_id
+                ? ' AND sport_fest_id = ?'
+                : '';
+            if (t.resolved_sport_fest_id) playerParams.push(t.resolved_sport_fest_id);
             try {
                 const [players] = await pool.execute(
                     `SELECT id, department_id, first_name, last_name, jersey_number, status
            FROM players
-           WHERE department_id IN (${ph}) AND sport_id = ?
+           WHERE department_id IN (${ph}) AND sport_id = ?${seasonFilter}
            ORDER BY last_name, first_name`,
-                    [...deptIds, t.sport_id]
+                    playerParams
                 );
                 players.forEach((p) => {
                     if (!playersByDept[p.department_id]) playersByDept[p.department_id] = [];
