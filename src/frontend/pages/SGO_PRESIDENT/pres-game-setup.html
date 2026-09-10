@@ -2588,7 +2588,22 @@
 
             if (isFfa) return tabFfaEventCard();
 
-            // Group by round — Round 1, later TBD rounds, etc. each get Schedule/Edit
+            const isGauntlet = currentTournament?.format === 'division_gauntlet';
+            const needsTbd = isGauntlet && matches.length < 12;
+            const tbdBanner = needsTbd
+                ? `<div class="card" style="margin-bottom:14px;border-color:rgba(255,176,32,.4)">
+                    <div class="card-body" style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap">
+                        <div style="font-size:13px;color:var(--muted)">
+                            <strong style="color:var(--gold)">Only Round 1 is present (${matches.length} matches).</strong>
+                            Day 3 / Day 4 TBD slots are missing — create them so you can assign dates before teams advance.
+                        </div>
+                        <button class="btn btn-primary btn-sm" onclick="ensureTbdRounds()">
+                            <i class="fa-solid fa-layer-group"></i> Create TBD rounds
+                        </button>
+                    </div>
+                   </div>`
+                : '';
+
             const byRound = {};
             matches.forEach(m => {
                 const rn = m.round_number != null ? Number(m.round_number) : 0;
@@ -2619,11 +2634,12 @@
                 </div>`;
             }).join('');
 
-            return `<div class="card">
+            return `${tbdBanner}<div class="card">
                 <div class="card-header" style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap">
                     <div class="card-title"><i class="fa-solid fa-trophy"></i> Bracket · ${matches.length} match${matches.length !== 1 ? 'es' : ''}</div>
                     <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
                         <span style="font-size:12px;color:var(--muted)"><i class="fa-solid fa-calendar-pen"></i> Schedule / Edit on each match</span>
+                        ${needsTbd ? `<button class="btn btn-secondary btn-sm" onclick="ensureTbdRounds()"><i class="fa-solid fa-layer-group"></i> Create TBD rounds</button>` : ''}
                         ${addBtn}
                     </div>
                 </div>
@@ -2631,7 +2647,12 @@
             </div>`;
         }
 
-
+        async function ensureTbdRounds() {
+            if (!currentTournamentId) return;
+            const res = await api(`/tournaments/${currentTournamentId}/ensure-tbd-rounds`, { method: 'POST' });
+            Toast.show(res.message || (res.success ? 'TBD rounds ready.' : 'Error'), res.success ? 'success' : 'error');
+            if (res.success) await refreshAll();
+        }
         function tabFfaEventCard() {
             const tournament = currentTournament;
             const match = currentBracketMatches[0] || null;
