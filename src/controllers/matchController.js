@@ -2,7 +2,7 @@ const { pool } = require('../config/database');
 const { progressBracket } = require('../services/matchService');
 const { logActivity } = require('../utils/logger');
 const { getActiveSportFestId } = require('../utils/season');
-const { findTeamConflict, rebuildAutoSchedule } = require('../services/scheduleConstraints');
+const { findTeamConflict } = require('../services/scheduleConstraints');
 const {
     emitToMatch,
     emitToTournament,
@@ -11,6 +11,7 @@ const {
     getMatchWatchers,
 } = require('../utils/socketEmit');
 const { createNotification, notifyRoles } = require('./notificationController');
+const { getFixedBlock, findTeamConflict } = require('../services/scheduleConstraints');
 
 const safeFK = (val) => { const n = parseInt(val); return Number.isInteger(n) && n > 0 ? n : null; };
 const safeDate = (val) => { if (!val) return null; return String(val).split('T')[0]; };
@@ -19,6 +20,14 @@ const canReschedule = (status) => ['pending', 'scheduled'].includes(status);
 const canStart = (status) => ['pending', 'scheduled'].includes(status);
 const canScore = (status) => ['ongoing', 'completed'].includes(status);
 const canComplete = (status) => status === 'ongoing';
+
+const { rebuildAutoSchedule } = require('../services/scheduleConstraints');
+
+
+const result = await rebuildAutoSchedule(req.params.id, {
+    defaultVenueId: req.body.default_venue_id,
+    defaultRefereeId: req.body.default_referee_id,
+}, pool);
 
 /** Load names for notification messages */
 async function loadMatchLabel(matchId) {
@@ -206,6 +215,8 @@ async function notifyMatchEvent(kind, matchId, extra = {}, createdBy = null) {
     }
 }
 
+
+
 const getMatchStatus = async (matchId) => {
     const [[row]] = await pool.execute('SELECT status FROM matches WHERE id = ?', [matchId]);
     return row ? row.status : null;
@@ -316,9 +327,11 @@ const getAll = async (req, res, next) => {
     }
 };
 
+
 const getPlayersByDepartment = async (req, res, next) => {
     try {
         const departmentId = parseInt(req.params.departmentId);
+
         const sportId = parseInt(req.query.sport_id);
 
         const params = [departmentId];
@@ -454,6 +467,7 @@ const getScoreboard = async (req, res, next) => {
     }
 };
 
+
 const getLive = async (req, res, next) => {
     try {
         const [rows] = await pool.execute(
@@ -500,6 +514,7 @@ const getLive = async (req, res, next) => {
     }
 };
 
+
 const getMyAssignments = async (req, res, next) => {
     try {
         const [rows] = await pool.execute(
@@ -537,6 +552,7 @@ const getMyAssignments = async (req, res, next) => {
     }
 };
 
+
 const getAvailableOfficers = async (req, res, next) => {
     try {
         const [rows] = await pool.execute(
@@ -557,6 +573,7 @@ const getAvailableOfficers = async (req, res, next) => {
         next(err);
     }
 };
+
 
 const schedule = async (req, res, next) => {
     try {
@@ -646,57 +663,6 @@ const schedule = async (req, res, next) => {
     }
 };
 
-/**
- * Smart auto-schedule for a tournament (admin / SGO president).
- * POST /tournaments/:id/schedule-auto
- */
-const scheduleAuto = async (req, res, next) => {
-    try {
-        const tournamentId = parseInt(req.params.id, 10);
-        if (!Number.isInteger(tournamentId) || tournamentId <= 0) {
-            return res.status(400).json({ success: false, message: 'Invalid tournament id.' });
-        }
-
-        const result = await rebuildAutoSchedule(tournamentId, {
-            defaultVenueId: req.body.default_venue_id ?? null,
-            defaultRefereeId: req.body.default_referee_id ?? null,
-            dayStart: req.body.day_start,
-            dayEnd: req.body.day_end,
-            slotMinutes: req.body.slot_minutes,
-            startDate: req.body.start_date,
-        }, pool);
-
-        await logActivity(
-            req.user?.id,
-            'TOURNAMENT_AUTO_SCHEDULE',
-            'tournament',
-            tournamentId,
-            `Smart scheduled ${result.scheduled}, skipped ${result.skipped}`
-        );
-
-        emitToTournament(tournamentId, 'schedule:updated', {
-            tournament_id: tournamentId,
-            scheduled: result.scheduled,
-            skipped: result.skipped,
-        });
-
-        return res.json({
-            success: true,
-            message: result.skipped
-                ? `Scheduled ${result.scheduled}, ${result.skipped} could not find a conflict-free slot.`
-                : `Scheduled ${result.scheduled} match(es) with no team conflicts.`,
-            data: result,
-        });
-    } catch (err) {
-        if (err.message === 'Tournament not found.') {
-            return res.status(404).json({ success: false, message: err.message });
-        }
-        if (err.message?.includes('No venues')) {
-            return res.status(400).json({ success: false, message: err.message });
-        }
-        next(err);
-    }
-};
 
 const startMatch = async (req, res, next) => {
     try {
@@ -818,11 +784,13 @@ const startMatch = async (req, res, next) => {
     }
 };
 
+
 const updateScore = async (req, res, next) => {
     try {
         const matchId = parseInt(req.params.id);
         const { period, period_label, score_a, score_b } = req.body;
         const userId = req.user.id;
+
 
         if (req.user.role === 'sgo_officer') {
             const [assigned] = await pool.execute(
@@ -862,6 +830,7 @@ const updateScore = async (req, res, next) => {
             [matchId]
         );
 
+
         const [allScores] = await pool.execute(
             `SELECT ms.*,
                     CONCAT(u.first_name, ' ', u.last_name) AS updated_by_name
@@ -871,6 +840,7 @@ const updateScore = async (req, res, next) => {
              ORDER BY ms.period ASC`,
             [matchId]
         );
+
 
         const [[match]] = await pool.execute(
             `SELECT m.*, t.name AS tournament_name,
@@ -893,6 +863,7 @@ const updateScore = async (req, res, next) => {
                 [totals.total_a, totals.total_b, `${totals.total_a} - ${totals.total_b}`, matchId]
             );
         }
+
 
         const scoreUpdate = {
             match_id: matchId,
@@ -917,7 +888,9 @@ const updateScore = async (req, res, next) => {
             }
         };
 
+
         emitToMatch(matchId, 'score:update', scoreUpdate);
+
 
         emitToAll('live:tick', {
             match_id: matchId,
@@ -925,6 +898,7 @@ const updateScore = async (req, res, next) => {
             total_b: totals.total_b,
             updated_at: new Date()
         });
+
 
         emitToTournament(match.tournament_id, 'score:update', scoreUpdate);
 
@@ -960,16 +934,17 @@ const updateScore = async (req, res, next) => {
             data: {
                 total_a: totals.total_a,
                 total_b: totals.total_b,
-                watchers: getMatchWatchers(matchId),
-                updated: true,
-                updated_by: req.user.first_name + ' ' + req.user.last_name,
-                updated_at: new Date()
+                watchers: getMatchWatchers(matchId)
+                , updated: true
+                , updated_by: req.user.first_name + ' ' + req.user.last_name
+                , updated_at: new Date()
             }
         });
     } catch (err) {
         next(err);
     }
 };
+
 
 const completeMatch = async (req, res, next) => {
     const conn = await pool.getConnection();
@@ -1231,6 +1206,7 @@ const completeMatch = async (req, res, next) => {
     }
 };
 
+
 const _updateRoundRobinStandings = async (conn, match, winnerSide, totalA, totalB) => {
     const [[tourney]] = await conn.execute('SELECT format FROM tournaments WHERE id = ?', [match.tournament_id]);
     if (!tourney || tourney.format !== 'round_robin') return;
@@ -1271,6 +1247,7 @@ const _updateRoundRobinStandings = async (conn, match, winnerSide, totalA, total
     }
 };
 
+
 const getFFAResults = async (req, res, next) => {
     try {
         const { tournamentId } = req.params;
@@ -1301,6 +1278,7 @@ const getFFAResults = async (req, res, next) => {
     }
 };
 
+
 const saveFFAResults = async (req, res, next) => {
     const conn = await pool.getConnection();
     try {
@@ -1324,6 +1302,7 @@ const saveFFAResults = async (req, res, next) => {
                 [tournamentId, r.department_id, val, userId]
             );
         }
+
 
         await conn.execute(
             `UPDATE matches SET status = 'ongoing', started_at = COALESCE(started_at, NOW())
@@ -1349,6 +1328,7 @@ const saveFFAResults = async (req, res, next) => {
         conn.release();
     }
 };
+
 
 const _reRankFFA = async (conn, tournamentId) => {
     const [[t]] = await conn.execute('SELECT ffa_scoring FROM tournaments WHERE id = ?', [tournamentId]);
@@ -1417,6 +1397,7 @@ const completeFFAMatch = async (req, res, next) => {
     }
 };
 
+
 const getMVPs = async (req, res, next) => {
     try {
         const [mvps] = await pool.execute(
@@ -1441,6 +1422,7 @@ const getMVPs = async (req, res, next) => {
         );
         return res.json({ success: true, data: mvps });
     } catch (err) {
+
         return res.json({ success: true, data: [] });
     }
 };
@@ -1535,6 +1517,7 @@ const getMatchPlayers = async (req, res, next) => {
         next(err);
     }
 };
+
 
 const getWatchers = async (req, res, next) => {
     try {
@@ -1741,6 +1724,159 @@ const linkSource = async (req, res, next) => {
     }
 };
 
+/**
+ * Force-insert a department into an open (TBD) slot.
+ * Also clears any incoming next_match / loser_next_match link feeding that slot
+ * so the structural bracket feed no longer overwrites the manual pick.
+ */
+const insertTeam = async (req, res, next) => {
+    try {
+        const matchId = parseInt(req.params.id, 10);
+        const slot = req.body.slot === 'b' ? 'b' : 'a';
+        const departmentId = safeFK(req.body.department_id);
+        if (!departmentId) {
+            return res.status(400).json({ success: false, message: 'department_id is required.' });
+        }
+
+        const [[match]] = await pool.execute(
+            `SELECT id, status, participant_a_department_id, participant_b_department_id,
+                    scheduled_date, tournament_id
+             FROM matches WHERE id = ?`,
+            [matchId]
+        );
+        if (!match) return res.status(404).json({ success: false, message: 'Match not found.' });
+        if (['ongoing', 'completed', 'walkover', 'cancelled'].includes(String(match.status || '').toLowerCase())) {
+            return res.status(409).json({
+                success: false,
+                message: 'Cannot change teams on a match that has started or finished.',
+            });
+        }
+
+        // Unlink any source that was feeding this slot
+        await pool.execute(
+            `UPDATE matches SET next_match_id = NULL, next_match_slot = NULL
+             WHERE next_match_id = ? AND next_match_slot = ?`,
+            [matchId, slot]
+        );
+        await pool.execute(
+            `UPDATE matches SET loser_next_match_id = NULL, loser_next_match_slot = NULL
+             WHERE loser_next_match_id = ? AND loser_next_match_slot = ?`,
+            [matchId, slot]
+        );
+
+        const otherId = slot === 'a' ? match.participant_b_department_id : match.participant_a_department_id;
+        const newA = slot === 'a' ? departmentId : match.participant_a_department_id;
+        const newB = slot === 'b' ? departmentId : match.participant_b_department_id;
+        const bothSet = !!(newA && newB);
+        let nextStatus = match.status;
+        if (['pending', 'scheduled'].includes(String(match.status || '').toLowerCase())) {
+            nextStatus = bothSet && match.scheduled_date ? 'scheduled' : (bothSet ? 'scheduled' : 'pending');
+            if (bothSet && !match.scheduled_date) nextStatus = 'pending';
+            if (bothSet && match.scheduled_date) nextStatus = 'scheduled';
+            if (!bothSet) nextStatus = 'pending';
+        }
+
+        await pool.execute(
+            `UPDATE matches
+             SET participant_a_department_id = ?,
+                 participant_b_department_id = ?,
+                 status = ?,
+                 updated_at = NOW()
+             WHERE id = ?`,
+            [newA || null, newB || null, nextStatus, matchId]
+        );
+
+        await logActivity(req.user.id, 'MATCH_TEAM_INSERTED', 'match', matchId,
+            `Inserted department ${departmentId} into side ${slot.toUpperCase()}`);
+        emitToTournament(match.tournament_id, 'match:teamsUpdated', {
+            match_id: matchId, slot, department_id: departmentId,
+        });
+
+        return res.json({ success: true, message: `Team placed on side ${slot.toUpperCase()}.` });
+    } catch (err) {
+        next(err);
+    }
+};
+
+const updateTeams = async (req, res, next) => {
+    try {
+        const matchId = parseInt(req.params.id, 10);
+        const teamA_id = req.body.teamA_id != null && req.body.teamA_id !== ''
+            ? safeFK(req.body.teamA_id) : null;
+        const teamB_id = req.body.teamB_id != null && req.body.teamB_id !== ''
+            ? safeFK(req.body.teamB_id) : null;
+
+        if (teamA_id && teamB_id && teamA_id === teamB_id) {
+            return res.status(400).json({ success: false, message: 'A match cannot have the same team on both sides.' });
+        }
+
+        const [[match]] = await pool.execute(
+            `SELECT id, status, tournament_id, participant_a_department_id, participant_b_department_id
+             FROM matches WHERE id = ?`,
+            [matchId]
+        );
+        if (!match) return res.status(404).json({ success: false, message: 'Match not found.' });
+        if (['ongoing', 'completed', 'walkover', 'cancelled'].includes(String(match.status || '').toLowerCase())) {
+            return res.status(409).json({
+                success: false,
+                message: 'Cannot change teams on a match that has started or finished.',
+            });
+        }
+
+        // If a side was fed by a structural link and we're overwriting it, unlink the source
+        if (teamA_id !== match.participant_a_department_id) {
+            await pool.execute(
+                `UPDATE matches SET next_match_id = NULL, next_match_slot = NULL
+                 WHERE next_match_id = ? AND next_match_slot = 'a'`,
+                [matchId]
+            );
+            await pool.execute(
+                `UPDATE matches SET loser_next_match_id = NULL, loser_next_match_slot = NULL
+                 WHERE loser_next_match_id = ? AND loser_next_match_slot = 'a'`,
+                [matchId]
+            );
+        }
+        if (teamB_id !== match.participant_b_department_id) {
+            await pool.execute(
+                `UPDATE matches SET next_match_id = NULL, next_match_slot = NULL
+                 WHERE next_match_id = ? AND next_match_slot = 'b'`,
+                [matchId]
+            );
+            await pool.execute(
+                `UPDATE matches SET loser_next_match_id = NULL, loser_next_match_slot = NULL
+                 WHERE loser_next_match_id = ? AND loser_next_match_slot = 'b'`,
+                [matchId]
+            );
+        }
+
+        const bothSet = teamA_id && teamB_id;
+        await pool.execute(
+            `UPDATE matches
+             SET participant_a_department_id = ?,
+                 participant_b_department_id = ?,
+                 status = CASE
+                    WHEN status IN ('pending', 'scheduled') AND ? = 1 THEN
+                        CASE WHEN scheduled_date IS NOT NULL THEN 'scheduled' ELSE 'pending' END
+                    WHEN status IN ('pending', 'scheduled') AND ? = 0 THEN 'pending'
+                    ELSE status
+                 END,
+                 updated_at = NOW()
+             WHERE id = ?`,
+            [teamA_id, teamB_id, bothSet ? 1 : 0, bothSet ? 1 : 0, matchId]
+        );
+
+        await logActivity(req.user.id, 'MATCH_TEAMS_UPDATED', 'match', matchId,
+            `Teams set to A=${teamA_id || 'TBD'} B=${teamB_id || 'TBD'}`);
+        emitToTournament(match.tournament_id, 'match:teamsUpdated', {
+            match_id: matchId, teamA_id, teamB_id,
+        });
+
+        return res.json({ success: true, message: 'Teams updated.' });
+    } catch (err) {
+        next(err);
+    }
+};
+
 const removeMatch = async (req, res, next) => {
     try {
         const matchId = parseInt(req.params.id, 10);
@@ -1799,7 +1935,6 @@ module.exports = {
     getMyAssignments,
     getAvailableOfficers,
     schedule,
-    scheduleAuto,          // ← added
     startMatch,
     updateScore,
     completeMatch,
@@ -1812,5 +1947,7 @@ module.exports = {
     getWatchers,
     createCustom,
     linkSource,
+    insertTeam,
+    updateTeams,
     removeMatch,
 };

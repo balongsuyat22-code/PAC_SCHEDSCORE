@@ -38,6 +38,9 @@ router.use(authenticate);
 
 router.post('/custom', authorize('sgo_president', 'admin'), matchCtrl.createCustom);
 router.patch('/:id/link', authorize('sgo_president', 'admin'), matchCtrl.linkSource);
+router.post('/:id/insert-team', authorize('sgo_president', 'admin'), matchCtrl.insertTeam);
+router.put('/:id/teams', authorize('sgo_president', 'admin'), matchCtrl.updateTeams);
+router.patch('/:id/teams', authorize('sgo_president', 'admin'), matchCtrl.updateTeams);
 
 router.post(
     '/ffa/:tournamentId/results',
@@ -56,6 +59,4 @@ router.patch('/:id/start', authorize('sgo_officer', 'sgo_president', 'admin'), m
 router.put('/:id/score', authorize('sgo_officer', 'sgo_president', 'admin'), matchCtrl.updateScore);
 router.post('/:id/complete', authorize('sgo_officer', 'sgo_president', 'admin'), matchCtrl.completeMatch);
 router.delete('/:id', authorize('sgo_president', 'admin'), matchCtrl.removeMatch);
-router.post('/:id/schedule-auto', authenticate, authorize('sgo_president', 'admin'), matchCtrl.scheduleAuto);
-
 module.exports = router;

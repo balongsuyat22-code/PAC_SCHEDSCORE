@@ -1349,13 +1349,45 @@
         onclick="if(event.target===this)Modal.close('modal-match-schedule')">
         <div class="modal" style="max-width:560px">
             <div class="modal-header">
-                <div class="modal-title"><i class="fa-solid fa-calendar-pen"></i> Edit Match</div>
+                <div class="modal-title"><i class="fa-solid fa-calendar-pen"></i> Schedule Match</div>
                 <button class="modal-close" onclick="Modal.close('modal-match-schedule')" aria-label="Close">
                     <i class="fa-solid fa-xmark"></i>
                 </button>
             </div>
             <div class="modal-body">
-                <div id="ms-preview" style="margin-bottom:16px"></div>
+                <div id="ms-preview" style="margin-bottom:14px"></div>
+
+                <!-- Teams override — directly under preview; saved with schedule -->
+                <div id="ms-override-section" style="margin-bottom:16px">
+                    <div
+                        style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin-bottom:10px">
+                        Teams
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label class="form-label">Side A</label>
+                            <select id="ms-team-a" class="form-select">
+                                <option value="">— TBD —</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Side B</label>
+                            <select id="ms-team-b" class="form-select">
+                                <option value="">— TBD —</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div id="ms-exhibition-section" style="display:none;margin-top:8px">
+                        <div style="font-size:11px;font-weight:700;color:var(--gold);margin-bottom:6px">Place exhibition
+                        </div>
+                        <div id="ms-exhibition-buttons" style="display:flex;flex-wrap:wrap;gap:6px"></div>
+                    </div>
+                    <div id="ms-link-section" style="display:none;margin-top:10px">
+                        <div style="font-size:11px;font-weight:700;color:var(--muted);margin-bottom:6px">Fill from
+                            another match</div>
+                        <div id="ms-link-rows" style="display:flex;flex-direction:column;gap:8px"></div>
+                    </div>
+                </div>
 
                 <div class="form-row">
                     <div class="form-group">
@@ -1381,56 +1413,9 @@
                         </select>
                     </div>
                 </div>
-                <p style="font-size:12px;color:var(--muted);margin:0 0 16px">
-                    You can set date &amp; officer even when one side is still TBD. Clear the date to unschedule.
+                <p style="font-size:12px;color:var(--muted);margin:0">
+                    Team changes and schedule are saved together. Clear the date to unschedule.
                 </p>
-
-                <!-- Override teams (same behavior as Admin) — kept in the modal so match cards stay clean -->
-                <div id="ms-override-section"
-                    style="border-top:1px solid var(--border);padding-top:14px;margin-bottom:14px">
-                    <div
-                        style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin-bottom:10px">
-                        Override teams
-                    </div>
-                    <div class="form-row">
-                        <div class="form-group">
-                            <label class="form-label">Side A</label>
-                            <select id="ms-team-a" class="form-select">
-                                <option value="">— TBD —</option>
-                            </select>
-                        </div>
-                        <div class="form-group">
-                            <label class="form-label">Side B</label>
-                            <select id="ms-team-b" class="form-select">
-                                <option value="">— TBD —</option>
-                            </select>
-                        </div>
-                    </div>
-                    <button type="button" class="btn btn-secondary btn-sm" id="ms-override-btn"
-                        onclick="submitOverrideTeamsFromModal()">
-                        <i class="fa-solid fa-shuffle"></i> Save teams
-                    </button>
-                </div>
-
-                <!-- Exhibition quick-place for open TBD slots -->
-                <div id="ms-exhibition-section"
-                    style="display:none;border-top:1px solid var(--border);padding-top:14px;margin-bottom:8px">
-                    <div
-                        style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--gold);margin-bottom:10px">
-                        Place exhibition
-                    </div>
-                    <div id="ms-exhibition-buttons" style="display:flex;flex-wrap:wrap;gap:6px"></div>
-                </div>
-
-                <!-- Optional: wire an open slot from another match's winner/loser -->
-                <div id="ms-link-section"
-                    style="display:none;border-top:1px solid var(--border);padding-top:14px;margin-bottom:4px">
-                    <div
-                        style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin-bottom:10px">
-                        Fill from another match
-                    </div>
-                    <div id="ms-link-rows" style="display:flex;flex-direction:column;gap:8px"></div>
-                </div>
             </div>
             <div class="modal-footer">
                 <button class="btn btn-secondary" onclick="Modal.close('modal-match-schedule')">Cancel</button>
@@ -1889,8 +1874,7 @@
             if (deptsCache.length) return deptsCache;
             try {
                 const res = await api('/departments');
-                deptsCache = (res && res.data) ? (Array.isArray(res.data) ? res.data : []) : [];
-                if (!Array.isArray(deptsCache)) deptsCache = [];
+                deptsCache = (res && Array.isArray(res.data)) ? res.data : [];
             } catch {
                 deptsCache = [];
             }
@@ -1898,7 +1882,9 @@
         }
 
         function buildOverrideDeptOptions(selectedId) {
-            const list = (deptsCache || []).slice().sort((a, b) => String(a.name || '').localeCompare(String(b.name || '')));
+            const list = (deptsCache || []).slice().sort((a, b) =>
+                String(a.name || '').localeCompare(String(b.name || ''))
+            );
             let html = '<option value="">— TBD —</option>';
             list.forEach(d => {
                 const sel = Number(selectedId) === Number(d.id) ? ' selected' : '';
@@ -1919,7 +1905,6 @@
             const ovSec = document.getElementById('ms-override-section');
             if (ovSec) ovSec.style.display = statusOk ? '' : 'none';
 
-            // Exhibition place — only open TBD slots
             const exhSec = document.getElementById('ms-exhibition-section');
             const exhHost = document.getElementById('ms-exhibition-buttons');
             const exhibition = (deptsCache || []).filter(d => Number(d.is_exhibition) === 1);
@@ -1937,11 +1922,11 @@
                 }
             }
 
-            // Link from another match's winner/loser into open slots
             const linkSec = document.getElementById('ms-link-section');
             const linkRows = document.getElementById('ms-link-rows');
             const candidates = (currentBracketMatches || []).filter(x =>
-                Number(x.id) !== Number(m.id) && !['completed', 'cancelled', 'walkover'].includes(String(x.status || '').toLowerCase())
+                Number(x.id) !== Number(m.id)
+                && !['completed', 'cancelled', 'walkover'].includes(String(x.status || '').toLowerCase())
             );
             if (linkSec && linkRows) {
                 if (statusOk && openSlots.length && candidates.length) {
@@ -1949,7 +1934,8 @@
                     const srcOptions = '<option value="">— choose source —</option>' + candidates.map(c => {
                         const label = c.bracket_position
                             || `${c.dept_a_name || c.team_a_name || 'TBD'} vs ${c.dept_b_name || c.team_b_name || 'TBD'}`;
-                        return `<option value="${c.id}|winner">${label} · Winner</option><option value="${c.id}|loser">${label} · Loser</option>`;
+                        return `<option value="${c.id}|winner">${label} · Winner</option>`
+                            + `<option value="${c.id}|loser">${label} · Loser</option>`;
                     }).join('');
                     linkRows.innerHTML = openSlots.map(side => `
                         <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
@@ -1995,12 +1981,19 @@
                     ? `<div style="font-size:12px;color:var(--gold);margin-top:8px"><i class="fa-solid fa-circle-info"></i> One or both sides are still TBD — you can still lock in date, time, venue &amp; officer now.</div>`
                     : ''}`;
 
-            document.getElementById('ms-date').value = m.scheduled_date || '';
-            document.getElementById('ms-time').value = m.scheduled_time ? String(m.scheduled_time).slice(0, 5) : '';
+            // input[type=date] requires yyyy-MM-dd (not ISO timestamps)
+            document.getElementById('ms-date').value = m.scheduled_date
+                ? String(m.scheduled_date).slice(0, 10)
+                : '';
+            document.getElementById('ms-time').value = m.scheduled_time
+                ? String(m.scheduled_time).slice(0, 5)
+                : '';
             const vSel = document.getElementById('ms-venue');
             const rSel = document.getElementById('ms-referee');
             if (vSel) vSel.value = m.venue_id ? String(m.venue_id) : '';
-            if (rSel) rSel.value = (m.referee_user_id || m.referee_id) ? String(m.referee_user_id || m.referee_id) : '';
+            if (rSel) rSel.value = (m.referee_user_id || m.referee_id)
+                ? String(m.referee_user_id || m.referee_id)
+                : '';
 
             populateMatchOverrideUi(m);
             Modal.open('modal-match-schedule');
@@ -2008,78 +2001,89 @@
 
         async function submitMatchSchedule() {
             if (!_msMatchId) return;
+            const match = (currentBracketMatches || []).find(x => Number(x.id) === Number(_msMatchId));
+            const teamA_id = parseInt(document.getElementById('ms-team-a')?.value, 10) || null;
+            const teamB_id = parseInt(document.getElementById('ms-team-b')?.value, 10) || null;
+
+            if (teamA_id && teamB_id && teamA_id === teamB_id) {
+                Toast.show('A match cannot have the same team on both sides.', 'error');
+                return;
+            }
+
             const body = {
                 scheduled_date: document.getElementById('ms-date').value || null,
                 scheduled_time: document.getElementById('ms-time').value || null,
                 venue_id: document.getElementById('ms-venue').value || null,
                 referee_id: document.getElementById('ms-referee').value || null,
             };
+
             const btn = document.getElementById('ms-save-btn');
             if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Saving…'; }
             try {
+                const wasA = match?.participant_a_department_id || null;
+                const wasB = match?.participant_b_department_id || null;
+                const teamsChanged = Number(wasA || 0) !== Number(teamA_id || 0)
+                    || Number(wasB || 0) !== Number(teamB_id || 0);
+
+                if (teamsChanged) {
+                    const onlyFillingA = !wasA && teamA_id && Number(wasB || 0) === Number(teamB_id || 0);
+                    const onlyFillingB = !wasB && teamB_id && Number(wasA || 0) === Number(teamA_id || 0);
+                    let teamRes;
+                    if (onlyFillingA || onlyFillingB) {
+                        const slot = onlyFillingA ? 'a' : 'b';
+                        const department_id = onlyFillingA ? teamA_id : teamB_id;
+                        teamRes = await api(`/matches/${_msMatchId}/insert-team`, {
+                            method: 'POST', body: { slot, department_id },
+                        });
+                    } else {
+                        teamRes = await api(`/matches/${_msMatchId}/teams`, {
+                            method: 'PUT', body: { teamA_id, teamB_id },
+                        });
+                    }
+                    if (!teamRes.success) {
+                        Toast.show(teamRes.message || 'Could not update teams', 'error');
+                        return;
+                    }
+                }
+
                 const res = await api(`/matches/${_msMatchId}/schedule`, { method: 'PUT', body });
-                Toast.show(res.message || (res.success ? 'Schedule saved.' : 'Error'), res.success ? 'success' : 'error');
                 if (res.success) {
+                    Toast.show(
+                        teamsChanged ? 'Teams & schedule saved.' : (res.message || 'Schedule saved.'),
+                        'success'
+                    );
                     Modal.close('modal-match-schedule');
                     _msMatchId = null;
                     await refreshAll();
-                }
-            } finally {
-                if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fa-solid fa-floppy-disk"></i> Save Schedule'; }
-            }
-        }
-
-        async function submitOverrideTeamsFromModal() {
-            if (!_msMatchId) return;
-            const teamA_id = parseInt(document.getElementById('ms-team-a')?.value, 10) || null;
-            const teamB_id = parseInt(document.getElementById('ms-team-b')?.value, 10) || null;
-            if (teamA_id && teamB_id && teamA_id === teamB_id) {
-                Toast.show('A match cannot have the same team on both sides.', 'error');
-                return;
-            }
-
-            const match = (currentBracketMatches || []).find(x => Number(x.id) === Number(_msMatchId));
-            const wasA = match?.participant_a_department_id || null;
-            const wasB = match?.participant_b_department_id || null;
-
-            // Filling a previously-empty TBD slot → insert-team (also unlinks structural feed).
-            // Otherwise full team swap via PUT /matches/:id/teams.
-            const onlyFillingA = !wasA && teamA_id && wasB === teamB_id;
-            const onlyFillingB = !wasB && teamB_id && wasA === teamA_id;
-
-            const btn = document.getElementById('ms-override-btn');
-            if (btn) { btn.disabled = true; }
-            try {
-                let res;
-                if (onlyFillingA || onlyFillingB) {
-                    const slot = onlyFillingA ? 'a' : 'b';
-                    const department_id = onlyFillingA ? teamA_id : teamB_id;
-                    res = await api(`/matches/${_msMatchId}/insert-team`, {
-                        method: 'POST', body: { slot, department_id },
-                    });
                 } else {
-                    res = await api(`/matches/${_msMatchId}/teams`, {
-                        method: 'PUT', body: { teamA_id, teamB_id },
-                    });
-                }
-                Toast.show(res.message || (res.success ? 'Teams updated.' : 'Could not update teams'), res.success ? 'success' : 'error');
-                if (res.success) {
-                    Modal.close('modal-match-schedule');
-                    _msMatchId = null;
-                    await refreshAll();
+                    Toast.show(res.message || 'Could not save schedule', 'error');
                 }
             } finally {
-                if (btn) { btn.disabled = false; }
+                if (btn) {
+                    btn.disabled = false;
+                    btn.innerHTML = '<i class="fa-solid fa-floppy-disk"></i> Save Schedule';
+                }
             }
         }
 
         async function placeExhibition(matchId, departmentId, slot) {
+            // Prefer dedicated exhibition endpoint; fall back to insert-team
             const tid = currentTournamentId;
-            if (!tid) return;
-            const res = await api(`/tournaments/${tid}/matches/${matchId}/exhibition`, {
-                method: 'PATCH', body: { department_id: departmentId, slot },
-            });
-            Toast.show(res.message || (res.success ? 'Exhibition team placed.' : 'Could not place exhibition team'), res.success ? 'success' : 'error');
+            let res = null;
+            if (tid) {
+                res = await api(`/tournaments/${tid}/matches/${matchId}/exhibition`, {
+                    method: 'PATCH', body: { department_id: departmentId, slot },
+                });
+            }
+            if (!res || res.success === false) {
+                res = await api(`/matches/${matchId}/insert-team`, {
+                    method: 'POST', body: { slot, department_id: departmentId },
+                });
+            }
+            Toast.show(
+                res.message || (res.success ? 'Exhibition team placed.' : 'Could not place exhibition team'),
+                res.success ? 'success' : 'error'
+            );
             if (res.success) {
                 Modal.close('modal-match-schedule');
                 _msMatchId = null;
@@ -2103,8 +2107,6 @@
                 await refreshAll();
             }
         }
-
-
 
 
         document.addEventListener('DOMContentLoaded', async () => {
