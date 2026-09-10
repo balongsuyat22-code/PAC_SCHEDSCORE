@@ -55,5 +55,5 @@ router.patch('/:id/schedule', authorize('sgo_president', 'admin'), matchCtrl.sch
 router.patch('/:id/start', authorize('sgo_officer', 'sgo_president', 'admin'), matchCtrl.startMatch);
 router.put('/:id/score', authorize('sgo_officer', 'sgo_president', 'admin'), matchCtrl.updateScore);
 router.post('/:id/complete', authorize('sgo_officer', 'sgo_president', 'admin'), matchCtrl.completeMatch);
-
+router.delete('/:id', authorize('sgo_president', 'admin'), matchCtrl.removeMatch);
 module.exports = router;

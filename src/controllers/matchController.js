@@ -1714,6 +1714,54 @@ const linkSource = async (req, res, next) => {
         next(err);
     }
 };
+const removeMatch = async (req, res, next) => {
+    try {
+        const matchId = parseInt(req.params.id, 10);
+        const [[m]] = await pool.execute(
+            `SELECT id, tournament_id, status, bracket_side, bracket_position
+             FROM matches WHERE id = ?`,
+            [matchId]
+        );
+        if (!m) {
+            return res.status(404).json({ success: false, message: 'Match not found.' });
+        }
+        if (['ongoing', 'completed', 'walkover'].includes(String(m.status || '').toLowerCase())) {
+            return res.status(409).json({
+                success: false,
+                message: 'Cannot delete a match that is in progress or already completed.',
+            });
+        }
+
+        await pool.execute(
+            `UPDATE matches SET next_match_id = NULL, next_match_slot = NULL WHERE next_match_id = ?`,
+            [matchId]
+        );
+        await pool.execute(
+            `UPDATE matches SET loser_next_match_id = NULL, loser_next_match_slot = NULL WHERE loser_next_match_id = ?`,
+            [matchId]
+        );
+        try { await pool.execute('DELETE FROM match_scores WHERE match_id = ?', [matchId]); } catch (_) { }
+        try { await pool.execute('DELETE FROM match_results WHERE match_id = ?', [matchId]); } catch (_) { }
+
+        await pool.execute('DELETE FROM matches WHERE id = ?', [matchId]);
+
+        await logActivity(req.user.id, 'MATCH_DELETED', 'match', matchId,
+            `Deleted match ${matchId}${m.bracket_position ? ` (${m.bracket_position})` : ''}`);
+        emitToTournament(m.tournament_id, 'match:deleted', {
+            match_id: matchId,
+            tournament_id: m.tournament_id,
+        });
+
+        return res.json({
+            success: true,
+            message: m.bracket_position
+                ? `Deleted “${m.bracket_position}”.`
+                : `Match ${matchId} deleted.`,
+        });
+    } catch (err) {
+        next(err);
+    }
+};
 
 module.exports = {
     getAll,
@@ -1736,4 +1784,5 @@ module.exports = {
     getWatchers,
     createCustom,
     linkSource,
+    removeMatch,
 };

@@ -1706,12 +1706,23 @@
             const dateLine = when || m.venue_name
                 ? `<span class="bracket-date">${when}${m.venue_name ? (when ? ' · ' : '') + m.venue_name : ''}</span>`
                 : '';
+            const canDelete = !done && !cancelled
+                && ['pending', 'scheduled'].includes(statusLower)
+                && currentTournament?.status !== 'completed'
+                && (m.bracket_side === 'custom' || !m.participant_a_department_id || !m.participant_b_department_id || opts.allowDelete === true);
             const schedBtn = canEditSched
                 ? `<button type="button" class="btn btn-secondary btn-sm" style="padding:5px 10px;font-size:12px;white-space:nowrap"
                         onclick="event.stopPropagation();openMatchSchedule(${m.id})"
                         title="Set date, time, venue &amp; officer">
                         <i class="fa-solid fa-calendar-pen"></i>
                         <span style="margin-left:4px">${m.scheduled_date ? 'Edit' : 'Schedule'}</span>
+                   </button>`
+                : '';
+            const delBtn = canDelete
+                ? `<button type="button" class="btn btn-secondary btn-sm" style="padding:5px 8px;font-size:12px;color:var(--red)"
+                        onclick="event.stopPropagation();deleteMatch(${m.id})"
+                        title="Delete this match">
+                        <i class="fa-solid fa-trash"></i>
                    </button>`
                 : '';
 
@@ -1727,6 +1738,7 @@
                     ${dateLine}
                     ${refLine}
                     ${schedBtn}
+                    ${delBtn}
                 </div>
             </div>`;
         }
@@ -2647,6 +2659,18 @@
             </div>`;
         }
 
+
+        async function deleteMatch(matchId) {
+            const m = (currentBracketMatches || []).find(x => Number(x.id) === Number(matchId));
+            const label = m?.bracket_position || `Match #${matchId}`;
+            if (typeof Modal !== 'undefined' && Modal.confirm) {
+                if (!await Modal.confirm(`Delete “${label}”? This cannot be undone.`, 'Delete match')) return;
+            } else if (!confirm(`Delete “${label}”?`)) return;
+            const res = await api(`/matches/${matchId}`, { method: 'DELETE' });
+            Toast.show(res.message || (res.success ? 'Deleted.' : 'Error'), res.success ? 'success' : 'error');
+            if (res.success) await refreshAll();
+        }
+
         async function ensureTbdRounds() {
             if (!currentTournamentId) return;
             const res = await api(`/tournaments/${currentTournamentId}/ensure-tbd-rounds`, { method: 'POST' });
@@ -2863,6 +2887,14 @@
             document.getElementById('ffa-referee').value = match.referee_user_id || match.referee_id || '';
             Modal.open('modal-ffa-schedule');
         }
+
+        async function repairBracket() {
+            if (!currentTournamentId) return;
+            const res = await api(`/tournaments/${currentTournamentId}/repair-bracket`, { method: 'POST' });
+            Toast.show(res.message || (res.success ? 'Bracket repaired.' : 'Error'), res.success ? 'success' : 'error');
+            if (res.success) await refreshAll();
+        }
+
 
         async function submitFfaSchedule() {
             const match = currentBracketMatches[0];
