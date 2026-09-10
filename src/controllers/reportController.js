@@ -700,9 +700,6 @@ const getCurrentSeasonTournaments = async (req, res, next) => {
     }
 };
 
-// Full season / Sport Fest export: overall champion + department leaderboard +
-// every tournament finalized within the CURRENT season, each with its own
-// standings. Never includes tournaments from past/archived seasons.
 const getSportFestExport = async (req, res, next) => {
     try {
         const sportFestId = await getActiveSportFestId();
@@ -726,7 +723,7 @@ const getSportFestExport = async (req, res, next) => {
         const fest = festRows[0];
 
         const [leaderboard] = await pool.execute(
-            `SELECT d.id, d.name, d.code, d.color,
+            `SELECT d.id, d.name, d.code, d.color, d.division,
                     COALESCE(ds.total_points, 0) AS total_points,
                     COALESCE(ds.gold_medals, 0) AS gold_medals,
                     COALESCE(ds.silver_medals, 0) AS silver_medals,
@@ -739,7 +736,16 @@ const getSportFestExport = async (req, res, next) => {
             [sportFestId]
         );
 
-        // Tournaments linked to THIS season only.
+        const [declaredChampions] = await pool.execute(
+            `SELECT c.division, c.department_id AS id, d.name, d.color, d.code, d.logo_url,
+                    c.total_points, c.gold_medals, c.declared_at
+             FROM sport_fest_champions c
+             JOIN departments d ON d.id = c.department_id
+             WHERE c.sport_fest_id = ?
+             ORDER BY c.division`,
+            [sportFestId]
+        );
+
         const [tournaments] = await pool.execute(
             `SELECT t.id, t.name, t.status, t.format, t.gender,
                     s.name AS sport_name, s.category
@@ -776,26 +782,80 @@ const getSportFestExport = async (req, res, next) => {
             standings: resultsByTournament[t.id] || [],
         }));
 
-        // Prefer the officially declared champion; fall back to the current
-        // leaderboard leader (clearly flagged as unofficial/in-progress) so the
-        // report is still useful before "Declare Champion" has been run.
-        const champion = fest.champion_department_id
-            ? {
+        const championFinalized = declaredChampions.length > 0 || !!fest.champion_department_id;
+        const championCount = Math.min(2, Math.max(1, Number(fest.champion_count) || 1));
+
+        let champions = declaredChampions.map((c) => ({
+            id: c.id,
+            name: c.name,
+            color: c.color,
+            code: c.code,
+            logo_url: c.logo_url,
+            division: c.division,
+            total_points: c.total_points,
+            gold_medals: c.gold_medals,
+            declared_at: c.declared_at,
+            official: true,
+        }));
+
+        if (!champions.length && fest.champion_department_id) {
+            champions = [{
                 id: fest.champion_department_id,
                 name: fest.champion_name,
                 color: fest.champion_color,
                 code: fest.champion_code,
+                division: null,
+                total_points: null,
+                gold_medals: null,
+                official: true,
+            }];
+        }
+
+        if (!champions.length && leaderboard.length) {
+            // Unofficial: show top N overall (or per-division leaders if divisions exist)
+            const withDivision = leaderboard.filter((d) => d.division);
+            if (withDivision.length && championCount > 1) {
+                const byDiv = {};
+                for (const row of withDivision) {
+                    if (!byDiv[row.division]) byDiv[row.division] = row;
+                }
+                champions = Object.entries(byDiv)
+                    .slice(0, championCount)
+                    .map(([, row]) => ({
+                        id: row.id,
+                        name: row.name,
+                        color: row.color,
+                        code: row.code,
+                        division: row.division,
+                        total_points: row.total_points,
+                        gold_medals: row.gold_medals,
+                        official: false,
+                    }));
+            } else {
+                champions = leaderboard.slice(0, championCount).map((row) => ({
+                    id: row.id,
+                    name: row.name,
+                    color: row.color,
+                    code: row.code,
+                    division: row.division || null,
+                    total_points: row.total_points,
+                    gold_medals: row.gold_medals,
+                    official: false,
+                }));
             }
-            : leaderboard[0]
-                ? { ...leaderboard[0] }
-                : null;
+        }
+
+        // Keep singular `champion` for older clients (first / primary)
+        const champion = champions[0] || null;
 
         res.json({
             success: true,
             data: {
                 sport_fest: fest,
                 champion,
-                champion_finalized: !!fest.champion_department_id,
+                champions,
+                champion_count: championCount,
+                champion_finalized: championFinalized,
                 leaderboard,
                 tournaments: tournamentsWithResults,
                 totals: {

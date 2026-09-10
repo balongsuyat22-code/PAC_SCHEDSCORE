@@ -10,7 +10,6 @@
         rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
     <link rel="stylesheet" href="../../css/sgo_president.css">
-    <!-- PDF export (renders the .sheet element to a downloadable PDF) -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
     <style>
         .export-toolbar {
@@ -203,6 +202,12 @@
             font-weight: 800;
         }
 
+        .champions-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+            gap: 12px;
+        }
+
         .champion-card {
             display: flex;
             align-items: center;
@@ -239,9 +244,23 @@
             margin-top: 2px;
         }
 
+        .champion-card .champ-division {
+            font-family: 'Barlow Condensed', sans-serif;
+            font-size: 12px;
+            font-weight: 800;
+            text-transform: uppercase;
+            letter-spacing: 0.6px;
+            color: #92400e;
+            margin-bottom: 2px;
+        }
+
         .champion-card.unofficial {
             border-color: #ccc;
             background: #f7f7f7;
+        }
+
+        .champion-card.unofficial .champ-division {
+            color: #666;
         }
 
         .tourney-block {
@@ -425,7 +444,6 @@
         let currentSheetTitle = 'export';
 
         document.addEventListener('DOMContentLoaded', async () => {
-
             const allowedRoles = ['admin', 'sgo_president'];
             const user = (typeof Auth !== 'undefined' && Auth.getUser) ? Auth.getUser() : null;
             if (!user || !allowedRoles.includes(user.role)) {
@@ -467,7 +485,6 @@
             }
         }
 
-        // ── Current-season-only tournament list for the individual picker ──
         async function loadTournamentList() {
             const res = await api('/reports/current-season/tournaments');
             const sel = document.getElementById('t-select');
@@ -491,7 +508,6 @@
             }
         }
 
-        // ── Mode 1: Full season / overall champion report ──
         async function loadSeasonExport() {
             const host = document.getElementById('sheet-host');
             const printBtn = document.getElementById('btn-print');
@@ -518,7 +534,6 @@
             printBtn.style.display = '';
         }
 
-        // ── Mode 2: Single tournament (current season only, enforced server-side too) ──
         async function loadSingleExport() {
             const id = document.getElementById('t-select').value;
             const host = document.getElementById('sheet-host');
@@ -560,15 +575,24 @@
             return name.split(' ').map(w => w[0] || '').slice(0, 2).join('').toUpperCase() || '?';
         }
 
-        // ── Full season sheet: champion + leaderboard + every tournament in the current season ──
+        function formatDivisionLabel(division) {
+            if (!division) return '';
+            return String(division).replace(/_/g, ' ');
+        }
+
+        // Supports 1 or 2 champions
         function renderSeasonSheet(data) {
             const fest = data.sport_fest;
-            const champ = data.champion;
+            const champions = (Array.isArray(data.champions) && data.champions.length)
+                ? data.champions
+                : (data.champion ? [data.champion] : []);
+            const multiChamp = champions.length > 1;
+            const finalized = !!data.champion_finalized;
 
             const leaderboardRows = (data.leaderboard || []).map((d, i) => `
                 <tr>
                     <td>${i + 1}</td>
-                    <td>${d.name}</td>
+                    <td>${d.name}${d.division ? ` <span style="color:#888;font-size:11px">(${formatDivisionLabel(d.division)})</span>` : ''}</td>
                     <td class="medal-gold">${d.gold_medals}</td>
                     <td class="medal-silver">${d.silver_medals}</td>
                     <td class="medal-bronze">${d.bronze_medals}</td>
@@ -601,7 +625,35 @@
                 </div>`;
             }).join('') || `<div class="empty-state"><div class="empty-text">No tournaments have been added to this season yet.</div></div>`;
 
-            const champColor = champ?.color || '#f5b800';
+            const champCards = champions.map((champ) => {
+                const champColor = champ.color || '#f5b800';
+                const divLabel = formatDivisionLabel(champ.division);
+                const isOfficial = finalized && (champ.official !== false);
+                let subText;
+                if (isOfficial) {
+                    subText = divLabel
+                        ? `Officially declared ${divLabel} Champion`
+                        : 'Officially declared Sport Fest Champion';
+                } else {
+                    subText = `Currently leading with ${champ.total_points ?? 0} pts — champion not yet officially declared`;
+                }
+                return `
+                    <div class="champion-card ${isOfficial ? '' : 'unofficial'}">
+                        <div class="badge-circle" style="background:${champColor}">${initialsOf(champ.name)}</div>
+                        <div>
+                            ${divLabel ? `<div class="champ-division">${divLabel} Division</div>` : ''}
+                            <div class="champ-name">🏆 ${champ.name}</div>
+                            <div class="champ-sub">${subText}</div>
+                        </div>
+                    </div>`;
+            }).join('');
+
+            const champSectionTitle = multiChamp
+                ? `Overall Champions (${champions.length})`
+                : 'Overall Champion';
+            const badgeLabel = finalized
+                ? (multiChamp ? 'Champions Declared' : 'Champion Declared')
+                : 'In Progress';
 
             return `
             <div class="sheet">
@@ -610,22 +662,15 @@
                         <h1>${fest.name}${fest.year ? ' — ' + fest.year : ''}</h1>
                         <div class="sub">Overall Sport Fest Results ${fest.theme ? '· ' + fest.theme : ''}</div>
                     </div>
-                    <div class="sheet-badge ${data.champion_finalized ? '' : 'pending'}">
-                        ${data.champion_finalized ? 'Champion Declared' : 'In Progress'}
+                    <div class="sheet-badge ${finalized ? '' : 'pending'}">
+                        ${badgeLabel}
                     </div>
                 </div>
                 <div class="sheet-body">
-                    <div class="sheet-section-title">Overall Champion</div>
-                    ${champ ? `
-                    <div class="champion-card ${data.champion_finalized ? '' : 'unofficial'}">
-                        <div class="badge-circle" style="background:${champColor}">${initialsOf(champ.name)}</div>
-                        <div>
-                            <div class="champ-name">🏆 ${champ.name}</div>
-                            <div class="champ-sub">${data.champion_finalized
-                        ? 'Officially declared Sport Fest Champion'
-                        : `Currently leading with ${champ.total_points ?? 0} pts — champion not yet officially declared`}</div>
-                        </div>
-                    </div>` : `<div class="empty-state"><div class="empty-text">No department scores recorded yet.</div></div>`}
+                    <div class="sheet-section-title">${champSectionTitle}</div>
+                    ${champions.length
+                    ? `<div class="champions-grid">${champCards}</div>`
+                    : `<div class="empty-state"><div class="empty-text">No department scores recorded yet.</div></div>`}
 
                     <div class="sheet-section-title">Department Standings</div>
                     <table class="sheet-table">
@@ -644,13 +689,11 @@
             </div>`;
         }
 
-        // ── Single-tournament sheet (unchanged behaviour, current season enforced server-side) ──
         function renderSheet(data) {
             const t = data.tournament;
             const champion = data.standings?.find(s => s.rank === 1);
 
             const matchRows = (data.matches || []).map(m => {
-                const isFfa = !m.dept_b_name && m.dept_a_name;
                 const isExhibition = m.bracket_side === 'exhibition';
                 const a = m.dept_a_name || '—';
                 const b = m.dept_b_name || '—';
@@ -716,7 +759,6 @@
             </div>`;
         }
 
-        // ── Downloads ──────────────────────────────────────────────────────
         function downloadPdf(evt) {
             const sheet = document.querySelector('#sheet-host .sheet');
             if (!sheet) return;
@@ -740,8 +782,6 @@
                 });
         }
 
-        // Lightweight "export to Word" using the classic MS-Word HTML wrapper —
-        // no extra libraries needed, opens natively in Microsoft Word.
         function downloadWord() {
             const sheet = document.querySelector('#sheet-host .sheet');
             if (!sheet) return;
