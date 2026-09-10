@@ -595,10 +595,6 @@
                 font-size: 9.5px;
             }
 
-            /* Filter row: the selects/date/search here carry fixed inline
-               widths (170px/160px/200px/155px) which forced overflow, and
-               stacking them one-per-row ate the whole screen. Scroll
-               horizontally in a single compact row instead. */
             .filter-bar {
                 flex-wrap: nowrap;
                 overflow-x: auto;
@@ -646,14 +642,6 @@
                 padding: 10px 12px;
             }
 
-            /* Match header card (used in the Schedule/Score/Complete
-               modals) — was a single flex row with two centered team
-               columns that couldn't shrink below their content, causing
-               names to overlap the center score on a phone. Restructure
-               into a compact scoreboard: each team's own score sits
-               right next to that team's name, so it's unambiguous which
-               score belongs to which team, and long names truncate with
-               an ellipsis instead of overlapping anything. */
             .match-header-card {
                 flex-direction: column;
                 align-items: stretch;
@@ -718,9 +706,6 @@
                 border-bottom: 1px dashed var(--border);
             }
 
-            /* The center number is now redundant with the per-side
-               scores above/below it — de-emphasize it into a small
-               status line instead of a large duplicate number. */
             .mhc-score {
                 font-size: 13px;
                 color: var(--muted);
@@ -730,11 +715,6 @@
                 font-size: 13px;
             }
 
-            /* Live match banner: the desktop layout is a single flex row
-               (pulse dot, sport icon, matchup info, 52px score, action
-               buttons) that's far too wide for a phone — the button
-               column was overflowing off-screen and getting hidden.
-               Stack info and actions into their own full-width rows. */
             .live-banner {
                 flex-wrap: wrap;
                 padding: 12px 14px;
@@ -916,7 +896,7 @@
 </head>
 
 <body>
-    <!-- Sidebar injected by renderSidebar -->
+
     <main class="main">
         <div class="topbar">
             <button class="burger-menu" id="burger-menu" aria-label="Toggle navigation menu" type="button">
@@ -1016,7 +996,6 @@
         </div>
     </main>
 
-    <!-- Schedule modal -->
     <div class="modal-overlay" id="modal-schedule" onclick="if(event.target===this)Modal.close('modal-schedule')">
         <div class="modal">
             <div class="modal-header">
@@ -1065,7 +1044,6 @@
         </div>
     </div>
 
-    <!-- Score modal -->
     <div class="modal-overlay" id="modal-score" onclick="if(event.target===this)Modal.close('modal-score')">
         <div class="modal" style="max-width:580px">
             <div class="modal-header">
@@ -1117,7 +1095,6 @@
         </div>
     </div>
 
-    <!-- Complete modal -->
     <div class="modal-overlay" id="modal-complete" onclick="if(event.target===this)Modal.close('modal-complete')">
         <div class="modal" style="max-width:540px">
             <div class="modal-header">
@@ -1163,7 +1140,6 @@
         </div>
     </div>
 
-    <!-- Adjust paths if your Network tab shows different working URLs -->
     <script src="../../js/shared.js"></script>
     <script src="../../js/admin-sidebar.js"></script>
 
@@ -1261,7 +1237,6 @@
             return `<span class="type-hint"><span class="icon">${svg}</span>${t.label}</span>`;
         }
 
-        /** Strip decimals from scores (MySQL DECIMAL / SUM often returns "12.00") */
         function toWhole(n) {
             if (n == null || n === '') return 0;
             const num = Number(n);
@@ -1269,7 +1244,6 @@
             return Math.round(num);
         }
 
-        /** FFA value: whole numbers for points/distance; time keeps at most 1 decimal */
         function formatFFAValue(raw, scoringType) {
             if (raw == null || raw === '') return '—';
             const num = Number(raw);
@@ -1280,10 +1254,7 @@
             return String(toWhole(num));
         }
 
-        /**
-         * Resolve winner display name.
-         * API returns winner_side ('a'|'b'|'draw') + dept names — NOT a `winner` string.
-         */
+
         function resolveWinnerName(m) {
             if (m.winner && String(m.winner).trim()) return m.winner;
 
@@ -1307,13 +1278,6 @@
             return null;
         }
 
-        /**
-         * Table / card score cell:
-         *  - sets  → sets_won_a – sets_won_b
-         *  - points → whole numbers of total_score_*
-         *  - binary → winner name or Win/Loss label
-         *  - ffa    → type hint
-         */
         function formatMatchScore(m) {
             const type = matchType(m);
             const isDone = m.status === 'completed';
@@ -1337,17 +1301,15 @@
                 return '—';
             }
 
-            // points / time / default
             if (m.total_score_a != null && m.total_score_a !== undefined) {
                 return `${toWhole(m.total_score_a)}–${toWhole(m.total_score_b)}`;
             }
             return '—';
         }
 
-        /** Center score for match header card */
         function formatHeaderScore(m) {
             const type = matchType(m);
-            if (type === 'binary') return null; // show VS
+            if (type === 'binary') return null;
             if (type === 'sets' && m.sets_won_a != null && m.sets_won_b != null) {
                 return `${toWhole(m.sets_won_a)}–${toWhole(m.sets_won_b)}`;
             }
@@ -1408,7 +1370,7 @@
                             ${m.dept_b && m.team_b ? `<div style="font-size:12px;color:var(--muted)">${m.dept_b}</div>` : ''}
                         </div>`;
                 } else {
-                    // Prefer live_sets_* if backend ever sends them; otherwise whole-number point sum
+
                     const sa = (type === 'sets' && m.live_sets_a != null) ? toWhole(m.live_sets_a) : toWhole(m.live_score_a);
                     const sb = (type === 'sets' && m.live_sets_b != null) ? toWhole(m.live_sets_b) : toWhole(m.live_score_b);
                     matchupHTML = `
@@ -2001,11 +1963,6 @@
                     ? `<div class="mhc-score">${scoreStr}</div>`
                     : `<div class="mhc-vs">VS</div>`);
 
-            // Per-side score used only on mobile, where each team's own
-            // score sits right next to that team's name instead of a
-            // shared center number — avoids "which score is whose?"
-            // confusion once the card stacks vertically. Left blank
-            // (and hidden via :empty) for matches with no score yet.
             const rawA = type === 'sets' ? m.sets_won_a : m.total_score_a;
             const rawB = type === 'sets' ? m.sets_won_b : m.total_score_b;
             const sideScoreA = type !== 'binary' && rawA != null ? toWhole(rawA) : '';

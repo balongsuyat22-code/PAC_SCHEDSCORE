@@ -220,6 +220,75 @@ const NotifBell = {
     },
 };
 
+const PageRealtime = {
+    socket: null,
+    timer: null,
+    refreshTimer: null,
+    running: false,
+
+    async connect() {
+        if (this.socket?.connected) return;
+        if (!window.io) {
+            await new Promise((resolve) => {
+                const script = document.createElement('script');
+                script.src = 'https://cdn.socket.io/4.7.5/socket.io.min.js';
+                script.onload = resolve;
+                script.onerror = resolve;
+                document.head.appendChild(script);
+            });
+        }
+        if (!window.io) return;
+
+        const token = Auth.getToken();
+        this.socket = window.io(window.location.origin, {
+            transports: ['websocket', 'polling'],
+            withCredentials: true,
+            auth: token ? { token } : {},
+            reconnection: true,
+        });
+        this.socket.on('connect', () => {
+            if (token) this.socket.emit('authenticate', token);
+        });
+        [
+            'match:created', 'match:deleted', 'match:linked', 'match:teamsUpdated',
+            'match:scheduled', 'match:started', 'match:completed', 'score:update',
+            'bracket:updated', 'ffa:resultsUpdated', 'leaderboard:changed',
+            'schedule:updated', 'champion:declared', 'notification:new',
+            'tournament:updated', 'department:updated', 'sport:updated',
+            'user:updated', 'venue:updated', 'sportFest:updated',
+        ].forEach((event) => this.socket.on(event, () => this.scheduleRefresh()));
+    },
+
+    scheduleRefresh() {
+        clearTimeout(this.refreshTimer);
+        this.refreshTimer = setTimeout(() => this.refresh(), 350);
+    },
+
+    async refresh() {
+        if (this.running || document.hidden) return;
+        const modal = document.querySelector('.modal-overlay.open');
+        if (modal?.querySelector('input:focus, textarea:focus, select:focus')) return;
+        const names = ['reloadDetail', 'refreshAll', 'refresh', 'loadPage', 'loadDashboard', 'loadAll',
+            'loadSeasons', 'loadVenues', 'loadTournaments', 'loadMatches', 'loadMatchHistory',
+            'loadTournamentList', 'loadNotificationsPage'];
+        const loader = names.map((name) => window[name]).find((fn) => typeof fn === 'function');
+        if (!loader) return;
+        this.running = true;
+        try { await loader(); } catch (error) { console.warn('[Realtime] page refresh failed', error); }
+        this.running = false;
+    },
+
+    start() {
+        if (this.timer) return;
+        this.connect().catch(() => { });
+        this.timer = setInterval(() => this.refresh(), 15000);
+    },
+};
+
+document.addEventListener('DOMContentLoaded', () => {
+    if (Auth.getToken()) PageRealtime.start();
+});
+
 function toggleSidebar() {
     const sidebar = document.getElementById('app-sidebar');
     if (!sidebar) return;

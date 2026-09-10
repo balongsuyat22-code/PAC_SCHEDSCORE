@@ -611,8 +611,6 @@
 
         @media (max-width: 768px) {
 
-            /* Tabs: was a full vertical stack (4 rows) — scroll
-               horizontally in one compact row instead. */
             .rp-tabs {
                 flex-wrap: nowrap;
                 overflow-x: auto;
@@ -626,9 +624,6 @@
                 padding: 8px 14px;
             }
 
-            /* Filter bar: was stacking every select/input/button one per
-               row. Scroll horizontally in a single compact row instead,
-               same pattern as the other admin pages. */
             .filter-bar {
                 flex-wrap: nowrap;
                 overflow-x: auto;
@@ -646,10 +641,6 @@
                 min-width: unset !important;
             }
 
-            /* Only the Match History filter bar has multiple fields that
-               need a fixed compact width to scroll nicely — Department
-               Report / Tournament Report each have a single select that
-               should just fill the available width normally. */
             #tab-matches .filter-bar select,
             #tab-matches .filter-bar input {
                 width: 150px !important;
@@ -692,10 +683,6 @@
             .content {
                 padding: 16px;
             }
-
-            /* Table mobile styling (card wrap, fade edges, zebra rows,
-               cell density) now lives in shared.css so every page's
-               tables look consistent — no local override needed here. */
 
             .modal {
                 width: 98vw;
@@ -741,7 +728,6 @@
 </head>
 
 <body>
-    <!-- Sidebar injected by renderSidebar -->
     <main class="main">
         <div class="topbar">
             <button class="burger-menu" id="burger-menu" aria-label="Toggle navigation menu" type="button">
@@ -807,7 +793,6 @@
                 </div>
             </div>
 
-            <!-- MATCH HISTORY -->
             <div id="tab-matches">
                 <div class="filter-bar">
                     <select id="mh-sport" onchange="loadMatchHistory()">
@@ -867,7 +852,6 @@
                 </div>
             </div>
 
-            <!-- DEPARTMENT REPORT -->
             <div id="tab-departments" style="display:none">
                 <div class="filter-bar">
                     <select id="dr-dept" onchange="loadDeptReport()" style="flex:1;max-width:320px">
@@ -888,7 +872,6 @@
                 </div>
             </div>
 
-            <!-- TOURNAMENT REPORT -->
             <div id="tab-tournaments" style="display:none">
                 <div class="filter-bar">
                     <select id="tr-tourney" onchange="loadTourneyReport()" style="flex:1;max-width:320px">
@@ -909,7 +892,6 @@
                 </div>
             </div>
 
-            <!-- ACTIVITY LOG -->
             <div id="tab-activity" style="display:none">
                 <div class="card">
                     <div id="al-body"></div>
@@ -935,7 +917,6 @@
         let alOffset = 0;
         const AL_LIMIT = 50;
 
-        /** Strip decimals (MySQL DECIMAL / SUM often returns "12.00"). Keep at most one decimal for time. */
         function toWhole(n) {
             if (n == null || n === '') return 0;
             const num = Number(n);
@@ -943,20 +924,19 @@
             return Math.round(num);
         }
 
-        /** Format FFA result value: whole numbers for points/distance; time keeps up to 1 decimal. */
         function formatFFAValue(raw, scoringType) {
             if (raw == null || raw === '') return '—';
             const num = Number(raw);
             if (Number.isNaN(num)) return raw;
             if (scoringType === 'time') {
-                // Keep at most one decimal place for time
+
                 return Number.isInteger(num) ? String(num) : num.toFixed(1);
             }
-            // points / distance / default → whole number (no decimals)
+
             return String(toWhole(num));
         }
 
-        let tournamentByName = {}; // name (lower) -> id
+        let tournamentByName = {};
         let tournamentList = [];
 
         function isFFAMatch(m) {
@@ -967,7 +947,6 @@
                 fmt === 'team_ranking';
         }
 
-        /** Resolve tournament id from match row (reports API may omit tournament_id). */
         function resolveTournamentId(m) {
             const direct = m.tournament_id || m.tournamentId || m.tourney_id || m.tournamentID;
             if (direct) return String(direct);
@@ -976,21 +955,19 @@
             return '';
         }
 
-        /** Match scoring type — mirrors matches.html matchType */
         function matchType(m) {
             if (isFFAMatch(m)) return 'ffa';
             const st = (m.scoring_type || '').toLowerCase();
             if (st === 'sets') return 'sets';
             if (st === 'binary') return 'binary';
-            // Infer sets when sets_won fields present
+
             if (m.sets_won_a != null && m.sets_won_b != null) return 'sets';
-            // Infer sets from multi-set final_score_display like "16-8, 16-19, 11-26"
+
             const fsd = String(m.final_score_display || '');
             if (fsd && (fsd.match(/\d+\s*[-–]\s*\d+/g) || []).length >= 2) return 'sets';
             return 'points';
         }
 
-        /** Parse "16-8, 16-19, 11-26, 7-15" into sets won { a, b } */
         function parseSetsFromDisplay(fsd) {
             if (!fsd) return null;
             const parts = String(fsd).match(/\d+(?:\.\d+)?\s*[-–]\s*\d+(?:\.\d+)?/g);
@@ -1006,12 +983,6 @@
             return { a, b, periods: parts.length };
         }
 
-        /**
-         * Score cell — same rules as matches.html formatMatchScore:
-         *  sets   → sets_won_a–sets_won_b  (+ optional period detail under)
-         *  points → total_score_a–total_score_b
-         *  binary → winner name
-         */
         function formatReportScore(m) {
             const type = matchType(m);
 
@@ -1030,7 +1001,6 @@
                 let setsA = m.sets_won_a != null ? toWhole(m.sets_won_a) : null;
                 let setsB = m.sets_won_b != null ? toWhole(m.sets_won_b) : null;
 
-                // Derive sets won from period scores when API omits sets_won_*
                 if (setsA == null || setsB == null) {
                     const parsed = parseSetsFromDisplay(fsd);
                     if (parsed) {
@@ -1041,7 +1011,6 @@
 
                 let primary = (setsA != null && setsB != null) ? `${setsA}–${setsB}` : null;
 
-                // Period detail only when we have a real sets total AND a multi-period string
                 let detail = null;
                 if (primary && fsd) {
                     const parsed = parseSetsFromDisplay(fsd);
@@ -1061,7 +1030,6 @@
                 };
             }
 
-            // points / default — prefer whole-number totals (matches.html style)
             if (m.total_score_a != null && m.total_score_a !== undefined) {
                 return {
                     html: `<span class="score-primary">${toWhole(m.total_score_a)}–${toWhole(m.total_score_b)}</span>`,
@@ -1230,7 +1198,6 @@
             });
 
             tbody.innerHTML = html;
-            // Allow re-fetch after filter/refresh
             Object.keys(_ffaLoaded).forEach(k => delete _ffaLoaded[k]);
         }
 
@@ -1257,7 +1224,6 @@
             const container = document.getElementById(`ffa-mh-${rowKey}`);
             if (!container) return;
 
-            // Resolve id: direct → name map → refresh tournaments list once
             let tid = tournamentId || '';
             if (!tid && tournamentName) {
                 const key = String(tournamentName).trim().toLowerCase();
@@ -1273,7 +1239,7 @@
                     });
                     const key = String(tournamentName).trim().toLowerCase();
                     tid = tournamentByName[key] ? String(tournamentByName[key]) : '';
-                } catch (e) { /* ignore */ }
+                } catch (e) { }
             }
             if (!tid) {
                 container.innerHTML = `<div class="ffa-panel"><div style="padding:12px;color:var(--red);font-size:13px">Missing tournament id — cannot load FFA results.${tournamentName ? ' (tournament: ' + tournamentName + ')' : ''}</div></div>`;
@@ -1514,7 +1480,6 @@
                             resultsHTML = `<div class="card"><div style="padding:14px;color:var(--muted);font-size:13px">No FFA results recorded yet.</div></div>`;
                         }
                     } else {
-                        // Fallback to regular results if FFA endpoint fails
                         resultsHTML = renderRegularResults(results);
                     }
                 } catch (e) {

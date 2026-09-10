@@ -316,12 +316,6 @@
                 padding: 12px 16px
             }
 
-            /* ── Grade/Strand cards ──
-               Each card was a full-width block: 80px logo, big name,
-               a 3-column stat row, then 3 stacked full-text buttons —
-               easily 300-400px tall per department. Switch to a
-               compact 2-column grid with a small logo and icon-only
-               actions so far more fits on screen at once. */
             .dept-grid {
                 grid-template-columns: repeat(2, 1fr);
                 gap: 10px;
@@ -376,9 +370,6 @@
                 padding: 8px 4px;
             }
 
-            /* Icon-only on mobile — the text label just wraps/crowds
-               three buttons into a tiny 2-column card, the icon alone
-               (view/edit/delete) is enough with such a compact layout. */
             .dept-action-label {
                 display: none;
             }
@@ -388,13 +379,6 @@
                 height: 15px;
             }
 
-            /* ── Head-to-head comparison ──
-               .vs-display used flex-wrap with flex:1 sides, which wraps
-               inconsistently on narrow screens (sometimes the center
-               block joins a side on the same row, sometimes not) —
-               looked uneven. Force a clean, predictable vertical stack:
-               Side A, then the center divider, then Side B, all full
-               width and shrunk down for a phone. */
             .vs-selector {
                 flex-direction: column;
                 align-items: stretch;

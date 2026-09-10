@@ -538,6 +538,7 @@
             renderSidebar('leaderboard');
             await loadPage();
             bindRealtime();
+            AutoRefresh.start('leaderboard', loadPage, 5000);
         });
 
         function bindRealtime() {

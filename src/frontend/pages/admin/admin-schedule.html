@@ -419,6 +419,7 @@
             document.getElementById('filter-venue').innerHTML += vOpts;
             document.getElementById('filter-tournament').innerHTML += tOpts;
             loadPage();
+            AutoRefresh.start('schedule', loadPage, 5000);
 
             let _t = null;
             const soft = () => { clearTimeout(_t); _t = setTimeout(() => loadPage(), 400); };

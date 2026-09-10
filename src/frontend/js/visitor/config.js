@@ -1,23 +1,7 @@
-/** Shared config & utilities for PAC SCHED-SCORE public pages */
 
-// FIXED — this was the actual cause of every ERR_CONNECTION_REFUSED /
-// failed WebSocket you're seeing in production. The old logic was:
-//   location.origin.includes('3000') ? '' : 'http://localhost:3000'
-// which means: "same-origin ONLY if the URL happens to contain the digits
-// 3000 — otherwise always point at localhost:3000." On Railway
-// (pacsportsched-production.up.railway.app) that condition is false, so
-// every page tried to fetch and open a socket against a server that only
-// exists on your dev machine. It happened to work in local dev purely by
-// coincidence (dev server runs on port 3000, so the URL contains "3000").
-//
-// Correct rule: use the same origin the page was served from, in every
-// environment, UNLESS you're on localhost/127.0.0.1 on a port that ISN'T
-// already your API port — that's the one case that actually needs the
-// separate-origin dev server address. window.PAC_API_BASE always wins if
-// you explicitly set it (e.g. for a staging environment).
 const BASE = window.PAC_API_BASE || (() => {
     const isLocalHost = location.hostname === 'localhost' || location.hostname === '127.0.0.1';
-    if (!isLocalHost) return ''; // production/staging: always same-origin
+    if (!isLocalHost) return '';
     return location.port === '3000' ? '' : 'http://localhost:3000';
 })();
 
@@ -47,6 +31,13 @@ function deptColor(name) {
     let h = 0;
     for (let i = 0; i < name.length; i++) h = (h * 31 + name.charCodeAt(i)) >>> 0;
     return DEPT_PALETTE[h % DEPT_PALETTE.length];
+}
+
+/** "junior_high" -> "Junior High" — shared label formatter for division
+ *  names wherever they're shown (standings headers, champion banners/modal). */
+function prettyDivision(s) {
+    if (!s) return '';
+    return String(s).replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
 }
 
 function isToday(dateStr) {
@@ -422,6 +413,34 @@ function injectChampionStyles() {
     .cc-champion-division{font-size:9px;letter-spacing:.1em;text-transform:uppercase;color:var(--cc-color);margin-bottom:.35rem}
     .cc-champion-name{font-size:12px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
     .champion-fab-pulsing{animation:ccFabPulse 2.4s ease-out infinite}
+
+    /* ── Dual / multi division champions — its own hero, no single
+       "Overall Champion" name, colors blended from both departments. ── */
+    .champion-modal.cc-dual{
+      background:radial-gradient(circle at 12% 0%, color-mix(in srgb, var(--cc-color) 20%, #111417) 0%, #0a0c0e 55%),
+                 radial-gradient(circle at 100% 10%, color-mix(in srgb, var(--cc-color-2, var(--cc-color)) 20%, transparent) 0%, transparent 62%);
+      border-color:color-mix(in srgb, var(--cc-color) 50%, var(--cc-color-2, var(--cc-color)));
+      box-shadow:0 30px 80px rgba(0,0,0,.6),
+                 0 0 50px color-mix(in srgb, var(--cc-color) 30%, transparent),
+                 0 0 50px color-mix(in srgb, var(--cc-color-2, var(--cc-color)) 30%, transparent);
+    }
+    .cc-ring.c2{border-color:var(--cc-color-2, var(--cc-color))}
+    .cc-dual-eyebrow{
+      font-family:var(--font-mono);font-size:11px;letter-spacing:.14em;text-transform:uppercase;
+      background:linear-gradient(90deg,var(--cc-color),var(--cc-color-2,var(--cc-color)));
+      -webkit-background-clip:text;background-clip:text;color:transparent;
+      margin-bottom:.7rem;opacity:0;animation:ccFadeIn .5s ease .35s both;
+    }
+    .cc-dual-row{display:flex;align-items:stretch;justify-content:center;gap:8px;width:100%;margin:.15rem 0 .3rem;opacity:0;animation:ccFadeIn .5s ease .45s both}
+    .cc-dual-card{flex:1 1 0;min-width:0;max-width:180px;background:rgba(255,255,255,.045);border:1px solid color-mix(in srgb, var(--dc-color,#fff) 45%, transparent);border-radius:16px;padding:.9rem .5rem .8rem;display:flex;flex-direction:column;align-items:center;box-sizing:border-box}
+    .cc-dual-logo{width:56px;height:56px;border-radius:50%;margin-bottom:.55rem;border:3px solid var(--dc-color,#fff);box-shadow:0 0 18px color-mix(in srgb, var(--dc-color,#fff) 50%, transparent);display:flex;align-items:center;justify-content:center;background:var(--dc-color,#444);overflow:hidden}
+    .cc-dual-logo img{width:100%;height:100%;object-fit:cover}
+    .cc-dual-logo-initials{font-family:var(--font-head);font-size:19px;font-weight:800;color:#fff}
+    .cc-dual-division{font-family:var(--font-mono);font-size:9px;letter-spacing:.1em;text-transform:uppercase;color:var(--dc-color,#fff);margin-bottom:.3rem}
+    .cc-dual-name{font-family:var(--font-head);font-size:clamp(13px,4.2vw,16px);font-weight:800;text-transform:uppercase;color:#fff;line-height:1.15;word-break:break-word;max-width:100%}
+    .cc-dual-pts{font-family:var(--font-mono);font-size:12px;font-weight:700;color:var(--dc-color,#fff);margin-top:.35rem}
+    .cc-dual-x{align-self:center;font-family:var(--font-head);font-size:16px;font-weight:900;color:var(--muted2);flex:0 0 auto;padding:0 1px}
+    .cc-podium-label{font-family:var(--font-mono);font-size:9px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted2);margin-top:.9rem;opacity:.75}
     @media (max-width:420px){
       .champion-modal{padding:1.75rem 1.1rem 1.4rem;border-radius:22px}
       .cc-trophy{font-size:38px}
@@ -429,6 +448,9 @@ function injectChampionStyles() {
       .cc-podium{gap:6px;margin:1rem 0 .4rem}
       .cc-slot{padding:.55rem .3rem}
       .cc-slot.gold{padding-top:.8rem}
+      .cc-dual-row{gap:6px}
+      .cc-dual-card{padding:.7rem .35rem .6rem}
+      .cc-dual-logo{width:46px;height:46px}
     }
     @media (max-height:640px){
       .champion-modal{padding-top:1.5rem}
@@ -436,7 +458,7 @@ function injectChampionStyles() {
       .cc-logo{width:56px;height:56px;margin:.3rem auto .5rem}
     }
     @media (prefers-reduced-motion: reduce){
-      .cc-trophy,.cc-ring,.cc-spark,.cc-logo,.cc-eyebrow,.cc-name,.cc-sub,.cc-slot,.champion-fab-pulsing{animation:none !important;opacity:1 !important;transform:none !important}
+      .cc-trophy,.cc-ring,.cc-spark,.cc-logo,.cc-eyebrow,.cc-name,.cc-sub,.cc-slot,.cc-dual-row,.cc-dual-eyebrow,.champion-fab-pulsing{animation:none !important;opacity:1 !important;transform:none !important}
     }`;
     document.head.appendChild(style);
 }
@@ -455,19 +477,23 @@ function animateCountUp(el, target, duration = 1100) {
     requestAnimationFrame(frame);
 }
 
-/** Big multi-stage burst + a short gentle "confetti rain" finale. */
-function fireChampionConfetti(color) {
+/** Big multi-stage burst + a short gentle "confetti rain" finale.
+ *  Pass a second color (e.g. the other division's champion color) to blend
+ *  both departments' colors — left/right bursts launch in each champion's
+ *  own color, and the center bursts + rain mix the two together. */
+function fireChampionConfetti(color, color2) {
     if (typeof confetti !== 'function') return;
     const col = color || '#f59e0b';
-    const base = {
-        particleCount: 160, spread: 110, startVelocity: 60,
-        colors: [col, '#ffffff', '#f59e0b'], zIndex: 2000,
-        shapes: ['star', 'circle'],
-    };
-    confetti({ ...base, angle: 60, origin: { x: 0, y: 0.65 } });
-    confetti({ ...base, angle: 120, origin: { x: 1, y: 0.65 } });
-    setTimeout(() => confetti({ ...base, particleCount: 100, angle: 90, origin: { x: 0.5, y: 0.3 } }), 350);
-    setTimeout(() => confetti({ ...base, particleCount: 80, spread: 140, origin: { x: 0.5, y: 0.5 } }), 700);
+    const dual = !!color2 && color2 !== col;
+    const shapes = ['star', 'circle'];
+    const leftColors = dual ? [col, '#ffffff', color2] : [col, '#ffffff', '#f59e0b'];
+    const rightColors = dual ? [color2, '#ffffff', col] : [col, '#ffffff', '#f59e0b'];
+    const mixColors = dual ? [col, color2, '#ffffff'] : [col, '#ffffff', '#f59e0b'];
+
+    confetti({ particleCount: 160, spread: 110, startVelocity: 60, colors: leftColors, zIndex: 2000, shapes, angle: 60, origin: { x: 0, y: 0.65 } });
+    confetti({ particleCount: 160, spread: 110, startVelocity: 60, colors: rightColors, zIndex: 2000, shapes, angle: 120, origin: { x: 1, y: 0.65 } });
+    setTimeout(() => confetti({ particleCount: 100, spread: 110, startVelocity: 60, colors: mixColors, zIndex: 2000, shapes, angle: 90, origin: { x: 0.5, y: 0.3 } }), 350);
+    setTimeout(() => confetti({ particleCount: 80, spread: 140, startVelocity: 60, colors: mixColors, zIndex: 2000, shapes, origin: { x: 0.5, y: 0.5 } }), 700);
 
     clearInterval(_ccConfettiRainTimer);
     let ticks = 0;
@@ -475,7 +501,7 @@ function fireChampionConfetti(color) {
         ticks++;
         confetti({
             particleCount: 16, startVelocity: 20, gravity: 0.85, spread: 70,
-            colors: [col, '#ffffff', '#f59e0b'], zIndex: 2000,
+            colors: mixColors, zIndex: 2000,
             origin: { x: Math.random(), y: -0.05 },
             shapes: ['circle', 'square'],
             scalar: 0.8,
@@ -491,7 +517,15 @@ function fireChampionConfetti(color) {
 function showChampionCelebration(opts = {}) {
     injectChampionStyles();
 
-    const col = opts.color || deptColor(opts.name || '');
+    const champions = opts.champions || [];
+    // Two (or more) divisions each declared their own champion — there is no
+    // single "overall" name in that case, so this gets a dedicated dual hero
+    // instead of picking champions[0] and burying the rest in a footnote.
+    const isDual = champions.length >= 2;
+
+    const col = opts.color || (isDual && champions[0]?.color) || deptColor(opts.name || champions[0]?.name || '');
+    const col2 = isDual ? (champions[1]?.color || deptColor(champions[1]?.name || champions[1]?.department_name || '')) : null;
+
     const name = opts.name || 'Champion';
     const pts = Number(opts.points || 0);
     const gold = opts.gold || 0;
@@ -499,7 +533,6 @@ function showChampionCelebration(opts = {}) {
     const bronze = opts.bronze || 0;
     const logo = opts.logoUrl;
     const top3 = opts.top3 || [];
-    const champions = opts.champions || [];
 
     const imgHtml = logo
         ? `<img src="${esc(logo)}" class="cc-logo" alt="">`
@@ -524,12 +557,27 @@ function showChampionCelebration(opts = {}) {
         </div>`;
         }).join('')}</div>`
         : '';
-    const championsHtml = champions.length > 1
-        ? `<div class="cc-champions">${champions.map((champion) => `
-                        <div class="cc-champion-card">
-                            <div class="cc-champion-division">${esc(String(champion.division || '').replace(/_/g, ' '))} Champion</div>
-                            <div class="cc-champion-name">${esc(champion.name || champion.department_name || 'Champion')}</div>
-                        </div>`).join('')}</div>`
+
+    // Side-by-side cards, one per division champion, each themed in its own
+    // department color — no name is "the" hero, both are equal billing.
+    const dualHtml = isDual
+        ? `<div class="cc-dual-row">${champions.map((c, i) => {
+            const dc = c.color || deptColor(c.name || c.department_name || '');
+            const cn = esc(c.name || c.department_name || 'Champion');
+            const div = prettyDivision(c.division);
+            const cp = Number(c.total_points ?? c.points ?? 0);
+            const clo = c.logo_url || c.department_logo || null;
+            const logoInner = clo
+                ? `<img src="${esc(clo)}" alt="">`
+                : `<span class="cc-dual-logo-initials">${initials(c.name || c.department_name || '')}</span>`;
+            const sep = i > 0 ? `<div class="cc-dual-x">×</div>` : '';
+            return `${sep}<div class="cc-dual-card" style="--dc-color:${dc}">
+                <div class="cc-dual-logo">${logoInner}</div>
+                ${div ? `<div class="cc-dual-division">${esc(div)} Champion</div>` : ''}
+                <div class="cc-dual-name">${cn}</div>
+                <div class="cc-dual-pts">${cp.toLocaleString()} pts</div>
+            </div>`;
+        }).join('')}</div>`
         : '';
 
     document.querySelector('.champion-overlay')?.remove();
@@ -538,28 +586,34 @@ function showChampionCelebration(opts = {}) {
     const overlay = document.createElement('div');
     overlay.className = 'champion-overlay';
     overlay.addEventListener('click', (e) => { if (e.target === overlay) closeChampionCelebration(); });
+
+    const heroHtml = isDual
+        ? `<div class="cc-dual-eyebrow">Sport Fest Division Champions</div>${dualHtml}`
+        : `${imgHtml}
+           <div class="cc-eyebrow">Sport Fest Overall Champion</div>
+           <div class="cc-name">${esc(name)}</div>
+           <div class="cc-sub"><span id="cc-pts-count">0</span> pts · ${gold} Gold · ${silver} Silver · ${bronze} Bronze</div>`;
+
+    const modalStyle = `--cc-color:${col};` + (col2 ? `--cc-color-2:${col2};` : '');
+
     overlay.innerHTML = `
-      <div class="champion-modal" style="--cc-color:${col}">
+      <div class="champion-modal${isDual ? ' cc-dual' : ''}" style="${modalStyle}">
         <button type="button" class="cc-close" onclick="closeChampionCelebration()" aria-label="Close">×</button>
         <div class="cc-trophy-wrap">
-          <span class="cc-ring"></span><span class="cc-ring d2"></span>
+          <span class="cc-ring"></span><span class="cc-ring d2${isDual ? ' c2' : ''}"></span>
           <span class="cc-spark s1">✦</span><span class="cc-spark s2">✧</span><span class="cc-spark s3">✦</span>
           <div class="cc-trophy">🏆</div>
         </div>
-        ${imgHtml}
-        <div class="cc-eyebrow">Sport Fest Overall Champion</div>
-        <div class="cc-name">${esc(name)}</div>
-        <div class="cc-sub"><span id="cc-pts-count">0</span> pts · ${gold} Gold · ${silver} Silver · ${bronze} Bronze</div>
-        ${championsHtml}
-        ${podiumHtml}
+        ${heroHtml}
+        ${podiumHtml ? `<div class="cc-podium-label">Top 3 Overall</div>${podiumHtml}` : ''}
       </div>`;
     document.body.appendChild(overlay);
     document.body.style.overflow = 'hidden';
 
     requestAnimationFrame(() => {
         overlay.classList.add('open');
-        setTimeout(() => fireChampionConfetti(col), 80);
-        setTimeout(() => animateCountUp(overlay.querySelector('#cc-pts-count'), pts, 1100), 250);
+        setTimeout(() => fireChampionConfetti(col, col2), 80);
+        if (!isDual) setTimeout(() => animateCountUp(overlay.querySelector('#cc-pts-count'), pts, 1100), 250);
     });
 }
 

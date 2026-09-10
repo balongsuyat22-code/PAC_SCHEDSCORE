@@ -691,6 +691,7 @@
                 if (el) el.innerHTML += sOpts;
             });
             loadPage();
+            AutoRefresh.start('schedule', loadPage, 5000);
         });
 
         function switchTab(tabId) {

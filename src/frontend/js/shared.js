@@ -476,6 +476,12 @@ const Realtime = {
             bus('sf:leaderboard', d || {});
         });
 
+        [
+            'match:created', 'match:deleted', 'match:linked', 'match:teamsUpdated',
+            'schedule:updated', 'tournament:updated', 'department:updated',
+            'sport:updated', 'user:updated', 'venue:updated', 'sportFest:updated',
+        ].forEach((event) => this.socket.on(event, (data) => bus('sf:data', { event, data })));
+
         return this.socket;
     },
 
@@ -544,7 +550,38 @@ const Realtime = {
 
 document.addEventListener('DOMContentLoaded', () => {
     if (Auth.getToken()) Realtime.connect().catch(() => { });
+    installPageAutoRefresh();
 });
+
+function installPageAutoRefresh() {
+    if (window.__sfPageAutoRefreshInstalled) return;
+    window.__sfPageAutoRefreshInstalled = true;
+
+    let timer = null;
+    let running = false;
+    const getLoader = () => ['reloadDetail', 'refreshAll', 'refresh', 'loadPage', 'loadDashboard', 'loadAll',
+        'loadSeasons', 'loadVenues', 'loadTournaments', 'loadNotificationsPage', 'loadMatchHistory', 'initList']
+        .map((name) => window[name]).find((fn) => typeof fn === 'function');
+    const refresh = async () => {
+        if (running || document.hidden) return;
+        const activeModal = document.querySelector('.modal-overlay.open');
+        const editing = activeModal && activeModal.querySelector('input:focus, textarea:focus, select:focus');
+        if (editing) return;
+        const loader = getLoader();
+        if (!loader) return;
+        running = true;
+        try { await loader(); } catch (error) { console.warn('[Realtime] page refresh failed', error); }
+        running = false;
+    };
+    const schedule = () => {
+        clearTimeout(timer);
+        timer = setTimeout(refresh, 350);
+    };
+
+    ['sf:live', 'sf:match', 'sf:score', 'sf:leaderboard', 'sf:bracket', 'sf:ffa',
+        'sf:champion', 'sf:data'].forEach((event) => window.addEventListener(event, schedule));
+    window.setInterval(refresh, 15000);
+}
 
 async function loadDashboard() {
     const [dash, champion] = await Promise.all([
@@ -1178,4 +1215,50 @@ const MOCK_DATA = {
             { match_id: 3, scheduled_time: '14:00', sport_name: 'Chess', tournament_name: 'Chess Masters', team_a: 'Maria S.', team_b: 'Juan M.', venue_name: 'Conference Hall', status: 'scheduled', referee_name: 'Ana Garcia' },
         ]
     },
+};
+
+// ── Auto-refresh with soft-reload fallback ────────────────────────────
+window.AutoRefresh = {
+    _timers: {},
+    /**
+     * @param {string} key          unique id for this page
+     * @param {Function} loadFn     the page’s load / refresh function
+     * @param {number}  intervalMs  default 15 s
+     * @param {string[]} events     extra custom events that should also trigger a soft reload
+     */
+    start(key, loadFn, intervalMs = 15000, events = []) {
+        this.stop(key);
+
+        // soft debounce so rapid events don’t hammer the API
+        let softTimer = null;
+        const soft = () => {
+            clearTimeout(softTimer);
+            softTimer = setTimeout(() => loadFn({ silent: true }), 400);
+        };
+
+        // hard interval (fallback when realtime is silent)
+        this._timers[key] = setInterval(() => loadFn({ silent: true }), intervalMs);
+
+        // also listen to the usual realtime events
+        const allEvents = [
+            'sf:live', 'sf:match', 'sf:score',
+            'sf:leaderboard', 'sf:champion', 'sf:tournament',
+            ...events
+        ];
+        allEvents.forEach(ev => window.addEventListener(ev, soft));
+
+        // store the soft handler so we can remove it later if needed
+        this._timers[key]._soft = soft;
+        this._timers[key]._events = allEvents;
+    },
+
+    stop(key) {
+        const t = this._timers[key];
+        if (!t) return;
+        clearInterval(t);
+        if (t._soft && t._events) {
+            t._events.forEach(ev => window.removeEventListener(ev, t._soft));
+        }
+        delete this._timers[key];
+    }
 };

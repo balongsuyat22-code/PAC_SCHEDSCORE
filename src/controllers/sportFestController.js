@@ -240,7 +240,7 @@ const declareChampion = async (req, res, next) => {
         const declared = [];
         for (const { division } of selectedDivisions) {
             const [rows] = await pool.execute(`
-                SELECT d.id, d.name,
+                SELECT d.id, d.name, d.color, d.logo_url,
                        COALESCE(ds.total_points, 0) AS total_points,
                        COALESCE(ds.gold_medals, 0) AS gold_medals
                 FROM departments d
@@ -292,17 +292,18 @@ const declareChampion = async (req, res, next) => {
             created_by: req.user.id,
         });
 
-        for (const champion of declared) {
+        // One event for the whole declaration, even when two divisions
+        // (e.g. Junior High + Senior High) are declared together — this used
+        // to emit once per champion, which fired the celebration/confetti
+        // twice in a row on the client for a two-champion Sport Fest.
+        if (declared.length) {
             emitToAll('champion:declared', {
                 sport_fest_id: Number(festId),
-                division: champion.division,
-                champion: {
-                    id: champion.id,
-                    name: champion.name,
-                    total_points: champion.total_points,
-                },
+                champion: { ...declared[0] },
                 champions: declared,
-                message: `🏆 ${champion.name} declared as ${champion.division.replace('_', ' ')} Champion!`,
+                message: declared.length > 1
+                    ? `🏆 Division champions declared: ${declared.map((d) => `${d.name} (${d.division.replace('_', ' ')})`).join(' & ')}!`
+                    : `🏆 ${declared[0].name} declared as ${declared[0].division.replace('_', ' ')} Champion!`,
             });
         }
 

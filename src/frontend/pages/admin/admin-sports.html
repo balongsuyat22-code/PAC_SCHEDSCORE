@@ -358,6 +358,7 @@
             if (typeof renderSidebar === 'function') renderSidebar('sports');
             buildIconPicker();
             await loadPage();
+            AutoRefresh.start('schedule', loadPage, 5000);
         });
 
         function buildIconPicker() {

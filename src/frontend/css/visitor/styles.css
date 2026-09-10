@@ -250,6 +250,23 @@ body{
 .wb-dept-img,.wb-dept-initials{width:48px;height:48px;border-radius:50%;object-fit:cover;border:2px solid rgba(245,158,11,.5);flex-shrink:0}
 .wb-dept-initials{display:flex;align-items:center;justify-content:center;font-family:var(--font-head);font-size:16px;font-weight:700;color:#fff}
 
+/* Two division champions (e.g. Junior High + Senior High) declared at once —
+   blend both department colors instead of the flat gold single-champion theme. */
+.winner-banner.wb-dual{
+  background:linear-gradient(135deg, color-mix(in srgb, var(--wb-color,#f59e0b) 18%, transparent) 0%, color-mix(in srgb, var(--wb-color-2,var(--wb-color,#f59e0b)) 18%, transparent) 100%);
+  border-color:color-mix(in srgb, var(--wb-color,#f59e0b) 50%, var(--wb-color-2,var(--wb-color,#f59e0b)));
+}
+.winner-banner.wb-dual .wb-trophy{filter:drop-shadow(0 0 6px color-mix(in srgb, var(--wb-color,#f59e0b) 50%, var(--wb-color-2,var(--wb-color,#f59e0b))))}
+.winner-banner.wb-dual .wb-label{
+  background:linear-gradient(90deg,var(--wb-color,#f59e0b),var(--wb-color-2,var(--wb-color,#f59e0b)));
+  -webkit-background-clip:text;background-clip:text;color:transparent;
+}
+.winner-banner.wb-dual .wb-name{color:#fff}
+.wb-dept-stack{display:flex;align-items:center;flex-shrink:0}
+.wb-dept-stack .wb-dept-img,.wb-dept-stack .wb-dept-initials{width:42px;height:42px}
+.wb-dept-stack > *:first-child{border-color:var(--wb-color,#f59e0b);position:relative;z-index:2}
+.wb-dept-stack > *:last-child{border-color:var(--wb-color-2,var(--wb-color,#f59e0b));margin-left:-14px;position:relative;z-index:1}
+
 /* Leaderboard */
 .lb-table{background:var(--bg2);border:1px solid var(--border);border-radius:var(--r2);overflow:hidden}
 .lb-header{display:grid;grid-template-columns:40px 1fr 90px 70px;padding:.6rem 1rem;font-size:9px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);border-bottom:1px solid var(--border);font-family:var(--font-mono)}

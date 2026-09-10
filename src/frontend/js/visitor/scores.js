@@ -202,12 +202,17 @@
         const fab = document.getElementById('champion-fab');
         if (fab) {
             fab.style.display = 'flex';
-            fab.title = (c.name || 'Champion') + ' — Sport Fest Champion';
+            const champs = c.champions || [];
+            const label = champs.length > 1
+                ? champs.map((d) => d.name).join(' & ')
+                : (c.name || 'Champion');
+            fab.title = label + (champs.length > 1 ? ' — Division Champions' : ' — Sport Fest Champion');
         }
         const key = 'champ_confetti_' + (c.department_id || c.name);
         if (!sessionStorage.getItem(key)) {
             sessionStorage.setItem(key, '1');
-            window.fireChampionConfetti?.(c.color || '#f59e0b');
+            const champs = c.champions || [];
+            window.fireChampionConfetti?.(c.color || '#f59e0b', champs.length > 1 ? champs[1]?.color : undefined);
             // Draw the eye to the FAB the first time this champion appears.
             window.pulseChampionElement?.(fab);
         }
@@ -734,6 +739,7 @@
                         points: data.champion.total_points,
                         color: data.champion.color,
                         logo_url: data.champion.logo_url,
+                        champions: data.champions || [],
                     };
                     showChampion(championData);
                     openChampionModal();

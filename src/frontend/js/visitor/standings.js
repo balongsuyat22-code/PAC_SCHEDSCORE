@@ -23,7 +23,7 @@ function renderLeaderboard() {
         const rank = d.rank || i + 1;
         const previous = data[i - 1];
         const divisionHeading = d.division && (!previous || previous.division !== d.division)
-            ? `<div class="lb-division-heading">${esc(String(d.division).replace(/_/g, ' '))}</div>`
+            ? `<div class="lb-division-heading">${esc(prettyDivision(d.division))}</div>`
             : '';
         const col = d.color || deptColor(d.name);
         const logoHtml = d.logo_url
@@ -55,10 +55,11 @@ async function checkAndFireConfetti() {
             showWinnerBanner(j.data.champion, j.data.champions || []);
 
             const c = j.data.champion;
+            const champs = j.data.champions || [];
             const key = 'champ_confetti_' + (c.department_id || c.id || c.name);
             if (!sessionStorage.getItem(key)) {
                 sessionStorage.setItem(key, '1');
-                window.fireChampionConfetti?.(c.color || deptColor(c.name));
+                window.fireChampionConfetti?.(c.color || deptColor(c.name), champs.length > 1 ? champs[1]?.color : undefined);
             }
         } else if (j.data && j.data.current_leader && !j.data.is_final) {
             showLeaderBanner(j.data.current_leader, j.data.message);
@@ -87,19 +88,35 @@ function showWinnerBanner(champion, champions = []) {
     const container = document.getElementById('lb-container');
     if (!container || container.querySelector('.winner-banner')) return;
 
-    const imgHtml = champion.logo_url
-        ? `<img src="${esc(champion.logo_url)}" class="wb-dept-img" alt="${esc(champion.name)}">`
-        : `<div class="wb-dept-initials" style="background:${champion.color || deptColor(champion.name)}">${initials(champion.name)}</div>`;
+    const isDual = champions.length > 1;
+    const avatarHtml = (c) => (c.logo_url
+        ? `<img src="${esc(c.logo_url)}" class="wb-dept-img" alt="${esc(c.name)}">`
+        : `<div class="wb-dept-initials" style="background:${c.color || deptColor(c.name)}">${initials(c.name)}</div>`);
+
+    // Two champions -> two overlapping badges + a border/label gradient
+    // blended from both department colors, instead of the flat gold theme.
+    const imgHtml = isDual
+        ? `<div class="wb-dept-stack">${avatarHtml(champions[0])}${avatarHtml(champions[1])}</div>`
+        : avatarHtml(champion);
 
     const banner = document.createElement('div');
-    banner.className = 'winner-banner';
-    const championNames = champions.length > 1
-        ? champions.map(c => `${esc(String(c.division || '').replace(/_/g, ' '))}: ${esc(c.name)}`).join(' · ')
+    banner.className = 'winner-banner' + (isDual ? ' wb-dual' : '');
+    if (isDual) {
+        banner.style.setProperty('--wb-color', champions[0].color || deptColor(champions[0].name));
+        banner.style.setProperty('--wb-color-2', champions[1].color || deptColor(champions[1].name));
+    }
+
+    const championNames = isDual
+        ? champions.map(c => `${esc(prettyDivision(c.division))}: ${esc(c.name)}`).join(' · ')
         : esc(champion.name);
+    const subLine = isDual
+        ? champions.map(c => `${esc(prettyDivision(c.division))} ${c.total_points || 0} pts`).join(' · ')
+        : `${champion.total_points || 0} pts · ${champion.gold_medals || 0} Gold · ${champion.silver_medals || 0} Silver · ${champion.bronze_medals || 0} Bronze`;
+
     banner.innerHTML = `<div class="wb-trophy">${I.trophy}</div>${imgHtml}<div class="wb-body">
-            <div class="wb-label">${champions.length > 1 ? 'Division Champions' : 'Overall Champion'}</div>
+            <div class="wb-label">${isDual ? 'Division Champions' : 'Overall Champion'}</div>
             <div class="wb-name">${championNames}</div>
-      <div class="wb-sub">${champion.total_points || 0} pts · ${champion.gold_medals || 0} Gold · ${champion.silver_medals || 0} Silver · ${champion.bronze_medals || 0} Bronze</div>
+      <div class="wb-sub">${subLine}</div>
     </div>
     <button type="button" class="wb-view-btn" onclick="viewChampionCelebration()"
       style="margin-left:auto;background:var(--accent,#f59e0b);color:#000;border:none;border-radius:100px;

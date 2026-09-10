@@ -2027,7 +2027,6 @@
                    </div>`
                 : '';
 
-            // Group by round_number — same design language as president game-setup
             const byRound = {};
             bracketMatches.forEach(m => {
                 const rn = m.round_number != null ? Number(m.round_number) : 0;
@@ -2130,7 +2129,7 @@
                         };
                     });
                 }
-            } catch (err) { /* ignore */ }
+            } catch (err) { }
         }
 
         function tabFFA() {
@@ -2258,7 +2257,7 @@
                 const a = standing[m.participant_a_department_id];
                 const b = standing[m.participant_b_department_id];
                 if (a && b) {
-                    // For standings PF/PA use points total; for sets sports points_for is still useful as aggregate
+
                     const sA = toWhole(m.total_score_a || 0);
                     const sB = toWhole(m.total_score_b || 0);
                     a.played++; b.played++;

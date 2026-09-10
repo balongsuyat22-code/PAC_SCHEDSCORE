@@ -755,6 +755,7 @@
             Auth.requireAuth('admin');
             renderSidebar('dashboard');
             await loadDashboard();
+            AutoRefresh.start('dashboard', loadDashboard, 5000);
 
             let _t = null;
             const soft = () => { clearTimeout(_t); _t = setTimeout(() => loadDashboard(), 400); };
