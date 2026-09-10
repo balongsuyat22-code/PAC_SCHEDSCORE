@@ -1349,7 +1349,9 @@
         onclick="if(event.target===this)Modal.close('modal-match-schedule')">
         <div class="modal" style="max-width:560px">
             <div class="modal-header">
-                <div class="modal-title"><i class="fa-solid fa-calendar-pen"></i> Schedule Match</div>
+                <div class="modal-title" id="ms-modal-title">
+                    <i class="fa-solid fa-calendar-pen"></i> Edit Match
+                </div>
                 <button class="modal-close" onclick="Modal.close('modal-match-schedule')" aria-label="Close">
                     <i class="fa-solid fa-xmark"></i>
                 </button>
@@ -1357,8 +1359,8 @@
             <div class="modal-body">
                 <div id="ms-preview" style="margin-bottom:14px"></div>
 
-                <!-- Teams override — directly under preview; saved with schedule -->
-                <div id="ms-override-section" style="margin-bottom:16px">
+                <!-- Teams (shown only when editable) -->
+                <div id="ms-override-section" style="display:none;margin-bottom:16px">
                     <div
                         style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin-bottom:10px">
                         Teams
@@ -1389,39 +1391,56 @@
                     </div>
                 </div>
 
-                <div class="form-row">
-                    <div class="form-group">
-                        <label class="form-label">Date</label>
-                        <input type="date" id="ms-date" class="form-input">
+                <!-- Schedule (shown only when schedulable) -->
+                <div id="ms-schedule-section">
+                    <div
+                        style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin-bottom:10px">
+                        Schedule
                     </div>
-                    <div class="form-group">
-                        <label class="form-label">Time</label>
-                        <input type="time" id="ms-time" class="form-input">
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label class="form-label">Date</label>
+                            <input type="date" id="ms-date" class="form-input">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Time</label>
+                            <input type="time" id="ms-time" class="form-input">
+                        </div>
                     </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label class="form-label">Venue</label>
+                            <select id="ms-venue" class="form-select">
+                                <option value="">No venue</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Referee / Officer</label>
+                            <select id="ms-referee" class="form-select">
+                                <option value="">No referee</option>
+                            </select>
+                        </div>
+                    </div>
+                    <p style="font-size:12px;color:var(--muted);margin:0">
+                        Team changes and schedule are saved together. Clear the date to unschedule.
+                    </p>
                 </div>
-                <div class="form-row">
-                    <div class="form-group">
-                        <label class="form-label">Venue</label>
-                        <select id="ms-venue" class="form-select">
-                            <option value="">No venue</option>
-                        </select>
-                    </div>
-                    <div class="form-group">
-                        <label class="form-label">Referee / Officer</label>
-                        <select id="ms-referee" class="form-select">
-                            <option value="">No referee</option>
-                        </select>
-                    </div>
-                </div>
-                <p style="font-size:12px;color:var(--muted);margin:0">
-                    Team changes and schedule are saved together. Clear the date to unschedule.
-                </p>
             </div>
-            <div class="modal-footer">
-                <button class="btn btn-secondary" onclick="Modal.close('modal-match-schedule')">Cancel</button>
-                <button class="btn btn-primary" id="ms-save-btn" onclick="submitMatchSchedule()">
-                    <i class="fa-solid fa-floppy-disk"></i> Save Schedule
-                </button>
+            <div class="modal-footer"
+                style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap">
+                <div>
+                    <button type="button" class="btn btn-secondary" id="ms-delete-btn"
+                        style="display:none;color:var(--red);border-color:rgba(232,50,59,.35)"
+                        onclick="deleteMatchFromModal()">
+                        <i class="fa-solid fa-trash"></i> Delete
+                    </button>
+                </div>
+                <div style="display:flex;gap:8px;margin-left:auto">
+                    <button class="btn btn-secondary" onclick="Modal.close('modal-match-schedule')">Cancel</button>
+                    <button class="btn btn-primary" id="ms-save-btn" onclick="submitMatchSchedule()">
+                        <i class="fa-solid fa-floppy-disk"></i> Save
+                    </button>
+                </div>
             </div>
         </div>
     </div>
@@ -1749,23 +1768,13 @@
             const dateLine = when || m.venue_name
                 ? `<span class="bracket-date">${when}${m.venue_name ? (when ? ' · ' : '') + m.venue_name : ''}</span>`
                 : '';
-            const canDelete = !done && !cancelled
-                && ['pending', 'scheduled'].includes(statusLower)
-                && currentTournament?.status !== 'completed'
-                && (m.bracket_side === 'custom' || !m.participant_a_department_id || !m.participant_b_department_id || opts.allowDelete === true);
-            const schedBtn = canEditSched
+            // Single entry point — teams / schedule / delete all live in the modal
+            const editBtn = canEditSched
                 ? `<button type="button" class="btn btn-secondary btn-sm" style="padding:5px 10px;font-size:12px;white-space:nowrap"
                         onclick="event.stopPropagation();openMatchSchedule(${m.id})"
-                        title="Set date, time, venue &amp; officer">
-                        <i class="fa-solid fa-calendar-pen"></i>
+                        title="Edit teams, schedule, or delete">
+                        <i class="fa-solid fa-pen-to-square"></i>
                         <span style="margin-left:4px">${m.scheduled_date ? 'Edit' : 'Schedule'}</span>
-                   </button>`
-                : '';
-            const delBtn = canDelete
-                ? `<button type="button" class="btn btn-secondary btn-sm" style="padding:5px 8px;font-size:12px;color:var(--red)"
-                        onclick="event.stopPropagation();deleteMatch(${m.id})"
-                        title="Delete this match">
-                        <i class="fa-solid fa-trash"></i>
                    </button>`
                 : '';
 
@@ -1780,8 +1789,7 @@
                     ${metaRight}
                     ${dateLine}
                     ${refLine}
-                    ${schedBtn}
-                    ${delBtn}
+                    ${editBtn}
                 </div>
             </div>`;
         }
@@ -1894,23 +1902,48 @@
             return html;
         }
 
+        function matchCanEditTeams(m) {
+            const st = String(m?.status || '').toLowerCase();
+            return !['ongoing', 'completed', 'cancelled', 'walkover'].includes(st)
+                && currentTournament?.status !== 'completed';
+        }
+
+        function matchCanSchedule(m) {
+            const st = String(m?.status || '').toLowerCase();
+            return ['pending', 'scheduled'].includes(st)
+                && currentTournament?.status !== 'completed';
+        }
+
+        function matchCanDelete(m) {
+            const st = String(m?.status || '').toLowerCase();
+            return !['ongoing', 'completed', 'cancelled', 'walkover'].includes(st)
+                && ['pending', 'scheduled'].includes(st)
+                && currentTournament?.status !== 'completed'
+                && (
+                    m.bracket_side === 'custom'
+                    || !m.participant_a_department_id
+                    || !m.participant_b_department_id
+                );
+        }
+
         function populateMatchOverrideUi(m) {
+            const canTeams = matchCanEditTeams(m);
+            const ovSec = document.getElementById('ms-override-section');
+            if (ovSec) ovSec.style.display = canTeams ? '' : 'none';
+            if (!canTeams) return;
+
             const aSel = document.getElementById('ms-team-a');
             const bSel = document.getElementById('ms-team-b');
             if (aSel) aSel.innerHTML = buildOverrideDeptOptions(m.participant_a_department_id);
             if (bSel) bSel.innerHTML = buildOverrideDeptOptions(m.participant_b_department_id);
 
-            const statusOk = !['ongoing', 'completed', 'cancelled', 'walkover'].includes(String(m.status || '').toLowerCase())
-                && currentTournament?.status !== 'completed';
-            const ovSec = document.getElementById('ms-override-section');
-            if (ovSec) ovSec.style.display = statusOk ? '' : 'none';
+            const openSlots = ['a', 'b'].filter(side => !m[`participant_${side}_department_id`]);
+            const exhibition = (deptsCache || []).filter(d => Number(d.is_exhibition) === 1);
 
             const exhSec = document.getElementById('ms-exhibition-section');
             const exhHost = document.getElementById('ms-exhibition-buttons');
-            const exhibition = (deptsCache || []).filter(d => Number(d.is_exhibition) === 1);
-            const openSlots = ['a', 'b'].filter(side => !m[`participant_${side}_department_id`]);
             if (exhSec && exhHost) {
-                if (statusOk && exhibition.length && openSlots.length) {
+                if (exhibition.length && openSlots.length) {
                     exhSec.style.display = '';
                     exhHost.innerHTML = exhibition.map(p => openSlots.map(side => {
                         const label = p.name || p.department_name || 'Exhibition';
@@ -1929,7 +1962,7 @@
                 && !['completed', 'cancelled', 'walkover'].includes(String(x.status || '').toLowerCase())
             );
             if (linkSec && linkRows) {
-                if (statusOk && openSlots.length && candidates.length) {
+                if (openSlots.length && candidates.length) {
                     linkSec.style.display = '';
                     const srcOptions = '<option value="">— choose source —</option>' + candidates.map(c => {
                         const label = c.bracket_position
@@ -1964,6 +1997,15 @@
             const nB = m.dept_b_name || m.team_b_name || 'TBD';
             const cA = m.dept_a_color || '#555';
             const cB = m.dept_b_color || '#555';
+            const hasDate = !!m.scheduled_date;
+
+            const titleEl = document.getElementById('ms-modal-title');
+            if (titleEl) {
+                titleEl.innerHTML = hasDate
+                    ? '<i class="fa-solid fa-pen-to-square"></i> Edit Match'
+                    : '<i class="fa-solid fa-calendar-pen"></i> Schedule Match';
+            }
+
             document.getElementById('ms-preview').innerHTML = `
                 <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;background:var(--bg3);border-radius:10px;padding:14px">
                     <div style="display:flex;align-items:center;gap:8px;min-width:0">
@@ -1978,10 +2020,16 @@
                 </div>
                 ${m.bracket_position ? `<div style="font-size:12px;color:var(--muted);margin-top:8px">${m.bracket_position}</div>` : ''}
                 ${(!m.participant_a_department_id || !m.participant_b_department_id)
-                    ? `<div style="font-size:12px;color:var(--gold);margin-top:8px"><i class="fa-solid fa-circle-info"></i> One or both sides are still TBD — you can still lock in date, time, venue &amp; officer now.</div>`
+                    ? `<div style="font-size:12px;color:var(--gold);margin-top:8px"><i class="fa-solid fa-circle-info"></i> One or both sides are still TBD.</div>`
                     : ''}`;
 
-            // input[type=date] requires yyyy-MM-dd (not ISO timestamps)
+            // Schedule section
+            const canSched = matchCanSchedule(m);
+            const schedSec = document.getElementById('ms-schedule-section');
+            if (schedSec) schedSec.style.display = canSched ? '' : 'none';
+            const saveBtn = document.getElementById('ms-save-btn');
+            if (saveBtn) saveBtn.style.display = (canSched || matchCanEditTeams(m)) ? '' : 'none';
+
             document.getElementById('ms-date').value = m.scheduled_date
                 ? String(m.scheduled_date).slice(0, 10)
                 : '';
@@ -1996,6 +2044,11 @@
                 : '';
 
             populateMatchOverrideUi(m);
+
+            // Delete only when conditions match
+            const delBtn = document.getElementById('ms-delete-btn');
+            if (delBtn) delBtn.style.display = matchCanDelete(m) ? '' : 'none';
+
             Modal.open('modal-match-schedule');
         }
 
@@ -2020,54 +2073,89 @@
             const btn = document.getElementById('ms-save-btn');
             if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Saving…'; }
             try {
-                const wasA = match?.participant_a_department_id || null;
-                const wasB = match?.participant_b_department_id || null;
-                const teamsChanged = Number(wasA || 0) !== Number(teamA_id || 0)
-                    || Number(wasB || 0) !== Number(teamB_id || 0);
+                let teamsChanged = false;
+                if (matchCanEditTeams(match || {})) {
+                    const wasA = match?.participant_a_department_id || null;
+                    const wasB = match?.participant_b_department_id || null;
+                    teamsChanged = Number(wasA || 0) !== Number(teamA_id || 0)
+                        || Number(wasB || 0) !== Number(teamB_id || 0);
 
-                if (teamsChanged) {
-                    const onlyFillingA = !wasA && teamA_id && Number(wasB || 0) === Number(teamB_id || 0);
-                    const onlyFillingB = !wasB && teamB_id && Number(wasA || 0) === Number(teamA_id || 0);
-                    let teamRes;
-                    if (onlyFillingA || onlyFillingB) {
-                        const slot = onlyFillingA ? 'a' : 'b';
-                        const department_id = onlyFillingA ? teamA_id : teamB_id;
-                        teamRes = await api(`/matches/${_msMatchId}/insert-team`, {
-                            method: 'POST', body: { slot, department_id },
-                        });
-                    } else {
-                        teamRes = await api(`/matches/${_msMatchId}/teams`, {
-                            method: 'PUT', body: { teamA_id, teamB_id },
-                        });
+                    if (teamsChanged) {
+                        const onlyFillingA = !wasA && teamA_id && Number(wasB || 0) === Number(teamB_id || 0);
+                        const onlyFillingB = !wasB && teamB_id && Number(wasA || 0) === Number(teamA_id || 0);
+                        let teamRes;
+                        if (onlyFillingA || onlyFillingB) {
+                            const slot = onlyFillingA ? 'a' : 'b';
+                            const department_id = onlyFillingA ? teamA_id : teamB_id;
+                            teamRes = await api(`/matches/${_msMatchId}/insert-team`, {
+                                method: 'POST', body: { slot, department_id },
+                            });
+                        } else {
+                            teamRes = await api(`/matches/${_msMatchId}/teams`, {
+                                method: 'PUT', body: { teamA_id, teamB_id },
+                            });
+                        }
+                        if (!teamRes.success) {
+                            Toast.show(teamRes.message || 'Could not update teams', 'error');
+                            return;
+                        }
                     }
-                    if (!teamRes.success) {
-                        Toast.show(teamRes.message || 'Could not update teams', 'error');
+                }
+
+                if (matchCanSchedule(match || {})) {
+                    const res = await api(`/matches/${_msMatchId}/schedule`, { method: 'PUT', body });
+                    if (!res.success) {
+                        Toast.show(res.message || 'Could not save schedule', 'error');
                         return;
                     }
                 }
 
-                const res = await api(`/matches/${_msMatchId}/schedule`, { method: 'PUT', body });
+                Toast.show(
+                    teamsChanged ? 'Teams & schedule saved.' : 'Saved.',
+                    'success'
+                );
+                Modal.close('modal-match-schedule');
+                _msMatchId = null;
+                await refreshAll();
+            } finally {
+                if (btn) {
+                    btn.disabled = false;
+                    btn.innerHTML = '<i class="fa-solid fa-floppy-disk"></i> Save';
+                }
+            }
+        }
+
+        async function deleteMatchFromModal() {
+            if (!_msMatchId) return;
+            const m = (currentBracketMatches || []).find(x => Number(x.id) === Number(_msMatchId));
+            if (!matchCanDelete(m || {})) {
+                Toast.show('This match cannot be deleted.', 'error');
+                return;
+            }
+            const label = m?.bracket_position || `Match #${_msMatchId}`;
+            if (typeof Modal !== 'undefined' && Modal.confirm) {
+                if (!await Modal.confirm(`Delete “${label}”? This cannot be undone.`, 'Delete match')) return;
+            } else if (!confirm(`Delete “${label}”?`)) return;
+
+            const btn = document.getElementById('ms-delete-btn');
+            if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i>'; }
+            try {
+                const res = await api(`/matches/${_msMatchId}`, { method: 'DELETE' });
+                Toast.show(res.message || (res.success ? 'Deleted.' : 'Error'), res.success ? 'success' : 'error');
                 if (res.success) {
-                    Toast.show(
-                        teamsChanged ? 'Teams & schedule saved.' : (res.message || 'Schedule saved.'),
-                        'success'
-                    );
                     Modal.close('modal-match-schedule');
                     _msMatchId = null;
                     await refreshAll();
-                } else {
-                    Toast.show(res.message || 'Could not save schedule', 'error');
                 }
             } finally {
                 if (btn) {
                     btn.disabled = false;
-                    btn.innerHTML = '<i class="fa-solid fa-floppy-disk"></i> Save Schedule';
+                    btn.innerHTML = '<i class="fa-solid fa-trash"></i> Delete';
                 }
             }
         }
 
         async function placeExhibition(matchId, departmentId, slot) {
-            // Prefer dedicated exhibition endpoint; fall back to insert-team
             const tid = currentTournamentId;
             let res = null;
             if (tid) {
@@ -2108,855 +2196,7 @@
             }
         }
 
-
-        document.addEventListener('DOMContentLoaded', async () => {
-            Auth.requireAuth('sgo_president');
-            renderSidebar('game-setup');
-            NotifBell.init();
-            await loadSportOptions();
-            await loadVenueOptionsForSchedule();
-            await loadOfficerOptionsForSchedule();
-            onFfaScoringChange();
-
-            const params = new URLSearchParams(window.location.search);
-            const deepId = params.get('tournament_id') || params.get('id');
-            if (deepId) {
-                currentTournamentId = deepId;
-                showWorkspace();
-                await refreshAll();
-            } else {
-                showList();
-                await loadTournaments();
-            }
-
-            window.addEventListener('popstate', async () => {
-                const id = new URLSearchParams(window.location.search).get('tournament_id')
-                    || new URLSearchParams(window.location.search).get('id');
-                if (id) {
-                    currentTournamentId = id;
-                    showWorkspace();
-                    await refreshAll();
-                } else {
-                    currentTournamentId = null;
-                    showList();
-                    await loadTournaments();
-                }
-            });
-        });
-
-        function onFfaScoringChange() {
-            const el = document.getElementById('tn-ffa-scoring');
-            const hint = document.getElementById('ffa-scoring-hint');
-            if (!el || !hint) return;
-            hint.textContent = FFA_SCORING_HINTS[el.value] || '';
-        }
-
-        function onFormatChange() {
-            const format = document.getElementById('tn-format')?.value || '';
-            const ffa = document.getElementById('ffa-fields');
-            const grp = document.getElementById('group-fields');
-            if (ffa) ffa.style.display = ['free_for_all', 'team_ranking'].includes(format) ? '' : 'none';
-            if (grp) grp.style.display = format.startsWith('group_stage_') ? '' : 'none';
-        }
-
-        function fallbackIcon(name) {
-            const n = (name || '').toLowerCase();
-            const map = {
-                basketball: 'fa-basketball', volleyball: 'fa-volleyball', football: 'fa-futbol',
-                soccer: 'fa-futbol', badminton: 'fa-feather-pointed', 'table tennis': 'fa-table-tennis-paddle-ball',
-                chess: 'fa-chess', baseball: 'fa-baseball', swim: 'fa-person-swimming',
-                track: 'fa-person-running', run: 'fa-person-running', dance: 'fa-music', esports: 'fa-gamepad',
-            };
-            for (const key in map) if (n.includes(key)) return `fa-solid ${map[key]}`;
-            return 'fa-solid fa-medal';
-        }
-
-        function sportIconHtml(sport) {
-            const cls = sport?.icon && String(sport.icon).startsWith('fa-') ? sport.icon : fallbackIcon(sport?.name);
-            return `<i class="${cls} sport-ico"></i>`;
-        }
-
-        async function loadSportOptions() {
-            const res = await api('/sports');
-            allSports = res.data || [];
-            const sel = document.getElementById('tn-sport');
-            if (sel) {
-                sel.innerHTML = '<option value="">Select sport…</option>' +
-                    allSports.map(s => `<option value="${s.id}">${s.name}</option>`).join('');
-            }
-        }
-
-        function showList() {
-            document.getElementById('list-view').style.display = '';
-            document.getElementById('tourn-workspace').style.display = 'none';
-            const title = document.getElementById('topbar-title');
-            if (title) title.innerHTML = '<i class="fa-solid fa-trophy"></i> Tournaments';
-            const btnNew = document.getElementById('btn-new-tn');
-            if (btnNew) btnNew.style.display = '';
-        }
-
-        function showWorkspace() {
-            document.getElementById('list-view').style.display = 'none';
-            document.getElementById('tourn-workspace').style.display = '';
-            const btnNew = document.getElementById('btn-new-tn');
-            if (btnNew) btnNew.style.display = 'none';
-        }
-
-        function backToList() {
-            currentTournamentId = null;
-            currentTournament = null;
-            currentBracketMatches = [];
-            const url = new URL(window.location.href);
-            url.searchParams.delete('tournament_id');
-            url.searchParams.delete('id');
-            history.replaceState({}, '', url.pathname);
-            showList();
-            loadTournaments();
-        }
-
-        function openTournament(id) {
-            currentTournamentId = String(id);
-            const url = new URL(window.location.href);
-            url.searchParams.set('tournament_id', id);
-            history.pushState({}, '', url.pathname + '?' + url.searchParams.toString());
-            showWorkspace();
-            refreshAll();
-        }
-
-        function pageRefresh() {
-            if (currentTournamentId) refreshAll();
-            else loadTournaments();
-        }
-
-        // ── Tournament list ─────────────────────────────────
-        async function loadTournaments() {
-            const tbody = document.getElementById('tn-body');
-            if (!tbody) return;
-            const res = await api('/tournaments');
-            if (!res.success || !(res.data || []).length) {
-                tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;color:var(--muted);padding:24px">No tournaments yet — create one to get started</td></tr>';
-                return;
-            }
-            tbody.innerHTML = res.data.map(t => {
-                const sport = allSports.find(s => s.name === t.sport_name) || { name: t.sport_name, icon: t.sport_icon };
-                return `
-        <tr style="cursor:pointer" onclick="openTournament(${t.id})">
-            <td><strong>${t.name}</strong></td>
-            <td>${sportIconHtml(sport)} ${t.sport_name || '—'}</td>
-            <td><span class="badge badge-muted">${(t.format || '').replace(/_/g, ' ').toUpperCase()}</span></td>
-            <td style="text-transform:capitalize">${t.gender || 'open'}</td>
-            <td>${typeof statusBadge === 'function' ? statusBadge(t.status) : t.status}</td>
-            <td style="color:var(--muted)">${t.participant_count || 0}</td>
-            <td style="color:var(--muted);font-size:12px">${typeof formatDate === 'function' ? formatDate(t.start_date) : (t.start_date || '—')}</td>
-            <td onclick="event.stopPropagation()">
-                <button class="btn btn-secondary btn-sm" onclick="openTournament(${t.id})">Manage <i class="fa-solid fa-arrow-right"></i></button>
-            </td>
-        </tr>`;
-            }).join('');
-        }
-
-        async function createTournament() {
-            const name = document.getElementById('tn-name').value.trim();
-            const sport_id = parseInt(document.getElementById('tn-sport').value) || null;
-            const format = document.getElementById('tn-format').value;
-            const gender = document.getElementById('tn-gender').value;
-            if (!name) { Toast.show('Tournament name is required', 'error'); return; }
-            if (!sport_id) { Toast.show('Please select a sport', 'error'); return; }
-            if (!VALID_FORMATS.includes(format)) { Toast.show('Please select a valid format', 'error'); return; }
-            const isGroupStage = format.startsWith('group_stage_');
-            const isFFA = ['free_for_all', 'team_ranking'].includes(format);
-            const body = {
-                name, sport_id, format, gender,
-                max_participants: parseInt(document.getElementById('tn-max').value) || 0,
-                start_date: document.getElementById('tn-start').value || null,
-                end_date: document.getElementById('tn-end').value || null,
-                description: document.getElementById('tn-desc').value || null,
-                ffa_scoring: isFFA ? document.getElementById('tn-ffa-scoring').value : null,
-                group_count: isGroupStage ? (parseInt(document.getElementById('tn-groups').value) || 2) : null,
-                advance_per_group: isGroupStage ? (parseInt(document.getElementById('tn-advance').value) || 2) : null,
-            };
-            const res = await api('/tournaments', { method: 'POST', body });
-            Toast.show(res.message || (res.success ? 'Tournament created!' : 'Error'), res.success ? 'success' : 'error');
-            if (res.success) {
-                Modal.closeAll();
-                if (res.data?.id) openTournament(res.data.id);
-                else loadTournaments();
-            }
-        }
-
-
-
-        function customMatchSourceLabel(m) {
-            return m.bracket_position || `Match #${m.id}`;
-        }
-
-        function divisionLabel(div) {
-            const map = { junior_high: 'Junior High', senior_high: 'Senior High' };
-            return map[String(div || '').toLowerCase()] || 'Other / Ungrouped';
-        }
-
-        function buildCustomMatchDeptOptionsHtml() {
-            const filter = document.getElementById('cm-division-filter')?.value || 'all';
-            const participantIds = new Set((currentTournament?.participants || []).map(p => p.department_id));
-
-            let list = deptsCache.slice();
-            if (filter === 'exhibition') {
-                list = list.filter(d => Number(d.is_exhibition) === 1);
-            } else if (filter !== 'all') {
-                list = list.filter(d => String(d.division || '').toLowerCase() === filter);
-            }
-
-            // Tournament participants first (this is almost always who you want to match up),
-            // then the rest of the roster, each sorted alphabetically within its group.
-            const inTournament = list.filter(d => participantIds.has(d.id))
-                .sort((a, b) => a.name.localeCompare(b.name));
-            const others = list.filter(d => !participantIds.has(d.id));
-
-            const groups = {};
-            others.forEach(d => {
-                const key = Number(d.is_exhibition) === 1 ? 'Exhibition' : divisionLabel(d.division);
-                if (!groups[key]) groups[key] = [];
-                groups[key].push(d);
-            });
-            Object.values(groups).forEach(g => g.sort((a, b) => a.name.localeCompare(b.name)));
-
-            const optHtml = (d) => `<option value="${d.id}">${d.name}${Number(d.is_exhibition) === 1 ? ' (exhibition)' : ''}</option>`;
-
-            let html = '<option value="">— TBD / fill from result below —</option>';
-            if (inTournament.length) {
-                html += `<optgroup label="In this tournament">${inTournament.map(optHtml).join('')}</optgroup>`;
-            }
-            Object.keys(groups).sort().forEach(key => {
-                html += `<optgroup label="${key}">${groups[key].map(optHtml).join('')}</optgroup>`;
-            });
-            return html;
-        }
-
-        function renderCustomMatchDeptOptions() {
-            const deptOpts = buildCustomMatchDeptOptionsHtml();
-            ['cm-a-dept', 'cm-b-dept'].forEach(id => {
-                const el = document.getElementById(id);
-                if (!el) return;
-                const prevValue = el.value;
-                el.innerHTML = deptOpts;
-                if ([...el.options].some(o => o.value === prevValue)) el.value = prevValue;
-            });
-        }
-
-        async function openAddCustomMatch() {
-            if (!deptsCache.length) {
-                const res = await api('/departments');
-                deptsCache = res.success ? (res.data || []) : [];
-            }
-            const filterSel = document.getElementById('cm-division-filter');
-            if (filterSel) filterSel.value = 'all';
-            renderCustomMatchDeptOptions();
-
-            const matches = currentBracketMatches || [];
-            const srcOpts = '<option value="">— none —</option>' + matches.map(m => `
-                <option value="${m.id}|winner">${customMatchSourceLabel(m)} · Winner</option>
-                <option value="${m.id}|loser">${customMatchSourceLabel(m)} · Loser</option>
-            `).join('');
-            ['cm-a-src', 'cm-b-src'].forEach(id => { const el = document.getElementById(id); if (el) el.innerHTML = srcOpts; });
-
-            ['cm-label', 'cm-date', 'cm-time'].forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
-
-            const venueSel = document.getElementById('cm-venue');
-            if (venueSel) venueSel.innerHTML = '<option value="">Select venue...</option>' + venuesCache.map(v => `<option value="${v.id}">${v.name}</option>`).join('');
-            const refSel = document.getElementById('cm-referee');
-            if (refSel) refSel.innerHTML = '<option value="">Select referee...</option>' + officersCache.map(o => `<option value="${o.id}">${o.first_name} ${o.last_name}</option>`).join('');
-
-            Modal.open('modal-custom-match');
-        }
-
-        function sideFromCustomForm(prefix) {
-            const deptId = parseInt(document.getElementById(`${prefix}-dept`).value) || null;
-            const srcVal = document.getElementById(`${prefix}-src`).value;
-            if (deptId) return { department_id: deptId };
-            if (srcVal) {
-                const [fromMatchId, result] = srcVal.split('|');
-                return { from_match_id: parseInt(fromMatchId), result };
-            }
-            return null;
-        }
-
-        async function submitCustomMatch() {
-            const label = document.getElementById('cm-label').value.trim();
-            if (!label) { Toast.show('Give the match a label', 'error'); return; }
-            const side_a = sideFromCustomForm('cm-a');
-            const side_b = sideFromCustomForm('cm-b');
-            if (!side_a && !side_b) { Toast.show('Set at least one side (a team, or fill-from-result)', 'error'); return; }
-            const body = {
-                tournament_id: currentTournamentId,
-                label,
-                side_a, side_b,
-                scheduled_date: document.getElementById('cm-date').value || null,
-                scheduled_time: document.getElementById('cm-time').value || null,
-                venue_id: parseInt(document.getElementById('cm-venue').value) || null,
-                referee_id: parseInt(document.getElementById('cm-referee').value) || null,
-            };
-            const res = await api('/matches/custom', { method: 'POST', body });
-            Toast.show(res.message || (res.success ? 'Match created.' : 'Could not create match'), res.success ? 'success' : 'error');
-            if (res.success) { Modal.close('modal-custom-match'); await refreshAll(); }
-        }
-
-        async function refreshAll() {
-            if (!currentTournamentId) return;
-            const [tourneyRes, bracketRes] = await Promise.all([
-                api(`/tournaments/${currentTournamentId}`),
-                api(`/tournaments/${currentTournamentId}/bracket`),
-            ]);
-            if (!tourneyRes.success) return;
-            currentTournament = tourneyRes.data;
-            currentBracketMatches = bracketRes.data || [];
-            updateDeleteButtonVisibility();
-
-            const isLocked = !['draft', 'registration'].includes(currentTournament.status);
-            const isFinalized = currentTournament.status === 'completed';
-            const fmt = currentTournament.format || '';
-            const isFfa = isFfaFormat(fmt);
-
-            const title = document.getElementById('topbar-title');
-            if (title) title.innerHTML = '<i class="fa-solid fa-trophy"></i> ' + (currentTournament.name || 'Tournament');
-
-            const btnAdd = document.getElementById('btn-add-participants');
-            const btnGen = document.getElementById('btn-generate');
-            const btnAuto = document.getElementById('btn-auto-schedule');
-            const btnPromo = document.getElementById('btn-promote');
-            const btnFin = document.getElementById('btn-finalize-top');
-            if (btnAdd) btnAdd.style.display = isLocked ? 'none' : '';
-            if (btnGen) {
-                btnGen.style.display = isLocked || isFinalized ? 'none' : '';
-                btnGen.innerHTML = currentBracketMatches.length
-                    ? (isFfa ? '<i class="fa-solid fa-bolt"></i> Re-Initialize Event' : '<i class="fa-solid fa-bolt"></i> Regenerate Bracket')
-                    : (isFfa ? '<i class="fa-solid fa-bolt"></i> Initialize Event' : '<i class="fa-solid fa-bolt"></i> Generate Bracket');
-            }
-            if (btnAuto) btnAuto.style.display = (['round_robin', 'single_elimination', 'double_elimination', 'division_gauntlet'].includes(fmt) && !isFinalized) ? '' : 'none';
-            if (btnPromo) btnPromo.style.display = (fmt.startsWith('group_stage_') && !isFinalized) ? '' : 'none';
-            if (btnFin) btnFin.style.display = isFinalized ? 'none' : '';
-
-            const btnExport = document.getElementById('btn-export-top');
-            if (btnExport) btnExport.style.display = isFinalized ? '' : 'none';
-
-            const finalizedNote = document.getElementById('finalized-note');
-            if (finalizedNote) finalizedNote.style.display = isFinalized ? '' : 'none';
-
-            if (isFfa) await loadFFAResults();
-
-            renderHeroBar();
-            renderDatesBar();
-            renderWsTabs();
-            updateDeleteButtonVisibility();
-            renderActiveTab();
-        }
-
-        async function loadFFAResults() {
-            if (!currentTournamentId || !currentTournament) return;
-            try {
-                const res = await api(`/matches/ffa/${currentTournamentId}`);
-                if (!res.success || !res.data) return;
-                const list = res.data.participants || res.data || [];
-                if (!Array.isArray(list)) return;
-                const byDept = {};
-                list.forEach(r => {
-                    if (r.department_id != null) byDept[r.department_id] = r;
-                });
-                currentTournament.participants = (currentTournament.participants || []).map(p => {
-                    const hit = byDept[p.department_id];
-                    if (!hit) return p;
-                    return {
-                        ...p,
-                        ffa_result_value: hit.ffa_result_value != null ? parseFloat(hit.ffa_result_value) : p.ffa_result_value,
-                        ffa_rank: hit.rank_position ?? hit.rank ?? p.ffa_rank,
-                    };
-                });
-                if (res.data.ffa_scoring) currentTournament.ffa_scoring = res.data.ffa_scoring;
-            } catch (e) { }
-        }
-
-        function renderHeroBar() {
-            const el = document.getElementById('ws-hero');
-            if (!el || !currentTournament) return;
-            const t = currentTournament;
-            const parts = t.participants || [];
-            const sl = { draft: 'Draft', registration: 'Registration', ongoing: 'Ongoing', completed: 'Completed' }[t.status] || t.status;
-            el.innerHTML = `<div class="t-hero">
-                <div class="t-hero-content">
-                    <div class="t-hero-info">
-                        <div class="t-hero-sport">${t.sport_name || '—'}</div>
-                        <div class="t-hero-name">${t.name || '—'}</div>
-                        <div class="t-hero-tags">
-                            <span class="status-pill status-${t.status || 'draft'}">${sl}</span>
-                            <span class="badge badge-muted">${formatLabel(t.format)}</span>
-                            <span class="badge badge-muted" style="text-transform:capitalize">${t.gender || 'open'}</span>
-                        </div>
-                    </div>
-                    <div class="t-hero-stats">
-                        <div class="t-hero-stat">
-                            <div class="t-hero-stat-val">${parts.length}</div>
-                            <div class="t-hero-stat-lbl">Participants</div>
-                        </div>
-                        <div class="t-hero-stat">
-                            <div class="t-hero-stat-val">${currentBracketMatches.length}</div>
-                            <div class="t-hero-stat-lbl">Matches</div>
-                        </div>
-                    </div>
-                </div>
-            </div>`;
-        }
-
-        function renderDatesBar() {
-            const el = document.getElementById('ws-dates');
-            if (!el || !currentTournament) return;
-            const t = currentTournament;
-            const fd = typeof formatDate === 'function' ? formatDate : (d => d || 'Not set');
-            const scoring = isFfaFormat(t.format) && t.ffa_scoring
-                ? `<div class="date-item">Scoring: <strong>${String(t.ffa_scoring).replace(/_/g, ' ')}</strong></div>`
-                : '';
-            el.innerHTML = `<div class="dates-bar">
-                <div class="date-item">Start: <strong>${t.start_date ? fd(t.start_date) : 'Not set'}</strong></div>
-                <div class="date-item">End: <strong>${t.end_date ? fd(t.end_date) : 'Not set'}</strong></div>
-                ${scoring}
-            </div>`;
-        }
-
-        function renderWsTabs() {
-            const el = document.getElementById('ws-tabs');
-            if (!el || !currentTournament) return;
-            const fmt = currentTournament.format || '';
-            const isFfa = isFfaFormat(fmt);
-            const parts = (currentTournament.participants || []).length;
-            const done = currentTournament.status === 'completed';
-            const ongoing = currentTournament.status === 'ongoing' || done;
-
-            const isRR = fmt === 'round_robin';
-            const tabs = [
-                { id: 'overview', label: 'Overview' },
-                { id: 'participants', label: `Participants (${parts})` },
-            ];
-
-            if (isFfa) {
-
-                tabs.push({ id: 'schedule', label: 'Schedule' });
-                tabs.push({ id: 'standings', label: 'Standings' });
-            } else if (isRR) {
-
-                tabs.push({ id: 'matches', label: `Matches (${currentBracketMatches.length})` });
-                tabs.push({ id: 'standings', label: 'Standings' });
-            } else {
-
-                tabs.push({ id: 'schedule', label: 'Schedule' });
-                tabs.push({ id: 'bracket', label: `Bracket (${currentBracketMatches.length})` });
-                tabs.push({ id: 'standings', label: 'Standings' });
-                if (ongoing) tabs.push({ id: 'results', label: 'Results' });
-            }
-            tabs.push({ id: 'finalize', label: done ? 'Recalculate Points' : 'Finalize' });
-
-            if (!tabs.find(x => x.id === activeTab)) activeTab = 'overview';
-
-            el.innerHTML = tabs.map(tab =>
-                `<button type="button" class="page-tab ${tab.id === activeTab ? 'active' : ''}" data-tab="${tab.id}" onclick="switchWsTab('${tab.id}')">${tab.label}</button>`
-            ).join('');
-        }
-
-        async function switchWsTab(id) {
-            activeTab = id;
-            document.querySelectorAll('#ws-tabs .page-tab').forEach(b => b.classList.toggle('active', b.dataset.tab === id));
-            if (isFfaFormat(currentTournament?.format) && id === 'standings') {
-                await loadFFAResults();
-            }
-            renderActiveTab();
-        }
-
-        function renderActiveTab() {
-            const el = document.getElementById('tab-content');
-            if (!el || !currentTournament) return;
-            const map = {
-                overview: tabOverview,
-                schedule: tabSchedule,
-                participants: tabParticipants,
-                matches: tabMatches,
-                bracket: tabBracket,
-                standings: tabStandings,
-                results: tabResults,
-                finalize: tabFinalize,
-            };
-            el.innerHTML = (map[activeTab] || tabOverview)();
-        }
-
-        function tabOverview() {
-            const t = currentTournament;
-            const parts = t.participants || [];
-            const isFfa = isFfaFormat(t.format);
-            const matches = currentBracketMatches || [];
-            const done = matches.filter(m => m.status === 'completed').length;
-            const pct = matches.length ? Math.round((done / matches.length) * 100) : 0;
-
-            // Athlete readiness (admin-style overview)
-            const totalPlayers = parts.reduce((sum, p) => {
-                const n = p.players?.length ?? p.approved_count ?? p.player_count ?? 0;
-                return sum + Number(n || 0);
-            }, 0);
-            const minReq = Number(t.min_players || t.required_players || 0) || 1;
-            const teamsWithEnough = parts.filter(p => {
-                const n = p.players?.length ?? p.approved_count ?? p.player_count ?? 0;
-                return Number(n || 0) >= minReq;
-            }).length;
-
-            const matchLabel = isFfa ? 'Event' : 'Matches';
-            const matchVal = isFfa
-                ? (matches[0]?.status === 'completed' ? 'Done' : (matches.length ? 'Ready' : '—'))
-                : matches.length;
-
-            return `
-            <div class="stats-grid" style="margin-bottom:16px">
-                <div class="stat-card"><div class="stat-value">${parts.length}${t.max_participants ? `<span style="font-size:16px;color:var(--muted)">/${t.max_participants}</span>` : ''}</div><div class="stat-label">Teams / Depts</div></div>
-                <div class="stat-card"><div class="stat-value">${totalPlayers}</div><div class="stat-label">Total Athletes</div></div>
-                <div class="stat-card"><div class="stat-value">${teamsWithEnough}/${parts.length || 0}</div><div class="stat-label">Teams Ready</div></div>
-                <div class="stat-card"><div class="stat-value">${matchVal}</div><div class="stat-label">${matchLabel}</div></div>
-            </div>
-            ${teamsWithEnough < parts.length && parts.length ? `<div class="warning-banner" style="background:rgba(232,50,59,0.1);border:1px solid rgba(232,50,59,0.3);border-radius:10px;padding:12px 16px;margin-bottom:16px;display:flex;align-items:center;gap:12px;font-size:13px"><div><strong>Incomplete teams:</strong> ${parts.length - teamsWithEnough} team(s) may need more players.</div></div>` : ''}
-            <div class="info-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:12px;margin-bottom:16px">
-                ${[
-                    ['Status', (t.status || '—')],
-                    ['Sport', t.sport_name || '—'],
-                    ['Format', formatLabel(t.format)],
-                    ['Gender', (t.gender || 'open')],
-                    ['Participants', `${parts.length}${t.max_participants ? ' / ' + t.max_participants : ''}`],
-                    ['Completed', isFfa ? (done ? '100%' : '0%') : (pct + '%')],
-                ].map(([l, v]) => `<div class="info-item" style="background:var(--bg3);border:1px solid var(--border);border-radius:10px;padding:14px 16px"><div class="info-item-label" style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:1px;font-weight:700;margin-bottom:6px">${l}</div><div class="info-item-val" style="font-size:15px;font-weight:700;text-transform:capitalize">${v}</div></div>`).join('')}
-            </div>
-            ${!isFfa ? `<div class="card" style="margin-bottom:16px">
-                <div class="card-header"><div class="card-title">Match Progress</div><span style="font-size:12px;color:var(--muted)">${done} / ${matches.length} done</span></div>
-                <div class="card-body"><div style="background:var(--bg3);border-radius:8px;height:10px;overflow:hidden"><div style="height:100%;width:${pct}%;background:var(--gold);border-radius:8px;transition:width .3s"></div></div></div>
-            </div>` : ''}
-            ${isFfa ? `<div class="card" style="margin-bottom:16px">
-                <div class="card-body" style="padding:0">
-                    <div class="ffa-card">
-                        <span class="ffa-badge"><i class="fa-solid fa-bolt"></i> Free-For-All</span>
-                        <div class="ffa-sub" style="margin-bottom:0">Scoring: <strong style="color:var(--text)">${(t.ffa_scoring || 'points')}</strong> · All departments compete in one event. Rankings appear under Standings once results are in.</div>
-                    </div>
-                </div>
-            </div>` : ''}
-            ${t.description ? `<div class="card"><div class="card-header"><div class="card-title">Notes</div></div>
-                <div class="card-body" style="color:var(--muted);font-size:13px">${t.description}</div></div>` : (isFfa ? '' : `<div class="card"><div class="card-body"><div class="section-empty" style="padding:20px">No description.</div></div></div>`)
-                }`;
-        }
-
-
-        function tabSchedule() {
-            const matches = currentBracketMatches || [];
-            const isFfa = isFfaFormat(currentTournament.format);
-
-            if (isFfa) return tabFfaEventCard();
-
-            const unscheduled = matches.filter(m =>
-                !m.scheduled_date && !['completed', 'cancelled'].includes(String(m.status || '').toLowerCase())
-            );
-            const scheduled = matches.filter(m => m.scheduled_date);
-            const dates = [...new Set(scheduled.map(m => m.scheduled_date).filter(Boolean))].sort();
-            const canAuto = ['round_robin', 'single_elimination', 'double_elimination', 'division_gauntlet']
-                .includes(currentTournament.format)
-                && currentTournament.status !== 'completed';
-
-            if (!matches.length) {
-                return `<div class="card"><div class="card-body">
-                    <div class="section-empty">No matches yet. Generate the bracket first.</div>
-                </div></div>`;
-            }
-
-            let html = `<div class="card" style="margin-bottom:14px"><div class="card-body" style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap">
-                <div style="font-size:13px;color:var(--muted)">
-                    <strong style="color:var(--text)">${unscheduled.length}</strong> unscheduled
-                    (incl. TBD) ·
-                    <strong style="color:var(--text)">${scheduled.length}</strong> with a date
-                    <div style="font-size:12px;margin-top:4px">Click <i class="fa-solid fa-calendar-pen"></i> Schedule / Edit on any match to set date, time, venue &amp; officer — even when a side is still TBD.</div>
-                </div>
-                ${canAuto ? `<button class="btn btn-secondary btn-sm" onclick="openAutoSchedule()"><i class="fa-solid fa-dice"></i> Auto-Schedule</button>` : ''}
-            </div></div>`;
-
-            if (unscheduled.length) {
-                html += `<div class="timeline-day">
-                    <div class="timeline-day-header" style="color:var(--orange)">Unscheduled / TBD (${unscheduled.length})</div>
-                    <div class="bracket-matches">${unscheduled.map(m => matchCardHtml(m, { showPos: true, unscheduledLabel: 'No date set' })).join('')}</div>
-                </div>`;
-            }
-
-            html += dates.map(date => {
-                const dayMatches = scheduled.filter(m => m.scheduled_date === date)
-                    .sort((a, b) => String(a.scheduled_time || '').localeCompare(String(b.scheduled_time || '')));
-                return `<div class="timeline-day">
-                    <div class="timeline-day-header">${fd(date)}</div>
-                    <div class="bracket-matches">${dayMatches.map(m => matchCardHtml(m, { showPos: true })).join('')}</div>
-                </div>`;
-            }).join('');
-
-            return html;
-        }
-
-
-        async function toggleP(id) {
-            const p = document.getElementById(`pls-${id}`);
-            const a = document.getElementById(`exp-${id}`);
-            if (!p) return;
-            const opening = p.style.display === 'none' || !p.style.display;
-            p.style.display = opening ? 'block' : 'none';
-            if (a) a.style.transform = opening ? 'rotate(180deg)' : 'rotate(0deg)';
-            if (!opening) return;
-
-            const sportId = currentTournament?.sport_id;
-            const deptId = id;
-            const part = (currentTournament.participants || []).find(x => String(x.department_id) === String(deptId));
-            const localPlayers = part?.players || [];
-            const col = part ? (participantNames(part).color) : '#555';
-            const req = Math.max(1, Number(currentTournament.min_players || 1));
-            const knownCount = localPlayers.length;
-
-            // Already expanded with a full merge — keep it
-            if (p.dataset.fullLoaded === '1' && p.querySelectorAll('.player-row').length >= knownCount) return;
-
-            const renderList = (list) => {
-                const n = Math.max(list.length, knownCount);
-                p.innerHTML = `
-                    <div class="participant-players-label">Athletes (${list.length}${list.length < knownCount ? ` · showing ${list.length}` : ''}) · minimum ${req}</div>
-                    ${list.length ? list.map(pl => `<div class="player-row">
-                        <div class="player-avatar" style="background:${col}">${(pl.first_name || '?')[0]}</div>
-                        <div class="player-name">${pl.first_name || ''} ${pl.last_name || ''}${pl.team_name ? ` <span style="color:var(--muted);font-weight:400;font-size:11px">· ${pl.team_name}</span>` : ''}</div>
-                        ${pl.jersey_number != null && pl.jersey_number !== '' ? `<span class="player-jersey">#${pl.jersey_number}</span>` : ''}
-                    </div>`).join('') : `<div style="font-size:12px;color:var(--muted);padding:8px 0">No players registered.</div>`}`;
-                const card = p.closest('.participant-card');
-                const badge = card?.querySelector('.player-count-badge');
-                if (badge) {
-                    const count = Math.max(list.filter(x => !x.status || x.status === 'approved').length, list.length, knownCount);
-                    const enough = count >= req;
-                    badge.className = `player-count-badge ${enough ? 'player-count-ok' : 'player-count-warning'}`;
-                    badge.title = 'Approved players / minimum required';
-                    badge.textContent = `${count} approved · min ${req}`;
-                }
-            };
-
-            // Show local list immediately so the dropdown never "shrinks" while loading
-            renderList(localPlayers);
-
-            if (!sportId || !deptId) {
-                p.dataset.fullLoaded = '1';
-                return;
-            }
-
-            try {
-                const [resApproved, resAll] = await Promise.all([
-                    api(`/players?department_id=${deptId}&sport_id=${sportId}&status=approved`),
-                    api(`/players?department_id=${deptId}&sport_id=${sportId}`),
-                ]);
-                let list = mergePlayerLists(localPlayers, resApproved.data || [], resAll.data || []);
-                // Never end up with fewer names than the participant payload already had
-                if (list.length < knownCount) list = mergePlayerLists(localPlayers, list);
-                list.sort((a, b) => `${a.last_name || ''} ${a.first_name || ''}`.localeCompare(`${b.last_name || ''} ${b.first_name || ''}`));
-                renderList(list);
-                p.dataset.fullLoaded = '1';
-            } catch (e) {
-                renderList(localPlayers);
-                p.dataset.fullLoaded = '1';
-            }
-        }
-
-        function tabParticipants() {
-            const parts = currentTournament.participants || [];
-            const isLocked = !['draft', 'registration'].includes(currentTournament.status);
-            const req = Math.max(1, Number(currentTournament.min_players || 1));
-
-            if (!parts.length) {
-                return `<div class="card"><div class="card-body">
-                    <div class="section-empty">No departments entered yet.
-                    ${!isLocked ? `<br><br><button class="btn btn-primary" onclick="openAddParticipants()"><i class="fa-solid fa-building-user"></i> Add Departments</button>` : ''}
-                    </div>
-                    ${isLocked ? `<div class="ffa-lock-note" style="margin-top:12px"><i class="fa-solid fa-lock"></i><span>Lineup is locked after bracket generation.</span></div>` : ''}
-                </div></div>`;
-            }
-
-            const cards = parts.map(p => {
-                const { primary, secondary, color: col } = participantNames(p);
-                const init = initialsOf(primary);
-                const pls = p.players || [];
-                const approved = pls.filter(x => !x.status || x.status === 'approved');
-                const count = approved.length || pls.length;
-                const hasEnough = count >= req;
-                const badge = hasEnough
-                    ? `<span class="player-count-badge player-count-ok" title="Approved players / minimum required">${count} approved · min ${req}</span>`
-                    : `<span class="player-count-badge player-count-warning" title="Approved players / minimum required">${count} approved · min ${req}</span>`;
-                const pid = p.department_id || p.id;
-
-                const playersHtml = pls.length
-                    ? pls.map(pl => `<div class="player-row">
-                        <div class="player-avatar" style="background:${col}">${(pl.first_name || '?')[0]}</div>
-                        <div class="player-name">${pl.first_name || ''} ${pl.last_name || ''}</div>
-                        ${pl.jersey_number != null ? `<span class="player-jersey">#${pl.jersey_number}</span>` : ''}
-                        ${pl.status ? `<span style="font-size:10px;color:var(--muted);text-transform:uppercase">${pl.status}</span>` : ''}
-                    </div>`).join('')
-                    : `<div style="font-size:12px;color:var(--muted);padding:8px 0">No players registered.</div>`;
-
-                return `<div class="participant-card">
-                    <div class="participant-card-header" onclick="toggleP('${pid}')">
-                        <div class="participant-logo" style="background:${col}">${init}</div>
-                        <div class="participant-info">
-                            <div class="participant-name">${primary}</div>
-                            <div class="participant-meta">
-                                ${secondary ? `<span class="participant-dept">${secondary}</span>` : ''}
-                                ${badge}
-                            </div>
-                        </div>
-                        <div class="participant-expand" id="exp-${pid}">▾</div>
-                    </div>
-                    <div class="participant-players" id="pls-${pid}" style="display:none">
-                        <div class="participant-players-label">Athletes (${pls.length})</div>
-                        ${playersHtml}
-                    </div>
-                </div>`;
-            }).join('');
-
-            return `
-            <div class="participants-toolbar">
-                <div class="card-title" style="margin:0"><i class="fa-solid fa-users"></i> Participants</div>
-                ${!isLocked ? `<button class="btn btn-primary btn-sm" onclick="openAddParticipants()"><i class="fa-solid fa-plus"></i> Add Departments</button>` : ''}
-            </div>
-            <div class="participants-grid">${cards}</div>
-            ${isLocked ? `<div class="ffa-lock-note" style="margin-top:14px"><i class="fa-solid fa-lock"></i><span>Bracket already generated — departments are locked in.</span></div>` : ''}`;
-        }
-
-
-        function tabMatches() {
-
-            const matches = currentBracketMatches || [];
-            const isFinalized = currentTournament.status === 'completed';
-            const canAuto = ['round_robin', 'single_elimination', 'double_elimination', 'division_gauntlet'].includes(currentTournament.format) && !isFinalized;
-
-            if (!matches.length) {
-                return `<div class="card"><div class="card-body">
-                    <div class="section-empty">
-                        No matches yet. Add participants and generate the bracket.
-                        ${canAuto ? '' : ''}
-                    </div>
-                </div></div>`;
-            }
-
-            const scheduled = matches.filter(m => m.scheduled_date).length;
-            const completed = matches.filter(m => m.status === 'completed').length;
-            const pending = matches.length - completed;
-
-            const sorted = [...matches].sort((a, b) => {
-                const ac = a.status === 'completed' ? 1 : 0;
-                const bc = b.status === 'completed' ? 1 : 0;
-                if (ac !== bc) return ac - bc;
-                const da = `${a.scheduled_date || '9999'}_${a.scheduled_time || ''}`;
-                const db = `${b.scheduled_date || '9999'}_${b.scheduled_time || ''}`;
-                return da.localeCompare(db);
-            });
-
-            const rows = sorted.map(m => matchCardHtml(m, { showPos: false, unscheduledLabel: 'Unscheduled' })).join('');
-
-            return `
-            <div class="grid-3" style="margin-bottom:16px">
-                <div class="stat-card"><div class="stat-value">${matches.length}</div><div class="stat-label">Total</div></div>
-                <div class="stat-card"><div class="stat-value" style="color:var(--orange)">${pending}</div><div class="stat-label">Open</div></div>
-                <div class="stat-card"><div class="stat-value" style="color:var(--green)">${completed}</div><div class="stat-label">Completed</div></div>
-            </div>
-            <div class="card">
-                <div class="card-header">
-                    <div class="card-title"><i class="fa-solid fa-list"></i> Matches</div>
-                    ${canAuto ? `<button class="btn btn-secondary btn-sm" onclick="openAutoSchedule()"><i class="fa-solid fa-dice"></i> Auto-Schedule</button>` : ''}
-                </div>
-                <div class="card-body"><div class="bracket-view">${rows}</div>
-                    <div style="margin-top:12px;font-size:12px;color:var(--muted)">${scheduled} of ${matches.length} scheduled</div>
-                </div>
-            </div>`;
-        }
-
-        function tabBracket() {
-            const matches = currentBracketMatches || [];
-            const isFfa = isFfaFormat(currentTournament?.format);
-            const addBtn = currentTournament && currentTournament.status !== 'completed'
-                ? `<button class="btn btn-primary btn-sm" onclick="openAddCustomMatch()"><i class="fa-solid fa-plus"></i> Add Custom Match</button>` : '';
-
-            if (!matches.length) {
-                return `<div class="card"><div class="card-body">
-                    <div class="section-empty">No matches yet. Add participants and generate the bracket.
-                        ${addBtn ? `<div style="margin-top:12px">${addBtn}</div>` : ''}
-                    </div>
-                </div></div>`;
-            }
-
-            if (isFfa) return tabFfaEventCard();
-
-            const isGauntlet = currentTournament?.format === 'division_gauntlet';
-            const needsTbd = isGauntlet && matches.length < 12;
-            const tbdBanner = needsTbd
-                ? `<div class="card" style="margin-bottom:14px;border-color:rgba(255,176,32,.4)">
-                    <div class="card-body" style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap">
-                        <div style="font-size:13px;color:var(--muted)">
-                            <strong style="color:var(--gold)">Only Round 1 is present (${matches.length} matches).</strong>
-                            Day 3 / Day 4 TBD slots are missing — create them so you can assign dates before teams advance.
-                        </div>
-                        <button class="btn btn-primary btn-sm" onclick="ensureTbdRounds()">
-                            <i class="fa-solid fa-layer-group"></i> Create TBD rounds
-                        </button>
-                    </div>
-                   </div>`
-                : '';
-
-            const byRound = {};
-            matches.forEach(m => {
-                const rn = m.round_number != null ? Number(m.round_number) : 0;
-                if (!byRound[rn]) byRound[rn] = [];
-                byRound[rn].push(m);
-            });
-            const roundNums = Object.keys(byRound).map(Number).sort((a, b) => a - b);
-
-            const body = roundNums.map(rn => {
-                const list = byRound[rn].slice().sort((a, b) =>
-                    (Number(a.match_number) || 0) - (Number(b.match_number) || 0)
-                    || String(a.bracket_position || '').localeCompare(String(b.bracket_position || ''))
-                );
-                const title = rn === 0 ? 'Knockout / Other' : `Round ${rn}`;
-                const tbdCount = list.filter(m =>
-                    !m.participant_a_department_id || !m.participant_b_department_id
-                ).length;
-                return `<div class="bracket-round" style="margin-bottom:18px">
-                    <div class="bracket-round-title" style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
-                        <span>${title}</span>
-                        <span style="font-size:11px;font-weight:600;color:var(--muted);text-transform:none;letter-spacing:0">
-                            ${list.length} match${list.length !== 1 ? 'es' : ''}${tbdCount ? ` · ${tbdCount} TBD` : ''}
-                        </span>
-                    </div>
-                    <div class="bracket-matches">
-                        ${list.map(m => matchCardHtml(m, { showPos: true })).join('')}
-                    </div>
-                </div>`;
-            }).join('');
-
-            return `${tbdBanner}<div class="card">
-                <div class="card-header" style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap">
-                    <div class="card-title"><i class="fa-solid fa-trophy"></i> Bracket · ${matches.length} match${matches.length !== 1 ? 'es' : ''}</div>
-                    <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
-                        <span style="font-size:12px;color:var(--muted)"><i class="fa-solid fa-calendar-pen"></i> Schedule / Edit on each match</span>
-                        ${needsTbd ? `<button class="btn btn-secondary btn-sm" onclick="ensureTbdRounds()"><i class="fa-solid fa-layer-group"></i> Create TBD rounds</button>` : ''}
-                        ${addBtn}
-                    </div>
-                </div>
-                <div class="card-body"><div class="bracket-view">${body}</div></div>
-            </div>`;
-        }
-
-
-        async function deleteMatch(matchId) {
-            const m = (currentBracketMatches || []).find(x => Number(x.id) === Number(matchId));
-            const label = m?.bracket_position || `Match #${matchId}`;
-            if (typeof Modal !== 'undefined' && Modal.confirm) {
-                if (!await Modal.confirm(`Delete “${label}”? This cannot be undone.`, 'Delete match')) return;
-            } else if (!confirm(`Delete “${label}”?`)) return;
-            const res = await api(`/matches/${matchId}`, { method: 'DELETE' });
-            Toast.show(res.message || (res.success ? 'Deleted.' : 'Error'), res.success ? 'success' : 'error');
-            if (res.success) await refreshAll();
-        }
+        // Keep legacy deleteMatch for any leftover callers — opens confirm then deletes
 
         async function ensureTbdRounds() {
             if (!currentTournamentId) return;
