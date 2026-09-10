@@ -1005,45 +1005,93 @@
 
     <!-- Edit match -->
     <div class="modal-overlay" id="modal-edit-match" onclick="if(event.target===this)Modal.close('modal-edit-match')">
-        <div class="modal">
+        <div class="modal" style="max-width:560px">
             <div class="modal-header">
-                <div class="modal-title"><span style="color:var(--gold)">●</span> Edit Match</div>
+                <div class="modal-title" id="em-modal-title"><span style="color:var(--gold)">●</span> Edit Match</div>
                 <button class="modal-close" onclick="Modal.close('modal-edit-match')">×</button>
             </div>
             <div class="modal-body">
-                <div id="edit-match-preview" style="margin-bottom:16px"></div>
-                <div class="form-row">
-                    <div class="form-group">
-                        <label class="form-label">Date</label>
-                        <input type="date" id="em-date" class="form-input">
+                <div id="edit-match-preview" style="margin-bottom:14px"></div>
+
+                <div id="em-teams-section" style="display:none;margin-bottom:16px">
+                    <div
+                        style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin-bottom:10px">
+                        Teams</div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label class="form-label">Side A</label>
+                            <select id="em-team-a" class="form-select">
+                                <option value="">— TBD —</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Side B</label>
+                            <select id="em-team-b" class="form-select">
+                                <option value="">— TBD —</option>
+                            </select>
+                        </div>
                     </div>
-                    <div class="form-group">
-                        <label class="form-label">Time</label>
-                        <input type="time" id="em-time" class="form-input">
+                    <div id="em-exhibition-section" style="display:none;margin-top:8px">
+                        <div style="font-size:11px;font-weight:700;color:var(--gold);margin-bottom:6px">Place exhibition
+                        </div>
+                        <div id="em-exhibition-buttons" style="display:flex;flex-wrap:wrap;gap:6px"></div>
+                    </div>
+                    <div id="em-link-section" style="display:none;margin-top:10px">
+                        <div style="font-size:11px;font-weight:700;color:var(--muted);margin-bottom:6px">Fill from
+                            another match</div>
+                        <div id="em-link-rows" style="display:flex;flex-direction:column;gap:8px"></div>
                     </div>
                 </div>
-                <div id="em-slot-conflict-warning"
-                    style="display:none;background:rgba(232,50,59,0.1);border:1px solid rgba(232,50,59,0.3);border-radius:8px;padding:10px 14px;font-size:12px;color:var(--red);margin-bottom:12px">
-                    This time slot is already occupied.
-                </div>
-                <div class="form-row">
-                    <div class="form-group">
-                        <label class="form-label">Venue</label>
-                        <select id="em-venue" class="form-select">
-                            <option value="">Select venue...</option>
-                        </select>
+
+                <div id="em-schedule-section">
+                    <div
+                        style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin-bottom:10px">
+                        Schedule</div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label class="form-label">Date</label>
+                            <input type="date" id="em-date" class="form-input">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Time</label>
+                            <input type="time" id="em-time" class="form-input">
+                        </div>
                     </div>
-                    <div class="form-group">
-                        <label class="form-label">Referee</label>
-                        <select id="em-referee" class="form-select">
-                            <option value="">Select referee...</option>
-                        </select>
+                    <div id="em-slot-conflict-warning"
+                        style="display:none;background:rgba(232,50,59,0.1);border:1px solid rgba(232,50,59,0.3);border-radius:8px;padding:10px 14px;font-size:12px;color:var(--red);margin-bottom:12px">
+                        This time slot is already occupied.
                     </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label class="form-label">Venue</label>
+                            <select id="em-venue" class="form-select">
+                                <option value="">Select venue...</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Referee</label>
+                            <select id="em-referee" class="form-select">
+                                <option value="">Select referee...</option>
+                            </select>
+                        </div>
+                    </div>
+                    <p style="font-size:12px;color:var(--muted);margin:0">Team changes and schedule are saved together.
+                    </p>
                 </div>
             </div>
-            <div class="modal-footer">
-                <button class="btn btn-secondary" onclick="Modal.close('modal-edit-match')">Cancel</button>
-                <button class="btn btn-primary" onclick="saveMatchEdit()">Save Changes</button>
+            <div class="modal-footer"
+                style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap">
+                <div>
+                    <button type="button" class="btn btn-secondary" id="em-delete-btn"
+                        style="display:none;color:var(--red);border-color:rgba(232,50,59,.35)"
+                        onclick="deleteMatchFromModal()">
+                        <i class="fa-solid fa-trash"></i> Delete
+                    </button>
+                </div>
+                <div style="display:flex;gap:8px;margin-left:auto">
+                    <button class="btn btn-secondary" onclick="Modal.close('modal-edit-match')">Cancel</button>
+                    <button class="btn btn-primary" id="em-save-btn" onclick="saveMatchEdit()">Save</button>
+                </div>
             </div>
         </div>
     </div>
@@ -1996,9 +2044,6 @@
                                         ${tournament.status !== 'completed' && !done ? `<button class="btn btn-secondary btn-sm" style="padding:5px 10px;font-size:12px" onclick="openEditMatch(${m.id})">${m.scheduled_date ? 'Edit' : 'Schedule'}</button>` : ''}
                                     </div>
                                     ${progression}
-                                    ${exhibitionPlacementActions(m)}
-                                    ${linkSourceActions(m, incoming)}
-                                    ${overrideTeamsActions(m)}
                                 </div>`;
                 }).join('')}
                     </div>
@@ -2904,6 +2949,18 @@
             const btn = document.getElementById('as-smart-btn');
             const defaultVenue = document.getElementById('config-venue')?.value;
             const defaultReferee = document.getElementById('config-referee')?.value;
+            // Build per-day plans from Time Slots (each date keeps its own times)
+            const day_plans = Object.entries(timeSlots || {})
+                .filter(([, slots]) => Array.isArray(slots) && slots.length)
+                .sort(([a], [b]) => a.localeCompare(b))
+                .map(([date, slots]) => ({
+                    date,
+                    times: [...new Set(slots.map(s => String(s.start || '').slice(0, 5)).filter(Boolean))].sort(),
+                }))
+                .filter(p => p.times.length);
+            const slots = [];
+            day_plans.forEach(p => p.times.forEach(time => slots.push({ date: p.date, time })));
+
             if (btn) { btn.disabled = true; btn.textContent = 'Scheduling…'; }
             try {
                 const res = await api(`/tournaments/${PAGE_ID}/schedule-auto`, {
@@ -2911,6 +2968,11 @@
                     body: {
                         default_venue_id: defaultVenue ? parseInt(defaultVenue) : null,
                         default_referee_id: defaultReferee ? parseInt(defaultReferee) : null,
+                        day_plans,
+                        slots,
+                        dates: day_plans.map(p => p.date),
+                        // legacy: do not send a global times list that would cartesian-product
+                        assign_officers: true,
                     },
                 });
                 if (res.success) {
@@ -2930,35 +2992,272 @@
             }
         }
 
+        function matchCanEditTeams(m) {
+            const st = String(m?.status || '').toLowerCase();
+            return tournament?.status !== 'completed'
+                && !['ongoing', 'completed', 'cancelled', 'walkover'].includes(st);
+        }
+
+        function matchCanSchedule(m) {
+            const st = String(m?.status || '').toLowerCase();
+            return tournament?.status !== 'completed'
+                && ['pending', 'scheduled'].includes(st);
+        }
+
+        function matchCanDelete(m) {
+            const st = String(m?.status || '').toLowerCase();
+            return tournament?.status !== 'completed'
+                && ['pending', 'scheduled'].includes(st)
+                && (
+                    m.bracket_side === 'custom'
+                    || !m.participant_a_department_id
+                    || !m.participant_b_department_id
+                );
+        }
+
+        function buildEmDeptOptions(selectedId) {
+            const list = (departments || []).slice().sort((a, b) =>
+                String(a.name || '').localeCompare(String(b.name || ''))
+            );
+            let html = '<option value="">— TBD —</option>';
+            list.forEach(d => {
+                const sel = Number(selectedId) === Number(d.id) ? ' selected' : '';
+                const tag = Number(d.is_exhibition) === 1 ? ' (exhibition)' : '';
+                html += `<option value="${d.id}"${sel}>${d.name || 'Team'}${tag}</option>`;
+            });
+            return html;
+        }
+
+        function populateEmTeamsUi(m) {
+            const canTeams = matchCanEditTeams(m);
+            const sec = document.getElementById('em-teams-section');
+            if (sec) sec.style.display = canTeams ? '' : 'none';
+            if (!canTeams) return;
+
+            const aSel = document.getElementById('em-team-a');
+            const bSel = document.getElementById('em-team-b');
+            if (aSel) aSel.innerHTML = buildEmDeptOptions(m.participant_a_department_id);
+            if (bSel) bSel.innerHTML = buildEmDeptOptions(m.participant_b_department_id);
+
+            const openSlots = ['a', 'b'].filter(side => !m[`participant_${side}_department_id`]);
+            const exhibition = (departments || []).filter(d => Number(d.is_exhibition) === 1);
+            const exhSec = document.getElementById('em-exhibition-section');
+            const exhHost = document.getElementById('em-exhibition-buttons');
+            if (exhSec && exhHost) {
+                if (exhibition.length && openSlots.length) {
+                    exhSec.style.display = '';
+                    exhHost.innerHTML = exhibition.map(p => openSlots.map(side => {
+                        const label = p.name || 'Exhibition';
+                        return `<button type="button" class="btn btn-secondary btn-sm" onclick="placeExhibition(${m.id},${p.id},'${side}')">${label} · ${side.toUpperCase()}</button>`;
+                    }).join('')).join('');
+                } else {
+                    exhSec.style.display = 'none';
+                    exhHost.innerHTML = '';
+                }
+            }
+
+            const linkSec = document.getElementById('em-link-section');
+            const linkRows = document.getElementById('em-link-rows');
+            const candidates = (bracketMatches || matches || []).filter(x =>
+                Number(x.id) !== Number(m.id)
+                && !['completed', 'cancelled', 'walkover'].includes(String(x.status || '').toLowerCase())
+            );
+            if (linkSec && linkRows) {
+                if (openSlots.length && candidates.length) {
+                    linkSec.style.display = '';
+                    const srcOptions = '<option value="">— choose source —</option>' + candidates.map(c => {
+                        const label = c.bracket_position
+                            || `${c.dept_a_name || c.team_a_name || 'TBD'} vs ${c.dept_b_name || c.team_b_name || 'TBD'}`;
+                        return `<option value="${c.id}|winner">${label} · Winner</option>`
+                            + `<option value="${c.id}|loser">${label} · Loser</option>`;
+                    }).join('');
+                    linkRows.innerHTML = openSlots.map(side => `
+                        <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+                            <select class="form-select" style="flex:1;min-width:160px" id="em-link-src-${side}">${srcOptions}</select>
+                            <button type="button" class="btn btn-secondary btn-sm" onclick="submitLinkSourceFromModal('${side}')">
+                                Link to ${side.toUpperCase()}
+                            </button>
+                        </div>`).join('');
+                } else {
+                    linkSec.style.display = 'none';
+                    linkRows.innerHTML = '';
+                }
+            }
+        }
+
         function openEditMatch(matchId) {
             const m = matches.find(x => x.id === matchId) || bracketMatches.find(x => x.id === matchId);
             if (!m) return;
             editingMatchId = matchId;
-            document.getElementById('edit-match-preview').innerHTML =
-                `<div style="background:var(--bg3);border-radius:10px;padding:14px;font-size:14px;font-weight:700">${m.team_a_name || m.dept_a_name || 'TBD'} vs ${m.team_b_name || m.dept_b_name || 'TBD'}</div>`;
+
+            const nA = m.team_a_name || m.dept_a_name || 'TBD';
+            const nB = m.team_b_name || m.dept_b_name || 'TBD';
+            const cA = m.dept_a_color || '#555';
+            const cB = m.dept_b_color || '#555';
+            const hasDate = !!m.scheduled_date;
+
+            const titleEl = document.getElementById('em-modal-title');
+            if (titleEl) {
+                titleEl.innerHTML = hasDate
+                    ? '<span style="color:var(--gold)">●</span> Edit Match'
+                    : '<span style="color:var(--gold)">●</span> Schedule Match';
+            }
+
+            document.getElementById('edit-match-preview').innerHTML = `
+                <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;background:var(--bg3);border-radius:10px;padding:14px">
+                    <div style="display:flex;align-items:center;gap:8px;min-width:0">
+                        <span style="width:10px;height:10px;border-radius:50%;background:${cA};flex-shrink:0"></span>
+                        <strong style="font-size:14px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${nA}</strong>
+                    </div>
+                    <span style="color:var(--muted);font-size:11px;flex-shrink:0">vs</span>
+                    <div style="display:flex;align-items:center;gap:8px;min-width:0;justify-content:flex-end">
+                        <strong style="font-size:14px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;text-align:right">${nB}</strong>
+                        <span style="width:10px;height:10px;border-radius:50%;background:${cB};flex-shrink:0"></span>
+                    </div>
+                </div>
+                ${m.bracket_position ? `<div style="font-size:12px;color:var(--muted);margin-top:8px">${m.bracket_position}</div>` : ''}
+                ${(!m.participant_a_department_id || !m.participant_b_department_id)
+                    ? `<div style="font-size:12px;color:var(--gold);margin-top:8px"><i class="fa-solid fa-circle-info"></i> One or both sides are still TBD.</div>`
+                    : ''}`;
+
+            const canSched = matchCanSchedule(m);
+            const schedSec = document.getElementById('em-schedule-section');
+            if (schedSec) schedSec.style.display = canSched ? '' : 'none';
 
             document.getElementById('em-date').value = (m.scheduled_date || '').toString().slice(0, 10);
-            document.getElementById('em-time').value = m.scheduled_time?.slice(0, 5) || '';
+            document.getElementById('em-time').value = m.scheduled_time ? String(m.scheduled_time).slice(0, 5) : '';
             if (m.venue_id) document.getElementById('em-venue').value = m.venue_id;
+            else document.getElementById('em-venue').value = '';
             if (m.referee_id) document.getElementById('em-referee').value = m.referee_id;
+            else document.getElementById('em-referee').value = '';
+
+            const warn = document.getElementById('em-slot-conflict-warning');
+            if (warn) warn.style.display = 'none';
+
+            populateEmTeamsUi(m);
+
+            const delBtn = document.getElementById('em-delete-btn');
+            if (delBtn) delBtn.style.display = matchCanDelete(m) ? '' : 'none';
+
+            const saveBtn = document.getElementById('em-save-btn');
+            if (saveBtn) saveBtn.style.display = (canSched || matchCanEditTeams(m)) ? '' : 'none';
+
             Modal.open('modal-edit-match');
         }
 
         async function saveMatchEdit() {
+            if (!editingMatchId) return;
+            const match = matches.find(x => x.id === editingMatchId) || bracketMatches.find(x => x.id === editingMatchId);
+            const teamA_id = parseInt(document.getElementById('em-team-a')?.value, 10) || null;
+            const teamB_id = parseInt(document.getElementById('em-team-b')?.value, 10) || null;
+
+            if (teamA_id && teamB_id && teamA_id === teamB_id) {
+                Toast.show('A match cannot have the same team on both sides.', 'error');
+                return;
+            }
+
             const date = document.getElementById('em-date').value || null;
             const time = document.getElementById('em-time').value || null;
             const venue_id = parseInt(document.getElementById('em-venue').value) || null;
             const referee_id = parseInt(document.getElementById('em-referee').value) || null;
-            const res = await api(`/matches/${editingMatchId}/schedule`, {
+
+            const btn = document.getElementById('em-save-btn');
+            if (btn) { btn.disabled = true; btn.textContent = 'Saving…'; }
+            try {
+                let teamsChanged = false;
+                if (matchCanEditTeams(match || {})) {
+                    const wasA = match?.participant_a_department_id || null;
+                    const wasB = match?.participant_b_department_id || null;
+                    teamsChanged = Number(wasA || 0) !== Number(teamA_id || 0)
+                        || Number(wasB || 0) !== Number(teamB_id || 0);
+                    if (teamsChanged) {
+                        const onlyFillingA = !wasA && teamA_id && Number(wasB || 0) === Number(teamB_id || 0);
+                        const onlyFillingB = !wasB && teamB_id && Number(wasA || 0) === Number(teamA_id || 0);
+                        let teamRes;
+                        if (onlyFillingA || onlyFillingB) {
+                            const slot = onlyFillingA ? 'a' : 'b';
+                            const department_id = onlyFillingA ? teamA_id : teamB_id;
+                            teamRes = await api(`/matches/${editingMatchId}/insert-team`, {
+                                method: 'POST', body: { slot, department_id },
+                            });
+                        } else {
+                            teamRes = await api(`/matches/${editingMatchId}/teams`, {
+                                method: 'PUT', body: { teamA_id, teamB_id },
+                            });
+                        }
+                        if (!teamRes.success) {
+                            Toast.show(teamRes.message || 'Could not update teams', 'error');
+                            return;
+                        }
+                    }
+                }
+
+                if (matchCanSchedule(match || {})) {
+                    const res = await api(`/matches/${editingMatchId}/schedule`, {
+                        method: 'PATCH',
+                        body: { scheduled_date: date, scheduled_time: time, venue_id, referee_id },
+                    });
+                    if (!res.success) {
+                        Toast.show(res.message || 'Could not save schedule', 'error');
+                        return;
+                    }
+                }
+
+                Toast.show(teamsChanged ? 'Teams & schedule saved.' : 'Match updated!', 'success');
+                Modal.close('modal-edit-match');
+                await reloadDetail();
+            } finally {
+                if (btn) { btn.disabled = false; btn.textContent = 'Save'; }
+            }
+        }
+
+        async function deleteMatchFromModal() {
+            if (!editingMatchId) return;
+            const m = matches.find(x => x.id === editingMatchId) || bracketMatches.find(x => x.id === editingMatchId);
+            if (!matchCanDelete(m || {})) {
+                Toast.show('This match cannot be deleted.', 'error');
+                return;
+            }
+            const label = m?.bracket_position || `Match #${editingMatchId}`;
+            if (typeof Modal !== 'undefined' && Modal.confirm) {
+                if (!await Modal.confirm(`Delete “${label}”? This cannot be undone.`, 'Delete match')) return;
+            } else if (!confirm(`Delete “${label}”?`)) return;
+
+            const btn = document.getElementById('em-delete-btn');
+            if (btn) { btn.disabled = true; btn.innerHTML = '…'; }
+            try {
+                const res = await api(`/matches/${editingMatchId}`, { method: 'DELETE' });
+                Toast.show(res.message || (res.success ? 'Deleted.' : 'Error'), res.success ? 'success' : 'error');
+                if (res.success) {
+                    Modal.close('modal-edit-match');
+                    editingMatchId = null;
+                    await reloadDetail();
+                }
+            } finally {
+                if (btn) {
+                    btn.disabled = false;
+                    btn.innerHTML = '<i class="fa-solid fa-trash"></i> Delete';
+                }
+            }
+        }
+
+        async function submitLinkSourceFromModal(side) {
+            if (!editingMatchId) return;
+            const sel = document.getElementById(`em-link-src-${side}`);
+            if (!sel || !sel.value) { Toast.show('Pick a source match first', 'error'); return; }
+            const [sourceId, result] = sel.value.split('|');
+            const res = await api(`/matches/${sourceId}/link`, {
                 method: 'PATCH',
-                body: { scheduled_date: date, scheduled_time: time, venue_id, referee_id },
+                body: { target_match_id: editingMatchId, target_slot: side, result },
             });
-            Toast.show(res.message || (res.success ? 'Match updated!' : 'Error'), res.success ? 'success' : 'error');
+            Toast.show(res.message || (res.success ? 'Linked.' : 'Could not link matches'), res.success ? 'success' : 'error');
             if (res.success) {
                 Modal.close('modal-edit-match');
+                editingMatchId = null;
                 await reloadDetail();
             }
         }
+
 
         function loadTS() {
             try { timeSlots = JSON.parse(localStorage.getItem(`sf_slots_${PAGE_ID}`) || '{}'); }
