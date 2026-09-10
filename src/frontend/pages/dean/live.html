@@ -413,6 +413,7 @@
                 '<option value="' + s.id + '">' + s.name + '</option>').join('');
             await refresh();
             startTimer();
+            bindRealtime();
         });
 
         function startTimer() {
@@ -548,6 +549,20 @@
                 '<div class="vs-dept-name" style="' + (ours && m.participant_b_department_id == deptId ? 'color:#818CF8' : '') + '">' + nameB + '</div></div>' +
                 '<div>' + statusBadge(m.status) + '</div></div>';
         }
+
+        function bindRealtime() {
+            if (typeof Realtime === 'undefined') return;
+            Realtime.connect().catch(() => { });
+            let t = null;
+            const soft = () => {
+                clearTimeout(t);
+                t = setTimeout(() => refresh(), 300);
+            };
+            window.addEventListener('sf:live', soft);
+            window.addEventListener('sf:score', soft);
+            window.addEventListener('sf:match', soft);
+        }
+
     </script>
 </body>
 

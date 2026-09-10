@@ -669,6 +669,7 @@
             const tab = new URLSearchParams(window.location.search).get('tab');
             if (tab) switchTab(tab, document.querySelector(`[onclick*="'${tab}'"]`));
             await loadPage();
+            bindRealtime();
         });
 
         // ---- shared chip-picker helper (used by Register modal & Quick Add modal) ----
@@ -1064,6 +1065,11 @@ ${d.issues.map(i => `<div style="font-size:13px;color:var(--text2);padding:4px 0
                 document.getElementById('import-preview').style.display = 'none';
                 await loadPage();
             }
+        }
+        function bindRealtime() {
+            if (typeof Realtime === 'undefined') return;
+            Realtime.connect().catch(() => { });
+            window.addEventListener('sf:notif', () => { /* optional badge refresh */ });
         }
     </script>
 </body>

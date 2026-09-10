@@ -451,6 +451,7 @@
             const sOpts = (sRes.data || []).map(s => `<option value="${s.id}">${s.name}</option>`).join('');
             ['mh-sport', 'pr-sport'].forEach(id => { const el = document.getElementById(id); if (el) el.innerHTML += sOpts });
             await loadPage();
+            bindRealtime();
         });
 
         async function loadPage() {
@@ -605,6 +606,13 @@
 <span style="font-family:'Barlow Condensed',sans-serif;font-size:14px;font-weight:800;text-transform:uppercase;letter-spacing:1px;color:var(--muted)">Total Points Earned</span>
 <span style="font-family:'Barlow Condensed',sans-serif;font-size:28px;font-weight:900;color:var(--gold)">+${scoreData.reduce((s, r) => s + (r.sport_fest_points || 0), 0)}</span>
 </div></div>`;
+        }
+
+        function bindRealtime() {
+            if (typeof Realtime === 'undefined') return;
+            Realtime.connect().catch(() => { });
+            // lighter: only notif / leaderboard if needed
+            window.addEventListener('sf:notif', () => { /* optional badge refresh */ });
         }
     </script>
 </body>

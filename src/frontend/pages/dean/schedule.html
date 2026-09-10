@@ -528,6 +528,7 @@
             document.getElementById('f-sport').innerHTML += (sRes.data || []).map(s =>
                 '<option value="' + s.id + '">' + s.name + '</option>').join('');
             await loadPage();
+            bindRealtime();
         });
 
         async function loadPage() {
@@ -717,6 +718,19 @@
             calMonth = now.getMonth();
             renderCalendar();
         }
+
+        function bindRealtime() {
+            if (typeof Realtime === 'undefined') return;
+            Realtime.connect().catch(() => { });
+            let t = null;
+            const soft = () => {
+                clearTimeout(t);
+                t = setTimeout(() => loadPage(), 400);
+            };
+            window.addEventListener('sf:match', soft);
+            window.addEventListener('sf:live', soft);
+        }
+
     </script>
 </body>
 

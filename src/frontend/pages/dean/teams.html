@@ -447,6 +447,7 @@
             const sportOpts = allSports.map(s => `<option value="${s.id}">${s.name}</option>`).join('');
             ['f-sport', 'tm-sport'].forEach(id => { const el = document.getElementById(id); if (el) el.innerHTML += sportOpts });
             await loadPage();
+            bindRealtime();
         });
 
         async function loadPage() {
@@ -679,6 +680,12 @@ ${p.status === 'pending' ? `
             const res = await api(`/players/${id}/status`, { method: 'PATCH', body: JSON.stringify({ status: 'rejected' }) });
             Toast.show(res.message || (res.success ? 'Rejected.' : 'Error'), res.success ? 'success' : 'error');
             if (res.success) await loadPage();
+        }
+        function bindRealtime() {
+            if (typeof Realtime === 'undefined') return;
+            Realtime.connect().catch(() => { });
+            // lighter: only notif / leaderboard if needed
+            window.addEventListener('sf:notif', () => { /* optional badge refresh */ });
         }
     </script>
 </body>

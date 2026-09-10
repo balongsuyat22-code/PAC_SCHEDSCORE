@@ -199,6 +199,7 @@
             Auth.requireAuth('dean_adviser');
             renderSidebar('dashboard');
             await loadPage();
+            bindRealtime();
         });
 
         async function loadPage() {
@@ -413,6 +414,22 @@
             Toast.show(res.message || (res.success ? 'Player rejected.' : 'Error'), res.success ? 'success' : 'error');
             if (res.success) await loadPage();
         }
+
+        let _dashRt = null;
+        function bindRealtime() {
+            if (typeof Realtime === 'undefined') return;
+            Realtime.connect().catch(() => { });
+            const soft = () => {
+                clearTimeout(_dashRt);
+                _dashRt = setTimeout(() => loadPage(), 500);
+            };
+            window.addEventListener('sf:match', soft);
+            window.addEventListener('sf:score', soft);
+            window.addEventListener('sf:leaderboard', soft);
+            window.addEventListener('sf:notif', soft);
+            window.addEventListener('sf:champion', soft);
+        }
+
     </script>
 </body>
 

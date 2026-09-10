@@ -378,7 +378,8 @@
             Auth.requireAuth('dean_adviser');
             renderSidebar('notifications');
             await loadPage();
-            liveTimer = setInterval(loadLiveAlerts, 15000);
+            bindRealtime();
+            liveTimer = setInterval(loadLiveAlerts, 3000);
         });
 
         async function loadPage() {
@@ -536,6 +537,14 @@
                 });
             }
             el.innerHTML = html;
+        }
+
+        function bindRealtime() {
+            if (typeof Realtime === 'undefined') return;
+            Realtime.connect().catch(() => { });
+            window.addEventListener('sf:notif', () => loadPage());
+            window.addEventListener('sf:score', () => loadLiveAlerts());
+            window.addEventListener('sf:live', () => loadLiveAlerts());
         }
     </script>
 </body>
