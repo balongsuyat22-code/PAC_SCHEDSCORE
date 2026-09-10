@@ -66,28 +66,29 @@ function randomizeWithoutConsecutiveTeams(matches, attempts = 200) {
         return [...teamsFor(left)].some((teamId) => rightTeams.has(teamId));
     };
 
-    let best = [];
-    for (let attempt = 0; attempt < attempts; attempt++) {
-        const remaining = [...matches];
-        const order = [];
+    const search = (remaining, order) => {
+        if (!remaining.length) return order;
 
-        while (remaining.length) {
-            const previous = order[order.length - 1];
-            const available = previous
-                ? remaining.filter((match) => !sharesTeam(previous, match))
-                : remaining;
-            if (!available.length) break;
+        const previous = order[order.length - 1];
+        const available = previous
+            ? remaining.filter((match) => !sharesTeam(previous, match))
+            : [...remaining];
+        available.sort(() => Math.random() - 0.5);
 
-            const next = available[Math.floor(Math.random() * available.length)];
-            order.push(next);
-            remaining.splice(remaining.indexOf(next), 1);
+        for (const next of available) {
+            const nextRemaining = remaining.filter((match) => match !== next);
+            const result = search(nextRemaining, [...order, next]);
+            if (result) return result;
         }
+        return null;
+    };
 
-        if (order.length > best.length) best = order;
-        if (order.length === matches.length) return order;
+    for (let attempt = 0; attempt < attempts; attempt++) {
+        const result = search([...matches], []);
+        if (result) return result;
     }
 
-    return best;
+    return [];
 }
 
 async function findTeamConflict(pool, matchId, departmentId, date, start, end) {
