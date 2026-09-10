@@ -25,6 +25,6 @@ router.post('/:id/schedule-round-robin', authenticate, authorize('sgo_president'
 router.post('/:id/finalize', authenticate, authorize('sgo_president', 'admin'), ctrl.finalizeTournament);
 router.post('/:id/schedule-auto', authenticate, authorize('sgo_president', 'admin'), ctrl.scheduleRoundRobin);
 router.post('/:id/ensure-tbd-rounds', authenticate, authorize('sgo_president', 'admin'), ctrl.ensureTbdRounds);
-router.post('/:id/repair-bracket', authenticate, authorize('sgo_president', 'admin'), ctrl.repairBracket);
+router.post('/:id/repair-bracket', authenticate, authorize('sgo_president', 'admin'), ctrl.ensureTbdRounds);
 
 module.exports = router;
