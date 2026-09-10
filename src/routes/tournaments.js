@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const ctrl = require('../controllers/tournamentController');
+const matchCtrl = require('../controllers/matchController');
 const { authenticate, authorize } = require('../middleware/auth');
 
 router.get('/:id/bracket', ctrl.getBracket);
@@ -21,10 +22,22 @@ router.post('/:id/generate', authenticate, authorize('sgo_president', 'admin'), 
 router.post('/:id/generate-bracket', authenticate, authorize('sgo_president', 'admin'), ctrl.generateBracket);
 router.patch('/:id/matches/:matchId/exhibition', authenticate, authorize('sgo_president', 'admin'), ctrl.placeExhibition);
 router.post('/:id/promote-knockout', authenticate, authorize('sgo_president', 'admin'), ctrl.promoteKnockout);
-router.post('/:id/schedule-round-robin', authenticate, authorize('sgo_president', 'admin'), ctrl.scheduleRoundRobin);
 router.post('/:id/finalize', authenticate, authorize('sgo_president', 'admin'), ctrl.finalizeTournament);
-router.post('/:id/schedule-auto', authenticate, authorize('sgo_president', 'admin'), ctrl.scheduleRoundRobin);
 router.post('/:id/ensure-tbd-rounds', authenticate, authorize('sgo_president', 'admin'), ctrl.ensureTbdRounds);
 router.post('/:id/repair-bracket', authenticate, authorize('sgo_president', 'admin'), ctrl.ensureTbdRounds);
+
+// Per-day smart schedule (day_plans / slots) — one handler for both paths
+router.post(
+    '/:id/schedule-auto',
+    authenticate,
+    authorize('sgo_president', 'admin'),
+    matchCtrl.scheduleAuto
+);
+router.post(
+    '/:id/schedule-round-robin',
+    authenticate,
+    authorize('sgo_president', 'admin'),
+    matchCtrl.scheduleAuto   // same logic; UI fallback
+);
 
 module.exports = router;

@@ -204,6 +204,43 @@
             color: var(--red);
         }
 
+        .as-day-card {
+            background: var(--bg3);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 12px 14px;
+            margin-bottom: 10px;
+        }
+
+        .as-day-card-head {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 10px;
+            flex-wrap: wrap;
+        }
+
+        .as-day-label {
+            font-family: 'Barlow Condensed', sans-serif;
+            font-weight: 800;
+            font-size: 15px;
+            color: var(--gold);
+            min-width: 52px;
+        }
+
+        .as-day-times {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            margin-top: 6px;
+        }
+
+        .as-day-time-row {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+        }
+
         .officer-toggle {
             display: flex;
             align-items: center;
@@ -1294,7 +1331,7 @@
             <div class="modal-body">
                 <div id="as-format-intro"></div>
                 <p style="color:var(--text2);font-size:13px;margin-bottom:12px" id="as-modal-desc">
-                    Enter the dates and time slots available. Matches will be assigned across those slots.
+                    Build a day-by-day calendar. Each day has its own times — they are not copied across days.
                 </p>
 
                 <div class="slot-calc" id="slot-calc">
@@ -1307,19 +1344,16 @@
                 </div>
 
                 <div class="form-group">
-                    <label class="form-label"><i class="fa-solid fa-calendar" style="margin-right:4px;opacity:.7"></i>
-                        Dates</label>
-                    <div id="as-dates" style="display:flex;flex-direction:column;gap:8px;margin-bottom:8px"></div>
-                    <button type="button" class="btn btn-secondary btn-sm" onclick="addDateInput()">
-                        <i class="fa-solid fa-plus"></i> Add Date
-                    </button>
-                </div>
-                <div class="form-group">
-                    <label class="form-label"><i class="fa-solid fa-clock" style="margin-right:4px;opacity:.7"></i> Time
-                        Slots</label>
-                    <div id="as-times" style="display:flex;flex-direction:column;gap:8px;margin-bottom:8px"></div>
-                    <button type="button" class="btn btn-secondary btn-sm" onclick="addTimeInput()">
-                        <i class="fa-solid fa-plus"></i> Add Time Slot
+                    <label class="form-label"><i class="fa-solid fa-calendar-days"
+                            style="margin-right:4px;opacity:.7"></i>
+                        Competition days</label>
+                    <p style="font-size:12px;color:var(--muted);margin:0 0 10px">
+                        Each day has its own date and time slots — e.g. Day 1 morning, Day 2 afternoon only.
+                    </p>
+                    <div id="as-days" style="display:flex;flex-direction:column;gap:4px"></div>
+                    <button type="button" class="btn btn-secondary btn-sm" onclick="addScheduleDay()"
+                        style="margin-top:8px">
+                        <i class="fa-solid fa-plus"></i> Add Day
                     </button>
                 </div>
                 <div class="form-group">
@@ -1345,100 +1379,49 @@
     </div>
 
     <!-- Per-match schedule editor (works with TBD sides) -->
-    <div class="modal-overlay" id="modal-match-schedule"
-        onclick="if(event.target===this)Modal.close('modal-match-schedule')">
-        <div class="modal" style="max-width:560px">
+    <div class="modal-overlay" id="modal-match-schedule">
+        <div class="modal" style="max-width:480px">
             <div class="modal-header">
-                <div class="modal-title" id="ms-modal-title">
-                    <i class="fa-solid fa-calendar-pen"></i> Edit Match
-                </div>
+                <div class="modal-title"><i class="fa-solid fa-calendar-pen"></i> Schedule Match</div>
                 <button class="modal-close" onclick="Modal.close('modal-match-schedule')" aria-label="Close">
                     <i class="fa-solid fa-xmark"></i>
                 </button>
             </div>
             <div class="modal-body">
-                <div id="ms-preview" style="margin-bottom:14px"></div>
-
-                <div id="ms-override-section" style="display:none;margin-bottom:16px">
-                    <div
-                        style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin-bottom:10px">
-                        Teams
+                <div id="ms-preview" style="margin-bottom:16px"></div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label class="form-label">Date</label>
+                        <input type="date" id="ms-date" class="form-input">
                     </div>
-                    <div class="form-row">
-                        <div class="form-group">
-                            <label class="form-label">Side A</label>
-                            <select id="ms-team-a" class="form-select">
-                                <option value="">— TBD —</option>
-                            </select>
-                        </div>
-                        <div class="form-group">
-                            <label class="form-label">Side B</label>
-                            <select id="ms-team-b" class="form-select">
-                                <option value="">— TBD —</option>
-                            </select>
-                        </div>
-                    </div>
-                    <div id="ms-exhibition-section" style="display:none;margin-top:8px">
-                        <div style="font-size:11px;font-weight:700;color:var(--gold);margin-bottom:6px">Place exhibition
-                        </div>
-                        <div id="ms-exhibition-buttons" style="display:flex;flex-wrap:wrap;gap:6px"></div>
-                    </div>
-                    <div id="ms-link-section" style="display:none;margin-top:10px">
-                        <div style="font-size:11px;font-weight:700;color:var(--muted);margin-bottom:6px">Fill from
-                            another match</div>
-                        <div id="ms-link-rows" style="display:flex;flex-direction:column;gap:8px"></div>
+                    <div class="form-group">
+                        <label class="form-label">Time</label>
+                        <input type="time" id="ms-time" class="form-input">
                     </div>
                 </div>
-
-                <div id="ms-schedule-section">
-                    <div
-                        style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin-bottom:10px">
-                        Schedule
+                <div class="form-row">
+                    <div class="form-group">
+                        <label class="form-label">Venue</label>
+                        <select id="ms-venue" class="form-select">
+                            <option value="">No venue</option>
+                        </select>
                     </div>
-                    <div class="form-row">
-                        <div class="form-group">
-                            <label class="form-label">Date</label>
-                            <input type="date" id="ms-date" class="form-input">
-                        </div>
-                        <div class="form-group">
-                            <label class="form-label">Time</label>
-                            <input type="time" id="ms-time" class="form-input">
-                        </div>
+                    <div class="form-group">
+                        <label class="form-label">Referee / Officer</label>
+                        <select id="ms-referee" class="form-select">
+                            <option value="">No referee</option>
+                        </select>
                     </div>
-                    <div class="form-row">
-                        <div class="form-group">
-                            <label class="form-label">Venue</label>
-                            <select id="ms-venue" class="form-select">
-                                <option value="">No venue</option>
-                            </select>
-                        </div>
-                        <div class="form-group">
-                            <label class="form-label">Referee / Officer</label>
-                            <select id="ms-referee" class="form-select">
-                                <option value="">No referee</option>
-                            </select>
-                        </div>
-                    </div>
-                    <p style="font-size:12px;color:var(--muted);margin:0">
-                        Team changes and schedule are saved together. Clear the date to unschedule.
-                    </p>
                 </div>
+                <p style="font-size:12px;color:var(--muted);margin:0">
+                    You can set date &amp; officer even when one side is still TBD. Clear the date to unschedule.
+                </p>
             </div>
-            <div class="modal-footer"
-                style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap">
-                <div>
-                    <button type="button" class="btn btn-secondary" id="ms-delete-btn"
-                        style="display:none;color:var(--red);border-color:rgba(232,50,59,.35)"
-                        onclick="deleteMatchFromModal()">
-                        <i class="fa-solid fa-trash"></i> Delete
-                    </button>
-                </div>
-                <div style="display:flex;gap:8px;margin-left:auto">
-                    <button class="btn btn-secondary" onclick="Modal.close('modal-match-schedule')">Cancel</button>
-                    <button class="btn btn-primary" id="ms-save-btn" onclick="submitMatchSchedule()">
-                        <i class="fa-solid fa-floppy-disk"></i> Save
-                    </button>
-                </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="Modal.close('modal-match-schedule')">Cancel</button>
+                <button class="btn btn-primary" id="ms-save-btn" onclick="submitMatchSchedule()">
+                    <i class="fa-solid fa-floppy-disk"></i> Save Schedule
+                </button>
             </div>
         </div>
     </div>
@@ -1766,15 +1749,25 @@
             const dateLine = when || m.venue_name
                 ? `<span class="bracket-date">${when}${m.venue_name ? (when ? ' · ' : '') + m.venue_name : ''}</span>`
                 : '';
-            const editBtn = canEditSched
+            const canDelete = !done && !cancelled
+                && ['pending', 'scheduled'].includes(statusLower)
+                && currentTournament?.status !== 'completed'
+                && (m.bracket_side === 'custom' || !m.participant_a_department_id || !m.participant_b_department_id || opts.allowDelete === true);
+            const schedBtn = canEditSched
                 ? `<button type="button" class="btn btn-secondary btn-sm" style="padding:5px 10px;font-size:12px;white-space:nowrap"
                         onclick="event.stopPropagation();openMatchSchedule(${m.id})"
-                        title="Edit teams, schedule, or delete">
-                        <i class="fa-solid fa-pen-to-square"></i>
+                        title="Set date, time, venue &amp; officer">
+                        <i class="fa-solid fa-calendar-pen"></i>
                         <span style="margin-left:4px">${m.scheduled_date ? 'Edit' : 'Schedule'}</span>
                    </button>`
                 : '';
-
+            const delBtn = canDelete
+                ? `<button type="button" class="btn btn-secondary btn-sm" style="padding:5px 8px;font-size:12px;color:var(--red)"
+                        onclick="event.stopPropagation();deleteMatch(${m.id})"
+                        title="Delete this match">
+                        <i class="fa-solid fa-trash"></i>
+                   </button>`
+                : '';
 
             return `<div class="bracket-match-card"${isTbd ? ' style="border-style:dashed;opacity:.95"' : ''}>
                 ${pos}
@@ -1787,7 +1780,8 @@
                     ${metaRight}
                     ${dateLine}
                     ${refLine}
-                    ${editBtn}
+                    ${schedBtn}
+                    ${delBtn}
                 </div>
             </div>`;
         }
@@ -1876,319 +1870,71 @@
 
         let _msMatchId = null;
 
-
-        async function ensureDeptsCache() {
-            if (deptsCache.length) return deptsCache;
-            try {
-                const res = await api('/departments');
-                deptsCache = (res && Array.isArray(res.data)) ? res.data : [];
-            } catch {
-                deptsCache = [];
-            }
-            return deptsCache;
-        }
-
-        function buildOverrideDeptOptions(selectedId) {
-            const list = (deptsCache || []).slice().sort((a, b) =>
-                String(a.name || '').localeCompare(String(b.name || ''))
-            );
-            let html = '<option value="">— TBD —</option>';
-            list.forEach(d => {
-                const sel = Number(selectedId) === Number(d.id) ? ' selected' : '';
-                const tag = Number(d.is_exhibition) === 1 ? ' (exhibition)' : '';
-                html += `<option value="${d.id}"${sel}>${d.name || d.department_name || 'Team'}${tag}</option>`;
-            });
-            return html;
-        }
-
-        function matchCanEditTeams(m) {
-            const st = String(m?.status || '').toLowerCase();
-            return !['ongoing', 'completed', 'cancelled', 'walkover'].includes(st)
-                && currentTournament?.status !== 'completed';
-        }
-
-        function matchCanSchedule(m) {
-            const st = String(m?.status || '').toLowerCase();
-            return ['pending', 'scheduled'].includes(st)
-                && currentTournament?.status !== 'completed';
-        }
-
-        function matchCanDelete(m) {
-            const st = String(m?.status || '').toLowerCase();
-            return ['pending', 'scheduled'].includes(st)
-                && currentTournament?.status !== 'completed'
-                && (
-                    m.bracket_side === 'custom'
-                    || !m.participant_a_department_id
-                    || !m.participant_b_department_id
-                );
-        }
-
-        function populateMatchOverrideUi(m) {
-            const canTeams = matchCanEditTeams(m);
-            const ovSec = document.getElementById('ms-override-section');
-            if (ovSec) ovSec.style.display = canTeams ? '' : 'none';
-            if (!canTeams) return;
-
-            const aSel = document.getElementById('ms-team-a');
-            const bSel = document.getElementById('ms-team-b');
-            if (aSel) aSel.innerHTML = buildOverrideDeptOptions(m.participant_a_department_id);
-            if (bSel) bSel.innerHTML = buildOverrideDeptOptions(m.participant_b_department_id);
-
-            const openSlots = ['a', 'b'].filter(side => !m[`participant_${side}_department_id`]);
-            const exhibition = (deptsCache || []).filter(d => Number(d.is_exhibition) === 1);
-
-            const exhSec = document.getElementById('ms-exhibition-section');
-            const exhHost = document.getElementById('ms-exhibition-buttons');
-            if (exhSec && exhHost) {
-                if (exhibition.length && openSlots.length) {
-                    exhSec.style.display = '';
-                    exhHost.innerHTML = exhibition.map(p => openSlots.map(side => {
-                        const label = p.name || p.department_name || 'Exhibition';
-                        return `<button type="button" class="btn btn-secondary btn-sm" onclick="placeExhibition(${m.id},${p.id},'${side}')">${label} · ${side.toUpperCase()}</button>`;
-                    }).join('')).join('');
-                } else {
-                    exhSec.style.display = 'none';
-                    exhHost.innerHTML = '';
-                }
-            }
-
-            const linkSec = document.getElementById('ms-link-section');
-            const linkRows = document.getElementById('ms-link-rows');
-            const candidates = (currentBracketMatches || []).filter(x =>
-                Number(x.id) !== Number(m.id)
-                && !['completed', 'cancelled', 'walkover'].includes(String(x.status || '').toLowerCase())
-            );
-            if (linkSec && linkRows) {
-                if (openSlots.length && candidates.length) {
-                    linkSec.style.display = '';
-                    const srcOptions = '<option value="">— choose source —</option>' + candidates.map(c => {
-                        const label = c.bracket_position
-                            || `${c.dept_a_name || c.team_a_name || 'TBD'} vs ${c.dept_b_name || c.team_b_name || 'TBD'}`;
-                        return `<option value="${c.id}|winner">${label} · Winner</option>`
-                            + `<option value="${c.id}|loser">${label} · Loser</option>`;
-                    }).join('');
-                    linkRows.innerHTML = openSlots.map(side => `
-                        <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
-                            <select class="form-select" style="flex:1;min-width:160px" id="ms-link-src-${side}">${srcOptions}</select>
-                            <button type="button" class="btn btn-secondary btn-sm" onclick="submitLinkSourceFromModal('${side}')">
-                                Link to ${side.toUpperCase()}
-                            </button>
-                        </div>`).join('');
-                } else {
-                    linkSec.style.display = 'none';
-                    linkRows.innerHTML = '';
-                }
-            }
-        }
-
         async function openMatchSchedule(matchId) {
+            if (currentTournament?.status === 'completed') {
+                Toast.show('This tournament is finalized — its schedule is locked.', 'error');
+                return;
+            }
             const m = (currentBracketMatches || []).find(x => Number(x.id) === Number(matchId));
-            if (!m) return;
-            _msMatchId = Number(matchId);
-
-            await ensureDeptsCache();
-            await loadVenueOptionsForSchedule().catch(() => { });
-            await loadOfficerOptionsForSchedule().catch(() => { });
-
-            const nA = m.dept_a_name || m.team_a_name || 'TBD';
-            const nB = m.dept_b_name || m.team_b_name || 'TBD';
-            const cA = m.dept_a_color || '#555';
-            const cB = m.dept_b_color || '#555';
-            const hasDate = !!m.scheduled_date;
-
-            const titleEl = document.getElementById('ms-modal-title');
-            if (titleEl) {
-                titleEl.innerHTML = hasDate
-                    ? '<i class="fa-solid fa-pen-to-square"></i> Edit Match'
-                    : '<i class="fa-solid fa-calendar-pen"></i> Schedule Match';
+            if (!m) {
+                Toast.show('Match not found in this tournament.', 'error');
+                return;
+            }
+            if (!['pending', 'scheduled'].includes(String(m.status || '').toLowerCase())) {
+                Toast.show('Only pending or scheduled matches can be rescheduled.', 'error');
+                return;
             }
 
+            _msMatchId = matchId;
+            await loadVenueOptionsForSchedule();
+            await loadOfficerOptionsForSchedule();
+
+            const { nA, nB, cA, cB } = matchSideNames(m);
             document.getElementById('ms-preview').innerHTML = `
-                <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;background:var(--bg3);border-radius:10px;padding:14px">
-                    <div style="display:flex;align-items:center;gap:8px;min-width:0">
-                        <span style="width:10px;height:10px;border-radius:50%;background:${cA};flex-shrink:0"></span>
-                        <strong style="font-size:14px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${nA}</strong>
-                    </div>
-                    <span style="color:var(--muted);font-size:11px;flex-shrink:0">vs</span>
-                    <div style="display:flex;align-items:center;gap:8px;min-width:0;justify-content:flex-end">
-                        <strong style="font-size:14px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;text-align:right">${nB}</strong>
-                        <span style="width:10px;height:10px;border-radius:50%;background:${cB};flex-shrink:0"></span>
-                    </div>
+                <div style="display:flex;align-items:center;gap:12px;background:var(--bg3);border-radius:10px;padding:14px 16px;flex-wrap:wrap">
+                    <span style="width:10px;height:10px;border-radius:50%;background:${cA || '#555'};flex-shrink:0"></span>
+                    <strong style="flex:1;min-width:80px">${nA}</strong>
+                    <span style="color:var(--muted);font-size:13px">vs</span>
+                    <strong style="flex:1;min-width:80px;text-align:right">${nB}</strong>
+                    <span style="width:10px;height:10px;border-radius:50%;background:${cB || '#555'};flex-shrink:0"></span>
                 </div>
                 ${m.bracket_position ? `<div style="font-size:12px;color:var(--muted);margin-top:8px">${m.bracket_position}</div>` : ''}
                 ${(!m.participant_a_department_id || !m.participant_b_department_id)
-                    ? `<div style="font-size:12px;color:var(--gold);margin-top:8px"><i class="fa-solid fa-circle-info"></i> One or both sides are still TBD.</div>`
+                    ? `<div style="font-size:12px;color:var(--gold);margin-top:8px"><i class="fa-solid fa-circle-info"></i> One or both sides are still TBD — you can still lock in date, time, venue &amp; officer now.</div>`
                     : ''}`;
 
-            const canSched = matchCanSchedule(m);
-            const schedSec = document.getElementById('ms-schedule-section');
-            if (schedSec) schedSec.style.display = canSched ? '' : 'none';
-            const saveBtn = document.getElementById('ms-save-btn');
-            if (saveBtn) saveBtn.style.display = (canSched || matchCanEditTeams(m)) ? '' : 'none';
-
-            document.getElementById('ms-date').value = m.scheduled_date
-                ? String(m.scheduled_date).slice(0, 10)
-                : '';
-            document.getElementById('ms-time').value = m.scheduled_time
-                ? String(m.scheduled_time).slice(0, 5)
-                : '';
+            document.getElementById('ms-date').value = m.scheduled_date || '';
+            document.getElementById('ms-time').value = m.scheduled_time ? String(m.scheduled_time).slice(0, 5) : '';
             const vSel = document.getElementById('ms-venue');
             const rSel = document.getElementById('ms-referee');
             if (vSel) vSel.value = m.venue_id ? String(m.venue_id) : '';
-            if (rSel) rSel.value = (m.referee_user_id || m.referee_id)
-                ? String(m.referee_user_id || m.referee_id)
-                : '';
-
-            populateMatchOverrideUi(m);
-
-            const delBtn = document.getElementById('ms-delete-btn');
-            if (delBtn) delBtn.style.display = matchCanDelete(m) ? '' : 'none';
+            if (rSel) rSel.value = (m.referee_user_id || m.referee_id) ? String(m.referee_user_id || m.referee_id) : '';
 
             Modal.open('modal-match-schedule');
         }
 
         async function submitMatchSchedule() {
             if (!_msMatchId) return;
-            const match = (currentBracketMatches || []).find(x => Number(x.id) === Number(_msMatchId));
-            const teamA_id = parseInt(document.getElementById('ms-team-a')?.value, 10) || null;
-            const teamB_id = parseInt(document.getElementById('ms-team-b')?.value, 10) || null;
-
-            if (teamA_id && teamB_id && teamA_id === teamB_id) {
-                Toast.show('A match cannot have the same team on both sides.', 'error');
-                return;
-            }
-
             const body = {
                 scheduled_date: document.getElementById('ms-date').value || null,
                 scheduled_time: document.getElementById('ms-time').value || null,
                 venue_id: document.getElementById('ms-venue').value || null,
                 referee_id: document.getElementById('ms-referee').value || null,
             };
-
             const btn = document.getElementById('ms-save-btn');
             if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Saving…'; }
             try {
-                let teamsChanged = false;
-                if (matchCanEditTeams(match || {})) {
-                    const wasA = match?.participant_a_department_id || null;
-                    const wasB = match?.participant_b_department_id || null;
-                    teamsChanged = Number(wasA || 0) !== Number(teamA_id || 0)
-                        || Number(wasB || 0) !== Number(teamB_id || 0);
-
-                    if (teamsChanged) {
-                        const onlyFillingA = !wasA && teamA_id && Number(wasB || 0) === Number(teamB_id || 0);
-                        const onlyFillingB = !wasB && teamB_id && Number(wasA || 0) === Number(teamA_id || 0);
-                        let teamRes;
-                        if (onlyFillingA || onlyFillingB) {
-                            const slot = onlyFillingA ? 'a' : 'b';
-                            const department_id = onlyFillingA ? teamA_id : teamB_id;
-                            teamRes = await api(`/matches/${_msMatchId}/insert-team`, {
-                                method: 'POST', body: { slot, department_id },
-                            });
-                        } else {
-                            teamRes = await api(`/matches/${_msMatchId}/teams`, {
-                                method: 'PUT', body: { teamA_id, teamB_id },
-                            });
-                        }
-                        if (!teamRes.success) {
-                            Toast.show(teamRes.message || 'Could not update teams', 'error');
-                            return;
-                        }
-                    }
-                }
-
-                if (matchCanSchedule(match || {})) {
-                    const res = await api(`/matches/${_msMatchId}/schedule`, { method: 'PUT', body });
-                    if (!res.success) {
-                        Toast.show(res.message || 'Could not save schedule', 'error');
-                        return;
-                    }
-                }
-
-                Toast.show(teamsChanged ? 'Teams & schedule saved.' : 'Saved.', 'success');
-                Modal.close('modal-match-schedule');
-                _msMatchId = null;
-                await refreshAll();
-            } finally {
-                if (btn) {
-                    btn.disabled = false;
-                    btn.innerHTML = '<i class="fa-solid fa-floppy-disk"></i> Save';
-                }
-            }
-        }
-
-        async function deleteMatchFromModal() {
-            if (!_msMatchId) return;
-            const m = (currentBracketMatches || []).find(x => Number(x.id) === Number(_msMatchId));
-            if (!matchCanDelete(m || {})) {
-                Toast.show('This match cannot be deleted.', 'error');
-                return;
-            }
-            const label = m?.bracket_position || `Match #${_msMatchId}`;
-            if (typeof Modal !== 'undefined' && Modal.confirm) {
-                if (!await Modal.confirm(`Delete “${label}”? This cannot be undone.`, 'Delete match')) return;
-            } else if (!confirm(`Delete “${label}”?`)) return;
-
-            const btn = document.getElementById('ms-delete-btn');
-            if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i>'; }
-            try {
-                const res = await api(`/matches/${_msMatchId}`, { method: 'DELETE' });
-                Toast.show(res.message || (res.success ? 'Deleted.' : 'Error'), res.success ? 'success' : 'error');
+                const res = await api(`/matches/${_msMatchId}/schedule`, { method: 'PUT', body });
+                Toast.show(res.message || (res.success ? 'Schedule saved.' : 'Error'), res.success ? 'success' : 'error');
                 if (res.success) {
                     Modal.close('modal-match-schedule');
                     _msMatchId = null;
                     await refreshAll();
                 }
             } finally {
-                if (btn) {
-                    btn.disabled = false;
-                    btn.innerHTML = '<i class="fa-solid fa-trash"></i> Delete';
-                }
+                if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fa-solid fa-floppy-disk"></i> Save Schedule'; }
             }
         }
-
-        async function placeExhibition(matchId, departmentId, slot) {
-            const tid = currentTournamentId;
-            let res = null;
-            if (tid) {
-                res = await api(`/tournaments/${tid}/matches/${matchId}/exhibition`, {
-                    method: 'PATCH', body: { department_id: departmentId, slot },
-                });
-            }
-            if (!res || res.success === false) {
-                res = await api(`/matches/${matchId}/insert-team`, {
-                    method: 'POST', body: { slot, department_id: departmentId },
-                });
-            }
-            Toast.show(
-                res.message || (res.success ? 'Exhibition team placed.' : 'Could not place exhibition team'),
-                res.success ? 'success' : 'error'
-            );
-            if (res.success) {
-                Modal.close('modal-match-schedule');
-                _msMatchId = null;
-                await refreshAll();
-            }
-        }
-
-        async function submitLinkSourceFromModal(side) {
-            if (!_msMatchId) return;
-            const sel = document.getElementById(`ms-link-src-${side}`);
-            if (!sel || !sel.value) { Toast.show('Pick a source match first', 'error'); return; }
-            const [sourceId, result] = sel.value.split('|');
-            const res = await api(`/matches/${sourceId}/link`, {
-                method: 'PATCH',
-                body: { target_match_id: _msMatchId, target_slot: side, result },
-            });
-            Toast.show(res.message || (res.success ? 'Linked.' : 'Could not link matches'), res.success ? 'success' : 'error');
-            if (res.success) {
-                Modal.close('modal-match-schedule');
-                _msMatchId = null;
-                await refreshAll();
-            }
-        }
-
 
 
 
@@ -3509,25 +3255,123 @@
             if (res.success) refreshAll();
         }
 
-        function addDateInput(value = '') {
-            const wrap = document.createElement('div');
-            wrap.style.cssText = 'display:flex;gap:8px';
-            wrap.innerHTML = `<input type="date" class="form-input as-date-input" value="${value}" style="flex:1">
-        <button class="btn btn-secondary btn-sm" onclick="this.parentElement.remove();updateSlotCalc()"><i class="fa-solid fa-xmark"></i></button>`;
-            document.getElementById('as-dates').appendChild(wrap);
-            wrap.querySelector('input').addEventListener('input', updateSlotCalc);
+        /** Per-day schedule builder — each day owns its own time list */
+        let _asDaySeq = 0;
+
+        function renumberScheduleDays() {
+            document.querySelectorAll('#as-days .as-day-card').forEach((card, i) => {
+                const lbl = card.querySelector('.as-day-label');
+                if (lbl) lbl.textContent = `Day ${i + 1}`;
+            });
+        }
+
+        function addScheduleDay(dateValue = '', times = null) {
+            const host = document.getElementById('as-days');
+            if (!host) return;
+            _asDaySeq += 1;
+            const id = _asDaySeq;
+            const defaultTimes = times && times.length ? times : ['08:00', '09:00', '10:00'];
+            const card = document.createElement('div');
+            card.className = 'as-day-card';
+            card.dataset.dayId = String(id);
+            card.innerHTML = `
+                <div class="as-day-card-head">
+                    <span class="as-day-label">Day</span>
+                    <input type="date" class="form-input as-day-date" value="${dateValue || ''}" style="flex:1;min-width:140px">
+                    <button type="button" class="btn btn-secondary btn-sm" title="Remove day"
+                        onclick="removeScheduleDay(this)">
+                        <i class="fa-solid fa-xmark"></i>
+                    </button>
+                </div>
+                <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);margin-bottom:4px">
+                    Time slots for this day
+                </div>
+                <div class="as-day-times" data-day-times="${id}"></div>
+                <button type="button" class="btn btn-secondary btn-sm" style="margin-top:8px"
+                    onclick="addTimeToDay(${id})">
+                    <i class="fa-solid fa-plus"></i> Add time
+                </button>`;
+            host.appendChild(card);
+            const timesHost = card.querySelector('.as-day-times');
+            defaultTimes.forEach(t => addTimeToDay(id, t, timesHost));
+            card.querySelector('.as-day-date').addEventListener('input', updateSlotCalc);
+            renumberScheduleDays();
             updateSlotCalc();
         }
 
-        function addTimeInput(value = '') {
-            const wrap = document.createElement('div');
-            wrap.style.cssText = 'display:flex;gap:8px';
-            wrap.innerHTML = `<input type="time" class="form-input as-time-input" value="${value}" style="flex:1">
-        <button class="btn btn-secondary btn-sm" onclick="this.parentElement.remove();updateSlotCalc()"><i class="fa-solid fa-xmark"></i></button>`;
-            document.getElementById('as-times').appendChild(wrap);
-            wrap.querySelector('input').addEventListener('input', updateSlotCalc);
+        function removeScheduleDay(btn) {
+            const card = btn.closest('.as-day-card');
+            if (!card) return;
+            const host = document.getElementById('as-days');
+            if (host && host.querySelectorAll('.as-day-card').length <= 1) {
+                Toast.show('Keep at least one day', 'error');
+                return;
+            }
+            card.remove();
+            renumberScheduleDays();
             updateSlotCalc();
         }
+
+        function addTimeToDay(dayId, value = '', timesHost = null) {
+            const host = timesHost || document.querySelector(`.as-day-times[data-day-times="${dayId}"]`);
+            if (!host) return;
+            // Suggest next hour from last row
+            let v = value;
+            if (!v) {
+                const inputs = host.querySelectorAll('.as-day-time');
+                if (inputs.length) {
+                    const last = inputs[inputs.length - 1].value || '08:00';
+                    const [h, m] = last.split(':').map(Number);
+                    const nh = Math.min((h || 8) + 1, 23);
+                    v = `${String(nh).padStart(2, '0')}:${String(m || 0).padStart(2, '0')}`;
+                } else {
+                    v = '08:00';
+                }
+            }
+            const row = document.createElement('div');
+            row.className = 'as-day-time-row';
+            row.innerHTML = `
+                <input type="time" class="form-input as-day-time" value="${v}" style="flex:1">
+                <button type="button" class="btn btn-secondary btn-sm" title="Remove time"
+                    onclick="this.closest('.as-day-time-row').remove();updateSlotCalc()">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>`;
+            host.appendChild(row);
+            row.querySelector('input').addEventListener('input', updateSlotCalc);
+            updateSlotCalc();
+        }
+
+        /** Collect [{ date, times: string[] }] from the day cards */
+        function collectDayPlans() {
+            const plans = [];
+            document.querySelectorAll('#as-days .as-day-card').forEach(card => {
+                const date = card.querySelector('.as-day-date')?.value || '';
+                const times = [...card.querySelectorAll('.as-day-time')]
+                    .map(i => i.value)
+                    .filter(Boolean)
+                    .sort();
+                // dedupe times within a day
+                const unique = [...new Set(times)];
+                if (date || unique.length) {
+                    plans.push({ date, times: unique });
+                }
+            });
+            return plans;
+        }
+
+        /** Flatten to [{ date, time }] in day order */
+        function collectFlatSlots(plans) {
+            const slots = [];
+            plans.forEach(p => {
+                if (!p.date) return;
+                p.times.forEach(time => slots.push({ date: p.date, time }));
+            });
+            return slots;
+        }
+
+        // Legacy names kept so any leftover callers don't crash
+        function addDateInput(value = '') { addScheduleDay(value, ['08:00']); }
+        function addTimeInput() { /* no-op — times belong to a day */ }
 
         function isAutoSchedulableFormat(fmt) {
             return ['round_robin', 'single_elimination', 'double_elimination', 'division_gauntlet'].includes(fmt);
@@ -3556,10 +3400,9 @@
             const box = document.getElementById('slot-calc');
             if (!box) return;
             const matchesNeeded = autoScheduleMatchCount();
-
-            const dateCount = document.querySelectorAll('.as-date-input').length;
-            const timeCount = document.querySelectorAll('.as-time-input').length;
-            const slotsAvailable = dateCount * timeCount;
+            const plans = collectDayPlans();
+            const slots = collectFlatSlots(plans);
+            const slotsAvailable = slots.length;
 
             const numEl = document.getElementById('slot-calc-matches');
             if (numEl) numEl.textContent = matchesNeeded || '—';
@@ -3572,17 +3415,27 @@
                 detail.textContent = 'Generate the bracket (or add departments) first so we know how many matches to place.';
                 return;
             }
+            if (!plans.length) {
+                detail.textContent = 'Add at least one competition day with a date and times.';
+                return;
+            }
+            const incomplete = plans.filter(p => !p.date || !p.times.length);
+            if (incomplete.length) {
+                box.classList.add('short');
+                detail.textContent = `${incomplete.length} day(s) still need a date and at least one time.`;
+                return;
+            }
             if (slotsAvailable === 0) {
-                detail.textContent = `You currently have ${dateCount} date(s) × ${timeCount} time(s) = 0 slots.`;
+                detail.textContent = 'No slots yet — pick dates and times on each day.';
                 return;
             }
             if (slotsAvailable < matchesNeeded) {
                 box.classList.add('short');
-                detail.innerHTML = `${dateCount} date(s) × ${timeCount} time(s) = <strong>${slotsAvailable} slots</strong> — short by ${matchesNeeded - slotsAvailable}. Add more dates or times (e.g. ${matchesNeeded} dates × 1 time, or ${Math.ceil(matchesNeeded / Math.max(timeCount, 1))} dates × ${timeCount || 1} time(s)).`;
+                detail.innerHTML = `<strong>${slotsAvailable} slot(s)</strong> across ${plans.length} day(s) — short by ${matchesNeeded - slotsAvailable}. Add another day or more times.`;
             } else {
                 box.classList.add('ok');
                 const exact = slotsAvailable === matchesNeeded;
-                detail.innerHTML = `${dateCount} date(s) × ${timeCount} time(s) = <strong>${slotsAvailable} slots</strong> — ${exact ? 'exactly enough, no repeats.' : `covers all ${matchesNeeded} matches (${slotsAvailable - matchesNeeded} slot(s) will go unused).`}`;
+                detail.innerHTML = `<strong>${slotsAvailable} slot(s)</strong> across ${plans.length} day(s) — ${exact ? 'exactly enough.' : `covers all ${matchesNeeded} matches (${slotsAvailable - matchesNeeded} unused).`}`;
             }
         }
 
@@ -3613,8 +3466,8 @@
                     note.innerHTML = `
                         <div class="de-as-note">
                             <i class="fa-solid fa-circle-info" style="margin-top:2px"></i>
-                            <span>Slots are assigned in bracket order so Round 1 lands on your earliest dates.
-                            Later rounds (and lower-bracket matches) receive later slots automatically.</span>
+                            <span>Slots are assigned in bracket order so Round 1 lands on your earliest day/times.
+                            Later rounds receive later slots automatically.</span>
                         </div>`;
                 }
             } else if (fmt === 'single_elimination') {
@@ -3644,27 +3497,31 @@
 
             if (fmt === 'double_elimination') {
                 if (title) title.innerHTML = '<i class="fa-solid fa-sitemap"></i> Auto-Schedule Double Elimination';
-                if (desc) desc.textContent = 'Pick competition dates and daily time slots. Every open bracket match (upper, lower, grand final) gets a date — including TBD sides.';
+                if (desc) desc.textContent = 'Build day-by-day slots. Each day has its own times (morning, afternoon, etc.).';
                 if (submitBtn) submitBtn.innerHTML = '<i class="fa-solid fa-calendar-check"></i> Assign DE Schedule';
             } else if (fmt === 'single_elimination') {
                 if (title) title.innerHTML = '<i class="fa-solid fa-diagram-project"></i> Auto-Schedule Single Elimination';
-                if (desc) desc.textContent = 'Pick dates and time slots. Matches are assigned in round order so earlier rounds get earlier dates.';
+                if (desc) desc.textContent = 'Build day-by-day slots. Matches are assigned in round order onto your calendar.';
                 if (submitBtn) submitBtn.innerHTML = '<i class="fa-solid fa-calendar-check"></i> Assign &amp; Schedule';
             } else {
                 if (title) title.innerHTML = '<i class="fa-solid fa-dice"></i> Auto-Schedule Round Robin';
-                if (desc) desc.textContent = 'Enter the dates and time slots available. Matches will be shuffled so the same departments are less likely to play two slots in a row.';
+                if (desc) desc.textContent = 'Build day-by-day slots. Matches are shuffled so the same departments are less likely to play back-to-back.';
                 if (submitBtn) submitBtn.innerHTML = '<i class="fa-solid fa-dice"></i> Shuffle &amp; Schedule';
             }
 
-            const datesHost = document.getElementById('as-dates');
-            if (datesHost && !datesHost.querySelector('.as-date-input')) {
+            const daysHost = document.getElementById('as-days');
+            if (daysHost && !daysHost.querySelector('.as-day-card')) {
                 const seed = (currentTournament?.start_date || '').toString().slice(0, 10);
-                addDateInput(seed);
+                addScheduleDay(seed, ['08:00', '09:00', '10:00']);
             }
-            if (!document.querySelector('.as-time-input')) {
-                addTimeInput('08:00');
-                addTimeInput('09:00');
-                addTimeInput('10:00');
+
+            // Refresh venue list if present
+            const venueSel = document.getElementById('as-venue');
+            if (venueSel && venuesCache.length) {
+                const prev = venueSel.value;
+                venueSel.innerHTML = '<option value="">No venue / assign later</option>' +
+                    venuesCache.map(v => `<option value="${v.id}">${v.name}</option>`).join('');
+                if (prev) venueSel.value = prev;
             }
 
             updateSlotCalc();
@@ -3672,26 +3529,48 @@
         }
 
         async function submitAutoSchedule() {
-            const dates = [...document.querySelectorAll('.as-date-input')].map(i => i.value).filter(Boolean);
-            const times = [...document.querySelectorAll('.as-time-input')].map(i => i.value).filter(Boolean);
-            const venue_id = parseInt(document.getElementById('as-venue').value, 10) || null;
-            const assign_officers = document.getElementById('as-assign-officers').checked;
-            if (!dates.length) { Toast.show('Add at least one date', 'error'); return; }
-            if (!times.length) { Toast.show('Add at least one time slot', 'error'); return; }
+            const plans = collectDayPlans();
+            const incomplete = plans.filter(p => !p.date || !p.times.length);
+            if (!plans.length) { Toast.show('Add at least one competition day', 'error'); return; }
+            if (incomplete.length) {
+                Toast.show('Every day needs a date and at least one time slot', 'error');
+                return;
+            }
+
+            const slots = collectFlatSlots(plans);
+            const dates = plans.map(p => p.date);
+            // Per-day times only — do NOT cartesian-product all times across all dates
+            const venue_id = parseInt(document.getElementById('as-venue')?.value, 10) || null;
+            const assign_officers = !!document.getElementById('as-assign-officers')?.checked;
 
             const matchesNeeded = autoScheduleMatchCount();
-            if (dates.length * times.length < matchesNeeded) {
-                if (!await Modal.confirm(`You only have ${dates.length * times.length} slot(s) for ${matchesNeeded} matches — some matches will share a slot time. Continue anyway?`, 'Schedule matches')) return;
+            if (slots.length < matchesNeeded) {
+                if (!await Modal.confirm(
+                    `You only have ${slots.length} slot(s) for ${matchesNeeded} matches — some matches may share a time or be left open. Continue anyway?`,
+                    'Schedule matches'
+                )) return;
             }
+
+            const body = {
+                day_plans: plans,
+                slots,
+                // legacy fields: dates list + times from day 1 only is wrong;
+                // send flat slots as the source of truth. Also send dates for older handlers.
+                dates,
+                times: plans[0]?.times || [],
+                venue_id,
+                default_venue_id: venue_id,
+                assign_officers,
+            };
 
             let res = await api(`/tournaments/${currentTournamentId}/schedule-auto`, {
                 method: 'POST',
-                body: { dates, times, venue_id, assign_officers },
+                body,
             });
             if (res && res.success === false && /Cannot POST|not found|404|HTTP 404/i.test(res.message || '')) {
                 res = await api(`/tournaments/${currentTournamentId}/schedule-round-robin`, {
                     method: 'POST',
-                    body: { dates, times, venue_id, assign_officers },
+                    body,
                 });
             }
             Toast.show(res.message || (res.success ? 'Scheduled!' : 'Error'), res.success ? 'success' : 'error');
