@@ -702,6 +702,66 @@
         </div>
     </div>
 
+
+    <!-- Manage (single hub: Edit / Tournaments / Bonus points / Delete / Declare) -->
+    <div class="modal-overlay" id="modal-fest-manage" onclick="if(event.target===this)Modal.close('modal-fest-manage')">
+        <div class="modal" style="max-width:560px">
+            <div class="modal-header">
+                <div class="modal-title" id="manage-title">Manage Season</div>
+                <button class="modal-close" onclick="Modal.close('modal-fest-manage')">✕</button>
+            </div>
+            <div class="modal-body" style="max-height:min(70vh,620px);overflow-y:auto">
+                <div id="manage-meta" style="margin-bottom:14px;font-size:13px;color:var(--muted)"></div>
+
+                <div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:18px">
+                    <button class="btn btn-secondary btn-sm" onclick="manageEdit()">Edit details</button>
+                    <button class="btn btn-secondary btn-sm" onclick="manageTournaments()">Tournaments</button>
+                    <button class="btn btn-secondary btn-sm" onclick="manageView()">Full summary</button>
+                    <button class="btn btn-primary btn-sm" style="background:var(--green);color:#000"
+                        id="manage-declare-btn" onclick="manageDeclare()">Declare champion</button>
+                    <button class="btn btn-danger-outline btn-sm" id="manage-delete-btn"
+                        onclick="manageDelete()">Delete</button>
+                </div>
+
+                <div
+                    style="font-family:'Barlow Condensed',sans-serif;font-size:14px;font-weight:800;color:var(--gold);margin-bottom:8px;letter-spacing:.3px">
+                    Bonus points (non-game)
+                </div>
+                <p style="margin:0 0 12px;font-size:12.5px;color:var(--muted);line-height:1.45">
+                    Award points for bench cheering, spirit, decorations, and other non-game activities
+                    <strong>before</strong> declaring champions. These add to the department standings.
+                </p>
+
+                <div class="form-row">
+                    <div class="form-group" style="flex:1.4">
+                        <label class="form-label">Department *</label>
+                        <select id="bp-dept" class="form-select">
+                            <option value="">Select department…</option>
+                        </select>
+                    </div>
+                    <div class="form-group" style="flex:0.6;min-width:90px">
+                        <label class="form-label">Points *</label>
+                        <input type="number" id="bp-points" class="form-input" placeholder="e.g. 5" step="1">
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Reason *</label>
+                    <input type="text" id="bp-reason" class="form-input"
+                        placeholder="e.g. Bench cheering — Opening day">
+                </div>
+                <button class="btn btn-primary btn-sm" style="width:100%;margin-bottom:16px"
+                    onclick="submitBonusPoints()">Add points</button>
+
+                <div class="card" id="bp-list">
+                    <div style="padding:14px;color:var(--muted);font-size:13px">Loading…</div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="Modal.close('modal-fest-manage')">Close</button>
+            </div>
+        </div>
+    </div>
+
     <script src="../../js/shared.js"></script>
     <script src="../../js/admin-sidebar.js"></script>
     <script>
@@ -722,7 +782,7 @@
 
         function openConfirm(title, message, callback, type = 'warning') {
             // Close form modals so confirm is never buried
-            ['modal-fest', 'modal-new-season', 'modal-fest-detail', 'modal-fest-tourneys'].forEach(safeCloseModal);
+            ['modal-fest', 'modal-new-season', 'modal-fest-detail', 'modal-fest-tourneys', 'modal-fest-manage'].forEach(safeCloseModal);
 
             document.getElementById('confirm-title-text').textContent = title;
             document.getElementById('confirm-message-text').textContent = message;
@@ -833,15 +893,9 @@
                             </div>
                             <button class="btn btn-primary btn-sm" style="background:var(--green);color:#000;flex-shrink:0" onclick="confirmDeclareChampion(${f.id})">Declare</button>
                         </div>` : `<div style="font-size:12px;color:var(--muted)">No champion declared yet.</div>`}
-                        <div class="fest-actions">
+                        <div class="fest-actions" style="grid-template-columns:1fr 1fr">
                             <button class="btn btn-secondary btn-sm" onclick="viewFest(${f.id})">View</button>
-                            <button class="btn btn-secondary btn-sm" onclick="openTourneyManager(${f.id})">Tournaments</button>
-                            <button class="btn btn-primary btn-sm" onclick="openEdit(${f.id})">Edit</button>
-                            <button class="btn btn-danger-outline btn-sm"
-                                onclick="confirmDeleteFest(${f.id})"
-                                ${isCurrent ? 'disabled title="Use Start New Season to archive first"' : ''}>
-                                Delete
-                            </button>
+                            <button class="btn btn-primary btn-sm" onclick="openManage(${f.id})">Manage</button>
                         </div>
                     </div>
                 </div>`;
@@ -1035,6 +1089,140 @@
             };
             document.getElementById('fest-detail-champion-btn').onclick = () => confirmDeclareChampion(id);
             Modal.open('modal-fest-detail');
+        }
+
+
+        let manageFestId = null;
+        let allDepartments = [];
+
+        async function ensureDepartments() {
+            if (allDepartments.length) return;
+            const res = await api('/departments');
+            allDepartments = (res.data || []).filter(d => !Number(d.is_exhibition));
+        }
+
+        async function openManage(id) {
+            const f = allFests.find(x => x.id === id);
+            if (!f) return;
+            manageFestId = id;
+            activeFestId = id;
+            document.getElementById('manage-title').textContent = f.name;
+            document.getElementById('manage-meta').innerHTML =
+                `${f.year} · ${typeof statusBadge === 'function' ? statusBadge(f.status || 'upcoming') : (f.status || 'upcoming')} · ${f.tournament_count || 0} tournaments` +
+                (f.is_current ? ' · <span style="color:#2ecc71;font-weight:700">Current</span>' : ' · Archived');
+
+            const delBtn = document.getElementById('manage-delete-btn');
+            if (delBtn) {
+                delBtn.disabled = !!f.is_current;
+                delBtn.title = f.is_current ? 'Use Start New Season to archive first' : '';
+                delBtn.style.opacity = f.is_current ? '0.45' : '';
+            }
+
+            await ensureDepartments();
+            const sel = document.getElementById('bp-dept');
+            sel.innerHTML = '<option value="">Select department…</option>' +
+                allDepartments.map(d =>
+                    `<option value="${d.id}">${escapeHtml(d.name)}${d.division ? ' (' + String(d.division).replace(/_/g, ' ') + ')' : ''}</option>`
+                ).join('');
+            document.getElementById('bp-points').value = '';
+            document.getElementById('bp-reason').value = '';
+            await loadBonusPointsList();
+            Modal.open('modal-fest-manage');
+        }
+
+        function manageEdit() {
+            if (!manageFestId) return;
+            Modal.close('modal-fest-manage');
+            openEdit(manageFestId);
+        }
+        function manageTournaments() {
+            if (!manageFestId) return;
+            Modal.close('modal-fest-manage');
+            openTourneyManager(manageFestId);
+        }
+        function manageView() {
+            if (!manageFestId) return;
+            Modal.close('modal-fest-manage');
+            viewFest(manageFestId);
+        }
+        function manageDeclare() {
+            if (!manageFestId) return;
+            confirmDeclareChampion(manageFestId);
+        }
+        function manageDelete() {
+            if (!manageFestId) return;
+            confirmDeleteFest(manageFestId);
+        }
+
+        async function loadBonusPointsList() {
+            const el = document.getElementById('bp-list');
+            if (!manageFestId || !el) return;
+            el.innerHTML = '<div style="padding:14px;color:var(--muted);font-size:13px">Loading…</div>';
+            const res = await api(`/sport-fest/${manageFestId}/bonus-points`);
+            if (!res.success) {
+                el.innerHTML = `<div style="padding:14px;color:var(--muted);font-size:13px">${escapeHtml(res.message || 'Could not load bonus points')}</div>`;
+                return;
+            }
+            const rows = res.data || [];
+            if (!rows.length) {
+                el.innerHTML = '<div style="padding:14px;color:var(--muted);font-size:13px">No bonus points yet. Add bench cheering / spirit awards above.</div>';
+                return;
+            }
+            el.innerHTML = rows.map(r => `
+                <div class="linked-tourney-row" style="align-items:flex-start">
+                    <div class="lt-name">
+                        <div style="font-weight:600">${escapeHtml(r.department_name)}
+                            <span style="font-family:'Barlow Condensed',sans-serif;font-weight:900;color:var(--gold);margin-left:6px">${r.points > 0 ? '+' : ''}${r.points}</span>
+                        </div>
+                        <div class="lt-meta">${escapeHtml(r.reason)}${r.created_by_name ? ' · ' + escapeHtml(r.created_by_name) : ''}</div>
+                    </div>
+                    <div class="lt-side">
+                        <button class="btn btn-danger-outline btn-sm" onclick="removeBonusPoint(${r.id})">Remove</button>
+                    </div>
+                </div>`).join('');
+        }
+
+        async function submitBonusPoints() {
+            if (!manageFestId) return;
+            const department_id = parseInt(document.getElementById('bp-dept').value, 10);
+            const points = parseInt(document.getElementById('bp-points').value, 10);
+            const reason = document.getElementById('bp-reason').value.trim();
+            if (!department_id || !Number.isFinite(points) || points === 0) {
+                Toast.show('Pick a department and a non-zero points value', 'error');
+                return;
+            }
+            if (!reason) {
+                Toast.show('Add a short reason (e.g. Bench cheering)', 'error');
+                return;
+            }
+            const res = await api(`/sport-fest/${manageFestId}/bonus-points`, {
+                method: 'POST',
+                body: JSON.stringify({ department_id, points, reason }),
+            });
+            Toast.show(res.message || (res.success ? 'Points added' : 'Error'), res.success ? 'success' : 'error');
+            if (res.success) {
+                document.getElementById('bp-points').value = '';
+                document.getElementById('bp-reason').value = '';
+                await loadBonusPointsList();
+                await loadPage();
+            }
+        }
+
+        async function removeBonusPoint(bonusId) {
+            if (!manageFestId) return;
+            openConfirm(
+                'Remove bonus points?',
+                'This reverses those points on the department standings.',
+                async () => {
+                    const res = await api(`/sport-fest/${manageFestId}/bonus-points/${bonusId}`, { method: 'DELETE' });
+                    Toast.show(res.message || (res.success ? 'Removed' : 'Error'), res.success ? 'success' : 'error');
+                    if (res.success) {
+                        await loadBonusPointsList();
+                        await loadPage();
+                    }
+                },
+                'danger'
+            );
         }
 
         function confirmDeclareChampion(id) {

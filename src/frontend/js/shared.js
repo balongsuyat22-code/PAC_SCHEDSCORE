@@ -586,7 +586,7 @@ function installPageAutoRefresh() {
 async function loadDashboard() {
     const [dash, champion] = await Promise.all([
         api('/reports/dashboard'),
-        api('/leaderboard/champion')
+        api('/leaderboard/overall-champion')
     ]);
 
     if (dash.success) {
@@ -742,7 +742,7 @@ async function loadLeaderboard() {
             </tr>`).join('')}</tbody></table>`;
     }
 
-    const champion = await api('/leaderboard/champion');
+    const champion = await api('/leaderboard/overall-champion');
     if (champion.success) {
         const s = champion.data.tournament_stats;
         const epEl = document.getElementById('event-progress');

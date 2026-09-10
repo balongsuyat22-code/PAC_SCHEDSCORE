@@ -411,3 +411,21 @@ AFTER is_current;
 ALTER TABLE tournaments
 ADD COLUMN IF NOT EXISTS is_exhibition TINYINT(1) NOT NULL DEFAULT 0
 AFTER category;
+CREATE TABLE IF NOT EXISTS sport_fest_bonus_points (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    sport_fest_id INT NOT NULL,
+    department_id INT NOT NULL,
+    points INT NOT NULL,
+    reason VARCHAR(255) NOT NULL,
+    created_by INT NULL,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT fk_sfbp_fest FOREIGN KEY (sport_fest_id) REFERENCES sport_fest_events(id) ON DELETE CASCADE,
+    CONSTRAINT fk_sfbp_dept FOREIGN KEY (department_id) REFERENCES departments(id) ON DELETE CASCADE,
+    CONSTRAINT fk_sfbp_user FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE
+    SET NULL,
+        INDEX idx_sfbp_fest (sport_fest_id),
+        INDEX idx_sfbp_dept (department_id)
+) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4;
+ALTER TABLE department_scores
+ADD COLUMN IF NOT EXISTS bonus_points INT NOT NULL DEFAULT 0
+AFTER total_points;

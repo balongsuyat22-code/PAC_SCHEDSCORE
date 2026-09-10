@@ -564,6 +564,213 @@ const remove = async (req, res, next) => {
     }
 };
 
+
+/**
+ * List manual / non-game bonus points for a Sport Fest season.
+ * Used for bench cheering, spirit awards, etc. before declaring champions.
+ */
+const getBonusPoints = async (req, res, next) => {
+    try {
+        const festId = parseInt(req.params.id, 10);
+        const [rows] = await pool.execute(
+            `SELECT b.id, b.sport_fest_id, b.department_id, b.points, b.reason,
+                    b.created_by, b.created_at,
+                    d.name AS department_name, d.color AS department_color, d.code AS department_code,
+                    d.division,
+                    CONCAT(u.first_name, ' ', u.last_name) AS created_by_name
+             FROM sport_fest_bonus_points b
+             JOIN departments d ON d.id = b.department_id
+             LEFT JOIN users u ON u.id = b.created_by
+             WHERE b.sport_fest_id = ?
+             ORDER BY b.created_at DESC, b.id DESC`,
+            [festId]
+        );
+        return res.json({ success: true, data: rows });
+    } catch (err) {
+        next(err);
+    }
+};
+
+/**
+ * Award manual points to a department for the given Sport Fest.
+ * Body: { department_id, points, reason }
+ * Points may be positive or negative (corrections).
+ */
+const addBonusPoints = async (req, res, next) => {
+    const conn = await pool.getConnection();
+    try {
+        const festId = parseInt(req.params.id, 10);
+        const departmentId = parseInt(req.body.department_id, 10);
+        const points = parseInt(req.body.points, 10);
+        const reason = String(req.body.reason || '').trim();
+
+        if (!departmentId || !Number.isFinite(points) || points === 0) {
+            return res.status(400).json({
+                success: false,
+                message: 'department_id and a non-zero points value are required.',
+            });
+        }
+        if (!reason) {
+            return res.status(400).json({
+                success: false,
+                message: 'Reason is required (e.g. "Bench cheering — Day 2").',
+            });
+        }
+
+        const [[fest]] = await conn.execute(
+            'SELECT id, name, status, is_current FROM sport_fest_events WHERE id = ?',
+            [festId]
+        );
+        if (!fest) {
+            return res.status(404).json({ success: false, message: 'Sport Fest not found.' });
+        }
+
+        const [[dept]] = await conn.execute(
+            'SELECT id, name, is_active, is_exhibition FROM departments WHERE id = ?',
+            [departmentId]
+        );
+        if (!dept || !dept.is_active) {
+            return res.status(404).json({ success: false, message: 'Department not found or inactive.' });
+        }
+        if (Number(dept.is_exhibition) === 1) {
+            return res.status(400).json({
+                success: false,
+                message: 'Exhibition departments do not receive Sport Fest standing points.',
+            });
+        }
+
+        await conn.beginTransaction();
+
+        const [ins] = await conn.execute(
+            `INSERT INTO sport_fest_bonus_points
+                (sport_fest_id, department_id, points, reason, created_by)
+             VALUES (?, ?, ?, ?, ?)`,
+            [festId, departmentId, points, reason.slice(0, 255), req.user?.id || null]
+        );
+
+        await conn.execute(
+            `INSERT INTO department_scores (department_id, sport_fest_id, total_points, bonus_points)
+             VALUES (?, ?, 0, 0)
+             ON DUPLICATE KEY UPDATE department_id = department_id`,
+            [departmentId, festId]
+        );
+
+        try {
+            await conn.execute(
+                `UPDATE department_scores
+                 SET total_points = total_points + ?,
+                     bonus_points = bonus_points + ?
+                 WHERE department_id = ? AND sport_fest_id <=> ?`,
+                [points, points, departmentId, festId]
+            );
+        } catch (colErr) {
+            if (colErr.code !== 'ER_BAD_FIELD_ERROR') throw colErr;
+            await conn.execute(
+                `UPDATE department_scores
+                 SET total_points = total_points + ?
+                 WHERE department_id = ? AND sport_fest_id <=> ?`,
+                [points, departmentId, festId]
+            );
+        }
+
+        await conn.commit();
+
+        await logActivity(
+            req.user.id,
+            'BONUS_POINTS_ADDED',
+            'sport_fest',
+            festId,
+            `${points > 0 ? '+' : ''}${points} pts to ${dept.name}: ${reason}`
+        );
+
+        emitToLeaderboard('leaderboard:changed', {
+            reason: 'bonus_points',
+            sport_fest_id: festId,
+            department_id: departmentId,
+        });
+
+        return res.status(201).json({
+            success: true,
+            message: `${points > 0 ? '+' : ''}${points} points awarded to ${dept.name}.`,
+            data: { id: ins.insertId, department_id: departmentId, points, reason },
+        });
+    } catch (err) {
+        try { await conn.rollback(); } catch (_) { }
+        next(err);
+    } finally {
+        conn.release();
+    }
+};
+
+/**
+ * Remove a bonus-point entry and reverse its effect on department_scores.
+ */
+const removeBonusPoints = async (req, res, next) => {
+    const conn = await pool.getConnection();
+    try {
+        const festId = parseInt(req.params.id, 10);
+        const bonusId = parseInt(req.params.bonusId, 10);
+
+        const [[row]] = await conn.execute(
+            `SELECT b.*, d.name AS department_name
+             FROM sport_fest_bonus_points b
+             JOIN departments d ON d.id = b.department_id
+             WHERE b.id = ? AND b.sport_fest_id = ?`,
+            [bonusId, festId]
+        );
+        if (!row) {
+            return res.status(404).json({ success: false, message: 'Bonus entry not found.' });
+        }
+
+        await conn.beginTransaction();
+        await conn.execute('DELETE FROM sport_fest_bonus_points WHERE id = ?', [bonusId]);
+
+        try {
+            await conn.execute(
+                `UPDATE department_scores
+                 SET total_points = total_points - ?,
+                     bonus_points = bonus_points - ?
+                 WHERE department_id = ? AND sport_fest_id <=> ?`,
+                [row.points, row.points, row.department_id, festId]
+            );
+        } catch (colErr) {
+            if (colErr.code !== 'ER_BAD_FIELD_ERROR') throw colErr;
+            await conn.execute(
+                `UPDATE department_scores
+                 SET total_points = total_points - ?
+                 WHERE department_id = ? AND sport_fest_id <=> ?`,
+                [row.points, row.department_id, festId]
+            );
+        }
+
+        await conn.commit();
+
+        await logActivity(
+            req.user.id,
+            'BONUS_POINTS_REMOVED',
+            'sport_fest',
+            festId,
+            `Removed ${row.points} pts from ${row.department_name}: ${row.reason}`
+        );
+
+        emitToLeaderboard('leaderboard:changed', {
+            reason: 'bonus_points_removed',
+            sport_fest_id: festId,
+            department_id: row.department_id,
+        });
+
+        return res.json({
+            success: true,
+            message: `Removed ${row.points} points from ${row.department_name}.`,
+        });
+    } catch (err) {
+        try { await conn.rollback(); } catch (_) { }
+        next(err);
+    } finally {
+        conn.release();
+    }
+};
+
 module.exports = {
     getAll,
     getActive,
@@ -576,4 +783,7 @@ module.exports = {
     getSummary,
     startNewSeason,
     remove,
+    getBonusPoints,
+    addBonusPoints,
+    removeBonusPoints,
 };
