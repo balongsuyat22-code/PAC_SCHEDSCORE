@@ -2,7 +2,7 @@ const { pool } = require('../config/database');
 const { progressBracket } = require('../services/matchService');
 const { logActivity } = require('../utils/logger');
 const { getActiveSportFestId } = require('../utils/season');
-const { findTeamConflict } = require('../services/scheduleConstraints');
+const { findTeamConflict, rebuildAutoSchedule } = require('../services/scheduleConstraints');
 const {
     emitToMatch,
     emitToTournament,
@@ -11,7 +11,6 @@ const {
     getMatchWatchers,
 } = require('../utils/socketEmit');
 const { createNotification, notifyRoles } = require('./notificationController');
-const { getFixedBlock, findTeamConflict } = require('../services/scheduleConstraints');
 
 const safeFK = (val) => { const n = parseInt(val); return Number.isInteger(n) && n > 0 ? n : null; };
 const safeDate = (val) => { if (!val) return null; return String(val).split('T')[0]; };
@@ -20,14 +19,6 @@ const canReschedule = (status) => ['pending', 'scheduled'].includes(status);
 const canStart = (status) => ['pending', 'scheduled'].includes(status);
 const canScore = (status) => ['ongoing', 'completed'].includes(status);
 const canComplete = (status) => status === 'ongoing';
-
-const { rebuildAutoSchedule } = require('../services/scheduleConstraints');
-
-
-const result = await rebuildAutoSchedule(req.params.id, {
-    defaultVenueId: req.body.default_venue_id,
-    defaultRefereeId: req.body.default_referee_id,
-}, pool);
 
 /** Load names for notification messages */
 async function loadMatchLabel(matchId) {
@@ -1723,160 +1714,6 @@ const linkSource = async (req, res, next) => {
         next(err);
     }
 };
-
-/**
- * Force-insert a department into an open (TBD) slot.
- * Also clears any incoming next_match / loser_next_match link feeding that slot
- * so the structural bracket feed no longer overwrites the manual pick.
- */
-const insertTeam = async (req, res, next) => {
-    try {
-        const matchId = parseInt(req.params.id, 10);
-        const slot = req.body.slot === 'b' ? 'b' : 'a';
-        const departmentId = safeFK(req.body.department_id);
-        if (!departmentId) {
-            return res.status(400).json({ success: false, message: 'department_id is required.' });
-        }
-
-        const [[match]] = await pool.execute(
-            `SELECT id, status, participant_a_department_id, participant_b_department_id,
-                    scheduled_date, tournament_id
-             FROM matches WHERE id = ?`,
-            [matchId]
-        );
-        if (!match) return res.status(404).json({ success: false, message: 'Match not found.' });
-        if (['ongoing', 'completed', 'walkover', 'cancelled'].includes(String(match.status || '').toLowerCase())) {
-            return res.status(409).json({
-                success: false,
-                message: 'Cannot change teams on a match that has started or finished.',
-            });
-        }
-
-        // Unlink any source that was feeding this slot
-        await pool.execute(
-            `UPDATE matches SET next_match_id = NULL, next_match_slot = NULL
-             WHERE next_match_id = ? AND next_match_slot = ?`,
-            [matchId, slot]
-        );
-        await pool.execute(
-            `UPDATE matches SET loser_next_match_id = NULL, loser_next_match_slot = NULL
-             WHERE loser_next_match_id = ? AND loser_next_match_slot = ?`,
-            [matchId, slot]
-        );
-
-        const otherId = slot === 'a' ? match.participant_b_department_id : match.participant_a_department_id;
-        const newA = slot === 'a' ? departmentId : match.participant_a_department_id;
-        const newB = slot === 'b' ? departmentId : match.participant_b_department_id;
-        const bothSet = !!(newA && newB);
-        let nextStatus = match.status;
-        if (['pending', 'scheduled'].includes(String(match.status || '').toLowerCase())) {
-            nextStatus = bothSet && match.scheduled_date ? 'scheduled' : (bothSet ? 'scheduled' : 'pending');
-            if (bothSet && !match.scheduled_date) nextStatus = 'pending';
-            if (bothSet && match.scheduled_date) nextStatus = 'scheduled';
-            if (!bothSet) nextStatus = 'pending';
-        }
-
-        await pool.execute(
-            `UPDATE matches
-             SET participant_a_department_id = ?,
-                 participant_b_department_id = ?,
-                 status = ?,
-                 updated_at = NOW()
-             WHERE id = ?`,
-            [newA || null, newB || null, nextStatus, matchId]
-        );
-
-        await logActivity(req.user.id, 'MATCH_TEAM_INSERTED', 'match', matchId,
-            `Inserted department ${departmentId} into side ${slot.toUpperCase()}`);
-        emitToTournament(match.tournament_id, 'match:teamsUpdated', {
-            match_id: matchId, slot, department_id: departmentId,
-        });
-
-        return res.json({ success: true, message: `Team placed on side ${slot.toUpperCase()}.` });
-    } catch (err) {
-        next(err);
-    }
-};
-
-const updateTeams = async (req, res, next) => {
-    try {
-        const matchId = parseInt(req.params.id, 10);
-        const teamA_id = req.body.teamA_id != null && req.body.teamA_id !== ''
-            ? safeFK(req.body.teamA_id) : null;
-        const teamB_id = req.body.teamB_id != null && req.body.teamB_id !== ''
-            ? safeFK(req.body.teamB_id) : null;
-
-        if (teamA_id && teamB_id && teamA_id === teamB_id) {
-            return res.status(400).json({ success: false, message: 'A match cannot have the same team on both sides.' });
-        }
-
-        const [[match]] = await pool.execute(
-            `SELECT id, status, tournament_id, participant_a_department_id, participant_b_department_id
-             FROM matches WHERE id = ?`,
-            [matchId]
-        );
-        if (!match) return res.status(404).json({ success: false, message: 'Match not found.' });
-        if (['ongoing', 'completed', 'walkover', 'cancelled'].includes(String(match.status || '').toLowerCase())) {
-            return res.status(409).json({
-                success: false,
-                message: 'Cannot change teams on a match that has started or finished.',
-            });
-        }
-
-        // If a side was fed by a structural link and we're overwriting it, unlink the source
-        if (teamA_id !== match.participant_a_department_id) {
-            await pool.execute(
-                `UPDATE matches SET next_match_id = NULL, next_match_slot = NULL
-                 WHERE next_match_id = ? AND next_match_slot = 'a'`,
-                [matchId]
-            );
-            await pool.execute(
-                `UPDATE matches SET loser_next_match_id = NULL, loser_next_match_slot = NULL
-                 WHERE loser_next_match_id = ? AND loser_next_match_slot = 'a'`,
-                [matchId]
-            );
-        }
-        if (teamB_id !== match.participant_b_department_id) {
-            await pool.execute(
-                `UPDATE matches SET next_match_id = NULL, next_match_slot = NULL
-                 WHERE next_match_id = ? AND next_match_slot = 'b'`,
-                [matchId]
-            );
-            await pool.execute(
-                `UPDATE matches SET loser_next_match_id = NULL, loser_next_match_slot = NULL
-                 WHERE loser_next_match_id = ? AND loser_next_match_slot = 'b'`,
-                [matchId]
-            );
-        }
-
-        const bothSet = teamA_id && teamB_id;
-        await pool.execute(
-            `UPDATE matches
-             SET participant_a_department_id = ?,
-                 participant_b_department_id = ?,
-                 status = CASE
-                    WHEN status IN ('pending', 'scheduled') AND ? = 1 THEN
-                        CASE WHEN scheduled_date IS NOT NULL THEN 'scheduled' ELSE 'pending' END
-                    WHEN status IN ('pending', 'scheduled') AND ? = 0 THEN 'pending'
-                    ELSE status
-                 END,
-                 updated_at = NOW()
-             WHERE id = ?`,
-            [teamA_id, teamB_id, bothSet ? 1 : 0, bothSet ? 1 : 0, matchId]
-        );
-
-        await logActivity(req.user.id, 'MATCH_TEAMS_UPDATED', 'match', matchId,
-            `Teams set to A=${teamA_id || 'TBD'} B=${teamB_id || 'TBD'}`);
-        emitToTournament(match.tournament_id, 'match:teamsUpdated', {
-            match_id: matchId, teamA_id, teamB_id,
-        });
-
-        return res.json({ success: true, message: 'Teams updated.' });
-    } catch (err) {
-        next(err);
-    }
-};
-
 const removeMatch = async (req, res, next) => {
     try {
         const matchId = parseInt(req.params.id, 10);
@@ -1926,6 +1763,217 @@ const removeMatch = async (req, res, next) => {
     }
 };
 
+
+/**
+ * Force-insert a department into an open (TBD) slot.
+ * Clears any incoming next_match / loser_next_match link feeding that slot.
+ */
+const insertTeam = async (req, res, next) => {
+    try {
+        const matchId = parseInt(req.params.id, 10);
+        const slot = req.body.slot === 'b' ? 'b' : 'a';
+        const departmentId = safeFK(req.body.department_id);
+        if (!departmentId) {
+            return res.status(400).json({ success: false, message: 'department_id is required.' });
+        }
+
+        const [[match]] = await pool.execute(
+            `SELECT id, status, participant_a_department_id, participant_b_department_id,
+                    scheduled_date, tournament_id
+             FROM matches WHERE id = ?`,
+            [matchId]
+        );
+        if (!match) return res.status(404).json({ success: false, message: 'Match not found.' });
+        if (['ongoing', 'completed', 'walkover', 'cancelled'].includes(String(match.status || '').toLowerCase())) {
+            return res.status(409).json({
+                success: false,
+                message: 'Cannot change teams on a match that has started or finished.',
+            });
+        }
+
+        await pool.execute(
+            `UPDATE matches SET next_match_id = NULL, next_match_slot = NULL
+             WHERE next_match_id = ? AND next_match_slot = ?`,
+            [matchId, slot]
+        );
+        await pool.execute(
+            `UPDATE matches SET loser_next_match_id = NULL, loser_next_match_slot = NULL
+             WHERE loser_next_match_id = ? AND loser_next_match_slot = ?`,
+            [matchId, slot]
+        );
+
+        const newA = slot === 'a' ? departmentId : match.participant_a_department_id;
+        const newB = slot === 'b' ? departmentId : match.participant_b_department_id;
+        const bothSet = !!(newA && newB);
+        let nextStatus = match.status;
+        if (['pending', 'scheduled'].includes(String(match.status || '').toLowerCase())) {
+            if (bothSet && match.scheduled_date) nextStatus = 'scheduled';
+            else if (bothSet) nextStatus = 'scheduled';
+            else nextStatus = 'pending';
+        }
+
+        await pool.execute(
+            `UPDATE matches
+             SET participant_a_department_id = ?,
+                 participant_b_department_id = ?,
+                 status = ?,
+                 updated_at = NOW()
+             WHERE id = ?`,
+            [newA || null, newB || null, nextStatus, matchId]
+        );
+
+        await logActivity(req.user.id, 'MATCH_TEAM_INSERTED', 'match', matchId,
+            `Inserted department ${departmentId} into side ${slot.toUpperCase()}`);
+        emitToTournament(match.tournament_id, 'match:teamsUpdated', {
+            match_id: matchId, slot, department_id: departmentId,
+        });
+
+        return res.json({ success: true, message: `Team placed on side ${slot.toUpperCase()}.` });
+    } catch (err) {
+        next(err);
+    }
+};
+
+/**
+ * Set both sides of a match (swap / clear / assign).
+ * Body: { teamA_id, teamB_id } — null clears a side to TBD.
+ */
+const updateTeams = async (req, res, next) => {
+    try {
+        const matchId = parseInt(req.params.id, 10);
+        const teamA_id = (req.body.teamA_id != null && req.body.teamA_id !== '')
+            ? safeFK(req.body.teamA_id) : null;
+        const teamB_id = (req.body.teamB_id != null && req.body.teamB_id !== '')
+            ? safeFK(req.body.teamB_id) : null;
+
+        if (teamA_id && teamB_id && teamA_id === teamB_id) {
+            return res.status(400).json({ success: false, message: 'A match cannot have the same team on both sides.' });
+        }
+
+        const [[match]] = await pool.execute(
+            `SELECT id, status, tournament_id, participant_a_department_id, participant_b_department_id, scheduled_date
+             FROM matches WHERE id = ?`,
+            [matchId]
+        );
+        if (!match) return res.status(404).json({ success: false, message: 'Match not found.' });
+        if (['ongoing', 'completed', 'walkover', 'cancelled'].includes(String(match.status || '').toLowerCase())) {
+            return res.status(409).json({
+                success: false,
+                message: 'Cannot change teams on a match that has started or finished.',
+            });
+        }
+
+        if (teamA_id !== match.participant_a_department_id) {
+            await pool.execute(
+                `UPDATE matches SET next_match_id = NULL, next_match_slot = NULL
+                 WHERE next_match_id = ? AND next_match_slot = 'a'`,
+                [matchId]
+            );
+            await pool.execute(
+                `UPDATE matches SET loser_next_match_id = NULL, loser_next_match_slot = NULL
+                 WHERE loser_next_match_id = ? AND loser_next_match_slot = 'a'`,
+                [matchId]
+            );
+        }
+        if (teamB_id !== match.participant_b_department_id) {
+            await pool.execute(
+                `UPDATE matches SET next_match_id = NULL, next_match_slot = NULL
+                 WHERE next_match_id = ? AND next_match_slot = 'b'`,
+                [matchId]
+            );
+            await pool.execute(
+                `UPDATE matches SET loser_next_match_id = NULL, loser_next_match_slot = NULL
+                 WHERE loser_next_match_id = ? AND loser_next_match_slot = 'b'`,
+                [matchId]
+            );
+        }
+
+        const bothSet = !!(teamA_id && teamB_id);
+        let nextStatus = match.status;
+        if (['pending', 'scheduled'].includes(String(match.status || '').toLowerCase())) {
+            if (bothSet && match.scheduled_date) nextStatus = 'scheduled';
+            else if (bothSet) nextStatus = 'scheduled';
+            else nextStatus = 'pending';
+        }
+
+        await pool.execute(
+            `UPDATE matches
+             SET participant_a_department_id = ?,
+                 participant_b_department_id = ?,
+                 status = ?,
+                 updated_at = NOW()
+             WHERE id = ?`,
+            [teamA_id, teamB_id, nextStatus, matchId]
+        );
+
+        await logActivity(req.user.id, 'MATCH_TEAMS_UPDATED', 'match', matchId,
+            `Teams set to A=${teamA_id || 'TBD'} B=${teamB_id || 'TBD'}`);
+        emitToTournament(match.tournament_id, 'match:teamsUpdated', {
+            match_id: matchId, teamA_id, teamB_id,
+        });
+
+        return res.json({ success: true, message: 'Teams updated.' });
+    } catch (err) {
+        next(err);
+    }
+};
+
+/**
+ * Smart auto-schedule for a tournament (admin / SGO president).
+ * POST /tournaments/:id/schedule-auto
+ */
+const scheduleAuto = async (req, res, next) => {
+    try {
+        const tournamentId = parseInt(req.params.id, 10);
+        if (!Number.isInteger(tournamentId) || tournamentId <= 0) {
+            return res.status(400).json({ success: false, message: 'Invalid tournament id.' });
+        }
+
+        const result = await rebuildAutoSchedule(tournamentId, {
+            defaultVenueId: req.body.default_venue_id ?? null,
+            defaultRefereeId: req.body.default_referee_id ?? null,
+            dayStart: req.body.day_start,
+            dayEnd: req.body.day_end,
+            slotMinutes: req.body.slot_minutes,
+            startDate: req.body.start_date,
+            dates: req.body.dates,
+            times: req.body.times,
+            venue_id: req.body.venue_id,
+            assign_officers: req.body.assign_officers,
+        }, pool);
+
+        await logActivity(
+            req.user?.id,
+            'TOURNAMENT_AUTO_SCHEDULE',
+            'tournament',
+            tournamentId,
+            `Smart scheduled ${result.scheduled}, skipped ${result.skipped}`
+        );
+
+        emitToTournament(tournamentId, 'schedule:updated', {
+            tournament_id: tournamentId,
+            scheduled: result.scheduled,
+            skipped: result.skipped,
+        });
+
+        return res.json({
+            success: true,
+            message: result.skipped
+                ? `Scheduled ${result.scheduled}, ${result.skipped} could not find a conflict-free slot.`
+                : `Scheduled ${result.scheduled} match(es) with no team conflicts.`,
+            data: result,
+        });
+    } catch (err) {
+        if (err.message === 'Tournament not found.') {
+            return res.status(404).json({ success: false, message: err.message });
+        }
+        if (err.message?.includes('No venues')) {
+            return res.status(400).json({ success: false, message: err.message });
+        }
+        next(err);
+    }
+};
+
 module.exports = {
     getAll,
     getOne,
@@ -1935,6 +1983,7 @@ module.exports = {
     getMyAssignments,
     getAvailableOfficers,
     schedule,
+    scheduleAuto,
     startMatch,
     updateScore,
     completeMatch,
