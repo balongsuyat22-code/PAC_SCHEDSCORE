@@ -307,21 +307,6 @@
             color: #c4b5fd;
         }
 
-        .as-slot-summary {
-            font-size: 13px;
-            padding: 10px 12px;
-            border-radius: 10px;
-            border: 1px solid var(--border);
-            background: var(--bg3);
-            margin-bottom: 14px;
-        }
-
-        .as-slot-summary strong {
-            color: var(--gold);
-            font-family: 'Barlow Condensed', sans-serif;
-            font-size: 18px;
-        }
-
         @media (max-width: 560px) {
             .de-as-steps {
                 grid-template-columns: 1fr;
@@ -1296,9 +1281,8 @@
         </div>
     </div>
 
-    <div class="modal-overlay" id="modal-auto-schedule"
-        onclick="if(event.target===this)Modal.close('modal-auto-schedule')">
-        <div class="modal" id="as-modal-box" style="max-width:560px">
+    <div class="modal-overlay" id="modal-auto-schedule">
+        <div class="modal" id="as-modal-box">
             <div class="modal-header">
                 <div class="modal-title" id="as-modal-title">
                     <i class="fa-solid fa-dice"></i> Auto-Schedule Matches
@@ -1340,37 +1324,19 @@
                 </div>
                 <div class="form-group">
                     <label class="form-label"><i class="fa-solid fa-location-dot"
-                            style="margin-right:4px;opacity:.7"></i> Default Venue</label>
+                            style="margin-right:4px;opacity:.7"></i> Venue (optional)</label>
                     <select id="as-venue" class="form-select">
                         <option value="">No venue / assign later</option>
                     </select>
                 </div>
-                <div class="form-group">
-                    <label class="form-label"><i class="fa-solid fa-user-shield"
-                            style="margin-right:4px;opacity:.7"></i> Default Referee / Officer</label>
-                    <select id="as-referee" class="form-select">
-                        <option value="">Unassigned</option>
-                    </select>
-                </div>
                 <div class="officer-toggle">
                     <input type="checkbox" id="as-assign-officers" checked>
-                    <label for="as-assign-officers">Auto-assign SGO officers when shuffling slots (skip busy
-                        officers)</label>
+                    <label for="as-assign-officers">Auto-assign SGO officers (skip busy slots)</label>
                 </div>
                 <div id="as-format-note"></div>
-                <p style="font-size:12px;color:var(--muted);margin:12px 0 0">
-                    <strong style="color:var(--text)">Smart Schedule</strong> ignores the dates/times above and lets the
-                    server find conflict-free windows (same behavior as Admin). Use <strong>Assign &amp;
-                        Schedule</strong>
-                    when you want exact control over the calendar slots.
-                </p>
             </div>
-            <div class="modal-footer" style="flex-wrap:wrap;gap:8px">
+            <div class="modal-footer">
                 <button class="btn btn-secondary" onclick="Modal.close('modal-auto-schedule')">Cancel</button>
-                <button class="btn btn-secondary" id="as-smart-btn" onclick="confirmSmartAutoSchedule()"
-                    title="Ignores manual dates/times — finds conflict-free windows automatically">
-                    ⚡ Smart Schedule
-                </button>
                 <button class="btn btn-primary" id="as-submit-btn" onclick="submitAutoSchedule()">
                     <i class="fa-solid fa-calendar-check"></i> Assign &amp; Schedule
                 </button>
@@ -1379,16 +1345,18 @@
     </div>
 
     <!-- Per-match schedule editor (works with TBD sides) -->
-    <div class="modal-overlay" id="modal-match-schedule">
-        <div class="modal" style="max-width:480px">
+    <div class="modal-overlay" id="modal-match-schedule"
+        onclick="if(event.target===this)Modal.close('modal-match-schedule')">
+        <div class="modal" style="max-width:560px">
             <div class="modal-header">
-                <div class="modal-title"><i class="fa-solid fa-calendar-pen"></i> Schedule Match</div>
+                <div class="modal-title"><i class="fa-solid fa-calendar-pen"></i> Edit Match</div>
                 <button class="modal-close" onclick="Modal.close('modal-match-schedule')" aria-label="Close">
                     <i class="fa-solid fa-xmark"></i>
                 </button>
             </div>
             <div class="modal-body">
                 <div id="ms-preview" style="margin-bottom:16px"></div>
+
                 <div class="form-row">
                     <div class="form-group">
                         <label class="form-label">Date</label>
@@ -1413,9 +1381,56 @@
                         </select>
                     </div>
                 </div>
-                <p style="font-size:12px;color:var(--muted);margin:0">
+                <p style="font-size:12px;color:var(--muted);margin:0 0 16px">
                     You can set date &amp; officer even when one side is still TBD. Clear the date to unschedule.
                 </p>
+
+                <!-- Override teams (same behavior as Admin) — kept in the modal so match cards stay clean -->
+                <div id="ms-override-section"
+                    style="border-top:1px solid var(--border);padding-top:14px;margin-bottom:14px">
+                    <div
+                        style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin-bottom:10px">
+                        Override teams
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label class="form-label">Side A</label>
+                            <select id="ms-team-a" class="form-select">
+                                <option value="">— TBD —</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Side B</label>
+                            <select id="ms-team-b" class="form-select">
+                                <option value="">— TBD —</option>
+                            </select>
+                        </div>
+                    </div>
+                    <button type="button" class="btn btn-secondary btn-sm" id="ms-override-btn"
+                        onclick="submitOverrideTeamsFromModal()">
+                        <i class="fa-solid fa-shuffle"></i> Save teams
+                    </button>
+                </div>
+
+                <!-- Exhibition quick-place for open TBD slots -->
+                <div id="ms-exhibition-section"
+                    style="display:none;border-top:1px solid var(--border);padding-top:14px;margin-bottom:8px">
+                    <div
+                        style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--gold);margin-bottom:10px">
+                        Place exhibition
+                    </div>
+                    <div id="ms-exhibition-buttons" style="display:flex;flex-wrap:wrap;gap:6px"></div>
+                </div>
+
+                <!-- Optional: wire an open slot from another match's winner/loser -->
+                <div id="ms-link-section"
+                    style="display:none;border-top:1px solid var(--border);padding-top:14px;margin-bottom:4px">
+                    <div
+                        style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin-bottom:10px">
+                        Fill from another match
+                    </div>
+                    <div id="ms-link-rows" style="display:flex;flex-direction:column;gap:8px"></div>
+                </div>
             </div>
             <div class="modal-footer">
                 <button class="btn btn-secondary" onclick="Modal.close('modal-match-schedule')">Cancel</button>
@@ -1806,7 +1821,7 @@
                 officersCache.map(o =>
                     `<option value="${o.id}">${o.first_name} ${o.last_name}${o.active_assignments ? ` (${o.active_assignments} active)` : ''}</option>`
                 ).join('');
-            ['ffa-referee', 'ms-referee', 'as-referee'].forEach(id => {
+            ['ffa-referee', 'ms-referee'].forEach(id => {
                 const sel = document.getElementById(id);
                 if (sel) sel.innerHTML = opts;
             });
@@ -1870,33 +1885,110 @@
 
         let _msMatchId = null;
 
+        async function ensureDeptsCache() {
+            if (deptsCache.length) return deptsCache;
+            try {
+                const res = await api('/departments');
+                deptsCache = (res && res.data) ? (Array.isArray(res.data) ? res.data : []) : [];
+                if (!Array.isArray(deptsCache)) deptsCache = [];
+            } catch {
+                deptsCache = [];
+            }
+            return deptsCache;
+        }
+
+        function buildOverrideDeptOptions(selectedId) {
+            const list = (deptsCache || []).slice().sort((a, b) => String(a.name || '').localeCompare(String(b.name || '')));
+            let html = '<option value="">— TBD —</option>';
+            list.forEach(d => {
+                const sel = Number(selectedId) === Number(d.id) ? ' selected' : '';
+                const tag = Number(d.is_exhibition) === 1 ? ' (exhibition)' : '';
+                html += `<option value="${d.id}"${sel}>${d.name || d.department_name || 'Team'}${tag}</option>`;
+            });
+            return html;
+        }
+
+        function populateMatchOverrideUi(m) {
+            const aSel = document.getElementById('ms-team-a');
+            const bSel = document.getElementById('ms-team-b');
+            if (aSel) aSel.innerHTML = buildOverrideDeptOptions(m.participant_a_department_id);
+            if (bSel) bSel.innerHTML = buildOverrideDeptOptions(m.participant_b_department_id);
+
+            const statusOk = !['ongoing', 'completed', 'cancelled', 'walkover'].includes(String(m.status || '').toLowerCase())
+                && currentTournament?.status !== 'completed';
+            const ovSec = document.getElementById('ms-override-section');
+            if (ovSec) ovSec.style.display = statusOk ? '' : 'none';
+
+            // Exhibition place — only open TBD slots
+            const exhSec = document.getElementById('ms-exhibition-section');
+            const exhHost = document.getElementById('ms-exhibition-buttons');
+            const exhibition = (deptsCache || []).filter(d => Number(d.is_exhibition) === 1);
+            const openSlots = ['a', 'b'].filter(side => !m[`participant_${side}_department_id`]);
+            if (exhSec && exhHost) {
+                if (statusOk && exhibition.length && openSlots.length) {
+                    exhSec.style.display = '';
+                    exhHost.innerHTML = exhibition.map(p => openSlots.map(side => {
+                        const label = p.name || p.department_name || 'Exhibition';
+                        return `<button type="button" class="btn btn-secondary btn-sm" onclick="placeExhibition(${m.id},${p.id},'${side}')">${label} · ${side.toUpperCase()}</button>`;
+                    }).join('')).join('');
+                } else {
+                    exhSec.style.display = 'none';
+                    exhHost.innerHTML = '';
+                }
+            }
+
+            // Link from another match's winner/loser into open slots
+            const linkSec = document.getElementById('ms-link-section');
+            const linkRows = document.getElementById('ms-link-rows');
+            const candidates = (currentBracketMatches || []).filter(x =>
+                Number(x.id) !== Number(m.id) && !['completed', 'cancelled', 'walkover'].includes(String(x.status || '').toLowerCase())
+            );
+            if (linkSec && linkRows) {
+                if (statusOk && openSlots.length && candidates.length) {
+                    linkSec.style.display = '';
+                    const srcOptions = '<option value="">— choose source —</option>' + candidates.map(c => {
+                        const label = c.bracket_position
+                            || `${c.dept_a_name || c.team_a_name || 'TBD'} vs ${c.dept_b_name || c.team_b_name || 'TBD'}`;
+                        return `<option value="${c.id}|winner">${label} · Winner</option><option value="${c.id}|loser">${label} · Loser</option>`;
+                    }).join('');
+                    linkRows.innerHTML = openSlots.map(side => `
+                        <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+                            <select class="form-select" style="flex:1;min-width:160px" id="ms-link-src-${side}">${srcOptions}</select>
+                            <button type="button" class="btn btn-secondary btn-sm" onclick="submitLinkSourceFromModal('${side}')">
+                                Link to ${side.toUpperCase()}
+                            </button>
+                        </div>`).join('');
+                } else {
+                    linkSec.style.display = 'none';
+                    linkRows.innerHTML = '';
+                }
+            }
+        }
+
         async function openMatchSchedule(matchId) {
-            if (currentTournament?.status === 'completed') {
-                Toast.show('This tournament is finalized — its schedule is locked.', 'error');
-                return;
-            }
             const m = (currentBracketMatches || []).find(x => Number(x.id) === Number(matchId));
-            if (!m) {
-                Toast.show('Match not found in this tournament.', 'error');
-                return;
-            }
-            if (!['pending', 'scheduled'].includes(String(m.status || '').toLowerCase())) {
-                Toast.show('Only pending or scheduled matches can be rescheduled.', 'error');
-                return;
-            }
+            if (!m) return;
+            _msMatchId = Number(matchId);
 
-            _msMatchId = matchId;
-            await loadVenueOptionsForSchedule();
-            await loadOfficerOptionsForSchedule();
+            await ensureDeptsCache();
+            await loadVenueOptionsForSchedule().catch(() => { });
+            await loadOfficerOptionsForSchedule().catch(() => { });
 
-            const { nA, nB, cA, cB } = matchSideNames(m);
+            const nA = m.dept_a_name || m.team_a_name || 'TBD';
+            const nB = m.dept_b_name || m.team_b_name || 'TBD';
+            const cA = m.dept_a_color || '#555';
+            const cB = m.dept_b_color || '#555';
             document.getElementById('ms-preview').innerHTML = `
-                <div style="display:flex;align-items:center;gap:12px;background:var(--bg3);border-radius:10px;padding:14px 16px;flex-wrap:wrap">
-                    <span style="width:10px;height:10px;border-radius:50%;background:${cA || '#555'};flex-shrink:0"></span>
-                    <strong style="flex:1;min-width:80px">${nA}</strong>
-                    <span style="color:var(--muted);font-size:13px">vs</span>
-                    <strong style="flex:1;min-width:80px;text-align:right">${nB}</strong>
-                    <span style="width:10px;height:10px;border-radius:50%;background:${cB || '#555'};flex-shrink:0"></span>
+                <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;background:var(--bg3);border-radius:10px;padding:14px">
+                    <div style="display:flex;align-items:center;gap:8px;min-width:0">
+                        <span style="width:10px;height:10px;border-radius:50%;background:${cA};flex-shrink:0"></span>
+                        <strong style="font-size:14px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${nA}</strong>
+                    </div>
+                    <span style="color:var(--muted);font-size:11px;flex-shrink:0">vs</span>
+                    <div style="display:flex;align-items:center;gap:8px;min-width:0;justify-content:flex-end">
+                        <strong style="font-size:14px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;text-align:right">${nB}</strong>
+                        <span style="width:10px;height:10px;border-radius:50%;background:${cB};flex-shrink:0"></span>
+                    </div>
                 </div>
                 ${m.bracket_position ? `<div style="font-size:12px;color:var(--muted);margin-top:8px">${m.bracket_position}</div>` : ''}
                 ${(!m.participant_a_department_id || !m.participant_b_department_id)
@@ -1910,6 +2002,7 @@
             if (vSel) vSel.value = m.venue_id ? String(m.venue_id) : '';
             if (rSel) rSel.value = (m.referee_user_id || m.referee_id) ? String(m.referee_user_id || m.referee_id) : '';
 
+            populateMatchOverrideUi(m);
             Modal.open('modal-match-schedule');
         }
 
@@ -1935,6 +2028,82 @@
                 if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fa-solid fa-floppy-disk"></i> Save Schedule'; }
             }
         }
+
+        async function submitOverrideTeamsFromModal() {
+            if (!_msMatchId) return;
+            const teamA_id = parseInt(document.getElementById('ms-team-a')?.value, 10) || null;
+            const teamB_id = parseInt(document.getElementById('ms-team-b')?.value, 10) || null;
+            if (teamA_id && teamB_id && teamA_id === teamB_id) {
+                Toast.show('A match cannot have the same team on both sides.', 'error');
+                return;
+            }
+
+            const match = (currentBracketMatches || []).find(x => Number(x.id) === Number(_msMatchId));
+            const wasA = match?.participant_a_department_id || null;
+            const wasB = match?.participant_b_department_id || null;
+
+            // Filling a previously-empty TBD slot → insert-team (also unlinks structural feed).
+            // Otherwise full team swap via PUT /matches/:id/teams.
+            const onlyFillingA = !wasA && teamA_id && wasB === teamB_id;
+            const onlyFillingB = !wasB && teamB_id && wasA === teamA_id;
+
+            const btn = document.getElementById('ms-override-btn');
+            if (btn) { btn.disabled = true; }
+            try {
+                let res;
+                if (onlyFillingA || onlyFillingB) {
+                    const slot = onlyFillingA ? 'a' : 'b';
+                    const department_id = onlyFillingA ? teamA_id : teamB_id;
+                    res = await api(`/matches/${_msMatchId}/insert-team`, {
+                        method: 'POST', body: { slot, department_id },
+                    });
+                } else {
+                    res = await api(`/matches/${_msMatchId}/teams`, {
+                        method: 'PUT', body: { teamA_id, teamB_id },
+                    });
+                }
+                Toast.show(res.message || (res.success ? 'Teams updated.' : 'Could not update teams'), res.success ? 'success' : 'error');
+                if (res.success) {
+                    Modal.close('modal-match-schedule');
+                    _msMatchId = null;
+                    await refreshAll();
+                }
+            } finally {
+                if (btn) { btn.disabled = false; }
+            }
+        }
+
+        async function placeExhibition(matchId, departmentId, slot) {
+            const tid = currentTournamentId;
+            if (!tid) return;
+            const res = await api(`/tournaments/${tid}/matches/${matchId}/exhibition`, {
+                method: 'PATCH', body: { department_id: departmentId, slot },
+            });
+            Toast.show(res.message || (res.success ? 'Exhibition team placed.' : 'Could not place exhibition team'), res.success ? 'success' : 'error');
+            if (res.success) {
+                Modal.close('modal-match-schedule');
+                _msMatchId = null;
+                await refreshAll();
+            }
+        }
+
+        async function submitLinkSourceFromModal(side) {
+            if (!_msMatchId) return;
+            const sel = document.getElementById(`ms-link-src-${side}`);
+            if (!sel || !sel.value) { Toast.show('Pick a source match first', 'error'); return; }
+            const [sourceId, result] = sel.value.split('|');
+            const res = await api(`/matches/${sourceId}/link`, {
+                method: 'PATCH',
+                body: { target_match_id: _msMatchId, target_slot: side, result },
+            });
+            Toast.show(res.message || (res.success ? 'Linked.' : 'Could not link matches'), res.success ? 'success' : 'error');
+            if (res.success) {
+                Modal.close('modal-match-schedule');
+                _msMatchId = null;
+                await refreshAll();
+            }
+        }
+
 
 
 
@@ -3414,17 +3583,14 @@
             }
 
             updateSlotCalc();
-            loadVenueOptionsForSchedule().catch(() => { });
-            loadOfficerOptionsForSchedule().catch(() => { });
             Modal.open('modal-auto-schedule');
         }
 
         async function submitAutoSchedule() {
             const dates = [...document.querySelectorAll('.as-date-input')].map(i => i.value).filter(Boolean);
             const times = [...document.querySelectorAll('.as-time-input')].map(i => i.value).filter(Boolean);
-            const venue_id = parseInt(document.getElementById('as-venue')?.value, 10) || null;
-            const referee_id = parseInt(document.getElementById('as-referee')?.value, 10) || null;
-            const assign_officers = document.getElementById('as-assign-officers')?.checked;
+            const venue_id = parseInt(document.getElementById('as-venue').value, 10) || null;
+            const assign_officers = document.getElementById('as-assign-officers').checked;
             if (!dates.length) { Toast.show('Add at least one date', 'error'); return; }
             if (!times.length) { Toast.show('Add at least one time slot', 'error'); return; }
 
@@ -3433,85 +3599,18 @@
                 if (!await Modal.confirm(`You only have ${dates.length * times.length} slot(s) for ${matchesNeeded} matches — some matches will share a slot time. Continue anyway?`, 'Schedule matches')) return;
             }
 
-            const btn = document.getElementById('as-submit-btn');
-            if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Scheduling…'; }
-            try {
-                let res = await api(`/tournaments/${currentTournamentId}/schedule-auto`, {
+            let res = await api(`/tournaments/${currentTournamentId}/schedule-auto`, {
+                method: 'POST',
+                body: { dates, times, venue_id, assign_officers },
+            });
+            if (res && res.success === false && /Cannot POST|not found|404|HTTP 404/i.test(res.message || '')) {
+                res = await api(`/tournaments/${currentTournamentId}/schedule-round-robin`, {
                     method: 'POST',
-                    body: {
-                        dates,
-                        times,
-                        venue_id,
-                        default_venue_id: venue_id,
-                        referee_id,
-                        default_referee_id: referee_id,
-                        assign_officers,
-                    },
+                    body: { dates, times, venue_id, assign_officers },
                 });
-                if (res && res.success === false && /Cannot POST|not found|404|HTTP 404/i.test(res.message || '')) {
-                    res = await api(`/tournaments/${currentTournamentId}/schedule-round-robin`, {
-                        method: 'POST',
-                        body: { dates, times, venue_id, referee_id, assign_officers },
-                    });
-                }
-                if (res.success) {
-                    const d = res.data || {};
-                    const msg = (d.scheduled != null)
-                        ? (d.skipped
-                            ? `Scheduled ${d.scheduled}, ${d.skipped} could not find a conflict-free slot.`
-                            : `Scheduled ${d.scheduled} match(es).`)
-                        : (res.message || 'Scheduled!');
-                    Toast.show(msg, d.skipped ? 'info' : 'success');
-                    Modal.close('modal-auto-schedule');
-                    refreshAll();
-                } else {
-                    Toast.show(res.message || 'Scheduling failed', 'error');
-                }
-            } finally {
-                if (btn) {
-                    btn.disabled = false;
-                    btn.innerHTML = '<i class="fa-solid fa-calendar-check"></i> Assign &amp; Schedule';
-                }
             }
-        }
-
-        /**
-         * Server-side smart scheduler (same as Admin).
-         * Ignores the manual date/time lists and places matches into conflict-free windows.
-         */
-        async function confirmSmartAutoSchedule() {
-            if (!currentTournamentId) {
-                Toast.show('Open a tournament first', 'error');
-                return;
-            }
-            const btn = document.getElementById('as-smart-btn');
-            const defaultVenue = document.getElementById('as-venue')?.value;
-            const defaultReferee = document.getElementById('as-referee')?.value;
-            if (btn) { btn.disabled = true; btn.textContent = 'Scheduling…'; }
-            try {
-                const res = await api(`/tournaments/${currentTournamentId}/schedule-auto`, {
-                    method: 'POST',
-                    body: {
-                        default_venue_id: defaultVenue ? parseInt(defaultVenue, 10) : null,
-                        default_referee_id: defaultReferee ? parseInt(defaultReferee, 10) : null,
-                    },
-                });
-                if (res.success) {
-                    const d = res.data || {};
-                    const msg = d.skipped
-                        ? `Scheduled ${d.scheduled}, ${d.skipped} could not find a conflict-free slot.`
-                        : (d.scheduled != null
-                            ? `Scheduled ${d.scheduled} match(es) with no team conflicts.`
-                            : (res.message || 'Smart schedule complete.'));
-                    Toast.show(msg, d.skipped ? 'info' : 'success');
-                    Modal.close('modal-auto-schedule');
-                    refreshAll();
-                } else {
-                    Toast.show(res.message || 'Smart scheduling failed', 'error');
-                }
-            } finally {
-                if (btn) { btn.disabled = false; btn.textContent = '⚡ Smart Schedule'; }
-            }
+            Toast.show(res.message || (res.success ? 'Scheduled!' : 'Error'), res.success ? 'success' : 'error');
+            if (res.success) { Modal.close('modal-auto-schedule'); refreshAll(); }
         }
 
 
