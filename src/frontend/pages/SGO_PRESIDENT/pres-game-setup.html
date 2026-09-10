@@ -307,6 +307,21 @@
             color: #c4b5fd;
         }
 
+        .as-slot-summary {
+            font-size: 13px;
+            padding: 10px 12px;
+            border-radius: 10px;
+            border: 1px solid var(--border);
+            background: var(--bg3);
+            margin-bottom: 14px;
+        }
+
+        .as-slot-summary strong {
+            color: var(--gold);
+            font-family: 'Barlow Condensed', sans-serif;
+            font-size: 18px;
+        }
+
         @media (max-width: 560px) {
             .de-as-steps {
                 grid-template-columns: 1fr;
@@ -1281,8 +1296,9 @@
         </div>
     </div>
 
-    <div class="modal-overlay" id="modal-auto-schedule">
-        <div class="modal" id="as-modal-box">
+    <div class="modal-overlay" id="modal-auto-schedule"
+        onclick="if(event.target===this)Modal.close('modal-auto-schedule')">
+        <div class="modal" id="as-modal-box" style="max-width:560px">
             <div class="modal-header">
                 <div class="modal-title" id="as-modal-title">
                     <i class="fa-solid fa-dice"></i> Auto-Schedule Matches
@@ -1324,19 +1340,37 @@
                 </div>
                 <div class="form-group">
                     <label class="form-label"><i class="fa-solid fa-location-dot"
-                            style="margin-right:4px;opacity:.7"></i> Venue (optional)</label>
+                            style="margin-right:4px;opacity:.7"></i> Default Venue</label>
                     <select id="as-venue" class="form-select">
                         <option value="">No venue / assign later</option>
                     </select>
                 </div>
+                <div class="form-group">
+                    <label class="form-label"><i class="fa-solid fa-user-shield"
+                            style="margin-right:4px;opacity:.7"></i> Default Referee / Officer</label>
+                    <select id="as-referee" class="form-select">
+                        <option value="">Unassigned</option>
+                    </select>
+                </div>
                 <div class="officer-toggle">
                     <input type="checkbox" id="as-assign-officers" checked>
-                    <label for="as-assign-officers">Auto-assign SGO officers (skip busy slots)</label>
+                    <label for="as-assign-officers">Auto-assign SGO officers when shuffling slots (skip busy
+                        officers)</label>
                 </div>
                 <div id="as-format-note"></div>
+                <p style="font-size:12px;color:var(--muted);margin:12px 0 0">
+                    <strong style="color:var(--text)">Smart Schedule</strong> ignores the dates/times above and lets the
+                    server find conflict-free windows (same behavior as Admin). Use <strong>Assign &amp;
+                        Schedule</strong>
+                    when you want exact control over the calendar slots.
+                </p>
             </div>
-            <div class="modal-footer">
+            <div class="modal-footer" style="flex-wrap:wrap;gap:8px">
                 <button class="btn btn-secondary" onclick="Modal.close('modal-auto-schedule')">Cancel</button>
+                <button class="btn btn-secondary" id="as-smart-btn" onclick="confirmSmartAutoSchedule()"
+                    title="Ignores manual dates/times — finds conflict-free windows automatically">
+                    ⚡ Smart Schedule
+                </button>
                 <button class="btn btn-primary" id="as-submit-btn" onclick="submitAutoSchedule()">
                     <i class="fa-solid fa-calendar-check"></i> Assign &amp; Schedule
                 </button>
@@ -1772,7 +1806,7 @@
                 officersCache.map(o =>
                     `<option value="${o.id}">${o.first_name} ${o.last_name}${o.active_assignments ? ` (${o.active_assignments} active)` : ''}</option>`
                 ).join('');
-            ['ffa-referee', 'ms-referee'].forEach(id => {
+            ['ffa-referee', 'ms-referee', 'as-referee'].forEach(id => {
                 const sel = document.getElementById(id);
                 if (sel) sel.innerHTML = opts;
             });
@@ -3380,14 +3414,17 @@
             }
 
             updateSlotCalc();
+            loadVenueOptionsForSchedule().catch(() => { });
+            loadOfficerOptionsForSchedule().catch(() => { });
             Modal.open('modal-auto-schedule');
         }
 
         async function submitAutoSchedule() {
             const dates = [...document.querySelectorAll('.as-date-input')].map(i => i.value).filter(Boolean);
             const times = [...document.querySelectorAll('.as-time-input')].map(i => i.value).filter(Boolean);
-            const venue_id = parseInt(document.getElementById('as-venue').value, 10) || null;
-            const assign_officers = document.getElementById('as-assign-officers').checked;
+            const venue_id = parseInt(document.getElementById('as-venue')?.value, 10) || null;
+            const referee_id = parseInt(document.getElementById('as-referee')?.value, 10) || null;
+            const assign_officers = document.getElementById('as-assign-officers')?.checked;
             if (!dates.length) { Toast.show('Add at least one date', 'error'); return; }
             if (!times.length) { Toast.show('Add at least one time slot', 'error'); return; }
 
@@ -3396,18 +3433,85 @@
                 if (!await Modal.confirm(`You only have ${dates.length * times.length} slot(s) for ${matchesNeeded} matches — some matches will share a slot time. Continue anyway?`, 'Schedule matches')) return;
             }
 
-            let res = await api(`/tournaments/${currentTournamentId}/schedule-auto`, {
-                method: 'POST',
-                body: { dates, times, venue_id, assign_officers },
-            });
-            if (res && res.success === false && /Cannot POST|not found|404|HTTP 404/i.test(res.message || '')) {
-                res = await api(`/tournaments/${currentTournamentId}/schedule-round-robin`, {
+            const btn = document.getElementById('as-submit-btn');
+            if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Scheduling…'; }
+            try {
+                let res = await api(`/tournaments/${currentTournamentId}/schedule-auto`, {
                     method: 'POST',
-                    body: { dates, times, venue_id, assign_officers },
+                    body: {
+                        dates,
+                        times,
+                        venue_id,
+                        default_venue_id: venue_id,
+                        referee_id,
+                        default_referee_id: referee_id,
+                        assign_officers,
+                    },
                 });
+                if (res && res.success === false && /Cannot POST|not found|404|HTTP 404/i.test(res.message || '')) {
+                    res = await api(`/tournaments/${currentTournamentId}/schedule-round-robin`, {
+                        method: 'POST',
+                        body: { dates, times, venue_id, referee_id, assign_officers },
+                    });
+                }
+                if (res.success) {
+                    const d = res.data || {};
+                    const msg = (d.scheduled != null)
+                        ? (d.skipped
+                            ? `Scheduled ${d.scheduled}, ${d.skipped} could not find a conflict-free slot.`
+                            : `Scheduled ${d.scheduled} match(es).`)
+                        : (res.message || 'Scheduled!');
+                    Toast.show(msg, d.skipped ? 'info' : 'success');
+                    Modal.close('modal-auto-schedule');
+                    refreshAll();
+                } else {
+                    Toast.show(res.message || 'Scheduling failed', 'error');
+                }
+            } finally {
+                if (btn) {
+                    btn.disabled = false;
+                    btn.innerHTML = '<i class="fa-solid fa-calendar-check"></i> Assign &amp; Schedule';
+                }
             }
-            Toast.show(res.message || (res.success ? 'Scheduled!' : 'Error'), res.success ? 'success' : 'error');
-            if (res.success) { Modal.close('modal-auto-schedule'); refreshAll(); }
+        }
+
+        /**
+         * Server-side smart scheduler (same as Admin).
+         * Ignores the manual date/time lists and places matches into conflict-free windows.
+         */
+        async function confirmSmartAutoSchedule() {
+            if (!currentTournamentId) {
+                Toast.show('Open a tournament first', 'error');
+                return;
+            }
+            const btn = document.getElementById('as-smart-btn');
+            const defaultVenue = document.getElementById('as-venue')?.value;
+            const defaultReferee = document.getElementById('as-referee')?.value;
+            if (btn) { btn.disabled = true; btn.textContent = 'Scheduling…'; }
+            try {
+                const res = await api(`/tournaments/${currentTournamentId}/schedule-auto`, {
+                    method: 'POST',
+                    body: {
+                        default_venue_id: defaultVenue ? parseInt(defaultVenue, 10) : null,
+                        default_referee_id: defaultReferee ? parseInt(defaultReferee, 10) : null,
+                    },
+                });
+                if (res.success) {
+                    const d = res.data || {};
+                    const msg = d.skipped
+                        ? `Scheduled ${d.scheduled}, ${d.skipped} could not find a conflict-free slot.`
+                        : (d.scheduled != null
+                            ? `Scheduled ${d.scheduled} match(es) with no team conflicts.`
+                            : (res.message || 'Smart schedule complete.'));
+                    Toast.show(msg, d.skipped ? 'info' : 'success');
+                    Modal.close('modal-auto-schedule');
+                    refreshAll();
+                } else {
+                    Toast.show(res.message || 'Smart scheduling failed', 'error');
+                }
+            } finally {
+                if (btn) { btn.disabled = false; btn.textContent = '⚡ Smart Schedule'; }
+            }
         }
 
 

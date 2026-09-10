@@ -1210,6 +1210,9 @@
                 <button class="btn btn-secondary" onclick="Modal.close('modal-schedule-config')">Cancel</button>
                 <button class="btn btn-secondary" onclick="openTSModal()"><i class="fa-solid fa-clock"></i> Time
                     Slots</button>
+                <button class="btn btn-secondary" id="as-smart-btn" onclick="confirmSmartAutoSchedule()"
+                    title="Ignores Time Slots — finds conflict-free windows automatically and skips locked school blocks">
+                    ⚡ Smart Schedule</button>
                 <button class="btn btn-primary" id="as-submit-btn" onclick="confirmAutoSchedule()">Start
                     Auto-Scheduling</button>
             </div>
@@ -1995,6 +1998,7 @@
                                     ${progression}
                                     ${exhibitionPlacementActions(m)}
                                     ${linkSourceActions(m, incoming)}
+                                    ${overrideTeamsActions(m)}
                                 </div>`;
                 }).join('')}
                     </div>
@@ -2460,6 +2464,69 @@
             if (res.success) await reloadDetail();
         }
 
+        // Total Customization: lets an admin set EITHER side of a match to any
+        // department directly, regardless of whether the slot is empty (TBD),
+        // fed by a link, or already holds a team. Filled slots use a full
+        // team swap (PUT /matches/:id/teams); empty TBD slots use force-insert,
+        // which also strips any incoming next_match_id/loser_next_match_id
+        // link so a later bracket-progression run can't silently overwrite it.
+        function overrideTeamsActions(match) {
+            if (tournament.status === 'completed' || ['ongoing', 'completed'].includes(match.status)) return '';
+            if (!departments.length) return '';
+
+            const deptOptions = (current) => '<option value="">— TBD —</option>' + departments
+                .slice()
+                .sort((a, b) => a.name.localeCompare(b.name))
+                .map(d => `<option value="${d.id}" ${Number(current) === d.id ? 'selected' : ''}>${d.name}${Number(d.is_exhibition) === 1 ? ' (exhibition)' : ''}</option>`)
+                .join('');
+
+            return `<div style="margin-top:8px;display:flex;gap:6px;flex-wrap:wrap;align-items:center;padding-top:8px;border-top:1px dashed rgba(255,255,255,.08)">
+                <span style="font-size:11px;color:var(--muted)">Override teams:</span>
+                <select class="form-select" style="width:auto;font-size:11px;padding:4px 8px" id="ov-team-a-${match.id}">${deptOptions(match.participant_a_department_id)}</select>
+                <span style="font-size:11px;color:var(--muted)">vs</span>
+                <select class="form-select" style="width:auto;font-size:11px;padding:4px 8px" id="ov-team-b-${match.id}">${deptOptions(match.participant_b_department_id)}</select>
+                <button class="btn btn-secondary btn-sm" onclick="submitOverrideTeams(${match.id})">Save</button>
+            </div>`;
+        }
+
+        async function submitOverrideTeams(matchId) {
+            const aSel = document.getElementById(`ov-team-a-${matchId}`);
+            const bSel = document.getElementById(`ov-team-b-${matchId}`);
+            const teamA_id = aSel?.value ? parseInt(aSel.value) : null;
+            const teamB_id = bSel?.value ? parseInt(bSel.value) : null;
+            if (teamA_id && teamB_id && teamA_id === teamB_id) {
+                Toast.show('A match cannot have the same team on both sides.', 'error');
+                return;
+            }
+
+            const match = bracketMatches.find(x => x.id === matchId);
+            const wasA = match?.participant_a_department_id || null;
+            const wasB = match?.participant_b_department_id || null;
+
+            // If we're only filling a previously-empty (TBD) slot, use
+            // force-insert so the structural link feeding that slot gets
+            // cleanly unlinked. Otherwise (swapping an already-set team, or
+            // changing both), do a straight team update.
+            const onlyFillingA = !wasA && teamA_id && wasB === teamB_id;
+            const onlyFillingB = !wasB && teamB_id && wasA === teamA_id;
+
+            let res;
+            if (onlyFillingA || onlyFillingB) {
+                const slot = onlyFillingA ? 'a' : 'b';
+                const department_id = onlyFillingA ? teamA_id : teamB_id;
+                res = await api(`/matches/${matchId}/insert-team`, {
+                    method: 'POST', body: { slot, department_id },
+                });
+            } else {
+                res = await api(`/matches/${matchId}/teams`, {
+                    method: 'PUT', body: { teamA_id, teamB_id },
+                });
+            }
+
+            Toast.show(res.message || (res.success ? 'Teams updated.' : 'Could not update teams'), res.success ? 'success' : 'error');
+            if (res.success) await reloadDetail();
+        }
+
         function divisionLabel(div) {
             const map = { junior_high: 'Junior High', senior_high: 'Senior High' };
             return map[String(div || '').toLowerCase()] || 'Other / Ungrouped';
@@ -2827,6 +2894,40 @@
             await reloadDetail();
             Modal.close('modal-schedule-config');
             switchTab('schedule');
+        }
+
+        // Server-side smart scheduler: ignores Time Slots entirely, walks the
+        // tournament's flexible fixtures, skips permanently-locked school
+        // blocks, and places every match into a window where findTeamConflict()
+        // reports no clash for either side. Round-robin assigns venues/refs.
+        async function confirmSmartAutoSchedule() {
+            const btn = document.getElementById('as-smart-btn');
+            const defaultVenue = document.getElementById('config-venue')?.value;
+            const defaultReferee = document.getElementById('config-referee')?.value;
+            if (btn) { btn.disabled = true; btn.textContent = 'Scheduling…'; }
+            try {
+                const res = await api(`/tournaments/${PAGE_ID}/schedule-auto`, {
+                    method: 'POST',
+                    body: {
+                        default_venue_id: defaultVenue ? parseInt(defaultVenue) : null,
+                        default_referee_id: defaultReferee ? parseInt(defaultReferee) : null,
+                    },
+                });
+                if (res.success) {
+                    const d = res.data || {};
+                    const msg = d.skipped
+                        ? `Scheduled ${d.scheduled}, ${d.skipped} could not find a conflict-free slot.`
+                        : `Scheduled ${d.scheduled} match(es) with no team conflicts.`;
+                    Toast.show(msg, d.skipped ? 'info' : 'success');
+                    await reloadDetail();
+                    Modal.close('modal-schedule-config');
+                    switchTab('schedule');
+                } else {
+                    Toast.show(res.message || 'Smart scheduling failed', 'error');
+                }
+            } finally {
+                if (btn) { btn.disabled = false; btn.textContent = '⚡ Smart Schedule'; }
+            }
         }
 
         function openEditMatch(matchId) {
