@@ -482,26 +482,10 @@ const addParticipants = async (req, res, next) => {
 
 const getBracket = async (req, res, next) => {
     try {
-        // Optional auth: president/admin see TBD sides; visitor/dean/referee do not.
-        let role = req.user?.role || null;
-        if (!role) {
-            try {
-                const hdr = req.headers.authorization || '';
-                const token = hdr.startsWith('Bearer ') ? hdr.slice(7) : null;
-                if (token) {
-                    const jwt = require('jsonwebtoken');
-                    const secret = process.env.JWT_SECRET || process.env.TOKEN_SECRET || 'secret';
-                    const decoded = jwt.verify(token, secret);
-                    role = decoded.role || decoded.user?.role || null;
-                }
-            } catch (_) {
-                role = null;
-            }
-        }
-        const canSeeTbd = role === 'admin' || role === 'sgo_president';
-
-        let sql = `
-        SELECT m.id, m.tournament_id, m.sport_id, m.round_number, m.match_number,
+        // Always return every match slot, including TBD sides.
+        // Public visitor/dean/referee hide TBD via getAll / getLive / getToday.
+        const [rows] = await pool.execute(
+            `SELECT m.id, m.tournament_id, m.sport_id, m.round_number, m.match_number,
         m.bracket_position, m.bracket_side,
         m.participant_a_department_id, m.participant_b_department_id,
         m.winner_department_id, m.status, m.scheduled_date, m.scheduled_time,
@@ -522,31 +506,16 @@ const getBracket = async (req, res, next) => {
         LEFT JOIN venues v ON v.id = m.venue_id
         LEFT JOIN users ru ON ru.id = m.referee_id
         LEFT JOIN match_results mr ON mr.match_id = m.id
-        LEFT JOIN tournaments t ON t.id = m.tournament_id
-        WHERE m.tournament_id = ?`;
-
-        if (!canSeeTbd) {
-            sql += `
-            AND (
-                m.status NOT IN ('pending', 'scheduled')
-                OR m.bracket_side = 'ffa'
-                OR t.format IN ('free_for_all', 'team_ranking', 'group_stage_ffa')
-                OR m.bracket_side = 'exhibition'
-                OR (m.participant_a_department_id IS NOT NULL
-                    AND m.participant_b_department_id IS NOT NULL)
-            )`;
-        }
-
-        sql += ` ORDER BY m.round_number ASC, m.match_number ASC, m.id ASC`;
-
-        const [rows] = await pool.execute(sql, [req.params.id]);
+        WHERE m.tournament_id = ?
+        ORDER BY m.round_number ASC, m.match_number ASC, m.id ASC`,
+            [req.params.id]
+        );
         res.json({ success: true, data: rows });
     } catch (err) {
         console.error('getBracket error:', err);
         next(err);
     }
 };
-
 const create = async (req, res, next) => {
     try {
         const {
@@ -1434,113 +1403,126 @@ const ensureTbdRounds = async (req, res, next) => {
 
         const [existing] = await pool.execute(
             `SELECT id, round_number, match_number, bracket_position,
-                    participant_a_department_id, participant_b_department_id,
-                    next_match_id, loser_next_match_id, status
+                    participant_a_department_id, participant_b_department_id, status
              FROM matches WHERE tournament_id = ?
-             ORDER BY match_number ASC, id ASC`,
+             ORDER BY id ASC`,
             [tournamentId]
         );
 
-        if (t.format === 'division_gauntlet') {
-            const slots = [
-                { label: 'Day 2 · Junior High · Game 1', round: 1, match: 1 },
-                { label: 'Day 2 · Junior High · Game 2', round: 1, match: 2 },
-                { label: 'Day 2 · Senior High · Game 3', round: 1, match: 3 },
-                { label: 'Day 2 · Senior High · Game 4', round: 1, match: 4 },
-                { label: 'Day 3 · Junior High · Loser vs Loser', round: 2, match: 5 },
-                { label: 'Day 3 · Junior High · Winner vs Winner', round: 2, match: 6 },
-                { label: 'Day 3 · Junior High · Loser vs Winner', round: 2, match: 7 },
-                { label: 'Day 3 · Senior High · Night Owls Entry', round: 2, match: 8 },
-                { label: 'Day 3 · Senior High · Loser vs Loser', round: 2, match: 9 },
-                { label: 'Day 3 · Senior High · Winner vs Winner', round: 2, match: 10 },
-                { label: 'Day 4 · Junior High · Grand Final', round: 3, match: 11 },
-                { label: 'Day 4 · Senior High · Grand Final', round: 3, match: 12 },
-            ];
-
-            const byLabel = new Map();
-            existing.forEach((m) => {
-                if (m.bracket_position) byLabel.set(String(m.bracket_position).trim().toLowerCase(), m);
-            });
-
-            let nightOwlsId = null;
-            const [parts] = await pool.execute(
-                `SELECT tp.department_id, d.is_exhibition, d.division
-                 FROM tournament_participants tp
-                 JOIN departments d ON d.id = tp.department_id
-                 WHERE tp.tournament_id = ?`,
-                [tournamentId]
-            );
-            const night = parts.find(
-                (p) => Number(p.is_exhibition) === 1 && String(p.division || '').toLowerCase() === 'senior_high'
-            );
-            if (night) nightOwlsId = night.department_id;
-
-            let created = 0;
-            const idByMatchNum = {};
-            existing.forEach((m) => {
-                if (m.match_number != null) idByMatchNum[Number(m.match_number)] = m.id;
-            });
-
-            for (const slot of slots) {
-                const key = slot.label.trim().toLowerCase();
-                if (byLabel.has(key)) {
-                    idByMatchNum[slot.match] = byLabel.get(key).id;
-                    continue;
-                }
-                if (idByMatchNum[slot.match]) continue;
-
-                const aDept = null;
-                const bDept = slot.label.includes('Night Owls Entry') ? nightOwlsId : null;
-                const status = aDept && bDept ? 'scheduled' : 'pending';
-
-                const [ins] = await pool.execute(
-                    `INSERT INTO matches
-                     (tournament_id, sport_id, round_number, match_number, bracket_position,
-                      bracket_side, participant_a_department_id, participant_b_department_id, status)
-                     VALUES (?, ?, ?, ?, ?, 'division_gauntlet', ?, ?, ?)`,
-                    [tournamentId, t.sport_id, slot.round, slot.match, slot.label, aDept, bDept, status]
-                );
-                idByMatchNum[slot.match] = ins.insertId;
-                created++;
-            }
-
-            const links = [
-                [1, 5, 'a', 'loser'], [2, 5, 'b', 'loser'], [1, 6, 'a', 'winner'], [2, 6, 'b', 'winner'],
-                [6, 7, 'a', 'loser'], [5, 7, 'b', 'winner'], [4, 8, 'a', 'winner'],
-                [3, 9, 'a', 'loser'], [4, 9, 'b', 'loser'], [3, 10, 'a', 'winner'], [8, 10, 'b', 'winner'],
-                [6, 11, 'a', 'winner'], [7, 11, 'b', 'winner'], [10, 12, 'a', 'winner'], [9, 12, 'b', 'winner'],
-            ];
-            for (const [srcNum, tgtNum, slot, resultType] of links) {
-                const srcId = idByMatchNum[srcNum];
-                const tgtId = idByMatchNum[tgtNum];
-                if (!srcId || !tgtId) continue;
-                const column = resultType === 'loser' ? 'loser_next_match_id' : 'next_match_id';
-                const slotColumn = resultType === 'loser' ? 'loser_next_match_slot' : 'next_match_slot';
-                await pool.execute(
-                    `UPDATE matches SET ${column} = ?, ${slotColumn} = ? WHERE id = ?`,
-                    [tgtId, slot, srcId]
-                );
-            }
-
-            const [[countRow]] = await pool.execute(
-                'SELECT COUNT(*) AS c FROM matches WHERE tournament_id = ?',
-                [tournamentId]
-            );
-
+        if (t.format !== 'division_gauntlet') {
             return res.json({
                 success: true,
-                message: created
-                    ? `Added ${created} TBD match slot(s). You can schedule them before teams are known.`
-                    : 'All Division Gauntlet rounds (including TBD) are already present.',
-                data: { created, total_matches: Number(countRow.c || 0) },
+                message: `Format is "${t.format}" — TBD repair is only for division_gauntlet. Found ${existing.length} match(es).`,
+                data: { total_matches: existing.length, format: t.format },
             });
         }
 
-        const rounds = [...new Set(existing.map((m) => Number(m.round_number) || 1))];
+        const slots = [
+            { label: 'Day 2 · Junior High · Game 1', round: 1, match: 1 },
+            { label: 'Day 2 · Junior High · Game 2', round: 1, match: 2 },
+            { label: 'Day 2 · Senior High · Game 3', round: 1, match: 3 },
+            { label: 'Day 2 · Senior High · Game 4', round: 1, match: 4 },
+            { label: 'Day 3 · Junior High · Loser vs Loser', round: 2, match: 5 },
+            { label: 'Day 3 · Junior High · Winner vs Winner', round: 2, match: 6 },
+            { label: 'Day 3 · Junior High · Loser vs Winner', round: 2, match: 7 },
+            { label: 'Day 3 · Senior High · Night Owls Entry', round: 2, match: 8 },
+            { label: 'Day 3 · Senior High · Loser vs Loser', round: 2, match: 9 },
+            { label: 'Day 3 · Senior High · Winner vs Winner', round: 2, match: 10 },
+            { label: 'Day 4 · Junior High · Grand Final', round: 3, match: 11 },
+            { label: 'Day 4 · Senior High · Grand Final', round: 3, match: 12 },
+        ];
+
+        const normalize = (s) => String(s || '').trim().toLowerCase().replace(/\s+/g, ' ');
+        const byLabel = new Map();
+        existing.forEach((m) => {
+            if (m.bracket_position) byLabel.set(normalize(m.bracket_position), m);
+        });
+
+        let nightOwlsId = null;
+        const [parts] = await pool.execute(
+            `SELECT tp.department_id, d.is_exhibition, d.division
+             FROM tournament_participants tp
+             JOIN departments d ON d.id = tp.department_id
+             WHERE tp.tournament_id = ?`,
+            [tournamentId]
+        );
+        const night = parts.find(
+            (p) => Number(p.is_exhibition) === 1 && String(p.division || '').toLowerCase() === 'senior_high'
+        );
+        if (night) nightOwlsId = night.department_id;
+
+        let created = 0;
+        const idByMatchNum = {};
+        const missingLabels = [];
+        const takenNums = new Set(existing.map((m) => Number(m.match_number)).filter((n) => n > 0));
+
+        for (const slot of slots) {
+            const key = normalize(slot.label);
+            const found = byLabel.get(key);
+            if (found) {
+                idByMatchNum[slot.match] = found.id;
+                continue;
+            }
+            missingLabels.push(slot.label);
+
+            const aDept = null;
+            const bDept = slot.label.includes('Night Owls Entry') ? nightOwlsId : null;
+            const status = aDept && bDept ? 'scheduled' : 'pending';
+
+            let matchNum = slot.match;
+            while (takenNums.has(matchNum)) matchNum += 1;
+            takenNums.add(matchNum);
+
+            const [ins] = await pool.execute(
+                `INSERT INTO matches
+                 (tournament_id, sport_id, round_number, match_number, bracket_position,
+                  bracket_side, participant_a_department_id, participant_b_department_id, status)
+                 VALUES (?, ?, ?, ?, ?, 'division_gauntlet', ?, ?, ?)`,
+                [tournamentId, t.sport_id, slot.round, matchNum, slot.label, aDept, bDept, status]
+            );
+            idByMatchNum[slot.match] = ins.insertId;
+            byLabel.set(key, { id: ins.insertId });
+            created++;
+        }
+
+        const links = [
+            [1, 5, 'a', 'loser'], [2, 5, 'b', 'loser'], [1, 6, 'a', 'winner'], [2, 6, 'b', 'winner'],
+            [6, 7, 'a', 'loser'], [5, 7, 'b', 'winner'], [4, 8, 'a', 'winner'],
+            [3, 9, 'a', 'loser'], [4, 9, 'b', 'loser'], [3, 10, 'a', 'winner'], [8, 10, 'b', 'winner'],
+            [6, 11, 'a', 'winner'], [7, 11, 'b', 'winner'], [10, 12, 'a', 'winner'], [9, 12, 'b', 'winner'],
+        ];
+        for (const [srcNum, tgtNum, slot, resultType] of links) {
+            const srcId = idByMatchNum[srcNum];
+            const tgtId = idByMatchNum[tgtNum];
+            if (!srcId || !tgtId) continue;
+            const column = resultType === 'loser' ? 'loser_next_match_id' : 'next_match_id';
+            const slotColumn = resultType === 'loser' ? 'loser_next_match_slot' : 'next_match_slot';
+            await pool.execute(
+                `UPDATE matches SET ${column} = ?, ${slotColumn} = ? WHERE id = ?`,
+                [tgtId, slot, srcId]
+            );
+        }
+
+        const [[countRow]] = await pool.execute(
+            'SELECT COUNT(*) AS c FROM matches WHERE tournament_id = ?', [tournamentId]
+        );
+        const [[tbdRow]] = await pool.execute(
+            `SELECT COUNT(*) AS c FROM matches WHERE tournament_id = ?
+               AND (participant_a_department_id IS NULL OR participant_b_department_id IS NULL)`,
+            [tournamentId]
+        );
+
         return res.json({
             success: true,
-            message: `Found ${existing.length} match(es) across ${rounds.length} round(s).`,
-            data: { total_matches: existing.length, rounds },
+            message: created
+                ? `Added ${created} TBD match slot(s). Bracket now has ${countRow.c} matches (${tbdRow.c} with TBD side).`
+                : `All 12 Division Gauntlet labels present. Total: ${countRow.c}, TBD sides: ${tbdRow.c}.`,
+            data: {
+                created,
+                total_matches: Number(countRow.c),
+                tbd_sides: Number(tbdRow.c),
+                missing_before: missingLabels,
+            },
         });
     } catch (err) {
         next(err);
@@ -1550,7 +1532,6 @@ const ensureTbdRounds = async (req, res, next) => {
 module.exports = {
     getAll,
     getOne,
-    ensureTbdRounds,
     getParticipants,
     getEligibility,
     addParticipants,
@@ -1561,6 +1542,7 @@ module.exports = {
     update,
     remove,
     generateBracket,
+    ensureTbdRounds,
     promoteKnockout,
     scheduleRoundRobin,
     getPointsConfig,
