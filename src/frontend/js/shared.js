@@ -542,14 +542,18 @@ document.addEventListener('DOMContentLoaded', () => {
     installPageAutoRefresh();
 });
 
+function registerPageRefresh(fn) {
+    if (typeof fn === 'function') window.__sfRegisteredRefresh = fn;
+}
+
 function installPageAutoRefresh() {
     if (window.__sfPageAutoRefreshInstalled) return;
     window.__sfPageAutoRefreshInstalled = true;
 
     let timer = null;
     let running = false;
-    const getLoader = () => ['reloadDetail', 'refreshAll', 'refresh', 'loadPage', 'loadDashboard', 'loadAll',
-        'loadSeasons', 'loadVenues', 'loadTournaments', 'loadNotificationsPage', 'loadMatchHistory', 'initList']
+    const getLoader = () => window.__sfRegisteredRefresh || ['reloadDetail', 'refreshAll', 'refresh', 'loadPage', 'loadAll',
+        'loadSeasons', 'loadVenues', 'loadTournaments', 'loadNotificationsPage', 'loadMatchHistory', 'initList', 'loadDashboard']
         .map((name) => window[name]).find((fn) => typeof fn === 'function');
     const refresh = async () => {
         if (running || document.hidden) return;
