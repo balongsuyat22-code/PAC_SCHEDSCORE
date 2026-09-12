@@ -1332,6 +1332,7 @@
             renderRefereeTopbar();
             startClock();
             await loadMyMatches();
+            PageRealtime.registerRefresh(loadMyMatches);
             bindScoringRealtime();
 
             const urlParams = new URLSearchParams(window.location.search);
