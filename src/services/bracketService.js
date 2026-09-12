@@ -1,4 +1,3 @@
-
 const VALID_FORMATS = [
     'round_robin',
     'single_elimination',
@@ -11,9 +10,27 @@ const VALID_FORMATS = [
     'division_gauntlet',
 ];
 
+/** Group participants by their division (or '__none__' if missing). */
+function groupByDivision(participants) {
+    const groups = new Map();
+    for (const p of participants) {
+        const key = (p.division && String(p.division).trim()) || '__none__';
+        if (!groups.has(key)) groups.set(key, []);
+        groups.get(key).push(p);
+    }
+    return groups;
+}
+
+function divisionLabel(key) {
+    if (!key || key === '__none__') return '';
+    return String(key)
+        .split(/[_\s-]+/)
+        .filter(Boolean)
+        .map((w) => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase())
+        .join(' ');
+}
 
 const generateBracket = async (tournament, participants, pool) => {
-
     const format = (tournament.format || '').trim();
 
     if (!format) {
@@ -31,12 +48,36 @@ const generateBracket = async (tournament, participants, pool) => {
         );
     }
 
-
     if (!participants || participants.length < 2) {
         throw new Error(
             `Need at least 2 participants to generate a bracket. ` +
             `Currently have ${participants ? participants.length : 0}.`
         );
+    }
+
+    // Opt-out of auto-split when tournament is marked manual (bracket_mode = 'manual')
+    // or when the caller explicitly passes a single-group override.
+    const manualMode = tournament.bracket_mode === 'manual' || tournament._forceSingleBracket === true;
+    const SPLITTABLE = new Set(['round_robin', 'single_elimination', 'double_elimination']);
+    const groups = groupByDivision(participants);
+
+    if (SPLITTABLE.has(format) && !manualMode && groups.size > 1) {
+        let matchNum = 1;
+        for (const [key, group] of groups) {
+            if (group.length < 2) continue;
+            const label = divisionLabel(key);
+            const divisionTournament = { ...tournament, _labelPrefix: label };
+            if (format === 'round_robin') {
+                matchNum = await generateRoundRobin(divisionTournament, group, pool, matchNum);
+            } else if (format === 'single_elimination') {
+                const result = await generateSingleElimination(divisionTournament, group, pool, matchNum);
+                matchNum = result.nextMatchNum;
+            } else if (format === 'double_elimination') {
+                const result = await generateDoubleElimination(divisionTournament, group, pool, matchNum);
+                matchNum = result.nextMatchNum;
+            }
+        }
+        return;
     }
 
     switch (format) {
@@ -52,7 +93,6 @@ const generateBracket = async (tournament, participants, pool) => {
         case 'free_for_all':
         case 'team_ranking':
             return generateFreeForAll(tournament, participants, pool);
-
 
         case 'group_stage_se':
             return generateGroupStage(tournament, participants, pool, 'single_elimination');
@@ -71,68 +111,34 @@ const generateBracket = async (tournament, participants, pool) => {
     }
 };
 
+/**
+ * Division Gauntlet — no longer requires specific department names or an exhibition team.
+ * Builds a double-elimination bracket per division that actually exists among participants.
+ * Exhibition teams are optional (used only if present).
+ */
 const generateDivisionGauntlet = async (tournament, participants, pool) => {
-    const junior = participants.filter((p) => String(p.division || '').toLowerCase() === 'junior_high');
-    const senior = participants.filter((p) => String(p.division || '').toLowerCase() === 'senior_high');
-    const nightOwls = senior.find((p) => Number(p.is_exhibition) === 1);
-    const juniorTeams = junior.filter((p) => Number(p.is_exhibition) !== 1);
-    const seniorTeams = senior.filter((p) => Number(p.is_exhibition) !== 1);
+    const competitive = participants.filter((p) => Number(p.is_exhibition) !== 1);
+    const groups = groupByDivision(competitive);
 
-    if (juniorTeams.length !== 4 || seniorTeams.length !== 4 || !nightOwls) {
-        throw new Error('Division Gauntlet needs 4 Junior High teams, 4 Senior High teams, and one Senior High exhibition team.');
+    if (groups.size < 2) {
+        // Only one (or zero) division → fall back to a normal double-elim rather than failing
+        return generateDoubleElimination(tournament, competitive.length ? competitive : participants, pool);
     }
 
-    const matches = [
-        ['Day 2 · Junior High · Game 1', juniorTeams[0], juniorTeams[1]],
-        ['Day 2 · Junior High · Game 2', juniorTeams[2], juniorTeams[3]],
-        ['Day 2 · Senior High · Game 3', seniorTeams[0], seniorTeams[1]],
-        ['Day 2 · Senior High · Game 4', seniorTeams[2], seniorTeams[3]],
-        ['Day 3 · Junior High · Loser vs Loser', null, null],
-        ['Day 3 · Junior High · Winner vs Winner', null, null],
-        ['Day 3 · Junior High · Loser vs Winner', null, null],
-        ['Day 3 · Senior High · Night Owls Entry', null, nightOwls],
-        ['Day 3 · Senior High · Loser vs Loser', null, null],
-        ['Day 3 · Senior High · Winner vs Winner', null, null],
-        ['Day 4 · Junior High · Grand Final', null, null],
-        ['Day 4 · Senior High · Grand Final', null, null],
-    ];
-    const ids = [];
-    for (let i = 0; i < matches.length; i++) {
-        const [label, a, b] = matches[i];
-        const [result] = await pool.execute(
-            `INSERT INTO matches
-             (tournament_id, sport_id, round_number, match_number, bracket_position,
-              bracket_side, participant_a_department_id, participant_b_department_id, status)
-             VALUES (?, ?, ?, ?, ?, 'division_gauntlet', ?, ?, ?)`,
-            [tournament.id, tournament.sport_id, i < 4 ? 1 : i < 10 ? 2 : 3, i + 1,
-                label, a?.department_id || null, b?.department_id || null,
-            a && b ? 'scheduled' : 'pending']
-        );
-        ids.push(result.insertId);
+    let matchNum = 1;
+    for (const [key, group] of groups) {
+        if (group.length < 2) continue; // skip divisions that can't form matches
+        const label = divisionLabel(key);
+        const divisionTournament = { ...tournament, _labelPrefix: label };
+        const result = await generateDoubleElimination(divisionTournament, group, pool, matchNum);
+        matchNum = result.nextMatchNum;
     }
-    const links = [
-        [0, 4, 'a', 'loser'], [1, 4, 'b', 'loser'], [0, 5, 'a', 'winner'], [1, 5, 'b', 'winner'],
-        [5, 6, 'a', 'loser'], [4, 6, 'b', 'winner'], [3, 7, 'a', 'winner'],
-        [2, 8, 'a', 'loser'], [3, 8, 'b', 'loser'], [2, 9, 'a', 'winner'], [7, 9, 'b', 'winner'],
-        [5, 10, 'a', 'winner'], [6, 10, 'b', 'winner'], [9, 11, 'a', 'winner'], [8, 11, 'b', 'winner'],
-    ];
-    for (const [source, target, slot, resultType] of links) {
-        const column = resultType === 'loser' ? 'loser_next_match_id' : 'next_match_id';
-        const slotColumn = resultType === 'loser' ? 'loser_next_match_slot' : 'next_match_slot';
-        await pool.execute(
-            `UPDATE matches SET ${column} = ?, ${slotColumn} = ? WHERE id = ?`,
-            [ids[target], slot, ids[source]]
-        );
-    }
-
 };
-
 
 const generateFreeForAll = async (tournament, participants, pool) => {
     const list = [...participants];
     const n = list.length;
     let matchNum = 1;
-
 
     for (const p of participants) {
         await pool.execute(
@@ -141,7 +147,6 @@ const generateFreeForAll = async (tournament, participants, pool) => {
              VALUES (?, ?, 0)`, [tournament.id, p.department_id]
         );
     }
-
 
     for (let i = 0; i < n; i++) {
         for (let j = i + 1; j < n; j++) {
@@ -165,18 +170,16 @@ const generateFreeForAll = async (tournament, participants, pool) => {
     }
 };
 
-
-const generateRoundRobin = async (tournament, participants, pool) => {
+const generateRoundRobin = async (tournament, participants, pool, startMatchNum = 1) => {
     const list = [...participants];
     const n = list.length;
-
+    const prefix = tournament._labelPrefix ? `${tournament._labelPrefix} · ` : '';
 
     if (n % 2 !== 0) list.push(null);
 
     const slots = list.length;
     const totalRounds = slots - 1;
-    let matchNum = 1;
-
+    let matchNum = startMatchNum;
 
     for (const p of participants) {
         await pool.execute(
@@ -199,28 +202,26 @@ const generateRoundRobin = async (tournament, participants, pool) => {
                   participant_a_department_id, participant_b_department_id, status)
                  VALUES (?, ?, ?, ?, ?, ?, ?, 'scheduled')`, [
                 tournament.id, tournament.sport_id,
-                round + 1, matchNum++, `R${round + 1}`,
+                round + 1, matchNum++, `${prefix}R${round + 1}`,
                 a.department_id, b.department_id,
             ]
             );
         }
 
-
         const rotating = list.slice(1);
         rotating.unshift(rotating.pop());
         list.splice(1, rotating.length, ...rotating);
     }
+    return matchNum;
 };
 
-
-const generateSingleElimination = async (tournament, participants, pool) => {
+const generateSingleElimination = async (tournament, participants, pool, startMatchNum = 1) => {
     const n = participants.length;
     const bracketSize = nextPowerOf2(n);
-
+    const prefix = tournament._labelPrefix ? `${tournament._labelPrefix} · ` : '';
 
     const seeded = [...participants];
     while (seeded.length < bracketSize) seeded.push(null);
-
 
     const pairs = [];
     for (let i = 0; i < bracketSize / 2; i++) {
@@ -228,10 +229,9 @@ const generateSingleElimination = async (tournament, participants, pool) => {
     }
 
     const totalRounds = Math.log2(bracketSize);
-    let matchNum = 1;
+    let matchNum = startMatchNum;
     const insertedMatches = {};
     insertedMatches[1] = [];
-
 
     for (let i = 0; i < pairs.length; i++) {
         const [a, b] = pairs[i];
@@ -244,7 +244,7 @@ const generateSingleElimination = async (tournament, participants, pool) => {
               participant_a_department_id, participant_b_department_id, status)
              VALUES (?, ?, 1, ?, ?, ?, ?, ?)`, [
             tournament.id, tournament.sport_id,
-            matchNum++, `R1M${i + 1}`,
+            matchNum++, `${prefix}R1M${i + 1}`,
             a ? a.department_id : null,
             b ? b.department_id : null,
             isBye ? 'walkover' : 'scheduled',
@@ -252,7 +252,6 @@ const generateSingleElimination = async (tournament, participants, pool) => {
         );
         const matchId = result.insertId;
         insertedMatches[1].push(matchId);
-
 
         if (isBye && winner) {
             await pool.execute(
@@ -275,12 +274,12 @@ const generateSingleElimination = async (tournament, participants, pool) => {
 
         for (let i = 0; i < prev.length; i += 2) {
             const label = isFinal
-                ? 'Final'
+                ? `${prefix}Final`
                 : isSemi
-                    ? `SF${Math.floor(i / 2) + 1}`
+                    ? `${prefix}SF${Math.floor(i / 2) + 1}`
                     : isQuarter
-                        ? `QF${Math.floor(i / 2) + 1}`
-                        : `R${round}M${Math.floor(i / 2) + 1}`;
+                        ? `${prefix}QF${Math.floor(i / 2) + 1}`
+                        : `${prefix}R${round}M${Math.floor(i / 2) + 1}`;
 
             const [res] = await pool.execute(
                 `INSERT INTO matches
@@ -306,18 +305,21 @@ const generateSingleElimination = async (tournament, participants, pool) => {
         }
     }
 
-
     if (totalRounds >= 2) {
         await pool.execute(
             `INSERT INTO matches
              (tournament_id, sport_id, round_number, match_number, bracket_position, status)
-             VALUES (?, ?, ?, ?, '3rd Place', 'scheduled')`, [tournament.id, tournament.sport_id, totalRounds, matchNum++]
+             VALUES (?, ?, ?, ?, ?, 'scheduled')`,
+            [tournament.id, tournament.sport_id, totalRounds, matchNum++, `${prefix}3rd Place`]
         );
     }
+
+    return { nextMatchNum: matchNum };
 };
 
-const generateDoubleElimination = async (tournament, participants, pool) => {
-    await generateSingleElimination(tournament, participants, pool);
+const generateDoubleElimination = async (tournament, participants, pool, startMatchNum = 1) => {
+    const seResult = await generateSingleElimination(tournament, participants, pool, startMatchNum);
+    let matchNum = seResult.nextMatchNum;
 
     await pool.execute(
         `UPDATE matches
@@ -333,8 +335,7 @@ const generateDoubleElimination = async (tournament, participants, pool) => {
     const n = participants.length;
     const bracketSize = nextPowerOf2(n);
     const lowerRounds = (Math.log2(bracketSize) - 1) * 2;
-
-    let matchNum = 1000;
+    const prefix = tournament._labelPrefix ? `${tournament._labelPrefix} · ` : '';
 
     for (let round = 1; round <= lowerRounds; round++) {
         const matchesInRound = Math.ceil(bracketSize / Math.pow(2, Math.ceil(round / 2) + 1));
@@ -343,18 +344,18 @@ const generateDoubleElimination = async (tournament, participants, pool) => {
                 `INSERT INTO matches
                  (tournament_id, sport_id, round_number, match_number,
                   bracket_position, bracket_side, status)
-                 VALUES (?, ?, ?, ?, ?, 'lower', 'pending')`, [tournament.id, tournament.sport_id, round, matchNum++, `LR${round}M${i + 1}`]
+                 VALUES (?, ?, ?, ?, ?, 'lower', 'pending')`,
+                [tournament.id, tournament.sport_id, round, matchNum++, `${prefix}LR${round}M${i + 1}`]
             );
         }
     }
-
 
     await pool.execute(
         `INSERT INTO matches
          (tournament_id, sport_id, round_number, match_number,
           bracket_position, bracket_side, status)
-         VALUES (?, ?, 999, 9999, 'Grand Final', 'grand_final', 'pending')`,
-        [tournament.id, tournament.sport_id]
+         VALUES (?, ?, 999, ?, ?, 'grand_final', 'pending')`,
+        [tournament.id, tournament.sport_id, matchNum++, `${prefix}Grand Final`]
     );
 
     const [upper] = await pool.execute(
@@ -379,8 +380,6 @@ const generateDoubleElimination = async (tournament, participants, pool) => {
         lowerRoundsByNumber.get(match.round_number).push(match);
     });
 
-    // Lower winners advance round by round. The first lower round feeds one
-    // match per winner into the next round; later rounds pair winners.
     for (const [roundIndex, roundNumber] of [...lowerRoundsByNumber.keys()].sort((a, b) => a - b).entries()) {
         const current = lowerRoundsByNumber.get(roundNumber);
         const next = [...lowerRoundsByNumber.values()][roundIndex + 1];
@@ -395,11 +394,9 @@ const generateDoubleElimination = async (tournament, participants, pool) => {
         }
     }
 
-    // Upper losers enter the lower bracket. Round 1 losers pair together;
-    // later upper-round losers enter the matching lower round's open slot.
     for (let i = 0; i < upperRounds.length - 1; i++) {
         const upperRoundNumber = upperRounds[i];
-        const upperRound = upper.filter((m) => m.round_number === upperRoundNumber && m.bracket_position !== '3rd Place');
+        const upperRound = upper.filter((m) => m.round_number === upperRoundNumber && !String(m.bracket_position || '').includes('3rd Place'));
         const lowerRoundNumber = upperRoundNumber === upperRounds[0]
             ? 1
             : upperRoundNumber === upperRounds[upperRounds.length - 2]
@@ -418,11 +415,11 @@ const generateDoubleElimination = async (tournament, participants, pool) => {
     }
 
     const upperFinal = upper
-        .filter((m) => m.round_number === Math.max(...upperRounds) && m.bracket_position !== '3rd Place')
+        .filter((m) => m.round_number === Math.max(...upperRounds) && !String(m.bracket_position || '').includes('3rd Place'))
         .sort((a, b) => a.match_number - b.match_number)[0];
     const lowerFinal = lowerRoundsByNumber.get(Math.max(...lowerRoundsByNumber.keys()))?.[0];
     const [grandFinal] = await pool.execute(
-        `SELECT id FROM matches WHERE tournament_id = ? AND bracket_side = 'grand_final' LIMIT 1`,
+        `SELECT id FROM matches WHERE tournament_id = ? AND bracket_side = 'grand_final' ORDER BY id DESC LIMIT 1`,
         [tournament.id]
     );
     if (upperFinal && lowerFinal) {
@@ -443,18 +440,17 @@ const generateDoubleElimination = async (tournament, participants, pool) => {
             [grandFinal[0].id, lowerFinal.id]
         );
     }
-};
 
+    return { nextMatchNum: matchNum };
+};
 
 const generateGroupStage = async (tournament, participants, pool, knockoutFormat) => {
     const groupCount = tournament.group_count || 2;
     const advancePerGroup = tournament.advance_per_group || 2;
     let matchNum = 1;
 
-
     const groups = Array.from({ length: groupCount }, () => []);
     participants.forEach((p, i) => groups[i % groupCount].push(p));
-
 
     for (const p of participants) {
         await pool.execute(
@@ -463,7 +459,6 @@ const generateGroupStage = async (tournament, participants, pool, knockoutFormat
              VALUES (?, ?, 0)`, [tournament.id, p.department_id]
         );
     }
-
 
     for (let g = 0; g < groups.length; g++) {
         const groupLetter = String.fromCharCode(65 + g);
@@ -496,7 +491,6 @@ const generateGroupStage = async (tournament, participants, pool, knockoutFormat
                 );
             }
 
-
             const rotating = list.slice(1);
             rotating.unshift(rotating.pop());
             list.splice(1, rotating.length, ...rotating);
@@ -504,7 +498,6 @@ const generateGroupStage = async (tournament, participants, pool, knockoutFormat
     }
 
     const advancingCount = groupCount * advancePerGroup;
-
 
     if (advancingCount >= 2) {
         await pool.execute(
@@ -517,7 +510,6 @@ const generateGroupStage = async (tournament, participants, pool, knockoutFormat
 };
 
 const generateKnockoutFromGroups = async (tournament, advancingParticipants, pool) => {
-
     await pool.execute(
         `DELETE FROM matches
          WHERE tournament_id = ? AND bracket_side = 'knockout_pending'`,
@@ -530,7 +522,6 @@ const generateKnockoutFromGroups = async (tournament, advancingParticipants, poo
         group_stage_ffa: 'free_for_all',
     }[tournament.format] || 'single_elimination';
 
-
     const tournamentOverride = { ...tournament, format: knockoutFormat };
 
     switch (knockoutFormat) {
@@ -542,7 +533,6 @@ const generateKnockoutFromGroups = async (tournament, advancingParticipants, poo
             return generateFreeForAll(tournamentOverride, advancingParticipants, pool);
     }
 };
-
 
 const nextPowerOf2 = (n) => {
     if (n < 2) return 2;

@@ -582,7 +582,6 @@
                             <option value="dean_adviser">Dean / Adviser</option>
                             <option value="sgo_president">SGO President</option>
                             <option value="sgo_officer">SGO Officer</option>
-                            <option value="visitor">Visitor</option>
                         </select>
                     </div>
                     <div class="form-group">
@@ -958,7 +957,7 @@
             document.getElementById('u-email').value = u.email || '';
             document.getElementById('u-pass').value = '';
             document.getElementById('u-phone').value = u.phone || '';
-            document.getElementById('u-role').value = u.role || 'visitor';
+            document.getElementById('u-role').value = u.role || 'sgo_officer';
             document.getElementById('u-dept').value = u.department_id || '';
             document.getElementById('u-status').value = u.is_active ? '1' : '0';
             document.getElementById('u-status-group').style.display = '';

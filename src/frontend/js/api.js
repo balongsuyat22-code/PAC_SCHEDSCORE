@@ -55,20 +55,66 @@ const api = async (path, options = {}) => {
     }
 };
 
-const Toast = window.Toast || {
+const Toast = {
+    _ensureStyles() {
+        if (document.getElementById('sf-toast-style')) return;
+        const style = document.createElement('style');
+        style.id = 'sf-toast-style';
+        style.textContent = `
+            #sf-toast {
+                position: fixed !important;
+                bottom: max(16px, env(safe-area-inset-bottom, 0px) + 16px) !important;
+                right: max(16px, env(safe-area-inset-right, 0px) + 16px) !important;
+                left: auto !important;
+                top: auto !important;
+                transform: translateY(12px) !important;
+                width: max-content !important;
+                max-width: min(320px, calc(100vw - 32px)) !important;
+                padding: 12px 16px !important;
+                border-radius: 10px !important;
+                font-size: 13px !important;
+                line-height: 1.35 !important;
+                color: #fff !important;
+                box-shadow: 0 6px 20px rgba(0,0,0,.35) !important;
+                z-index: 99999 !important;
+                opacity: 0 !important;
+                pointer-events: none !important;
+                transition: opacity .2s ease, transform .2s ease !important;
+                word-break: break-word !important;
+                background: #1f2937 !important;
+                font-family: 'Barlow', system-ui, sans-serif !important;
+                font-weight: 600 !important;
+            }
+            #sf-toast.show {
+                opacity: 1 !important;
+                transform: translateY(0) !important;
+                pointer-events: auto !important;
+            }
+            #sf-toast.success { background: #16a34a !important; }
+            #sf-toast.error   { background: #dc2626 !important; }
+            #sf-toast.info    { background: #2563eb !important; }
+        `;
+        document.head.appendChild(style);
+    },
     show(msg, type = 'success', duration = 3000) {
+        this._ensureStyles();
         let t = document.getElementById('sf-toast');
         if (!t) {
             t = document.createElement('div');
             t.id = 'sf-toast';
-            t.className = 'toast';
             document.body.appendChild(t);
         }
-        const icons = { success: 'OK', error: 'ERR', info: 'i' };
-        t.innerHTML = `<span style="font-weight:800;margin-right:6px">${icons[type] || '•'}</span> ${msg}`;
-        t.className = `toast ${type} show`;
+        const icons = { success: '✓', error: '!', info: 'i' };
+        t.innerHTML = `<span style="font-weight:800;margin-right:6px">${icons[type] || '•'}</span>${msg}`;
+        t.className = `${type} show`;
         clearTimeout(t._timer);
         t._timer = setTimeout(() => t.classList.remove('show'), duration);
+    },
+    hide() {
+        const t = document.getElementById('sf-toast');
+        if (!t) return;
+        t.classList.remove('show');
+        clearTimeout(t._timer);
     }
 };
 window.Toast = Toast;

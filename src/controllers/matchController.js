@@ -20,6 +20,34 @@ const canStart = (status) => ['pending', 'scheduled'].includes(status);
 const canScore = (status) => ['ongoing', 'completed'].includes(status);
 const canComplete = (status) => status === 'ongoing';
 
+/**
+ * Officers may act on a match if:
+ *  - they are already the assigned referee, OR
+ *  - the match has no referee yet (they self-claim it).
+ * Admin / president skip this check entirely.
+ */
+async function ensureOfficerCanAct(matchId, userId) {
+    const [[row]] = await pool.execute(
+        'SELECT referee_id FROM matches WHERE id = ?',
+        [matchId]
+    );
+    if (!row) return { ok: false, status: 404, message: 'Match not found.' };
+    if (row.referee_id && Number(row.referee_id) !== Number(userId)) {
+        return {
+            ok: false,
+            status: 403,
+            message: 'This match is already assigned to another referee.',
+        };
+    }
+    if (!row.referee_id) {
+        await pool.execute(
+            'UPDATE matches SET referee_id = ?, updated_at = NOW() WHERE id = ? AND referee_id IS NULL',
+            [userId, matchId]
+        );
+    }
+    return { ok: true };
+}
+
 /** Load names for notification messages */
 async function loadMatchLabel(matchId) {
     const [rows] = await pool.execute(
@@ -290,7 +318,8 @@ const getAll = async (req, res, next) => {
         }
 
         if (callerRole === 'sgo_officer') {
-            query += ' AND m.referee_id = ?';
+            // Officers see their own assignments plus unassigned open matches they can claim
+            query += ' AND (m.referee_id = ? OR m.referee_id IS NULL)';
             params.push(req.user.id);
         }
 
@@ -524,7 +553,7 @@ const getMyAssignments = async (req, res, next) => {
              LEFT JOIN departments da ON m.participant_a_department_id = da.id
              LEFT JOIN departments db ON m.participant_b_department_id = db.id
              LEFT JOIN venues      v  ON m.venue_id                    = v.id
-             WHERE m.referee_id = ?
+             WHERE (m.referee_id = ? OR m.referee_id IS NULL)
                AND m.status NOT IN ('cancelled','completed')
                AND (
                    m.status NOT IN ('pending', 'scheduled')
@@ -534,8 +563,10 @@ const getMyAssignments = async (req, res, next) => {
                    OR (m.participant_a_department_id IS NOT NULL
                        AND m.participant_b_department_id IS NOT NULL)
                )
-             ORDER BY m.scheduled_date ASC, m.scheduled_time ASC`,
-            [req.user.id]
+             ORDER BY
+               CASE WHEN m.referee_id = ? THEN 0 ELSE 1 END,
+               m.scheduled_date ASC, m.scheduled_time ASC`,
+            [req.user.id, req.user.id]
         );
         return res.json({ success: true, data: rows });
     } catch (err) {
@@ -708,12 +739,9 @@ const startMatch = async (req, res, next) => {
         }
 
         if (req.user.role === 'sgo_officer') {
-            const [assigned] = await pool.execute(
-                'SELECT id FROM matches WHERE id = ? AND referee_id = ?',
-                [matchId, req.user.id]
-            );
-            if (!assigned.length) {
-                return res.status(403).json({ success: false, message: 'You are not assigned to this match.' });
+            const check = await ensureOfficerCanAct(matchId, req.user.id);
+            if (!check.ok) {
+                return res.status(check.status).json({ success: false, message: check.message });
             }
         }
 
@@ -784,12 +812,9 @@ const updateScore = async (req, res, next) => {
 
 
         if (req.user.role === 'sgo_officer') {
-            const [assigned] = await pool.execute(
-                'SELECT id FROM matches WHERE id = ? AND referee_id = ?',
-                [matchId, userId]
-            );
-            if (!assigned.length) {
-                return res.status(403).json({ success: false, message: 'You are not assigned to this match.' });
+            const check = await ensureOfficerCanAct(matchId, userId);
+            if (!check.ok) {
+                return res.status(check.status).json({ success: false, message: check.message });
             }
         }
 
@@ -948,12 +973,9 @@ const completeMatch = async (req, res, next) => {
         const userId = req.user.id;
 
         if (req.user.role === 'sgo_officer') {
-            const [assigned] = await pool.execute(
-                'SELECT id FROM matches WHERE id = ? AND referee_id = ?',
-                [matchId, userId]
-            );
-            if (!assigned.length) {
-                return res.status(403).json({ success: false, message: 'You are not assigned to this match.' });
+            const check = await ensureOfficerCanAct(matchId, userId);
+            if (!check.ok) {
+                return res.status(check.status).json({ success: false, message: check.message });
             }
         }
 

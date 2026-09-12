@@ -135,55 +135,44 @@ function filterTable(tableId, query) {
 
 const Toast = {
     _ensureStyles() {
-        if (document.getElementById('sf-toast-styles')) return;
-        const s = document.createElement('style');
-        s.id = 'sf-toast-styles';
-        s.textContent = `
-#sf-toast {
-  position: fixed !important;
-  top: max(72px, env(safe-area-inset-top, 0px) + 56px) !important;
-  left: 50% !important;
-  right: auto !important;
-  transform: translateX(-50%) translateY(-12px) !important;
-  z-index: 99999 !important;
-  max-width: min(320px, calc(100vw - 24px)) !important;
-  width: max-content !important;
-  padding: 10px 14px !important;
-  border-radius: 10px !important;
-  font-size: 13px !important;
-  line-height: 1.35 !important;
-  font-family: 'Barlow', system-ui, sans-serif !important;
-  font-weight: 600 !important;
-  box-shadow: 0 8px 28px rgba(0,0,0,.45) !important;
-  pointer-events: none !important;
-  opacity: 0 !important;
-  visibility: hidden !important;
-  transition: opacity .2s ease, transform .2s ease, visibility .2s !important;
-  word-break: break-word !important;
-  border: 1px solid transparent !important;
-}
-#sf-toast.show {
-  opacity: 1 !important;
-  visibility: visible !important;
-  transform: translateX(-50%) translateY(0) !important;
-}
-#sf-toast.success {
-  background: #14532d !important;
-  color: #bbf7d0 !important;
-  border-color: rgba(34,197,94,.45) !important;
-}
-#sf-toast.error {
-  background: #7f1d1d !important;
-  color: #fecaca !important;
-  border-color: rgba(239,68,68,.45) !important;
-}
-#sf-toast.info {
-  background: #1e3a5f !important;
-  color: #bfdbfe !important;
-  border-color: rgba(59,130,246,.45) !important;
-}
-`;
-        document.head.appendChild(s);
+        if (document.getElementById('sf-toast-style')) return;
+        const style = document.createElement('style');
+        style.id = 'sf-toast-style';
+        style.textContent = `
+            #sf-toast {
+                position: fixed !important;
+                bottom: max(16px, env(safe-area-inset-bottom, 0px) + 16px) !important;
+                right: max(16px, env(safe-area-inset-right, 0px) + 16px) !important;
+                left: auto !important;
+                top: auto !important;
+                transform: translateY(12px) !important;
+                width: max-content !important;
+                max-width: min(320px, calc(100vw - 32px)) !important;
+                padding: 12px 16px !important;
+                border-radius: 10px !important;
+                font-size: 13px !important;
+                line-height: 1.35 !important;
+                color: #fff !important;
+                box-shadow: 0 6px 20px rgba(0,0,0,.35) !important;
+                z-index: 99999 !important;
+                opacity: 0 !important;
+                pointer-events: none !important;
+                transition: opacity .2s ease, transform .2s ease !important;
+                word-break: break-word !important;
+                background: #1f2937 !important;
+                font-family: 'Barlow', system-ui, sans-serif !important;
+                font-weight: 600 !important;
+            }
+            #sf-toast.show {
+                opacity: 1 !important;
+                transform: translateY(0) !important;
+                pointer-events: auto !important;
+            }
+            #sf-toast.success { background: #16a34a !important; }
+            #sf-toast.error   { background: #dc2626 !important; }
+            #sf-toast.info    { background: #2563eb !important; }
+        `;
+        document.head.appendChild(style);
     },
     show(msg, type = 'success', duration = 3000) {
         this._ensureStyles();
@@ -195,7 +184,7 @@ const Toast = {
         }
         const icons = { success: '✓', error: '!', info: 'i' };
         t.innerHTML = `<span style="font-weight:800;margin-right:6px">${icons[type] || '•'}</span>${msg}`;
-        t.className = `toast ${type} show`;
+        t.className = `${type} show`;
         clearTimeout(t._timer);
         t._timer = setTimeout(() => t.classList.remove('show'), duration);
     },
@@ -586,7 +575,7 @@ function installPageAutoRefresh() {
 async function loadDashboard() {
     const [dash, champion] = await Promise.all([
         api('/reports/dashboard'),
-        api('/leaderboard/overall-champion')
+        api('/leaderboard/champion')
     ]);
 
     if (dash.success) {
@@ -742,7 +731,7 @@ async function loadLeaderboard() {
             </tr>`).join('')}</tbody></table>`;
     }
 
-    const champion = await api('/leaderboard/overall-champion');
+    const champion = await api('/leaderboard/champion');
     if (champion.success) {
         const s = champion.data.tournament_stats;
         const epEl = document.getElementById('event-progress');

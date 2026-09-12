@@ -1,4 +1,3 @@
-
 const bcrypt = require('bcryptjs');
 const { v4: uuidv4 } = require('uuid');
 const { pool } = require('../config/database');
@@ -205,7 +204,7 @@ const create = async (req, res, next) => {
 const update = async (req, res, next) => {
     try {
         const targetId = parseInt(req.params.id);
-        const { first_name, last_name, phone, role, department_id, is_active } = req.body;
+        const { first_name, last_name, phone, role, department_id, is_active, password } = req.body;
 
         if (!first_name || !last_name) {
             return res.status(400).json({ success: false, message: 'first_name and last_name are required.' });
@@ -242,6 +241,24 @@ const update = async (req, res, next) => {
             }
         }
 
+        // Optional password change on edit
+        if (password && String(password).trim().length > 0) {
+            if (String(password).trim().length < 6) {
+                return res.status(400).json({
+                    success: false,
+                    message: 'Password must be at least 6 characters.',
+                });
+            }
+            const salt = await bcrypt.genSalt(10);
+            const hash = await bcrypt.hash(String(password).trim(), salt);
+            await pool.execute(
+                'UPDATE users SET password_hash = ?, updated_at = NOW() WHERE id = ?',
+                [hash, targetId]
+            );
+            // Invalidate existing sessions so they must log in with the new password
+            await pool.execute('DELETE FROM refresh_tokens WHERE user_id = ?', [targetId]);
+        }
+
         await pool.execute(
             `UPDATE users
              SET first_name  = ?,
@@ -265,7 +282,12 @@ const update = async (req, res, next) => {
 
         await logActivity(req.user.id, 'USER_UPDATED', 'user', targetId, `User updated: ID ${targetId}`);
 
-        return res.json({ success: true, message: 'User updated successfully.' });
+        return res.json({
+            success: true,
+            message: password && String(password).trim().length > 0
+                ? 'User updated successfully. Password changed — they must log in again.'
+                : 'User updated successfully.',
+        });
 
     } catch (err) {
         next(err);
