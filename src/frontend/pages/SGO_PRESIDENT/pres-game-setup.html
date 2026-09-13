@@ -3354,7 +3354,6 @@
             }
             eligibilityData = res.data || [];
             eligibilityMeta = res.meta || {};
-            // Ensure sport_id is available for full roster loads
             if (!eligibilityMeta.sport_id && currentTournament?.sport_id) {
                 eligibilityMeta.sport_id = currentTournament.sport_id;
             }

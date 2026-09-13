@@ -1286,6 +1286,48 @@
     </div>
 
 
+    <div class="modal-overlay" id="modal-early-start" onclick="if(event.target===this)Modal.close('modal-early-start')">
+        <div class="modal" style="width: 90%; max-width: 480px;">
+            <div class="modal-header">
+                <div class="modal-title" style="display:flex; align-items:center; gap:8px;">
+                    <span class="icon icon-fill icon-md" style="color:var(--gold);">
+                        <svg viewBox="0 0 24 24">
+                            <path
+                                d="M11.99 2C6.47 2 2 6.48 2 12s4.47 10 9.99 10C17.52 22 22 17.52 22 12S17.52 2 11.99 2zM12 20c-4.42 0-8-3.58-8-8s3.58-8 8-8 8 3.58 8 8-3.58 8-8 8zm.5-13H11v6l5.25 3.15.75-1.23-4.5-2.67z" />
+                        </svg>
+                    </span>
+                    Starting Early
+                </div>
+                <button class="modal-close" onclick="Modal.close('modal-early-start')">✕</button>
+            </div>
+            <div class="modal-body">
+                <div class="alert-box alert-warn" style="margin-bottom:16px">
+                    This match isn't scheduled to start yet.
+                </div>
+                <div style="text-align:center; margin-bottom:16px">
+                    <div
+                        style="font-size:12px; color:var(--muted); text-transform:uppercase; letter-spacing:0.5px; margin-bottom:4px;">
+                        Scheduled for
+                    </div>
+                    <div id="early-start-schedule"
+                        style="font-family:'Barlow Condensed'; font-size:22px; font-weight:900; color:var(--gold);">
+                        —
+                    </div>
+                    <div style="font-size:13px; color:var(--muted); margin-top:6px;">
+                        That's <strong id="early-start-countdown" style="color:var(--text)">—</strong> from now.
+                    </div>
+                </div>
+                <p style="color:var(--muted); font-size:13px; text-align:center; margin:0;">
+                    You can still start it now if both sides are ready, or wait until closer to the scheduled time.
+                </p>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="Modal.close('modal-early-start')">Wait</button>
+                <button class="btn btn-primary" onclick="confirmEarlyStart()">Start Anyway</button>
+            </div>
+        </div>
+    </div>
+
     <script src="../../js/shared.js"></script>
     <script src="../../js/referee-sidebar.js"></script>
     <script>
@@ -1314,6 +1356,7 @@
         let allMatches = [];
         let scoringType = 'points';
         let scores = { a: 0, b: 0 };
+        let scoreHistory = { a: [], b: [] };
         let ffaParticipants = [];
         let ffaScoringType = 'points';
         let setState = null;
@@ -1410,9 +1453,27 @@
             renderMatchList();
         }
 
+        function matchSortKey(m) {
+            if (!m.scheduled_date || !m.scheduled_time) return Infinity;
+            const d = new Date(`${String(m.scheduled_date).slice(0, 10)}T${String(m.scheduled_time).slice(0, 8)}`);
+            return Number.isNaN(d.getTime()) ? Infinity : d.getTime();
+        }
+
         function renderMatchList() {
             const list = document.getElementById('match-list');
-            const filtered = allMatches.filter(m => currentTab === 'active' ? m.status !== 'completed' : m.status === 'completed');
+            const filtered = allMatches
+                .filter(m => currentTab === 'active' ? m.status !== 'completed' : m.status === 'completed')
+                .sort((a, b) => {
+                    if (currentTab === 'active') {
+                        // Ongoing matches first, then soonest-scheduled first.
+                        const aOngoing = a.status === 'ongoing' ? 0 : 1;
+                        const bOngoing = b.status === 'ongoing' ? 0 : 1;
+                        if (aOngoing !== bOngoing) return aOngoing - bOngoing;
+                        return matchSortKey(a) - matchSortKey(b);
+                    }
+                    // Completed tab: most recently played first.
+                    return matchSortKey(b) - matchSortKey(a);
+                });
 
             if (!filtered.length) {
                 list.innerHTML = `<div class="empty-state">${currentTab === 'active' ? 'No active matches assigned.' : 'No completed matches found.'}</div>`;
@@ -1430,7 +1491,7 @@
 
                 let subMeta = isFFA
                     ? `All Participants`
-                    : `${formatTime(m.scheduled_time)} · ${m.venue_name || 'TBD'}`;
+                    : `${formatDate(m.scheduled_date)} · ${formatTime(m.scheduled_time)} · ${m.venue_name || 'TBD'}`;
 
                 const formatTag = m.scoring_type === 'sets'
                     ? ` · ${scoreIcon('layers', 'icon-sm')} Sets`
@@ -1520,6 +1581,7 @@
             } else if (scoringType === 'binary') {
                 binaryWinner = null;
             } else {
+                scoreHistory = { a: [], b: [] };
                 const res = await api(`/matches/${m.id}/scoreboard`);
                 if (res.success && res.data) {
                     scores = { a: normalizeScore(res.data.total_a), b: normalizeScore(res.data.total_b) };
@@ -1537,11 +1599,71 @@
         async function startCurrentMatch() {
             if (isSaving || !selectedMatch) return;
 
-            const earlyWarning = getStartWarning(selectedMatch);
-            if (earlyWarning) {
-                Toast.show(earlyWarning, 'error');
+            const blocker = getStartWarning(selectedMatch);
+            if (blocker) {
+                Toast.show(blocker, 'error');
                 return;
             }
+
+            const scheduled = getScheduledDateTime(selectedMatch);
+            const msEarly = scheduled ? (scheduled.getTime() - Date.now()) : 0;
+
+            // More than 5 minutes before the scheduled time — warn, but still allow starting.
+            if (scheduled && msEarly > 5 * 60 * 1000) {
+                openEarlyStartModal(scheduled, msEarly);
+                return;
+            }
+
+            await doStartMatch();
+        }
+
+        function getScheduledDateTime(match) {
+            if (!match || !match.scheduled_date || !match.scheduled_time) return null;
+            const d = new Date(`${String(match.scheduled_date).slice(0, 10)}T${String(match.scheduled_time).slice(0, 8)}`);
+            return Number.isNaN(d.getTime()) ? null : d;
+        }
+
+        function getStartWarning(match) {
+            if (!match) return 'Select a match first.';
+            if (!match.scheduled_date || !match.scheduled_time) {
+                return 'This match has no scheduled date and time. Ask the scheduler to complete it first.';
+            }
+            const isFfa = match.bracket_side === 'ffa' ||
+                match.bracket_side === 'exhibition' ||
+                ['free_for_all', 'team_ranking', 'group_stage_ffa'].includes(String(match.tournament_format || '').toLowerCase());
+            if ((!match.participant_a_department_id && !isFfa) ||
+                (!match.participant_b_department_id && !isFfa)) {
+                return 'Both participants must be assigned before this match can start.';
+            }
+            return '';
+        }
+
+        function formatCountdown(ms) {
+            const totalMinutes = Math.max(1, Math.round(ms / 60000));
+            const h = Math.floor(totalMinutes / 60);
+            const m = totalMinutes % 60;
+            if (h <= 0) return `${m} minute${m === 1 ? '' : 's'}`;
+            if (m === 0) return `${h} hour${h === 1 ? '' : 's'}`;
+            return `${h} hour${h === 1 ? '' : 's'} ${m} minute${m === 1 ? '' : 's'}`;
+        }
+
+        function openEarlyStartModal(scheduled, msEarly) {
+            const dateStr = scheduled.toLocaleDateString('en-PH', { weekday: 'long', month: 'short', day: 'numeric', year: 'numeric' });
+            const timeStr = scheduled.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+            const dateEl = document.getElementById('early-start-schedule');
+            const countdownEl = document.getElementById('early-start-countdown');
+            if (dateEl) dateEl.textContent = `${dateStr} at ${timeStr}`;
+            if (countdownEl) countdownEl.textContent = formatCountdown(msEarly);
+            Modal.open('modal-early-start');
+        }
+
+        async function confirmEarlyStart() {
+            Modal.close('modal-early-start');
+            await doStartMatch();
+        }
+
+        async function doStartMatch() {
+            if (isSaving || !selectedMatch) return;
             isSaving = true;
 
             try {
@@ -1563,22 +1685,6 @@
             } finally {
                 isSaving = false;
             }
-        }
-
-        function getStartWarning(match) {
-            if (!match) return 'Select a match first.';
-            if (!match.scheduled_date || !match.scheduled_time) {
-                return 'This match has no scheduled date and time. Ask the scheduler to complete it first.';
-            }
-            const scheduled = new Date(`${String(match.scheduled_date).slice(0, 10)}T${String(match.scheduled_time).slice(0, 8)}`);
-            const isFfa = match.bracket_side === 'ffa' ||
-                match.bracket_side === 'exhibition' ||
-                ['free_for_all', 'team_ranking', 'group_stage_ffa'].includes(String(match.tournament_format || '').toLowerCase());
-            if ((!match.participant_a_department_id && !isFfa) ||
-                (!match.participant_b_department_id && !isFfa)) {
-                return 'Both participants must be assigned before this match can start.';
-            }
-            return '';
         }
 
         function showMatchStartedBanner(match) {
@@ -1845,7 +1951,7 @@ value="${p.ffa_result_value != null ? fmtScore(p.ffa_result_value, isFfaTime()) 
                             <button class="btn-score btn-plus" onclick="updateScore('a', 2, false)">+2</button>
                             <button class="btn-score btn-plus" onclick="updateScore('a', 3, false)">+3</button>
                         </div>
-                        <button class="btn-score btn-minus" onclick="updateScore('a', -1, true)">Undo (−1)</button>
+                        <button class="btn-score btn-minus" id="undo-btn-a" onclick="undoLastScore('a')" ${scoreHistory.a.length ? '' : 'disabled'}>${undoLabel(scoreHistory.a)}</button>
                     </div>
                     <div class="score-btn-group">
                         <div class="btn-row">
@@ -1853,7 +1959,7 @@ value="${p.ffa_result_value != null ? fmtScore(p.ffa_result_value, isFfaTime()) 
                             <button class="btn-score btn-plus" onclick="updateScore('b', 2, false)">+2</button>
                             <button class="btn-score btn-plus" onclick="updateScore('b', 3, false)">+3</button>
                         </div>
-                        <button class="btn-score btn-minus" onclick="updateScore('b', -1, true)">Undo (−1)</button>
+                        <button class="btn-score btn-minus" id="undo-btn-b" onclick="undoLastScore('b')" ${scoreHistory.b.length ? '' : 'disabled'}>${undoLabel(scoreHistory.b)}</button>
                     </div>
                 </div>
 
@@ -2225,6 +2331,10 @@ value="${p.ffa_result_value != null ? fmtScore(p.ffa_result_value, isFfaTime()) 
             const delta = isTimeScoring() ? toScoreNumber(amt) : Math.round(toScoreNumber(amt));
             scores[side] = normalizeScore(Math.max(0, toScoreNumber(scores[side]) + delta));
 
+            if (!isUndo) {
+                scoreHistory[side].push(Math.abs(delta));
+            }
+
             const displayEl = document.getElementById('display-main');
             if (displayEl) displayEl.innerHTML = renderMainScore(scores.a, scores.b);
 
@@ -2271,6 +2381,11 @@ value="${p.ffa_result_value != null ? fmtScore(p.ffa_result_value, isFfaTime()) 
             } catch (err) {
                 scores.a = prevA;
                 scores.b = prevB;
+                if (!isUndo) {
+                    scoreHistory[side].pop();
+                } else {
+                    scoreHistory[side].push(Math.abs(delta));
+                }
                 if (displayEl) displayEl.innerHTML = renderMainScore(scores.a, scores.b);
                 if (syncDot && syncStatus) {
                     syncDot.style.background = '#E8323B';
@@ -2282,7 +2397,34 @@ value="${p.ffa_result_value != null ? fmtScore(p.ffa_result_value, isFfaTime()) 
             } finally {
                 isSaving = false;
                 document.querySelectorAll('.btn-score').forEach(btn => btn.disabled = false);
+                updateUndoButtons();
             }
+        }
+
+        function undoLabel(history) {
+            if (!history || !history.length) return 'Undo';
+            return `Undo last (−${fmtScore(history[history.length - 1])})`;
+        }
+
+        function updateUndoButtons() {
+            ['a', 'b'].forEach(side => {
+                const btn = document.getElementById(`undo-btn-${side}`);
+                if (!btn) return;
+                const history = scoreHistory[side];
+                btn.disabled = !history || !history.length;
+                btn.textContent = undoLabel(history);
+            });
+        }
+
+        function undoLastScore(side) {
+            if (isSaving || !selectedMatch) return;
+            const history = scoreHistory[side];
+            if (!history || !history.length) {
+                Toast.show('Nothing to undo for this side yet.', 'info');
+                return;
+            }
+            const lastAmount = history.pop();
+            updateScore(side, -lastAmount, true);
         }
 
         function filterMatchPlayers(players, teamName) {
