@@ -20,6 +20,23 @@ const buildConnectionOptions = () => {
     };
 };
 
+const isSgoSeedAlreadyInserted = async (conn) => {
+    const [rows] = await conn.query(`
+        SELECT COUNT(*) AS total
+        FROM tournaments
+        WHERE name LIKE '%SGO Days 2026%'
+           OR sport_fest_id = (
+                SELECT id
+                FROM sport_fest_events
+                WHERE year = 2026
+                  AND name = 'High School SGO Days 2026'
+                LIMIT 1
+           )
+    `);
+
+    return Number(rows[0].total) > 0;
+};
+
 const run = async () => {
     let conn;
     try {
@@ -185,14 +202,19 @@ const run = async () => {
         const seedPath = seedCandidates.find((p) => fs.existsSync(p));
 
         if (seedPath) {
-            console.log('🏆 Running SGO Days 2026 seed (FORCE)...');
-            console.log('   file:', seedPath);
-            try {
-                // Force run – the SQL itself deletes previous SGO Days data first
-                await conn.query(fs.readFileSync(seedPath, 'utf8'));
-                console.log('✅ SGO Days 2026 seed applied successfully');
-            } catch (seedErr) {
-                console.error('❌ SGO Days seed failed:', seedErr.message);
+            const alreadyInserted = await isSgoSeedAlreadyInserted(conn);
+            if (alreadyInserted) {
+                console.log('✅ SGO Days 2026 seed already exists; skipping duplicate import.');
+            } else {
+                console.log('🏆 Running SGO Days 2026 seed (one-time)...');
+                console.log('   file:', seedPath);
+                try {
+                    // This file removes prior SGO Days data before inserting, so it only needs to run once.
+                    await conn.query(fs.readFileSync(seedPath, 'utf8'));
+                    console.log('✅ SGO Days 2026 seed applied successfully');
+                } catch (seedErr) {
+                    console.error('❌ SGO Days seed failed:', seedErr.message);
+                }
             }
         } else {
             console.log('⏭️  No seed file found – skipping.');
