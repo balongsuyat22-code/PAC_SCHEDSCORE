@@ -174,7 +174,7 @@ const run = async () => {
         console.log('✅ Base data ready\n');
 
         // ============================================================
-        // SGO Days 2026 seed
+        // SGO Days 2026 seed (FORCE RUN once)
         // ============================================================
         const seedCandidates = [
             path.join(__dirname, '../../sgo_days_2026_COMPLETE_ALL.sql'),
@@ -185,18 +185,12 @@ const run = async () => {
         const seedPath = seedCandidates.find((p) => fs.existsSync(p));
 
         if (seedPath) {
-            console.log('🏆 Running SGO Days 2026 seed...');
+            console.log('🏆 Running SGO Days 2026 seed (FORCE)...');
             console.log('   file:', seedPath);
             try {
-                const [existing] = await conn.query(
-                    `SELECT COUNT(*) AS cnt FROM tournaments WHERE name LIKE '%SGO Days 2026%'`
-                );
-                if (existing[0].cnt > 0) {
-                    console.log('   ⚠️  Tournaments already exist – skipping seed.');
-                } else {
-                    await conn.query(fs.readFileSync(seedPath, 'utf8'));
-                    console.log('✅ SGO Days 2026 seed applied successfully');
-                }
+                // Force run – the SQL itself deletes previous SGO Days data first
+                await conn.query(fs.readFileSync(seedPath, 'utf8'));
+                console.log('✅ SGO Days 2026 seed applied successfully');
             } catch (seedErr) {
                 console.error('❌ SGO Days seed failed:', seedErr.message);
             }
@@ -212,6 +206,7 @@ const run = async () => {
         console.log('  president@sportfest.com');
         console.log('  officer@sportfest.com');
         console.log('═══════════════════════════════════════════════════════════\n');
+        console.log('📌 After successful seed, delete sgo_days_2026_COMPLETE_ALL.sql\n');
     } catch (err) {
         console.error('\n❌ Setup failed:', err.message);
         process.exit(1);
