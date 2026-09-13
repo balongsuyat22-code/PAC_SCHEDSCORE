@@ -54,7 +54,7 @@ const run = async () => {
         await conn.query(`USE \`${dbName}\``);
         console.log('✅ Connected\n');
 
-        // Schema
+        // Step 1: apply the main schema before any SGO data seed
         const schemaCandidates = [
             path.join(__dirname, '../../schema.sql'),
             path.join(__dirname, '../../../schema.sql'),
@@ -190,9 +190,8 @@ const run = async () => {
         console.log('  ✅ Sport Fest Event');
         console.log('✅ Base data ready\n');
 
-        // ============================================================
-        // SGO Days 2026 seed (FORCE RUN once)
-        // ============================================================
+        // Step 2: import SGO Days 2026 only after the schema exists
+        // and only when the tournament data has not been inserted yet.
         const seedCandidates = [
             path.join(__dirname, '../../sgo_days_2026_COMPLETE_ALL.sql'),
             path.join(__dirname, '../../sql/sgo_days_2026_COMPLETE_ALL.sql'),
