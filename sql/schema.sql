@@ -126,9 +126,6 @@ CREATE TABLE IF NOT EXISTS tournaments (
     SET NULL,
         INDEX idx_tour_status (status)
 ) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4;
-ALTER TABLE tournaments
-ADD COLUMN IF NOT EXISTS points_config JSON NULL
-AFTER is_exhibition;
 CREATE TABLE IF NOT EXISTS sport_fest_tournaments (
     sport_fest_id INT NOT NULL,
     tournament_id INT NOT NULL,
@@ -203,9 +200,6 @@ CREATE TABLE IF NOT EXISTS tournament_participants (
     CONSTRAINT fk_tp_dept FOREIGN KEY (department_id) REFERENCES departments(id) ON DELETE CASCADE,
     UNIQUE KEY uq_tp (tournament_id, department_id)
 ) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4;
-ALTER TABLE tournament_participants
-ADD COLUMN IF NOT EXISTS no_points TINYINT(1) NOT NULL DEFAULT 0
-AFTER status;
 CREATE TABLE IF NOT EXISTS matches (
     id INT AUTO_INCREMENT PRIMARY KEY,
     tournament_id INT NOT NULL,
@@ -245,15 +239,6 @@ CREATE TABLE IF NOT EXISTS matches (
         INDEX idx_matches_status (status),
         INDEX idx_matches_date (scheduled_date)
 ) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4;
-ALTER TABLE matches
-ADD COLUMN IF NOT EXISTS next_match_id INT NULL
-AFTER winner_department_id,
-    ADD COLUMN IF NOT EXISTS next_match_slot ENUM('a', 'b') NULL
-AFTER next_match_id,
-    ADD COLUMN IF NOT EXISTS loser_next_match_id INT NULL
-AFTER next_match_slot,
-    ADD COLUMN IF NOT EXISTS loser_next_match_slot ENUM('a', 'b') NULL
-AFTER loser_next_match_id;
 CREATE TABLE IF NOT EXISTS match_scores (
     id INT AUTO_INCREMENT PRIMARY KEY,
     match_id INT NOT NULL,
@@ -337,6 +322,7 @@ CREATE TABLE IF NOT EXISTS department_scores (
     department_id INT NOT NULL,
     sport_fest_id INT NULL,
     total_points INT DEFAULT 0,
+    bonus_points INT NOT NULL DEFAULT 0,
     gold_medals INT DEFAULT 0,
     silver_medals INT DEFAULT 0,
     bronze_medals INT DEFAULT 0,
@@ -364,7 +350,6 @@ CREATE TABLE IF NOT EXISTS schedules (
         CONSTRAINT fk_sch_user FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE
     SET NULL
 ) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4;
-SET FOREIGN_KEY_CHECKS = 1;
 CREATE TABLE IF NOT EXISTS notifications (
     id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
     user_id INT UNSIGNED NULL,
@@ -385,11 +370,6 @@ CREATE TABLE IF NOT EXISTS notifications (
     INDEX idx_notif_dept (department_id, is_read, created_at),
     INDEX idx_notif_created (created_at)
 ) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4;
-ALTER TABLE departments
-ADD COLUMN IF NOT EXISTS division ENUM('junior_high', 'senior_high', 'college') NULL DEFAULT NULL
-AFTER short_name,
-    ADD COLUMN IF NOT EXISTS is_exhibition TINYINT(1) NOT NULL DEFAULT 0
-AFTER division;
 CREATE TABLE IF NOT EXISTS sport_fest_champions (
     id INT AUTO_INCREMENT PRIMARY KEY,
     sport_fest_id INT NOT NULL,
@@ -405,12 +385,6 @@ CREATE TABLE IF NOT EXISTS sport_fest_champions (
     CONSTRAINT fk_sfc_declared_by FOREIGN KEY (declared_by) REFERENCES users(id) ON DELETE
     SET NULL
 ) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4;
-ALTER TABLE sport_fest_events
-ADD COLUMN IF NOT EXISTS champion_count TINYINT UNSIGNED NOT NULL DEFAULT 1
-AFTER is_current;
-ALTER TABLE tournaments
-ADD COLUMN IF NOT EXISTS is_exhibition TINYINT(1) NOT NULL DEFAULT 0
-AFTER category;
 CREATE TABLE IF NOT EXISTS sport_fest_bonus_points (
     id INT AUTO_INCREMENT PRIMARY KEY,
     sport_fest_id INT NOT NULL,
@@ -426,6 +400,4 @@ CREATE TABLE IF NOT EXISTS sport_fest_bonus_points (
         INDEX idx_sfbp_fest (sport_fest_id),
         INDEX idx_sfbp_dept (department_id)
 ) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4;
-ALTER TABLE department_scores
-ADD COLUMN IF NOT EXISTS bonus_points INT NOT NULL DEFAULT 0
-AFTER total_points;
+SET FOREIGN_KEY_CHECKS = 1;
