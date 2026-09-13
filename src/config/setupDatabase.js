@@ -41,11 +41,25 @@ const run = async () => {
         await conn.query(`USE \`${dbName}\``);
         console.log('✅ Connected\n');
 
-        console.log('📦 Applying schema...');
-        const schemaPath = path.join(__dirname, '../../sql/schema.sql');
-        if (!fs.existsSync(schemaPath)) {
-            throw new Error(`schema.sql not found at ${schemaPath}`);
+        // Find schema.sql (works when this file is in src/config/)
+        const schemaCandidates = [
+            path.join(__dirname, '../../schema.sql'),          // project root
+            path.join(__dirname, '../../../schema.sql'),
+            path.join(__dirname, '../../sql/schema.sql'),
+            path.join(__dirname, '../sql/schema.sql'),
+            path.join(process.cwd(), 'schema.sql'),
+            path.join(process.cwd(), 'sql/schema.sql'),
+        ];
+
+        const schemaPath = schemaCandidates.find((p) => fs.existsSync(p));
+        if (!schemaPath) {
+            console.error('Tried these paths for schema.sql:');
+            schemaCandidates.forEach((p) => console.error('  -', p));
+            throw new Error('schema.sql not found');
         }
+
+        console.log('📦 Applying schema...');
+        console.log('   file:', schemaPath);
 
         const schemaSQL = fs.readFileSync(schemaPath, 'utf8');
         try {
@@ -67,7 +81,7 @@ const run = async () => {
         tables.forEach((t) => console.log('   -', t.name));
 
         if (tables.length === 0) {
-            throw new Error('Zero tables after schema — check sql/schema.sql content');
+            throw new Error('Zero tables after schema — check schema.sql content');
         }
         const names = new Set(tables.map((t) => t.name));
         if (!names.has('tournament_results') || !names.has('department_scores')) {
@@ -126,17 +140,13 @@ const run = async () => {
             console.log(`  ✅  ${u.role.padEnd(14)} → ${u.email}  (password: ${u.password})`);
         }
 
-        // ---------------------------------------------------------------
-        // ONE-TIME SEED: High School SGO Days 2026
-        // Runs only if the seed file exists. After a successful push,
-        // delete (or rename) the seed file so future deploys skip it.
-        // ---------------------------------------------------------------
+        // ONE-TIME SEED
         const seedCandidates = [
+            path.join(__dirname, '../../sgo_days_2026_COMPLETE_ALL.sql'),
+            path.join(__dirname, '../../../sgo_days_2026_COMPLETE_ALL.sql'),
             path.join(__dirname, '../../sql/sgo_days_2026_COMPLETE_ALL.sql'),
-            path.join(__dirname, '../sql/sgo_days_2026_COMPLETE_ALL.sql'),
-            path.join(__dirname, 'sgo_days_2026_COMPLETE_ALL.sql'),
-            path.join(process.cwd(), 'sql/sgo_days_2026_COMPLETE_ALL.sql'),
             path.join(process.cwd(), 'sgo_days_2026_COMPLETE_ALL.sql'),
+            path.join(process.cwd(), 'sql/sgo_days_2026_COMPLETE_ALL.sql'),
         ];
 
         const seedPath = seedCandidates.find((p) => fs.existsSync(p));
@@ -145,15 +155,13 @@ const run = async () => {
             console.log('\n🏆 Running SGO Days 2026 seed (one-time)...');
             console.log('   file:', seedPath);
 
-            // Optional safety: skip if data already present
             try {
                 const [existing] = await conn.query(
                     `SELECT COUNT(*) AS cnt FROM tournaments
                      WHERE name LIKE '%SGO Days 2026%'`
                 );
                 if (existing[0].cnt > 0) {
-                    console.log('   ⚠️  SGO Days 2026 tournaments already exist – skipping seed to avoid wipe.');
-                    console.log('   (Delete the seed file or drop those tournaments if you really want to re-seed.)');
+                    console.log('   ⚠️  SGO Days 2026 tournaments already exist – skipping seed.');
                 } else {
                     const seedSQL = fs.readFileSync(seedPath, 'utf8');
                     await conn.query(seedSQL);
@@ -161,12 +169,12 @@ const run = async () => {
                 }
             } catch (seedErr) {
                 console.error('❌ SGO Days seed failed:', seedErr.code || '', seedErr.message);
-                // Do not crash the whole setup – base schema + users are already good
                 console.error('   Continuing without seed data...');
             }
         } else {
-            console.log('\n⏭️  No SGO Days 2026 seed file found – skipping event data.');
-            console.log('   (Place sgo_days_2026_COMPLETE_ALL.sql under sql/ to seed once.)');
+            console.log('\n⏭️  No SGO Days 2026 seed file found – skipping.');
+            console.log('   Tried:');
+            seedCandidates.forEach((p) => console.log('     -', p));
         }
 
         console.log('\n🎉 Setup complete!\n');
@@ -176,10 +184,8 @@ const run = async () => {
         console.log('  dean@sportfest.com');
         console.log('  president@sportfest.com');
         console.log('  officer@sportfest.com');
-        console.log('  (Players are NOT user accounts — dean registers them as data.)');
         console.log('═══════════════════════════════════════════════════════════\n');
-        console.log('📌 After the first successful seed, delete or rename');
-        console.log('   sgo_days_2026_COMPLETE_ALL.sql so the next push does not re-run it.\n');
+        console.log('📌 After successful seed, delete sgo_days_2026_COMPLETE_ALL.sql\n');
     } catch (err) {
         console.error('\n❌ Setup failed:', err.message);
         if (err.code === 'ECONNREFUSED') {
