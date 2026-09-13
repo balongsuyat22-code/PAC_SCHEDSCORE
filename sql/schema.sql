@@ -1,5 +1,30 @@
+-- Reset all tables EXCEPT `users` (keeps users data + structure)
 SET NAMES utf8mb4;
 SET FOREIGN_KEY_CHECKS = 0;
+-- Drop everything except users
+DROP TABLE IF EXISTS sport_fest_bonus_points;
+DROP TABLE IF EXISTS sport_fest_champions;
+DROP TABLE IF EXISTS notifications;
+DROP TABLE IF EXISTS schedules;
+DROP TABLE IF EXISTS department_scores;
+DROP TABLE IF EXISTS tournament_results;
+DROP TABLE IF EXISTS ffa_results;
+DROP TABLE IF EXISTS round_robin_standings;
+DROP TABLE IF EXISTS match_results;
+DROP TABLE IF EXISTS match_scores;
+DROP TABLE IF EXISTS matches;
+DROP TABLE IF EXISTS tournament_participants;
+DROP TABLE IF EXISTS venues;
+DROP TABLE IF EXISTS players;
+DROP TABLE IF EXISTS teams;
+DROP TABLE IF EXISTS sport_fest_tournaments;
+DROP TABLE IF EXISTS tournaments;
+DROP TABLE IF EXISTS sports;
+DROP TABLE IF EXISTS activity_logs;
+DROP TABLE IF EXISTS refresh_tokens;
+DROP TABLE IF EXISTS sport_fest_events;
+DROP TABLE IF EXISTS departments;
+-- Recreate all tables (except users)
 CREATE TABLE IF NOT EXISTS departments (
     id INT AUTO_INCREMENT PRIMARY KEY,
     name VARCHAR(150) NOT NULL,
@@ -30,31 +55,6 @@ CREATE TABLE IF NOT EXISTS sport_fest_events (
     updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     CONSTRAINT fk_sfe_champion FOREIGN KEY (champion_department_id) REFERENCES departments(id) ON DELETE
     SET NULL
-) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4;
-CREATE TABLE IF NOT EXISTS users (
-    id INT AUTO_INCREMENT PRIMARY KEY,
-    uuid VARCHAR(36) NOT NULL UNIQUE,
-    username VARCHAR(50) NOT NULL UNIQUE,
-    email VARCHAR(150) NOT NULL UNIQUE,
-    password_hash VARCHAR(255) NOT NULL,
-    role ENUM(
-        'admin',
-        'dean_adviser',
-        'sgo_president',
-        'sgo_officer'
-    ) NOT NULL,
-    first_name VARCHAR(100) NOT NULL,
-    last_name VARCHAR(100) NOT NULL,
-    phone VARCHAR(30),
-    profile_picture VARCHAR(255),
-    department_id INT NULL,
-    is_active TINYINT(1) DEFAULT 1,
-    last_login DATETIME NULL,
-    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    CONSTRAINT fk_users_department FOREIGN KEY (department_id) REFERENCES departments(id) ON DELETE
-    SET NULL,
-        INDEX idx_users_role (role)
 ) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4;
 CREATE TABLE IF NOT EXISTS refresh_tokens (
     id INT AUTO_INCREMENT PRIMARY KEY,
