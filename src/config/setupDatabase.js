@@ -20,6 +20,17 @@ const buildConnectionOptions = () => {
     };
 };
 
+const isSchemaInitialized = async (conn) => {
+    const [rows] = await conn.query(`
+        SELECT COUNT(*) AS total
+        FROM information_schema.tables
+        WHERE table_schema = DATABASE()
+          AND table_name IN ('departments', 'sport_fest_events', 'sports', 'tournaments', 'matches')
+    `);
+
+    return Number(rows[0].total) >= 4;
+};
+
 const isSgoSeedAlreadyInserted = async (conn) => {
     const [rows] = await conn.query(`
         SELECT COUNT(*) AS total
@@ -65,10 +76,15 @@ const run = async () => {
         const schemaPath = schemaCandidates.find((p) => fs.existsSync(p));
         if (!schemaPath) throw new Error('schema.sql not found');
 
-        console.log('📦 Applying schema...');
-        console.log('   file:', schemaPath);
-        await conn.query(fs.readFileSync(schemaPath, 'utf8'));
-        console.log('✅ Schema applied\n');
+        const initialized = await isSchemaInitialized(conn);
+        if (initialized) {
+            console.log('✅ Database already initialized; skipping schema reset.');
+        } else {
+            console.log('📦 Applying schema...');
+            console.log('   file:', schemaPath);
+            await conn.query(fs.readFileSync(schemaPath, 'utf8'));
+            console.log('✅ Schema applied\n');
+        }
 
         await conn.query('DROP TRIGGER IF EXISTS after_tournament_result_insert');
         await conn.query('DROP TRIGGER IF EXISTS after_tournament_result_update');

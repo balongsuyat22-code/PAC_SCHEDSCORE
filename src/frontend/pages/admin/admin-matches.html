@@ -15,16 +15,53 @@
             border: 1px solid rgba(34, 197, 94, 0.25);
             border-radius: 14px;
             padding: 18px 24px;
-            margin-bottom: 12px;
+            margin-bottom: 0;
             display: flex;
             align-items: center;
             gap: 20px;
             transition: transform 0.2s, border-color 0.2s;
+            flex-shrink: 0;
         }
 
         .live-banner:hover {
             transform: translateY(-2px);
             border-color: rgba(34, 197, 94, 0.5);
+        }
+
+        /* Live strip: keep page short — scrollable stack of banners */
+        #live-strip {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            max-height: 380px;
+            /* ~2–3 full banners visible */
+            overflow-y: auto;
+            overflow-x: hidden;
+            margin-bottom: 24px;
+            padding-right: 6px;
+            scrollbar-width: thin;
+            scrollbar-color: rgba(34, 197, 94, 0.45) transparent;
+        }
+
+        #live-strip::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        #live-strip::-webkit-scrollbar-track {
+            background: transparent;
+        }
+
+        #live-strip::-webkit-scrollbar-thumb {
+            background: rgba(34, 197, 94, 0.4);
+            border-radius: 3px;
+        }
+
+        #live-strip::-webkit-scrollbar-thumb:hover {
+            background: rgba(34, 197, 94, 0.65);
+        }
+
+        #live-strip:empty {
+            display: none;
         }
 
         .live-pulse {
@@ -715,6 +752,11 @@
                 font-size: 13px;
             }
 
+            #live-strip {
+                max-height: 320px;
+                /* tighter on mobile so it doesn't dominate the viewport */
+            }
+
             .live-banner {
                 flex-wrap: wrap;
                 padding: 12px 14px;
@@ -933,7 +975,7 @@
 
         <div class="content">
             <div class="match-stats" id="match-stats"></div>
-            <div id="live-strip" style="margin-bottom:24px"></div>
+            <div id="live-strip"></div>
 
             <div class="filter-bar">
                 <select class="filter-sel" id="f-status" onchange="applyFilters()" style="width:170px">
