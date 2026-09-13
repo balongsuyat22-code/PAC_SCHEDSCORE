@@ -11,7 +11,6 @@ const buildConnectionOptions = () => {
     if (process.env.DATABASE_URL && process.env.DATABASE_URL.startsWith('mysql')) {
         return { uri: process.env.DATABASE_URL, multipleStatements: true };
     }
-
     return {
         host: process.env.DB_HOST || process.env.MYSQLHOST || 'localhost',
         port: Number(process.env.DB_PORT || process.env.MYSQLPORT || 3306),
@@ -24,10 +23,7 @@ const buildConnectionOptions = () => {
 const run = async () => {
     let conn;
     try {
-        const dbName =
-            process.env.DB_NAME ||
-            process.env.MYSQLDATABASE ||
-            'sportfest_db';
+        const dbName = process.env.DB_NAME || process.env.MYSQLDATABASE || 'sportfest_db';
 
         console.log('🔧 Connecting to MySQL...');
         console.log('  host:', process.env.DB_HOST || process.env.MYSQLHOST || '(from URL)');
@@ -41,58 +37,27 @@ const run = async () => {
         await conn.query(`USE \`${dbName}\``);
         console.log('✅ Connected\n');
 
-        // Find schema.sql (works when this file is in src/config/)
+        // Schema
         const schemaCandidates = [
-            path.join(__dirname, '../../schema.sql'),          // project root
+            path.join(__dirname, '../../schema.sql'),
             path.join(__dirname, '../../../schema.sql'),
             path.join(__dirname, '../../sql/schema.sql'),
-            path.join(__dirname, '../sql/schema.sql'),
             path.join(process.cwd(), 'schema.sql'),
             path.join(process.cwd(), 'sql/schema.sql'),
         ];
-
         const schemaPath = schemaCandidates.find((p) => fs.existsSync(p));
-        if (!schemaPath) {
-            console.error('Tried these paths for schema.sql:');
-            schemaCandidates.forEach((p) => console.error('  -', p));
-            throw new Error('schema.sql not found');
-        }
+        if (!schemaPath) throw new Error('schema.sql not found');
 
         console.log('📦 Applying schema...');
         console.log('   file:', schemaPath);
+        await conn.query(fs.readFileSync(schemaPath, 'utf8'));
+        console.log('✅ Schema applied\n');
 
-        const schemaSQL = fs.readFileSync(schemaPath, 'utf8');
-        try {
-            await conn.query(schemaSQL);
-            console.log('✅ Schema applied\n');
-        } catch (err) {
-            console.error('❌ Schema failed:', err.code || '', err.message);
-            throw err;
-        }
-
-        const [tables] = await conn.query(
-            `SELECT TABLE_NAME AS name
-             FROM information_schema.TABLES
-             WHERE TABLE_SCHEMA = ?
-             ORDER BY TABLE_NAME`,
-            [dbName]
-        );
-        console.log(`📋 Tables in \`${dbName}\` (${tables.length}):`);
-        tables.forEach((t) => console.log('   -', t.name));
-
-        if (tables.length === 0) {
-            throw new Error('Zero tables after schema — check schema.sql content');
-        }
-        const names = new Set(tables.map((t) => t.name));
-        if (!names.has('tournament_results') || !names.has('department_scores')) {
-            throw new Error('Required tables missing (tournament_results / department_scores)');
-        }
-
-        console.log('\n⚡ Removing legacy department_scores triggers (scoring is app-side)...');
         await conn.query('DROP TRIGGER IF EXISTS after_tournament_result_insert');
         await conn.query('DROP TRIGGER IF EXISTS after_tournament_result_update');
         console.log('✅ Legacy triggers dropped\n');
 
+        // College departments
         console.log('🏫 Creating departments...');
         await conn.query(`
             INSERT INTO departments (id, name, code, description, division, is_exhibition) VALUES
@@ -104,14 +69,11 @@ const run = async () => {
             (6, 'College of Information Technology', 'CIT', 'Information Technology Department', 'college', 0),
             (7, 'Faculty / Night Owls', 'FAC', 'Exhibition-only faculty team', NULL, 1),
             (8, 'Supreme Goat / SGO / SELECOM', 'SGO', 'Student Officer team', 'senior_high', 0)
-            ON DUPLICATE KEY UPDATE
-                name = VALUES(name),
-                description = VALUES(description),
-                division = VALUES(division),
-                is_exhibition = VALUES(is_exhibition)
+            ON DUPLICATE KEY UPDATE name = VALUES(name), division = VALUES(division), is_exhibition = VALUES(is_exhibition)
         `);
         console.log('✅ Departments created\n');
 
+        // Default users
         console.log('👤 Creating default users...');
         const defaultUsers = [
             { username: 'admin', email: 'admin@sportfest.com', password: 'password', role: 'admin', first: 'System', last: 'Admin', dept: 1 },
@@ -119,62 +81,127 @@ const run = async () => {
             { username: 'sgo_president', email: 'president@sportfest.com', password: 'password', role: 'sgo_president', first: 'SGO', last: 'President', dept: null },
             { username: 'sgo_officer', email: 'officer@sportfest.com', password: 'password', role: 'sgo_officer', first: 'SGO', last: 'Officer', dept: null },
         ];
-
         for (const u of defaultUsers) {
             const hash = await bcrypt.hash(u.password, 10);
             await conn.query(
-                `
-                INSERT INTO users
-                    (uuid, username, email, password_hash, role, first_name, last_name, department_id, is_active)
-                VALUES
-                    (UUID(), ?, ?, ?, ?, ?, ?, ?, 1)
-                ON DUPLICATE KEY UPDATE
-                    password_hash = VALUES(password_hash),
-                    first_name = VALUES(first_name),
-                    last_name = VALUES(last_name),
-                    department_id = VALUES(department_id),
-                    is_active = 1
-                `,
+                `INSERT INTO users (uuid, username, email, password_hash, role, first_name, last_name, department_id, is_active)
+                 VALUES (UUID(), ?, ?, ?, ?, ?, ?, ?, 1)
+                 ON DUPLICATE KEY UPDATE password_hash = VALUES(password_hash), is_active = 1`,
                 [u.username, u.email, hash, u.role, u.first, u.last, u.dept]
             );
-            console.log(`  ✅  ${u.role.padEnd(14)} → ${u.email}  (password: ${u.password})`);
+            console.log(`  ✅  ${u.role.padEnd(14)} → ${u.email}`);
         }
 
-        // ONE-TIME SEED
+        // ============================================================
+        // BASE DATA for SGO Days 2026
+        // ============================================================
+        console.log('\n📦 Seeding base data for SGO Days 2026...');
+
+        // High school departments
+        await conn.query(`
+            INSERT INTO departments (name, code, description, division, is_exhibition, is_active) VALUES
+            ('Blue Bees', 'BBEES', 'Junior High', 'junior_high', 0, 1),
+            ('Dolphins', 'DOLPHIN', 'Junior High', 'junior_high', 0, 1),
+            ('Dancing Peacocks', 'DPEACOCK', 'Senior High', 'senior_high', 0, 1),
+            ('Mantises', 'MANTIS', 'Junior High', 'junior_high', 0, 1),
+            ('Night Owls', 'NOWL', 'Faculty / Exhibition', NULL, 1, 1),
+            ('Panthers', 'PANTHER', 'Senior High', 'senior_high', 0, 1),
+            ('Red Foxes', 'REDFOX', 'Junior High', 'junior_high', 0, 1),
+            ('Supreme Goats', 'SGOAT', 'Senior High', 'senior_high', 0, 1),
+            ('Stallions', 'STALLION', 'Senior High', 'senior_high', 0, 1),
+            ('Eagles', 'EAGLE', 'Junior High', 'junior_high', 0, 1),
+            ('Pythons', 'PYTHON', 'Junior High', 'junior_high', 0, 1)
+            ON DUPLICATE KEY UPDATE name = VALUES(name), division = VALUES(division), is_exhibition = VALUES(is_exhibition), is_active = 1
+        `);
+        console.log('  ✅ High school departments');
+
+        // Sports
+        await conn.query(`
+            INSERT INTO sports (name, code, category, is_team_sport, scoring_type, is_active) VALUES
+            ('Chess', 'CHESS', 'individual', 0, 'binary', 1),
+            ('Scrabble', 'SCRABBLE', 'individual', 0, 'points', 1),
+            ('Checkers', 'CHECKERS', 'individual', 0, 'binary', 1),
+            ('Darts', 'DARTS', 'individual', 0, 'points', 1),
+            ('Sudoku', 'SUDOKU', 'individual', 0, 'time', 1),
+            ('Sungka', 'SUNGKA', 'individual', 0, 'points', 1),
+            ('Basketball', 'BASKETBALL', 'team', 1, 'points', 1),
+            ('Volleyball', 'VOLLEYBALL', 'team', 1, 'sets', 1),
+            ('Badminton', 'BADMINTON', 'individual', 0, 'sets', 1),
+            ('Table Tennis', 'TABLE_TENNIS', 'individual', 0, 'sets', 1),
+            ('Sepak Takraw', 'SEPAK_TAKRAW', 'team', 1, 'sets', 1),
+            ('Mobile Legends', 'MOBILE_LEGENDS', 'team', 1, 'binary', 1)
+            ON DUPLICATE KEY UPDATE name = VALUES(name), is_active = 1
+        `);
+        console.log('  ✅ Sports');
+
+        // Venues
+        await conn.query(`
+            INSERT INTO venues (name, location, is_active) VALUES
+            ('Board Games Area', 'Main Building', 1),
+            ('Gym', 'Sports Complex', 1),
+            ('Covered Court', 'Sports Complex', 1),
+            ('Computer Lab', 'ICT Building', 1),
+            ('Open Field', 'Campus Grounds', 1)
+            ON DUPLICATE KEY UPDATE is_active = 1
+        `);
+        console.log('  ✅ Venues');
+
+        // Referee users
+        const referees = [
+            { username: 'aogarte', email: 'aogarte@sportfest.com', first: 'A.', last: 'Ogarte' },
+            { username: 'klongakit', email: 'klongakit@sportfest.com', first: 'K.', last: 'Longakit' },
+            { username: 'rmontemayor', email: 'rmontemayor@sportfest.com', first: 'R.', last: 'Montemayor' },
+            { username: 'mdumaboc', email: 'mdumaboc@sportfest.com', first: 'M.', last: 'Dumaboc' },
+        ];
+        for (const r of referees) {
+            const hash = await bcrypt.hash('password', 10);
+            await conn.query(
+                `INSERT INTO users (uuid, username, email, password_hash, role, first_name, last_name, is_active)
+                 VALUES (UUID(), ?, ?, ?, 'sgo_officer', ?, ?, 1)
+                 ON DUPLICATE KEY UPDATE password_hash = VALUES(password_hash), is_active = 1`,
+                [r.username, r.email, hash, r.first, r.last]
+            );
+        }
+        console.log('  ✅ Referee users');
+
+        // Sport Fest Event
+        await conn.query(`
+            INSERT INTO sport_fest_events (name, year, status, is_current, start_date, end_date)
+            VALUES ('High School SGO Days 2026', 2026, 'ongoing', 1, '2026-09-14', '2026-09-16')
+            ON DUPLICATE KEY UPDATE is_current = 1, status = 'ongoing'
+        `);
+        console.log('  ✅ Sport Fest Event');
+        console.log('✅ Base data ready\n');
+
+        // ============================================================
+        // SGO Days 2026 seed
+        // ============================================================
         const seedCandidates = [
             path.join(__dirname, '../../sgo_days_2026_COMPLETE_ALL.sql'),
-            path.join(__dirname, '../../../sgo_days_2026_COMPLETE_ALL.sql'),
             path.join(__dirname, '../../sql/sgo_days_2026_COMPLETE_ALL.sql'),
             path.join(process.cwd(), 'sgo_days_2026_COMPLETE_ALL.sql'),
             path.join(process.cwd(), 'sql/sgo_days_2026_COMPLETE_ALL.sql'),
         ];
-
         const seedPath = seedCandidates.find((p) => fs.existsSync(p));
 
         if (seedPath) {
-            console.log('\n🏆 Running SGO Days 2026 seed (one-time)...');
+            console.log('🏆 Running SGO Days 2026 seed...');
             console.log('   file:', seedPath);
-
             try {
                 const [existing] = await conn.query(
-                    `SELECT COUNT(*) AS cnt FROM tournaments
-                     WHERE name LIKE '%SGO Days 2026%'`
+                    `SELECT COUNT(*) AS cnt FROM tournaments WHERE name LIKE '%SGO Days 2026%'`
                 );
                 if (existing[0].cnt > 0) {
-                    console.log('   ⚠️  SGO Days 2026 tournaments already exist – skipping seed.');
+                    console.log('   ⚠️  Tournaments already exist – skipping seed.');
                 } else {
-                    const seedSQL = fs.readFileSync(seedPath, 'utf8');
-                    await conn.query(seedSQL);
+                    await conn.query(fs.readFileSync(seedPath, 'utf8'));
                     console.log('✅ SGO Days 2026 seed applied successfully');
                 }
             } catch (seedErr) {
-                console.error('❌ SGO Days seed failed:', seedErr.code || '', seedErr.message);
-                console.error('   Continuing without seed data...');
+                console.error('❌ SGO Days seed failed:', seedErr.message);
             }
         } else {
-            console.log('\n⏭️  No SGO Days 2026 seed file found – skipping.');
-            console.log('   Tried:');
-            seedCandidates.forEach((p) => console.log('     -', p));
+            console.log('⏭️  No seed file found – skipping.');
         }
 
         console.log('\n🎉 Setup complete!\n');
@@ -185,18 +212,8 @@ const run = async () => {
         console.log('  president@sportfest.com');
         console.log('  officer@sportfest.com');
         console.log('═══════════════════════════════════════════════════════════\n');
-        console.log('📌 After successful seed, delete sgo_days_2026_COMPLETE_ALL.sql\n');
     } catch (err) {
         console.error('\n❌ Setup failed:', err.message);
-        if (err.code === 'ECONNREFUSED') {
-            console.error('   → Host/port refused. On Railway use MYSQLHOST/MYSQL_URL; locally start MySQL.');
-        }
-        if (err.code === 'ER_ACCESS_DENIED_ERROR') {
-            console.error('   → Wrong user/password (MYSQLUSER/MYSQLPASSWORD or DB_*).');
-        }
-        if (err.code === 'ENOTFOUND') {
-            console.error('   → Bad hostname. Use private *.railway.internal host from the MySQL service.');
-        }
         process.exit(1);
     } finally {
         if (conn) await conn.end();
