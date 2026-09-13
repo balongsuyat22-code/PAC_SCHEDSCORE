@@ -1,4 +1,3 @@
-
 require('dotenv').config();
 const mysql = require('mysql2/promise');
 const bcrypt = require('bcryptjs');
@@ -127,6 +126,49 @@ const run = async () => {
             console.log(`  ✅  ${u.role.padEnd(14)} → ${u.email}  (password: ${u.password})`);
         }
 
+        // ---------------------------------------------------------------
+        // ONE-TIME SEED: High School SGO Days 2026
+        // Runs only if the seed file exists. After a successful push,
+        // delete (or rename) the seed file so future deploys skip it.
+        // ---------------------------------------------------------------
+        const seedCandidates = [
+            path.join(__dirname, '../../sql/sgo_days_2026_COMPLETE_ALL.sql'),
+            path.join(__dirname, '../sql/sgo_days_2026_COMPLETE_ALL.sql'),
+            path.join(__dirname, 'sgo_days_2026_COMPLETE_ALL.sql'),
+            path.join(process.cwd(), 'sql/sgo_days_2026_COMPLETE_ALL.sql'),
+            path.join(process.cwd(), 'sgo_days_2026_COMPLETE_ALL.sql'),
+        ];
+
+        const seedPath = seedCandidates.find((p) => fs.existsSync(p));
+
+        if (seedPath) {
+            console.log('\n🏆 Running SGO Days 2026 seed (one-time)...');
+            console.log('   file:', seedPath);
+
+            // Optional safety: skip if data already present
+            try {
+                const [existing] = await conn.query(
+                    `SELECT COUNT(*) AS cnt FROM tournaments
+                     WHERE name LIKE '%SGO Days 2026%'`
+                );
+                if (existing[0].cnt > 0) {
+                    console.log('   ⚠️  SGO Days 2026 tournaments already exist – skipping seed to avoid wipe.');
+                    console.log('   (Delete the seed file or drop those tournaments if you really want to re-seed.)');
+                } else {
+                    const seedSQL = fs.readFileSync(seedPath, 'utf8');
+                    await conn.query(seedSQL);
+                    console.log('✅ SGO Days 2026 seed applied successfully');
+                }
+            } catch (seedErr) {
+                console.error('❌ SGO Days seed failed:', seedErr.code || '', seedErr.message);
+                // Do not crash the whole setup – base schema + users are already good
+                console.error('   Continuing without seed data...');
+            }
+        } else {
+            console.log('\n⏭️  No SGO Days 2026 seed file found – skipping event data.');
+            console.log('   (Place sgo_days_2026_COMPLETE_ALL.sql under sql/ to seed once.)');
+        }
+
         console.log('\n🎉 Setup complete!\n');
         console.log('═══════════════════════════════════════════════════════════');
         console.log('  LOGIN (password is "password" for all):');
@@ -136,6 +178,8 @@ const run = async () => {
         console.log('  officer@sportfest.com');
         console.log('  (Players are NOT user accounts — dean registers them as data.)');
         console.log('═══════════════════════════════════════════════════════════\n');
+        console.log('📌 After the first successful seed, delete or rename');
+        console.log('   sgo_days_2026_COMPLETE_ALL.sql so the next push does not re-run it.\n');
     } catch (err) {
         console.error('\n❌ Setup failed:', err.message);
         if (err.code === 'ECONNREFUSED') {
