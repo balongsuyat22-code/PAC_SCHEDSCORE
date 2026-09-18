@@ -203,6 +203,8 @@ app.get('/president/assignment', (req, res) => res.redirect(301, '/president/sch
 app.get('/president/assignment.html', (req, res) => res.redirect(301, '/president/schedule'));
 app.get('/president/live', sendPageFrom(frontendPresident, 'pres-live-scores.html'));
 app.get('/president/live-scores.html', sendPageFrom(frontendPresident, 'pres-live-scores.html'));
+app.get('/president/leaderboard', sendPageFrom(frontendPresident, 'pres-leaderboard.html'));
+app.get('/president/leaderboard.html', sendPageFrom(frontendPresident, 'pres-leaderboard.html'));
 app.get('/president/reports', sendPageFrom(frontendPresident, 'pres-reports.html'));
 app.get('/president/reports.html', sendPageFrom(frontendPresident, 'pres-reports.html'));
 app.get('/president/notifications', sendPageFrom(frontendPresident, 'pres-notifications.html'));
