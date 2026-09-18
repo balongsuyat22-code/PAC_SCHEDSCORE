@@ -84,34 +84,40 @@
             color: var(--text);
         }
 
-        /* Division filter bar */
-        .division-filter-bar {
+        /* ===== Print scope panel ===== */
+        .scope-panel {
             display: none;
-            flex-wrap: wrap;
-            align-items: center;
-            gap: 8px;
             background: var(--bg3);
             border: 1px solid var(--border);
-            border-radius: 10px;
-            padding: 10px 14px;
+            border-radius: 12px;
+            padding: 14px 16px;
             margin-bottom: 16px;
+            gap: 16px;
+            flex-direction: column;
         }
 
-        .division-filter-bar.visible {
+        .scope-panel.visible {
             display: flex;
         }
 
-        .division-filter-bar .filter-label {
-            font-family: 'Barlow Condensed', sans-serif;
-            font-weight: 700;
-            font-size: 13px;
-            text-transform: uppercase;
-            letter-spacing: .4px;
-            color: var(--muted);
-            margin-right: 4px;
+        .scope-row {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            gap: 8px;
         }
 
-        .div-chip {
+        .scope-label {
+            font-family: 'Barlow Condensed', sans-serif;
+            font-weight: 700;
+            font-size: 12px;
+            text-transform: uppercase;
+            letter-spacing: .5px;
+            color: var(--muted);
+            min-width: 90px;
+        }
+
+        .scope-chip {
             border: 1px solid var(--border);
             background: var(--bg2);
             color: var(--text);
@@ -122,25 +128,23 @@
             border-radius: 100px;
             cursor: pointer;
             transition: all .15s;
-            display: inline-flex;
-            align-items: center;
-            gap: 6px;
+            user-select: none;
         }
 
-        .div-chip:hover {
+        .scope-chip:hover {
             border-color: var(--gold, #f5b800);
         }
 
-        .div-chip.active {
+        .scope-chip.active {
             background: var(--gold, #f5b800);
             color: #000;
             border-color: var(--gold, #f5b800);
         }
 
-        .div-chip .chip-count {
-            font-size: 11px;
-            opacity: .75;
-            font-weight: 500;
+        .scope-chip.section-chip.active {
+            background: #2563eb;
+            border-color: #2563eb;
+            color: #fff;
         }
 
         .download-bar {
@@ -379,6 +383,13 @@
             color: #92400e;
         }
 
+        .sheet-note {
+            font-size: 11.5px;
+            color: #666;
+            margin: 4px 0 10px;
+            font-style: italic;
+        }
+
         .sheet-footer {
             margin-top: 26px;
             padding-top: 14px;
@@ -415,7 +426,7 @@
             .export-toolbar,
             .mode-toggle,
             .season-banner,
-            .division-filter-bar,
+            .scope-panel,
             .download-bar,
             .page-header {
                 display: none !important;
@@ -461,8 +472,10 @@
         <div class="content">
             <div class="page-header">
                 <div class="page-title">Export Finalized Results</div>
-                <div class="page-sub">Export the overall Sport Fest champion report, or pick a single finalized
-                    tournament — current season only. Filter by division to print one champion or all.</div>
+                <div class="page-sub">
+                    Season report separates Junior High &amp; Senior High standings.
+                    Tournaments are shared — filter which divisions and sections to print.
+                </div>
             </div>
 
             <div id="season-banner" class="season-banner">Loading current season…</div>
@@ -476,13 +489,23 @@
                 </button>
             </div>
 
-            <!-- Division filter (Season mode only) -->
-            <div id="division-filter-bar" class="division-filter-bar">
-                <span class="filter-label"><i class="fa-solid fa-filter"></i> Print scope:</span>
-                <button type="button" class="div-chip active" data-div="all" onclick="setDivisionFilter('all')">
-                    All Divisions
-                </button>
-                <!-- dynamic division chips inserted here -->
+            <!-- Multi-select print scope -->
+            <div id="scope-panel" class="scope-panel">
+                <div class="scope-row" id="division-chips-row">
+                    <span class="scope-label"><i class="fa-solid fa-users"></i> Divisions</span>
+                    <!-- chips injected -->
+                </div>
+                <div class="scope-row" id="section-chips-row">
+                    <span class="scope-label"><i class="fa-solid fa-list"></i> Include</span>
+                    <button type="button" class="scope-chip section-chip active" data-section="champions"
+                        onclick="toggleSection('champions')">Champions</button>
+                    <button type="button" class="scope-chip section-chip active" data-section="standings"
+                        onclick="toggleSection('standings')">Dept. Standings</button>
+                    <button type="button" class="scope-chip section-chip active" data-section="tournaments"
+                        onclick="toggleSection('tournaments')">Tournament Rankings</button>
+                    <button type="button" class="scope-chip section-chip active" data-section="matches"
+                        onclick="toggleSection('matches')">Matches / Schedule</button>
+                </div>
             </div>
 
             <div class="export-toolbar" id="single-toolbar" style="display:none">
@@ -517,8 +540,12 @@
     <script>
         let currentMode = 'season';
         let currentSheetTitle = 'export';
-        let seasonDataCache = null;       // full API response for season
-        let selectedDivision = 'all';     // 'all' | division key
+        let seasonDataCache = null;
+
+        // Multi-select state
+        let selectedDivisions = new Set();   // empty = treat as all (until chips built)
+        let selectedSections = new Set(['champions', 'standings', 'tournaments', 'matches']);
+        let allKnownDivisions = [];          // ordered list of division keys
 
         document.addEventListener('DOMContentLoaded', async () => {
             const allowedRoles = ['admin', 'sgo_president'];
@@ -547,12 +574,12 @@
             document.getElementById('mode-single').classList.toggle('active', mode === 'single');
             document.getElementById('single-toolbar').style.display = mode === 'single' ? 'flex' : 'none';
 
-            const filterBar = document.getElementById('division-filter-bar');
+            const scopePanel = document.getElementById('scope-panel');
             if (mode === 'season') {
-                filterBar.classList.add('visible');
+                scopePanel.classList.add('visible');
                 loadSeasonExport();
             } else {
-                filterBar.classList.remove('visible');
+                scopePanel.classList.remove('visible');
                 const id = document.getElementById('t-select').value;
                 if (id) {
                     loadSingleExport();
@@ -593,19 +620,18 @@
             const printBtn = document.getElementById('btn-print');
             const downloadBar = document.getElementById('download-bar');
             const banner = document.getElementById('season-banner');
-            const filterBar = document.getElementById('division-filter-bar');
+            const scopePanel = document.getElementById('scope-panel');
 
             host.innerHTML = `<div class="empty-state"><div class="empty-text">Loading...</div></div>`;
             downloadBar.style.display = 'none';
             printBtn.style.display = 'none';
 
-            // Re-fetch only if we don't have cache yet (or force refresh)
             if (!seasonDataCache) {
                 const res = await api('/reports/sportfest/export');
                 if (!res.success) {
                     host.innerHTML = `<div class="empty-state"><div class="empty-text">${res.message || 'Failed to load the season report.'}</div></div>`;
                     banner.innerHTML = `<span><i class="fa-solid fa-circle-exclamation"></i> ${res.message || 'No active season found.'}</span>`;
-                    filterBar.classList.remove('visible');
+                    scopePanel.classList.remove('visible');
                     return;
                 }
                 seasonDataCache = res.data;
@@ -615,84 +641,157 @@
             const fest = data.sport_fest;
             banner.innerHTML = `Current season: <strong>${fest.name}${fest.year ? ' (' + fest.year + ')' : ''}</strong>`;
 
-            // Build division chips
-            buildDivisionFilter(data);
-
-            // Render with current filter
-            applyDivisionFilterAndRender();
+            buildDivisionChips(data);
+            applyScopeAndRender();
             downloadBar.style.display = 'flex';
             printBtn.style.display = '';
-            filterBar.classList.add('visible');
+            scopePanel.classList.add('visible');
         }
 
-        function buildDivisionFilter(data) {
-            const filterBar = document.getElementById('division-filter-bar');
-            // Keep the "All Divisions" chip, remove the rest
-            filterBar.querySelectorAll('.div-chip:not([data-div="all"])').forEach(el => el.remove());
-
-            const champions = (Array.isArray(data.champions) && data.champions.length)
+        /** Build department-name → division map from leaderboard (and champions). */
+        function buildDeptDivisionMap(data) {
+            const map = {};
+            (data.leaderboard || []).forEach(d => {
+                if (d.name && d.division) map[d.name.trim().toLowerCase()] = d.division;
+            });
+            const champs = (Array.isArray(data.champions) && data.champions.length)
                 ? data.champions
                 : (data.champion ? [data.champion] : []);
+            champs.forEach(c => {
+                if (c.name && c.division) map[c.name.trim().toLowerCase()] = c.division;
+            });
+            return map;
+        }
 
-            const divisionsFromLeaderboard = [...new Set(
-                (data.leaderboard || []).map(d => d.division).filter(Boolean)
-            )];
-            const divisionsFromChampions = [...new Set(
-                champions.map(c => c.division).filter(Boolean)
-            )];
-            const divisionsFromTourneys = [...new Set(
-                (data.tournaments || []).map(t => t.division).filter(Boolean)
-            )];
-            const divisions = [...new Set([
-                ...divisionsFromChampions,
-                ...divisionsFromLeaderboard,
-                ...divisionsFromTourneys
-            ])];
+        function resolveStandingDivision(standing, deptMap) {
+            if (standing.division) return standing.division;
+            const key = (standing.department_name || standing.name || '').trim().toLowerCase();
+            return deptMap[key] || null;
+        }
 
-            if (divisions.length <= 1) {
-                // Only one (or zero) division → hide extra chips, force "all"
-                selectedDivision = 'all';
-                filterBar.querySelector('[data-div="all"]').classList.add('active');
+        function collectDivisions(data) {
+            const set = new Set();
+            (data.leaderboard || []).forEach(d => { if (d.division) set.add(d.division); });
+            const champs = (Array.isArray(data.champions) && data.champions.length)
+                ? data.champions
+                : (data.champion ? [data.champion] : []);
+            champs.forEach(c => { if (c.division) set.add(c.division); });
+            // Prefer a stable order: junior* first, then senior*, then others alpha
+            const list = [...set];
+            list.sort((a, b) => {
+                const score = (x) => {
+                    const s = String(x).toLowerCase();
+                    if (s.includes('junior')) return 0;
+                    if (s.includes('senior')) return 1;
+                    return 2;
+                };
+                const da = score(a), db = score(b);
+                if (da !== db) return da - db;
+                return String(a).localeCompare(String(b));
+            });
+            return list;
+        }
+
+        function buildDivisionChips(data) {
+            const row = document.getElementById('division-chips-row');
+            // Clear old chips (keep label)
+            row.querySelectorAll('.scope-chip').forEach(el => el.remove());
+
+            allKnownDivisions = collectDivisions(data);
+
+            // "All" chip
+            const allBtn = document.createElement('button');
+            allBtn.type = 'button';
+            allBtn.className = 'scope-chip active';
+            allBtn.dataset.div = '__all__';
+            allBtn.textContent = 'All Divisions';
+            allBtn.onclick = () => selectAllDivisions();
+            row.appendChild(allBtn);
+
+            if (!allKnownDivisions.length) {
+                selectedDivisions = new Set();
                 return;
             }
 
-            divisions.forEach(div => {
-                const label = formatDivisionLabel(div);
-                const champCount = champions.filter(c => c.division === div).length;
-                const tourneyCount = (data.tournaments || []).filter(t => t.division === div).length;
+            // If nothing selected yet, select all
+            if (selectedDivisions.size === 0) {
+                allKnownDivisions.forEach(d => selectedDivisions.add(d));
+            }
+
+            allKnownDivisions.forEach(div => {
                 const btn = document.createElement('button');
                 btn.type = 'button';
-                btn.className = 'div-chip' + (selectedDivision === div ? ' active' : '');
+                btn.className = 'scope-chip' + (selectedDivisions.has(div) ? ' active' : '');
                 btn.dataset.div = div;
-                btn.onclick = () => setDivisionFilter(div);
-                btn.innerHTML = `${label}` +
-                    (champCount || tourneyCount
-                        ? ` <span class="chip-count">(${champCount ? champCount + ' champ' : ''}${champCount && tourneyCount ? ' · ' : ''}${tourneyCount ? tourneyCount + ' events' : ''})</span>`
-                        : '');
-                filterBar.appendChild(btn);
+                btn.textContent = formatDivisionLabel(div);
+                btn.onclick = () => toggleDivision(div);
+                row.appendChild(btn);
             });
 
-            // Sync active state on "All"
-            filterBar.querySelector('[data-div="all"]').classList.toggle('active', selectedDivision === 'all');
+            syncAllChipState();
         }
 
-        function setDivisionFilter(div) {
-            selectedDivision = div;
-            document.querySelectorAll('#division-filter-bar .div-chip').forEach(chip => {
-                chip.classList.toggle('active', chip.dataset.div === div);
+        function selectAllDivisions() {
+            selectedDivisions = new Set(allKnownDivisions);
+            document.querySelectorAll('#division-chips-row .scope-chip').forEach(chip => {
+                if (chip.dataset.div === '__all__') chip.classList.add('active');
+                else chip.classList.add('active');
             });
-            applyDivisionFilterAndRender();
+            applyScopeAndRender();
         }
 
-        function applyDivisionFilterAndRender() {
+        function toggleDivision(div) {
+            if (selectedDivisions.has(div)) {
+                // Don't allow deselecting the last one
+                if (selectedDivisions.size <= 1) return;
+                selectedDivisions.delete(div);
+            } else {
+                selectedDivisions.add(div);
+            }
+            document.querySelectorAll('#division-chips-row .scope-chip').forEach(chip => {
+                if (chip.dataset.div === '__all__') return;
+                chip.classList.toggle('active', selectedDivisions.has(chip.dataset.div));
+            });
+            syncAllChipState();
+            applyScopeAndRender();
+        }
+
+        function syncAllChipState() {
+            const allChip = document.querySelector('#division-chips-row .scope-chip[data-div="__all__"]');
+            if (!allChip) return;
+            const allSelected = allKnownDivisions.length > 0 &&
+                allKnownDivisions.every(d => selectedDivisions.has(d));
+            allChip.classList.toggle('active', allSelected);
+        }
+
+        function toggleSection(section) {
+            if (selectedSections.has(section)) {
+                if (selectedSections.size <= 1) return; // keep at least one
+                selectedSections.delete(section);
+            } else {
+                selectedSections.add(section);
+            }
+            document.querySelectorAll('#section-chips-row .section-chip').forEach(chip => {
+                chip.classList.toggle('active', selectedSections.has(chip.dataset.section));
+            });
+            applyScopeAndRender();
+        }
+
+        function applyScopeAndRender() {
             if (!seasonDataCache) return;
             const host = document.getElementById('sheet-host');
             const fest = seasonDataCache.sport_fest;
-            const scopeLabel = selectedDivision === 'all'
+
+            const divPart = (selectedDivisions.size === 0 || selectedDivisions.size === allKnownDivisions.length)
                 ? 'all-divisions'
-                : String(selectedDivision).replace(/[^a-z0-9\-]+/gi, '_');
-            currentSheetTitle = `${fest.name}-${scopeLabel}-season-report`.replace(/[^a-z0-9\-]+/gi, '_');
-            host.innerHTML = renderSeasonSheet(seasonDataCache, selectedDivision);
+                : [...selectedDivisions].map(d => String(d).replace(/[^a-z0-9]+/gi, '_')).join('-');
+            currentSheetTitle = `${fest.name}-${divPart}-season-report`.replace(/[^a-z0-9\-]+/gi, '_');
+
+            host.innerHTML = renderSeasonSheet(seasonDataCache, {
+                divisions: selectedDivisions,
+                sections: selectedSections,
+                allDivisions: allKnownDivisions
+            });
         }
 
         async function loadSingleExport() {
@@ -742,205 +841,266 @@
         }
 
         /**
-         * @param {object} data  - full season export payload
-         * @param {string} filterDiv - 'all' | division key (e.g. 'senior_high')
+         * @param {object} data
+         * @param {{ divisions: Set, sections: Set, allDivisions: string[] }} scope
          */
-        function renderSeasonSheet(data, filterDiv = 'all') {
+        function renderSeasonSheet(data, scope) {
             const fest = data.sport_fest;
             const allChampions = (Array.isArray(data.champions) && data.champions.length)
                 ? data.champions
                 : (data.champion ? [data.champion] : []);
             const finalized = !!data.champion_finalized;
+            const deptMap = buildDeptDivisionMap(data);
 
-            // Apply filter
-            const isFiltered = filterDiv && filterDiv !== 'all';
-            const champions = isFiltered
-                ? allChampions.filter(c => c.division === filterDiv)
-                : allChampions;
-            const leaderboard = isFiltered
-                ? (data.leaderboard || []).filter(d => d.division === filterDiv)
-                : (data.leaderboard || []);
-            const tournaments = isFiltered
-                ? (data.tournaments || []).filter(t => t.division === filterDiv)
-                : (data.tournaments || []);
+            const activeDivs = scope.divisions.size
+                ? scope.divisions
+                : new Set(scope.allDivisions);
+            const showAllDivs = activeDivs.size === 0 ||
+                (scope.allDivisions.length > 0 && scope.allDivisions.every(d => activeDivs.has(d)));
 
-            // Divisions present in the *filtered* data (for grouping inside "all")
-            const divisionsFromLeaderboard = [...new Set(leaderboard.map(d => d.division).filter(Boolean))];
-            const divisionsFromChampions = [...new Set(champions.map(c => c.division).filter(Boolean))];
-            const divisionsFromTourneys = [...new Set(tournaments.map(t => t.division).filter(Boolean))];
-            const divisions = [...new Set([
-                ...divisionsFromChampions,
-                ...divisionsFromLeaderboard,
-                ...divisionsFromTourneys
-            ])];
+            // Filter champions by selected divisions
+            const champions = allChampions.filter(c =>
+                !c.division || activeDivs.has(c.division) || showAllDivs && !scope.allDivisions.length
+            );
+
+            // Filter leaderboard by selected divisions
+            const leaderboard = (data.leaderboard || []).filter(d =>
+                !d.division || activeDivs.has(d.division)
+            );
+
+            // Tournaments are SHARED — never drop a tournament just because of division.
+            // When filtering divisions, only filter the standing *rows* inside.
+            const allTourneys = data.tournaments || [];
+
+            const sections = scope.sections;
             const multiChamp = champions.length > 1;
-            // Only group by division when showing "all" and multiple divisions exist
-            const hasDivisions = !isFiltered && (multiChamp || divisions.length > 1);
+            const orderedDivs = (scope.allDivisions || []).filter(d => activeDivs.has(d));
 
-            // ----- Champion cards -----
-            const champCards = champions.map((champ) => {
-                const champColor = champ.color || '#f5b800';
-                const divLabel = formatDivisionLabel(champ.division);
-                const isOfficial = finalized && (champ.official !== false);
-                let subText;
-                if (isOfficial) {
-                    subText = divLabel
-                        ? `Officially declared ${divLabel} Champion`
-                        : 'Officially declared Sport Fest Champion';
-                } else {
-                    subText = `Currently leading with ${champ.total_points ?? 0} pts — champion not yet officially declared`;
-                }
-                return `
-                    <div class="champion-card ${isOfficial ? '' : 'unofficial'}">
-                        <div class="badge-circle" style="background:${champColor}">${initialsOf(champ.name)}</div>
-                        <div>
-                            ${divLabel ? `<div class="champ-division">${divLabel} Division</div>` : ''}
-                            <div class="champ-name">🏆 ${champ.name}</div>
-                            <div class="champ-sub">${subText}</div>
-                        </div>
-                    </div>`;
-            }).join('');
-
-            // ----- Department Standings -----
-            function renderLeaderboardTable(rows) {
-                if (!rows || !rows.length) {
-                    return `<tr><td colspan="6" style="text-align:center;color:#888">No department scores recorded.</td></tr>`;
-                }
-                return rows.map((d, i) => `
-                    <tr>
-                        <td>${i + 1}</td>
-                        <td>${d.name}${(!hasDivisions && !isFiltered && d.division) ? ` <span style="color:#888;font-size:11px">(${formatDivisionLabel(d.division)})</span>` : ''}</td>
-                        <td class="medal-gold">${d.gold_medals}</td>
-                        <td class="medal-silver">${d.silver_medals}</td>
-                        <td class="medal-bronze">${d.bronze_medals}</td>
-                        <td><strong>${d.total_points}</strong></td>
-                    </tr>`).join('');
-            }
-
-            let leaderboardHtml = '';
-            if (hasDivisions && divisions.length) {
-                leaderboardHtml = divisions.map(div => {
-                    const rows = leaderboard.filter(d => d.division === div);
+            // ----- Champions -----
+            let champHtml = '';
+            if (sections.has('champions')) {
+                const champCards = champions.map((champ) => {
+                    const champColor = champ.color || '#f5b800';
+                    const divLabel = formatDivisionLabel(champ.division);
+                    const isOfficial = finalized && (champ.official !== false);
+                    let subText;
+                    if (isOfficial) {
+                        subText = divLabel
+                            ? `Officially declared ${divLabel} Champion`
+                            : 'Officially declared Sport Fest Champion';
+                    } else {
+                        subText = `Currently leading with ${champ.total_points ?? 0} pts — champion not yet officially declared`;
+                    }
                     return `
-                        <div class="sheet-section-title sub-div">${formatDivisionLabel(div)} Standings</div>
-                        <table class="sheet-table">
-                            <thead><tr><th>Rank</th><th>Department</th><th>🥇</th><th>🥈</th><th>🥉</th><th>Points</th></tr></thead>
-                            <tbody>${renderLeaderboardTable(rows)}</tbody>
-                        </table>`;
-                }).join('');
-
-                const noDivRows = leaderboard.filter(d => !d.division);
-                if (noDivRows.length) {
-                    leaderboardHtml += `
-                        <div class="sheet-section-title sub-div">Other / Unassigned</div>
-                        <table class="sheet-table">
-                            <thead><tr><th>Rank</th><th>Department</th><th>🥇</th><th>🥈</th><th>🥉</th><th>Points</th></tr></thead>
-                            <tbody>${renderLeaderboardTable(noDivRows)}</tbody>
-                        </table>`;
-                }
-            } else {
-                leaderboardHtml = `
-                    <table class="sheet-table">
-                        <thead><tr><th>Rank</th><th>Department</th><th>🥇</th><th>🥈</th><th>🥉</th><th>Points</th></tr></thead>
-                        <tbody>${renderLeaderboardTable(leaderboard)}</tbody>
-                    </table>`;
-            }
-
-            // ----- Tournaments -----
-            function renderTourneyBlock(t) {
-                const isDone = t.status === 'completed';
-                const standingRows = (t.standings || []).slice(0, 8).map(s => `
-                    <tr>
-                        <td>${s.rank}</td>
-                        <td>${s.department_name}${s.team_name ? ' — ' + s.team_name : ''}</td>
-                        <td class="${medalClass(s.medal)}">${s.medal || '—'}</td>
-                        <td>${s.sport_fest_points ?? 0}</td>
-                    </tr>`).join('') ||
-                    `<tr><td colspan="4" style="text-align:center;color:#888">${isDone ? 'No standings recorded.' : 'Not finalized yet.'}</td></tr>`;
-
-                return `
-                    <div class="tourney-block">
-                        <div class="tourney-block-head">
-                            <h3>${t.name}</h3>
-                            <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">
-                                <span class="tag">${t.sport_name}</span>
-                                ${t.division ? `<span class="tag">${formatDivisionLabel(t.division)}</span>` : ''}
-                                <span class="tourney-status-tag ${isDone ? 'completed' : 'other'}">${t.status}</span>
+                        <div class="champion-card ${isOfficial ? '' : 'unofficial'}">
+                            <div class="badge-circle" style="background:${champColor}">${initialsOf(champ.name)}</div>
+                            <div>
+                                ${divLabel ? `<div class="champ-division">${divLabel} Division</div>` : ''}
+                                <div class="champ-name">🏆 ${champ.name}</div>
+                                <div class="champ-sub">${subText}</div>
                             </div>
-                        </div>
-                        <table class="sheet-table">
-                            <thead><tr><th>Rank</th><th>Department</th><th>Medal</th><th>Points</th></tr></thead>
-                            <tbody>${standingRows}</tbody>
-                        </table>
-                    </div>`;
-            }
-
-            let tourneyBlocks = '';
-            if (hasDivisions && divisions.length) {
-                tourneyBlocks = divisions.map(div => {
-                    const list = tournaments.filter(t => t.division === div);
-                    if (!list.length) return '';
-                    return `
-                        <div class="sheet-section-title sub-div">${formatDivisionLabel(div)} Tournaments</div>
-                        ${list.map(renderTourneyBlock).join('')}`;
+                        </div>`;
                 }).join('');
 
-                const noDivTourneys = tournaments.filter(t => !t.division);
-                if (noDivTourneys.length) {
-                    tourneyBlocks += `
-                        <div class="sheet-section-title sub-div">Other / Shared Tournaments</div>
-                        ${noDivTourneys.map(renderTourneyBlock).join('')}`;
-                }
-            } else {
-                tourneyBlocks = tournaments.map(renderTourneyBlock).join('') ||
-                    `<div class="empty-state"><div class="empty-text">No tournaments${isFiltered ? ' for this division' : ''} have been added yet.</div></div>`;
+                const title = multiChamp
+                    ? `Overall Champions (${champions.length})`
+                    : (champions.length === 1 && champions[0].division
+                        ? `${formatDivisionLabel(champions[0].division)} Champion`
+                        : 'Overall Champion');
+
+                champHtml = `
+                    <div class="sheet-section-title">${title}</div>
+                    ${champions.length
+                        ? `<div class="champions-grid">${champCards}</div>`
+                        : `<div class="empty-state"><div class="empty-text">No champion for the selected division(s).</div></div>`}`;
             }
 
-            // ----- Titles / badges -----
-            const filterLabel = isFiltered ? formatDivisionLabel(filterDiv) : '';
-            const champSectionTitle = isFiltered
-                ? (champions.length > 1
-                    ? `${filterLabel} Champions (${champions.length})`
-                    : `${filterLabel} Champion`)
-                : (multiChamp
-                    ? `Overall Champions (${champions.length})`
-                    : 'Overall Champion');
+            // ----- Department Standings (ALWAYS separate Junior / Senior) -----
+            let standingsHtml = '';
+            if (sections.has('standings')) {
+                function renderLbTable(rows) {
+                    if (!rows.length) {
+                        return `<tr><td colspan="6" style="text-align:center;color:#888">No scores recorded.</td></tr>`;
+                    }
+                    return rows.map((d, i) => `
+                        <tr>
+                            <td>${i + 1}</td>
+                            <td>${d.name}</td>
+                            <td class="medal-gold">${d.gold_medals ?? 0}</td>
+                            <td class="medal-silver">${d.silver_medals ?? 0}</td>
+                            <td class="medal-bronze">${d.bronze_medals ?? 0}</td>
+                            <td><strong>${d.total_points ?? 0}</strong></td>
+                        </tr>`).join('');
+                }
 
+                standingsHtml = `<div class="sheet-section-title">Department Standings</div>`;
+
+                if (orderedDivs.length) {
+                    orderedDivs.forEach(div => {
+                        const rows = leaderboard.filter(d => d.division === div);
+                        // Re-rank within division (in case API ranks were global)
+                        const sorted = rows.slice().sort((a, b) =>
+                            (Number(b.total_points) || 0) - (Number(a.total_points) || 0)
+                        );
+                        standingsHtml += `
+                            <div class="sheet-section-title sub-div">${formatDivisionLabel(div)} Standings</div>
+                            <table class="sheet-table">
+                                <thead><tr><th>Rank</th><th>Department</th><th>🥇</th><th>🥈</th><th>🥉</th><th>Points</th></tr></thead>
+                                <tbody>${renderLbTable(sorted)}</tbody>
+                            </table>`;
+                    });
+
+                    const noDiv = leaderboard.filter(d => !d.division);
+                    if (noDiv.length) {
+                        standingsHtml += `
+                            <div class="sheet-section-title sub-div">Other / Unassigned</div>
+                            <table class="sheet-table">
+                                <thead><tr><th>Rank</th><th>Department</th><th>🥇</th><th>🥈</th><th>🥉</th><th>Points</th></tr></thead>
+                                <tbody>${renderLbTable(noDiv)}</tbody>
+                            </table>`;
+                    }
+                } else {
+                    // No division data — single table
+                    standingsHtml += `
+                        <table class="sheet-table">
+                            <thead><tr><th>Rank</th><th>Department</th><th>🥇</th><th>🥈</th><th>🥉</th><th>Points</th></tr></thead>
+                            <tbody>${renderLbTable(leaderboard)}</tbody>
+                        </table>`;
+                }
+            }
+
+            // ----- Tournaments (shared; filter standing rows by division) -----
+            let tourneyHtml = '';
+            if (sections.has('tournaments') || sections.has('matches')) {
+                function renderTourneyBlock(t) {
+                    const isDone = t.status === 'completed';
+                    let standings = t.standings || [];
+
+                    // Filter standing rows to selected divisions (using dept map)
+                    if (!showAllDivs && activeDivs.size) {
+                        standings = standings.filter(s => {
+                            const div = resolveStandingDivision(s, deptMap);
+                            // Keep row if we can resolve division and it matches, OR if unknown keep when showing mixed
+                            if (!div) return true; // unknown → still show (friendly / unassigned)
+                            return activeDivs.has(div);
+                        });
+                    }
+
+                    let standingTable = '';
+                    if (sections.has('tournaments')) {
+                        const standingRows = standings.map(s => `
+                            <tr>
+                                <td>${s.rank}</td>
+                                <td>${s.department_name}${s.team_name ? ' — ' + s.team_name : ''}${(() => {
+                                const div = resolveStandingDivision(s, deptMap);
+                                return div && showAllDivs
+                                    ? ` <span style="color:#888;font-size:10px">(${formatDivisionLabel(div)})</span>`
+                                    : '';
+                            })()}</td>
+                                <td class="${medalClass(s.medal)}">${s.medal || '—'}</td>
+                                <td>${s.sport_fest_points ?? 0}</td>
+                            </tr>`).join('') ||
+                            `<tr><td colspan="4" style="text-align:center;color:#888">${isDone ? 'No standings for selected division(s).' : 'Not finalized yet.'}</td></tr>`;
+
+                        standingTable = `
+                            <table class="sheet-table">
+                                <thead><tr><th>Rank</th><th>Department</th><th>Medal</th><th>Points</th></tr></thead>
+                                <tbody>${standingRows}</tbody>
+                            </table>`;
+                    }
+
+                    let matchTable = '';
+                    if (sections.has('matches') && Array.isArray(t.matches) && t.matches.length) {
+                        // Optionally filter matches to teams in selected divisions
+                        let matches = t.matches;
+                        if (!showAllDivs && activeDivs.size) {
+                            matches = matches.filter(m => {
+                                const aDiv = deptMap[(m.dept_a_name || '').trim().toLowerCase()];
+                                const bDiv = deptMap[(m.dept_b_name || '').trim().toLowerCase()];
+                                // Keep if either side is in selected division, or unknown
+                                const aOk = !aDiv || activeDivs.has(aDiv);
+                                const bOk = !bDiv || activeDivs.has(bDiv);
+                                return aOk || bOk;
+                            });
+                        }
+
+                        const matchRows = matches.map(m => {
+                            const isExhibition = m.bracket_side === 'exhibition' || m.is_friendly;
+                            const a = m.dept_a_name || '—';
+                            const b = m.dept_b_name || '—';
+                            const score = (m.total_score_a != null && m.total_score_b != null)
+                                ? `${m.total_score_a} – ${m.total_score_b}`
+                                : (m.final_score_display || '—');
+                            return `
+                            <tr class="${m.winner_department_id ? 'winner-row' : ''}">
+                                <td>${isExhibition ? 'Friendly' : `R${m.round_number ?? '—'} / ${m.match_number ?? '—'}`}</td>
+                                <td>${a} vs ${b}</td>
+                                <td>${score}</td>
+                                <td>${isExhibition ? 'Friendly only' : (m.winner_name || (m.status === 'completed' ? '—' : m.status))}</td>
+                                <td>${m.venue_name || '—'}</td>
+                                <td>${m.scheduled_date ? formatDate(m.scheduled_date) : '—'}${m.scheduled_time ? ' ' + formatTime(m.scheduled_time) : ''}</td>
+                            </tr>`;
+                        }).join('') ||
+                            `<tr><td colspan="6" style="text-align:center;color:#888">No matches for selected division(s).</td></tr>`;
+
+                        matchTable = `
+                            <div style="margin-top:10px;font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.4px;color:#555">Matches / Schedule</div>
+                            <table class="sheet-table">
+                                <thead><tr><th>Round/#</th><th>Matchup</th><th>Score</th><th>Winner</th><th>Venue</th><th>Date</th></tr></thead>
+                                <tbody>${matchRows}</tbody>
+                            </table>`;
+                    }
+
+                    // Skip block if nothing to show after filters
+                    if (sections.has('tournaments') && !standings.length && !(sections.has('matches') && t.matches?.length)) {
+                        // still show tournament header if it has matches for selected div
+                        if (!(sections.has('matches') && t.matches?.length)) return '';
+                    }
+
+                    return `
+                        <div class="tourney-block">
+                            <div class="tourney-block-head">
+                                <h3>${t.name}</h3>
+                                <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">
+                                    <span class="tag">${t.sport_name || ''}</span>
+                                    <span class="tourney-status-tag ${isDone ? 'completed' : 'other'}">${t.status}</span>
+                                </div>
+                            </div>
+                            <div class="sheet-note">Shared event — Junior &amp; Senior both compete; only same-division matches count for ranking (cross-division = friendly).</div>
+                            ${standingTable}
+                            ${matchTable}
+                        </div>`;
+                }
+
+                const blocks = allTourneys.map(renderTourneyBlock).filter(Boolean).join('');
+                tourneyHtml = `
+                    <div class="sheet-section-title">Tournaments This Season (${allTourneys.length})</div>
+                    ${blocks || `<div class="empty-state"><div class="empty-text">No tournaments to show for the current filters.</div></div>`}`;
+            }
+
+            // ----- Header -----
+            const scopeDivLabels = showAllDivs || !orderedDivs.length
+                ? 'All Divisions'
+                : orderedDivs.map(formatDivisionLabel).join(' + ');
             const badgeLabel = finalized
-                ? (isFiltered
-                    ? (champions.length > 1 ? `${filterLabel} Champions` : `${filterLabel} Champion`)
-                    : (multiChamp ? 'Champions Declared' : 'Champion Declared'))
+                ? (multiChamp ? 'Champions Declared' : 'Champion Declared')
                 : 'In Progress';
-
-            const headerSub = isFiltered
-                ? `${filterLabel} Division Results${fest.theme ? ' · ' + fest.theme : ''}`
-                : `Overall Sport Fest Results${fest.theme ? ' · ' + fest.theme : ''}`;
 
             return `
             <div class="sheet">
                 <div class="sheet-header">
                     <div>
-                        <h1>${fest.name}${fest.year ? ' — ' + fest.year : ''}${isFiltered ? ' · ' + filterLabel : ''}</h1>
-                        <div class="sub">${headerSub}</div>
+                        <h1>${fest.name}${fest.year ? ' — ' + fest.year : ''}</h1>
+                        <div class="sub">Sport Fest Results · ${scopeDivLabels}${fest.theme ? ' · ' + fest.theme : ''}</div>
                     </div>
-                    <div class="sheet-badge ${finalized ? '' : 'pending'}">
-                        ${badgeLabel}
-                    </div>
+                    <div class="sheet-badge ${finalized ? '' : 'pending'}">${badgeLabel}</div>
                 </div>
                 <div class="sheet-body">
-                    <div class="sheet-section-title">${champSectionTitle}</div>
-                    ${champions.length
-                    ? `<div class="champions-grid">${champCards}</div>`
-                    : `<div class="empty-state"><div class="empty-text">No champion recorded${isFiltered ? ' for this division' : ''} yet.</div></div>`}
-
-                    <div class="sheet-section-title">Department Standings${isFiltered ? ' · ' + filterLabel : ''}</div>
-                    ${leaderboardHtml}
-
-                    <div class="sheet-section-title">Tournaments${isFiltered ? ' · ' + filterLabel : ''} (${tournaments.length})</div>
-                    ${tourneyBlocks}
-
+                    ${champHtml}
+                    ${standingsHtml}
+                    ${tourneyHtml}
                     <div class="sheet-footer">
-                        <span>Exported by ${data.exported_by || '—'}${isFiltered ? ' · Scope: ' + filterLabel + ' only' : ''}</span>
+                        <span>Exported by ${data.exported_by || '—'} · Scope: ${scopeDivLabels}</span>
                         <span>Generated ${new Date(data.exported_at).toLocaleString('en-PH')}</span>
                     </div>
                 </div>
@@ -949,10 +1109,9 @@
 
         function renderSheet(data) {
             const t = data.tournament;
-            const champion = data.standings?.find(s => s.rank === 1);
 
             const matchRows = (data.matches || []).map(m => {
-                const isExhibition = m.bracket_side === 'exhibition';
+                const isExhibition = m.bracket_side === 'exhibition' || m.is_friendly;
                 const a = m.dept_a_name || '—';
                 const b = m.dept_b_name || '—';
                 const score = (m.total_score_a != null && m.total_score_b != null)
@@ -961,10 +1120,10 @@
                 const winnerRow = m.winner_department_id ? 'winner-row' : '';
                 return `
                 <tr class="${winnerRow}">
-                    <td>${isExhibition ? 'Exhibition' : `R${m.round_number ?? '—'} / ${m.match_number ?? '—'}`}</td>
+                    <td>${isExhibition ? 'Friendly' : `R${m.round_number ?? '—'} / ${m.match_number ?? '—'}`}</td>
                     <td>${a} vs ${b}</td>
                     <td>${score}</td>
-                    <td>${isExhibition ? 'Participation only' : (m.winner_name || (m.status === 'completed' ? '—' : m.status))}</td>
+                    <td>${isExhibition ? 'Friendly only' : (m.winner_name || (m.status === 'completed' ? '—' : m.status))}</td>
                     <td>${m.venue_name || '—'}</td>
                     <td>${m.referee_name || '—'}</td>
                     <td>${m.scheduled_date ? formatDate(m.scheduled_date) : '—'}</td>
@@ -979,7 +1138,6 @@
                     <td>${s.sport_fest_points ?? 0}</td>
                 </tr>`).join('') || `<tr><td colspan="4" style="text-align:center;color:#888">No standings recorded.</td></tr>`;
 
-            // Support multiple rank-1 (ties) — show all golds as champions
             const topRank = data.standings?.length
                 ? Math.min(...data.standings.map(s => s.rank ?? 999))
                 : null;
@@ -996,12 +1154,13 @@
                 <div class="sheet-header">
                     <div>
                         <h1>${t.name}</h1>
-                        <div class="sub">${t.sport_name} · ${t.category || ''} · ${t.format || ''}${t.division ? ' · ' + formatDivisionLabel(t.division) : ''}</div>
+                        <div class="sub">${t.sport_name} · ${t.category || ''} · ${t.format || ''}</div>
                     </div>
                     <div class="sheet-badge">Finalized</div>
                 </div>
                 <div class="sheet-body">
                     ${champHtml}
+                    <div class="sheet-note">Shared event — Junior &amp; Senior both appear. Same-division matches rank; cross-division = friendly.</div>
 
                     <div class="sheet-section-title">Final Standings</div>
                     <table class="sheet-table">

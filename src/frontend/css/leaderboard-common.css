@@ -1,0 +1,65 @@
+/* Shared leaderboard visual language for admin, dean, referee, and president views. */
+.lb-tabs {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+    padding: 4px;
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+}
+
+.lb-tab {
+    border: 1px solid transparent;
+    background: transparent;
+    color: var(--muted);
+    border-radius: 7px;
+    padding: 9px 15px;
+    font: 700 13px 'Barlow', sans-serif;
+    cursor: pointer;
+    transition: background .15s, color .15s, border-color .15s;
+}
+
+.lb-tab:hover,
+.lb-tab.active {
+    background: var(--gold-bg);
+    border-color: var(--border-gold);
+    color: var(--gold);
+}
+
+.champion-hero,
+.champion-card,
+.champion {
+    border-radius: 14px;
+    border-color: rgba(245, 184, 0, .38);
+}
+
+.lb-table,
+.lb-table-wrap,
+.table-wrap,
+#leaderboard-root {
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    overflow-x: auto;
+}
+
+.lb-thead,
+.lb-row,
+.lb-table th,
+.lb-table td,
+.lb-table-wrap th,
+.lb-table-wrap td,
+#leaderboard-root th,
+#leaderboard-root td {
+    border-color: var(--border);
+}
+
+.lb-row:hover,
+#leaderboard-root .lb-row:hover {
+    background: rgba(245, 184, 0, .045);
+}
+
+@media (max-width: 640px) {
+    .lb-tabs { overflow-x: auto; flex-wrap: nowrap; }
+    .lb-tab { flex: 0 0 auto; white-space: nowrap; }
+}

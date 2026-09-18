@@ -152,12 +152,13 @@ body {
 .user-name { font-size: 13px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .user-role { font-size: 11px; color: var(--muted); text-transform: capitalize; }
 .logout-btn {
-  background: none; border: none; color: var(--muted); cursor: pointer;
-  font-size: 16px; padding: 4px; border-radius: 4px; transition: color 0.15s;
+  width: 34px; height: 34px; flex-shrink: 0;
+  background: var(--red-bg); border: 1px solid rgba(232,50,59,.25); color: var(--red); cursor: pointer;
+  font-size: 16px; padding: 0; border-radius: 8px; transition: background .15s, border-color .15s;
   display: flex; align-items: center; justify-content: center;
 }
 .logout-btn .icon { width: 16px; height: 16px; }
-.logout-btn:hover { color: var(--red); }
+.logout-btn:hover { background: rgba(232,50,59,.2); border-color: rgba(232,50,59,.4); }
 
 /* ── MAIN CONTENT ── */
 .main {
