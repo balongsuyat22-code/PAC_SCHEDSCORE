@@ -74,6 +74,48 @@
         return scores.reduce((s, r) => s + (Number(r[key]) || 0), 0);
     }
 
+    function parseSetScoreDisplay(value) {
+        if (value == null || value === '') return null;
+        const normalized = String(value)
+            .replace(/[–—]/g, '-')
+            .replace(/\s+/g, ' ')
+            .trim();
+        const match = normalized.match(/^(\d+)\s*-\s*(\d+)$/);
+        if (!match) return null;
+        const a = Number(match[1]);
+        const b = Number(match[2]);
+        if (!Number.isFinite(a) || !Number.isFinite(b)) return null;
+        // Final set displays are usually small counts like 2-1 or 3-0.
+        // Ignore point totals such as 71-61, which are not valid set wins.
+        const maxValue = Math.max(a, b);
+        if (maxValue > 6 || Math.abs(a - b) > 3) return null;
+        return { a, b };
+    }
+
+    function deriveSetWins(match) {
+        const setWins = {
+            a: Number(match?.sets_won_a ?? match?.result?.sets_won_a ?? 0) || 0,
+            b: Number(match?.sets_won_b ?? match?.result?.sets_won_b ?? 0) || 0,
+        };
+
+        if (Array.isArray(match?.scores) && match.scores.length) {
+            setWins.a = match.scores.filter((s) => Number(s.score_a || 0) > Number(s.score_b || 0)).length;
+            setWins.b = match.scores.filter((s) => Number(s.score_b || 0) > Number(s.score_a || 0)).length;
+            return setWins;
+        }
+
+        const display = parseSetScoreDisplay(match?.result?.final_score_display ?? match?.final_score_display);
+        if (display) return { a: display.a, b: display.b };
+
+        const totalA = Number(match?.result?.total_score_a ?? match?.total_score_a ?? 0);
+        const totalB = Number(match?.result?.total_score_b ?? match?.total_score_b ?? 0);
+        if (Math.max(totalA, totalB) <= 6 && Math.abs(totalA - totalB) <= 3) {
+            return { a: totalA, b: totalB };
+        }
+
+        return setWins;
+    }
+
     function normalizeMatch(m) {
         if (!m) return m;
         const scores = m.scores || null;
@@ -103,8 +145,12 @@
             result: result || m.result || null,
             live_total_a: pickTotal(m.live_total_a, m.total_score_a, 'a'),
             live_total_b: pickTotal(m.live_total_b, m.total_score_b, 'b'),
-            sets_won_a: m.sets_won_a != null ? Number(m.sets_won_a) : null,
-            sets_won_b: m.sets_won_b != null ? Number(m.sets_won_b) : null,
+            sets_won_a: (m.sets_won_a != null || m.sets_won_b != null || (m.result && m.result.final_score_display) || (m.final_score_display))
+                ? Number(deriveSetWins({ ...m, result: result || m.result || null }).a)
+                : null,
+            sets_won_b: (m.sets_won_a != null || m.sets_won_b != null || (m.result && m.result.final_score_display) || (m.final_score_display))
+                ? Number(deriveSetWins({ ...m, result: result || m.result || null }).b)
+                : null,
             watchers: m.watchers || 0,
         };
     }

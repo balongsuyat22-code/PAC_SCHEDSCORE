@@ -1758,6 +1758,9 @@
 
         function matchScoreText(m) {
             if (m.status !== 'completed') return '';
+            if (m.scoring_type === 'sets' && m.sets_won_a != null && m.sets_won_b != null) {
+                return `${fmtScore(m.sets_won_a)} – ${fmtScore(m.sets_won_b)}`;
+            }
             if (m.final_score_display) return fmtScore(m.final_score_display);
             const a = m.total_score_a, b = m.total_score_b;
             if (a == null && b == null) return '';

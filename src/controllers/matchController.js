@@ -273,6 +273,10 @@ const getAll = async (req, res, next) => {
                   WHERE ms.match_id = m.id AND ms.score_a > ms.score_b) AS sets_won_a,
                 (SELECT COUNT(*) FROM match_scores ms
                   WHERE ms.match_id = m.id AND ms.score_b > ms.score_a) AS sets_won_b,
+                                (SELECT COUNT(*) FROM match_scores ms
+                                    WHERE ms.match_id = m.id AND ms.score_a > ms.score_b) AS live_sets_a,
+                                (SELECT COUNT(*) FROM match_scores ms
+                                    WHERE ms.match_id = m.id AND ms.score_b > ms.score_a) AS live_sets_b
                 (SELECT COALESCE(SUM(score_a),0) FROM match_scores WHERE match_id = m.id) AS live_total_a,
                 (SELECT COALESCE(SUM(score_b),0) FROM match_scores WHERE match_id = m.id) AS live_total_b
             FROM matches m
@@ -495,12 +499,14 @@ const getLive = async (req, res, next) => {
                     DATE_FORMAT(m.scheduled_date, '%Y-%m-%d') AS scheduled_date,
                     DATE_FORMAT(m.scheduled_time, '%H:%i')    AS scheduled_time,
                     t.name  AS tournament_name, t.format AS tournament_format, t.ffa_scoring,
-                    s.name  AS sport_name,
+                    s.name  AS sport_name, s.scoring_type, s.sets_to_win,
                     da.id AS dept_a_id, da.name AS dept_a, da.color AS dept_a_color, da.logo_url AS dept_a_logo,
                     db.id AS dept_b_id, db.name AS dept_b, db.color AS dept_b_color, db.logo_url AS dept_b_logo,
                     v.name  AS venue_name, m.started_at,
                     COALESCE((SELECT SUM(score_a) FROM match_scores WHERE match_id = m.id), 0) AS live_score_a,
                     COALESCE((SELECT SUM(score_b) FROM match_scores WHERE match_id = m.id), 0) AS live_score_b,
+                    (SELECT COUNT(*) FROM match_scores ms WHERE ms.match_id = m.id AND ms.score_a > ms.score_b) AS live_sets_a,
+                    (SELECT COUNT(*) FROM match_scores ms WHERE ms.match_id = m.id AND ms.score_b > ms.score_a) AS live_sets_b,
                     (SELECT COUNT(*) FROM match_scores WHERE match_id = m.id) AS periods_played,
                     (SELECT MAX(ms.updated_at) FROM match_scores ms WHERE ms.match_id = m.id) AS score_updated_at,
                     (SELECT CONCAT(u.first_name, ' ', u.last_name)

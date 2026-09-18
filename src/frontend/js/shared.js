@@ -690,7 +690,7 @@ async function loadLiveMatches() {
                         <div style="font-family:'Barlow Condensed',sans-serif;font-size:18px;font-weight:800">${m.team_a || m.dept_a}</div>
                         <div style="font-size:11px;color:var(--muted)">${m.dept_a}</div>
                     </div>
-                    <div style="font-family:'Barlow Condensed',sans-serif;font-size:48px;font-weight:900;color:var(--gold);text-align:center;min-width:100px">${m.live_score_a} - ${m.live_score_b}</div>
+                        <div style="font-family:'Barlow Condensed',sans-serif;font-size:48px;font-weight:900;color:var(--gold);text-align:center;min-width:100px">${m.scoring_type === 'sets' ? `${m.live_sets_a || 0} - ${m.live_sets_b || 0}` : `${m.live_score_a || 0} - ${m.live_score_b || 0}`}</div>
                     <div style="text-align:center">
                         <div style="font-family:'Barlow Condensed',sans-serif;font-size:18px;font-weight:800">${m.team_b || m.dept_b}</div>
                         <div style="font-size:11px;color:var(--muted)">${m.dept_b}</div>
@@ -813,6 +813,7 @@ async function loadMatches() {
             <td style="font-size:12px;color:var(--muted)">${formatDate(m.scheduled_date)} ${formatTime(m.scheduled_time)}</td>
             <td style="font-size:12px;color:var(--muted)">${m.venue_name || '—'}</td>
             <td style="font-family:'Barlow Condensed',sans-serif;font-size:18px;font-weight:700;color:var(--gold)">${m.total_score_a != null ? `${m.total_score_a}–${m.total_score_b}` : '—'}</td>
+                <td style="font-family:'Barlow Condensed',sans-serif;font-size:18px;font-weight:700;color:var(--gold)">${m.scoring_type === 'sets' && m.sets_won_a != null ? `${m.sets_won_a}–${m.sets_won_b}` : m.total_score_a != null ? `${m.total_score_a}–${m.total_score_b}` : '—'}</td>
             <td>${statusBadge(m.status)}</td>
             <td><a class="btn btn-secondary btn-sm" href="/admin/matches">Details</a></td>
         </tr>`).join('')

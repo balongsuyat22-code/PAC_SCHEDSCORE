@@ -692,7 +692,7 @@
                         <td style="font-size:12px">${fmtDateTime(m.started_at)}</td>
                         <td>${esc(m.sport_name)}</td>
                         <td>${matchup(m.dept_a, m.dept_b, m.dept_a_color, m.dept_b_color)}</td>
-                        <td><code style="color:var(--gold)">${m.live_score_a ?? 0} – ${m.live_score_b ?? 0}</code></td>
+                        <td><code style="color:var(--gold)">${m.scoring_type === 'sets' ? `${m.live_sets_a ?? 0} – ${m.live_sets_b ?? 0}` : `${m.live_score_a ?? 0} – ${m.live_score_b ?? 0}`}</code></td>
                         <td style="font-size:12px;color:var(--muted)">${esc(m.venue_name || '—')}</td>
                         <td style="font-size:12px;color:var(--muted)">—</td>
                     </tr>

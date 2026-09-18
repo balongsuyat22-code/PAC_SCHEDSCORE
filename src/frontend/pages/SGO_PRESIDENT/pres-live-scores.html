@@ -211,7 +211,7 @@
                     <div style="text-align:center;flex:1">
                         <div style="font-family:'Barlow Condensed',sans-serif;font-size:18px;font-weight:800">${m.dept_a || '?'}</div>
                     </div>
-                    <div style="font-family:'Barlow Condensed',sans-serif;font-size:44px;font-weight:900;color:var(--gold);text-align:center;min-width:100px">${m.live_score_a}–${m.live_score_b}</div>
+                        <div style="font-family:'Barlow Condensed',sans-serif;font-size:44px;font-weight:900;color:var(--gold);text-align:center;min-width:100px">${m.scoring_type === 'sets' ? `${m.live_sets_a || 0}–${m.live_sets_b || 0}` : `${m.live_score_a || 0}–${m.live_score_b || 0}`}</div>
                     <div style="text-align:center;flex:1">
                         <div style="font-family:'Barlow Condensed',sans-serif;font-size:18px;font-weight:800">${m.dept_b || '?'}</div>
                     </div>
