@@ -760,8 +760,7 @@ WHERE t.sport_fest_id = @fest_id;
 -- SECTION 6 — TEAMS + PLAYERS
 -- ══════════════════════════════════════════════════════════════
 -- One team per department × sport × gender.
--- NOTE: CONCAT() returns NULL if any argument is NULL, so every
--- piece is wrapped in IFNULL() — otherwise teams.name NOT NULL fails.
+-- Uses COALESCE (2+ args) to fall back through short_name → name → code → 'Team'.
 INSERT INTO teams (
     name,
     department_id,
@@ -770,11 +769,11 @@ INSERT INTO teams (
     sport_fest_id
   )
 SELECT CONCAT(
-    IFNULL(d.short_name, d.name, d.code, 'Team'),
+    COALESCE(d.short_name, d.name, d.code, 'Team'),
     ' - ',
-    IFNULL(s.code, 'SPORT'),
+    COALESCE(s.code, 'SPORT'),
     ' ',
-    IFNULL(t.gender, 'open')
+    COALESCE(t.gender, 'open')
   ),
   d.id,
   s.id,
@@ -823,9 +822,9 @@ INSERT INTO players (
     sport_fest_id
   )
 SELECT CONCAT(
-    IFNULL(d.code, 'TEAM'),
+    COALESCE(d.code, 'TEAM'),
     ' ',
-    IFNULL(s.code, 'SPORT'),
+    COALESCE(s.code, 'SPORT'),
     ' P',
     seq.n
   ),
