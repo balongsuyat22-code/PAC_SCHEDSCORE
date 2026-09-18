@@ -120,10 +120,15 @@
         if (!m) return m;
         const scores = m.scores || null;
         const result = m.result || null;
-        // Prefer explicit live totals, then result totals, then summed periods.
+        // Completed matches use finalized result totals; live matches use the
+        // period aggregate so the card updates before a result is finalized.
         // Do NOT force 0 when nothing is known — 0 is a real score and must not
         // overwrite a later computation from scores/result in the modal builders.
         const pickTotal = (live, flat, side) => {
+            if (m.status === 'completed') {
+                if (flat != null && flat !== '') return Number(flat);
+                if (result && result['total_score_' + side] != null) return Number(result['total_score_' + side]);
+            }
             if (live != null && live !== '') return Number(live);
             if (flat != null && flat !== '') return Number(flat);
             if (result && result['total_score_' + side] != null) return Number(result['total_score_' + side]);
