@@ -11,8 +11,9 @@ const path = require('path');
  * This will:
  *   1. Re-apply schema.sql (wipes all tables except `users`)
  *   2. Recreate base departments / sports / venues / sport fest
- *   3. Run sgo_days_2026_COMPLETE_ALL.sql
- *   4. Run sgo_days_2026_RESULTS_AND_SCORES.sql (ranks + match scores)
+ *   3. Run sgo_days_2026_COMPLETE_ALL.sql       (brackets + schedules)
+ *   4. Run sgo_days_2026_RESULTS_AND_SCORES.sql (ranks + FFA matches)
+ *   5. Run sgo_days_2026_FIX_SCORES_FORMAT.sql  (propagate winners + scores)
  */
 
 const FORCE_RESET = process.env.FORCE_RESET === '1' || process.env.FORCE_RESET === 'true';
@@ -76,9 +77,7 @@ const isSgoSeedAlreadyInserted = async (conn) => {
                )
         `);
         return Number(rows[0].total) > 0;
-    } catch {
-        return false;
-    }
+    } catch { return false; }
 };
 
 const isResultsAlreadyInserted = async (conn) => {
@@ -89,16 +88,28 @@ const isResultsAlreadyInserted = async (conn) => {
             WHERE t.name LIKE '%SGO Days 2026%'
         `);
         return Number(rows[0].total) > 0;
-    } catch {
-        return false;
-    }
+    } catch { return false; }
+};
+
+const isScoresFixAlreadyApplied = async (conn) => {
+    try {
+        const [rows] = await conn.query(`
+            SELECT COUNT(*) AS total
+            FROM matches m
+            JOIN tournaments t ON m.tournament_id = t.id
+            WHERE t.name LIKE '%SGO Days 2026%'
+              AND m.status = 'completed'
+              AND m.winner_department_id IS NOT NULL
+              AND EXISTS (SELECT 1 FROM match_results mr WHERE mr.match_id = m.id)
+        `);
+        return Number(rows[0].total) > 0;
+    } catch { return false; }
 };
 
 const runSqlFile = async (conn, filePath, label) => {
     console.log(`\n📄 Running ${label}...`);
     console.log('   file:', filePath);
     const sql = fs.readFileSync(filePath, 'utf8');
-    // Split on semicolons carefully is hard; mysql2 multipleStatements handles full file
     await conn.query(sql);
     console.log(`✅ ${label} applied`);
 };
@@ -253,7 +264,6 @@ const run = async () => {
             VALUES ('High School SGO Days 2026', 2026, 'ongoing', 1, '2026-09-14', '2026-09-16', 2)
             ON DUPLICATE KEY UPDATE is_current = 1, status = 'ongoing', champion_count = 2
         `);
-        // Ensure only one current fest
         await conn.query(`
             UPDATE sport_fest_events SET is_current = 0
             WHERE NOT (year = 2026 AND name = 'High School SGO Days 2026')
@@ -300,7 +310,30 @@ const run = async () => {
             }
         } else {
             console.log('⏭️  sgo_days_2026_RESULTS_AND_SCORES.sql not found – skipping.');
-            console.log('   Copy it next to COMPLETE_ALL or into sql/ / artifacts/');
+        }
+
+        // ── Seed 3: FIX_SCORES_FORMAT (propagate winners + scores) ──
+        // This is the step that was MISSING before — it reads tournament_results
+        // (populated by Seed 2), sets winner_department_id on every bracket match,
+        // and rebuilds match_results with proper, scoring-type-aware scores.
+        const fixPath = findFile([
+            'sgo_days_2026_FIX_SCORES_FORMAT.sql',
+            'sql/sgo_days_2026_FIX_SCORES_FORMAT.sql',
+            'artifacts/sgo_days_2026_FIX_SCORES_FORMAT.sql',
+        ]);
+
+        if (fixPath) {
+            const alreadyFixed = !FORCE_RESET && (await isScoresFixAlreadyApplied(conn));
+            if (alreadyFixed) {
+                console.log('✅ Scores already fixed; skipping FIX_SCORES_FORMAT.');
+                console.log('   (Set FORCE_RESET=1 to wipe and re-apply)\n');
+            } else {
+                await runSqlFile(conn, fixPath, 'SGO Days 2026 FIX_SCORES_FORMAT (winners + scores)');
+            }
+        } else {
+            console.log('⏭️  sgo_days_2026_FIX_SCORES_FORMAT.sql not found – skipping.');
+            console.log('   ⚠️  Without this file, most matches will show 0–0 / Result pending.');
+            console.log('   Copy it next to COMPLETE_ALL, or into sql/ / artifacts/');
         }
 
         // ── Summary ─────────────────────────────────────────────
@@ -309,6 +342,8 @@ const run = async () => {
                 SELECT
                   (SELECT COUNT(*) FROM tournaments WHERE name LIKE '%SGO Days 2026%') AS tournaments,
                   (SELECT COUNT(*) FROM matches m JOIN tournaments t ON m.tournament_id=t.id WHERE t.name LIKE '%SGO Days 2026%') AS matches,
+                  (SELECT COUNT(*) FROM matches m JOIN tournaments t ON m.tournament_id=t.id
+                    WHERE t.name LIKE '%SGO Days 2026%' AND m.winner_department_id IS NOT NULL) AS matches_with_winner,
                   (SELECT COUNT(*) FROM match_results mr JOIN matches m ON mr.match_id=m.id JOIN tournaments t ON m.tournament_id=t.id WHERE t.name LIKE '%SGO Days 2026%') AS match_results,
                   (SELECT COUNT(*) FROM tournament_results tr JOIN tournaments t ON tr.tournament_id=t.id WHERE t.name LIKE '%SGO Days 2026%') AS tournament_results,
                   (SELECT COUNT(*) FROM sport_fest_bonus_points) AS bonus_points
@@ -316,6 +351,7 @@ const run = async () => {
             console.log('\n📊 Database summary:');
             console.log(`   tournaments:         ${stats.tournaments}`);
             console.log(`   matches:             ${stats.matches}`);
+            console.log(`   matches with winner: ${stats.matches_with_winner}`);
             console.log(`   match_results:       ${stats.match_results}`);
             console.log(`   tournament_results:  ${stats.tournament_results}`);
             console.log(`   bonus_points rows:   ${stats.bonus_points}`);
