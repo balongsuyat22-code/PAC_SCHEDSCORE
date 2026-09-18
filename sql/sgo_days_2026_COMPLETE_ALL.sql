@@ -22,9 +22,17 @@ SET FOREIGN_KEY_CHECKS = 0;
 -- SECTION 1 — DEPARTMENTS
 -- ══════════════════════════════════════════════════════════════
 -- 1a. College departments (kept for general app support)
-INSERT INTO departments (name, code, division, is_exhibition, is_active)
+INSERT INTO departments (
+    name,
+    short_name,
+    code,
+    division,
+    is_exhibition,
+    is_active
+  )
 VALUES (
     'College of Arts and Sciences',
+    'CAS',
     'CAS',
     'college',
     0,
@@ -33,12 +41,14 @@ VALUES (
   (
     'College of Business Administration',
     'CBA',
+    'CBA',
     'college',
     0,
     1
   ),
   (
     'College of Education',
+    'CED',
     'CED',
     'college',
     0,
@@ -47,6 +57,7 @@ VALUES (
   (
     'College of Engineering',
     'CEN',
+    'CEN',
     'college',
     0,
     1
@@ -54,12 +65,14 @@ VALUES (
   (
     'College of Nursing',
     'CON',
+    'CON',
     'college',
     0,
     1
   ),
   (
     'College of Information Technology',
+    'CIT',
     'CIT',
     'college',
     0,
@@ -69,8 +82,16 @@ UPDATE name =
 VALUES(name),
   is_active = 1;
 -- 1b. SGO Days 2026 official teams (the ONLY active teams for this season)
-INSERT INTO departments (name, code, division, is_exhibition, is_active)
+INSERT INTO departments (
+    name,
+    short_name,
+    code,
+    division,
+    is_exhibition,
+    is_active
+  )
 VALUES (
+    'Praying Mantis',
     'Praying Mantis',
     'MANTIS',
     'junior_high',
@@ -79,12 +100,14 @@ VALUES (
   ),
   (
     'Buzzing Bees',
+    'Buzzing Bees',
     'BBEES',
     'junior_high',
     0,
     1
   ),
   (
+    'Dolphins',
     'Dolphins',
     'DOLPHIN',
     'junior_high',
@@ -93,12 +116,14 @@ VALUES (
   ),
   (
     'Red Fox',
+    'Red Fox',
     'REDFOX',
     'junior_high',
     0,
     1
   ),
   (
+    'Panther',
     'Panther',
     'PANTHER',
     'senior_high',
@@ -107,12 +132,14 @@ VALUES (
   ),
   (
     'Dashing Peacock',
+    'Dashing Peacock',
     'DPEACOCK',
     'senior_high',
     0,
     1
   ),
   (
+    'Stallions',
     'Stallions',
     'STALLION',
     'senior_high',
@@ -121,12 +148,14 @@ VALUES (
   ),
   (
     'Supreme Goat',
+    'Supreme Goat',
     'SGOAT',
     'senior_high',
     0,
     1
   ),
   (
+    'Night Owls',
     'Night Owls',
     'NOWL',
     'senior_high',
@@ -135,6 +164,8 @@ VALUES (
   ) ON DUPLICATE KEY
 UPDATE name =
 VALUES(name),
+  short_name =
+VALUES(short_name),
   division =
 VALUES(division),
   is_exhibition =
@@ -527,7 +558,7 @@ SET @fest_id = (
 -- ══════════════════════════════════════════════════════════════
 -- SECTION 5 — CREATE TOURNAMENTS (division_gauntlet + free_for_all)
 -- ══════════════════════════════════════════════════════════════
--- 5a. Division-gauntlet events (JHS/SHS bracket)
+-- 5a. Division-gauntlet events — MEN
 INSERT INTO tournaments (
     name,
     sport_id,
@@ -569,6 +600,7 @@ WHERE s.code IN (
     WHERE t.name = CONCAT(s.name, ' (Men) - SGO Days 2026')
       AND t.sport_fest_id = @fest_id
   );
+-- 5b. Division-gauntlet events — WOMEN
 INSERT INTO tournaments (
     name,
     sport_id,
@@ -610,6 +642,7 @@ WHERE s.code IN (
     WHERE t.name = CONCAT(s.name, ' (Women) - SGO Days 2026')
       AND t.sport_fest_id = @fest_id
   );
+-- 5c. Division-gauntlet events — OPEN
 INSERT INTO tournaments (
     name,
     sport_id,
@@ -653,7 +686,7 @@ WHERE s.code IN (
     WHERE t.name = CONCAT(s.name, ' - SGO Days 2026')
       AND t.sport_fest_id = @fest_id
   );
--- 5b. Free-for-all events (ranked, no bracket)
+-- 5d. Free-for-all events (ranked, no bracket)
 INSERT INTO tournaments (
     name,
     sport_id,
@@ -695,13 +728,13 @@ WHERE s.code IN (
     WHERE t.name = CONCAT(s.name, ' - SGO Days 2026')
       AND t.sport_fest_id = @fest_id
   );
--- 5c. Link every tournament to the current Sport Fest
+-- 5e. Link every tournament to the current Sport Fest
 INSERT IGNORE INTO sport_fest_tournaments (sport_fest_id, tournament_id)
 SELECT @fest_id,
   id
 FROM tournaments
 WHERE sport_fest_id = @fest_id;
--- 5d. Register the 9 official teams as participants of every tournament
+-- 5f. Register the 9 official teams as participants of every tournament
 INSERT IGNORE INTO tournament_participants (tournament_id, department_id, status, no_points)
 SELECT t.id,
   d.id,
@@ -726,7 +759,9 @@ WHERE t.sport_fest_id = @fest_id;
 -- ══════════════════════════════════════════════════════════════
 -- SECTION 6 — TEAMS + PLAYERS
 -- ══════════════════════════════════════════════════════════════
--- One team per department × sport × gender
+-- One team per department × sport × gender.
+-- NOTE: CONCAT() returns NULL if any argument is NULL, so every
+-- piece is wrapped in IFNULL() — otherwise teams.name NOT NULL fails.
 INSERT INTO teams (
     name,
     department_id,
@@ -734,7 +769,13 @@ INSERT INTO teams (
     gender,
     sport_fest_id
   )
-SELECT CONCAT(d.short_name, ' - ', s.code, ' ', t.gender),
+SELECT CONCAT(
+    IFNULL(d.short_name, d.name, d.code, 'Team'),
+    ' - ',
+    IFNULL(s.code, 'SPORT'),
+    ' ',
+    IFNULL(t.gender, 'open')
+  ),
   d.id,
   s.id,
   CASE
@@ -781,10 +822,16 @@ INSERT INTO players (
     status,
     sport_fest_id
   )
-SELECT CONCAT(d.code, ' ', s.code, ' P', seq.n),
+SELECT CONCAT(
+    IFNULL(d.code, 'TEAM'),
+    ' ',
+    IFNULL(s.code, 'SPORT'),
+    ' P',
+    seq.n
+  ),
   CONCAT('Player ', seq.n),
   CASE
-    WHEN t.gender = 'women' THEN 'Female'
+    WHEN t.gender = 'Women' THEN 'Female'
     ELSE 'Male'
   END,
   t.department_id,
@@ -817,13 +864,11 @@ WHERE t.sport_fest_id = @fest_id
     WHERE p.team_id = t.id
   );
 -- ══════════════════════════════════════════════════════════════
--- SECTION 7 — DIVISION-GAUNTLET BRACKETS + SCORES
+-- SECTION 7 — PROCEDURES FOR BRACKETS + SCORES
 -- ══════════════════════════════════════════════════════════════
 DROP PROCEDURE IF EXISTS sgo_fill_gauntlet;
 DROP PROCEDURE IF EXISTS sgo_fill_all;
-DROP PROCEDURE IF EXISTS sgo_fill_results;
 DROP PROCEDURE IF EXISTS sgo_seed_all_results;
-DROP PROCEDURE IF EXISTS sgo_seed_all_scores;
 DELIMITER // -- Builds the 13-slot bracket for one gauntlet tournament and
 -- writes one match_results row per completed match.
 CREATE PROCEDURE sgo_fill_gauntlet(IN p_tid INT, IN p_sid INT) BEGIN
@@ -986,7 +1031,7 @@ ELSE
 SET v_g4w = v_SGOAT;
 SET v_g4l = v_STALLION;
 END IF;
--- Day 3 WW/LL (loser of first games in division, by rank)
+-- Day 3 WW/LL (by rank)
 IF IFNULL(v_mr, 999) < IFNULL(v_dr, 999) THEN
 SET v_wwj = v_g1w;
 ELSE
@@ -1684,7 +1729,6 @@ CREATE TEMPORARY TABLE tmp_results (
   points INT NOT NULL
 );
 -- ── Major (100/90/80/70 points) ──
--- Basketball
 INSERT INTO tmp_results
 VALUES ('BASKETBALL', 'open', 'STALLION', 1, 'gold', 100),
   ('BASKETBALL', 'open', 'PANTHER', 2, 'silver', 90),
@@ -1694,20 +1738,16 @@ VALUES ('BASKETBALL', 'open', 'STALLION', 1, 'gold', 100),
   ('BASKETBALL', 'open', 'REDFOX', 1, 'gold', 100),
   ('BASKETBALL', 'open', 'BBEES', 2, 'silver', 90),
   ('BASKETBALL', 'open', 'DOLPHIN', 3, 'bronze', 80),
-  ('BASKETBALL', 'open', 'MANTIS', 4, NULL, 70);
--- Volleyball Men
-INSERT INTO tmp_results
-VALUES ('VOLLEYBALL_MEN', 'men', 'STALLION', 1, 'gold', 100),
+  ('BASKETBALL', 'open', 'MANTIS', 4, NULL, 70),
+  ('VOLLEYBALL_MEN', 'men', 'STALLION', 1, 'gold', 100),
   ('VOLLEYBALL_MEN', 'men', 'DPEACOCK', 2, 'silver', 90),
   ('VOLLEYBALL_MEN', 'men', 'SGOAT', 3, 'bronze', 80),
   ('VOLLEYBALL_MEN', 'men', 'PANTHER', 4, NULL, 70),
   ('VOLLEYBALL_MEN', 'men', 'REDFOX', 1, 'gold', 100),
   ('VOLLEYBALL_MEN', 'men', 'DOLPHIN', 2, 'silver', 90),
   ('VOLLEYBALL_MEN', 'men', 'BBEES', 3, 'bronze', 80),
-  ('VOLLEYBALL_MEN', 'men', 'MANTIS', 4, NULL, 70);
--- Volleyball Women
-INSERT INTO tmp_results
-VALUES ('VOLLEYBALL_WOMEN', 'women', 'SGOAT', 1, 'gold', 100),
+  ('VOLLEYBALL_MEN', 'men', 'MANTIS', 4, NULL, 70),
+  ('VOLLEYBALL_WOMEN', 'women', 'SGOAT', 1, 'gold', 100),
   (
     'VOLLEYBALL_WOMEN',
     'women',
@@ -1743,10 +1783,8 @@ VALUES ('VOLLEYBALL_WOMEN', 'women', 'SGOAT', 1, 'gold', 100),
     90
   ),
   ('VOLLEYBALL_WOMEN', 'women', 'BBEES', 3, 'bronze', 80),
-  ('VOLLEYBALL_WOMEN', 'women', 'MANTIS', 4, NULL, 70);
--- Badminton Singles Men
-INSERT INTO tmp_results
-VALUES ('BADMINTON_SINGLES', 'men', 'SGOAT', 1, 'gold', 100),
+  ('VOLLEYBALL_WOMEN', 'women', 'MANTIS', 4, NULL, 70),
+  ('BADMINTON_SINGLES', 'men', 'SGOAT', 1, 'gold', 100),
   (
     'BADMINTON_SINGLES',
     'men',
@@ -1768,10 +1806,8 @@ VALUES ('BADMINTON_SINGLES', 'men', 'SGOAT', 1, 'gold', 100),
   ('BADMINTON_SINGLES', 'men', 'MANTIS', 1, 'gold', 100),
   ('BADMINTON_SINGLES', 'men', 'BBEES', 2, 'silver', 90),
   ('BADMINTON_SINGLES', 'men', 'REDFOX', 3, 'bronze', 80),
-  ('BADMINTON_SINGLES', 'men', 'DOLPHIN', 4, NULL, 70);
--- Badminton Singles Women
-INSERT INTO tmp_results
-VALUES (
+  ('BADMINTON_SINGLES', 'men', 'DOLPHIN', 4, NULL, 70),
+  (
     'BADMINTON_SINGLES',
     'women',
     'PANTHER',
@@ -1821,10 +1857,8 @@ VALUES (
     'bronze',
     80
   ),
-  ('BADMINTON_SINGLES', 'women', 'MANTIS', 4, NULL, 70);
--- Badminton Doubles Men
-INSERT INTO tmp_results
-VALUES ('BADMINTON_DOUBLES', 'men', 'SGOAT', 1, 'gold', 100),
+  ('BADMINTON_SINGLES', 'women', 'MANTIS', 4, NULL, 70),
+  ('BADMINTON_DOUBLES', 'men', 'SGOAT', 1, 'gold', 100),
   (
     'BADMINTON_DOUBLES',
     'men',
@@ -1846,10 +1880,8 @@ VALUES ('BADMINTON_DOUBLES', 'men', 'SGOAT', 1, 'gold', 100),
   ('BADMINTON_DOUBLES', 'men', 'BBEES', 1, 'gold', 100),
   ('BADMINTON_DOUBLES', 'men', 'REDFOX', 2, 'silver', 90),
   ('BADMINTON_DOUBLES', 'men', 'MANTIS', 3, 'bronze', 80),
-  ('BADMINTON_DOUBLES', 'men', 'DOLPHIN', 4, NULL, 70);
--- Badminton Doubles Women
-INSERT INTO tmp_results
-VALUES (
+  ('BADMINTON_DOUBLES', 'men', 'DOLPHIN', 4, NULL, 70),
+  (
     'BADMINTON_DOUBLES',
     'women',
     'DPEACOCK',
@@ -1899,18 +1931,14 @@ VALUES (
     'bronze',
     80
   ),
-  ('BADMINTON_DOUBLES', 'women', 'DOLPHIN', 4, NULL, 70);
--- Table Tennis Men
-INSERT INTO tmp_results
-VALUES ('TABLE_TENNIS_MEN', 'men', 'PANTHER', 1, 'gold', 100),
+  ('BADMINTON_DOUBLES', 'women', 'DOLPHIN', 4, NULL, 70),
+  ('TABLE_TENNIS_MEN', 'men', 'PANTHER', 1, 'gold', 100),
   ('TABLE_TENNIS_MEN', 'men', 'SGOAT', 2, 'silver', 90),
   ('TABLE_TENNIS_MEN', 'men', 'BBEES', 1, 'gold', 100),
   ('TABLE_TENNIS_MEN', 'men', 'DOLPHIN', 2, 'silver', 90),
   ('TABLE_TENNIS_MEN', 'men', 'REDFOX', 3, 'bronze', 80),
-  ('TABLE_TENNIS_MEN', 'men', 'MANTIS', 4, NULL, 70);
--- Table Tennis Women
-INSERT INTO tmp_results
-VALUES (
+  ('TABLE_TENNIS_MEN', 'men', 'MANTIS', 4, NULL, 70),
+  (
     'TABLE_TENNIS_WOMEN',
     'women',
     'PANTHER',
@@ -1933,10 +1961,8 @@ VALUES (
     3,
     'bronze',
     80
-  );
--- Pickleball Men
-INSERT INTO tmp_results
-VALUES ('PICKLEBALL', 'men', 'PANTHER', 1, 'gold', 100),
+  ),
+  ('PICKLEBALL', 'men', 'PANTHER', 1, 'gold', 100),
   ('PICKLEBALL', 'men', 'NOWL', 2, 'silver', 90),
   ('PICKLEBALL', 'men', 'SGOAT', 3, 'bronze', 80),
   ('PICKLEBALL', 'men', 'DPEACOCK', 4, NULL, 70),
@@ -1944,10 +1970,8 @@ VALUES ('PICKLEBALL', 'men', 'PANTHER', 1, 'gold', 100),
   ('PICKLEBALL', 'men', 'REDFOX', 1, 'gold', 100),
   ('PICKLEBALL', 'men', 'MANTIS', 2, 'silver', 90),
   ('PICKLEBALL', 'men', 'BBEES', 3, 'bronze', 80),
-  ('PICKLEBALL', 'men', 'DOLPHIN', 4, NULL, 70);
--- Pickleball Women
-INSERT INTO tmp_results
-VALUES ('PICKLEBALL', 'women', 'SGOAT', 1, 'gold', 100),
+  ('PICKLEBALL', 'men', 'DOLPHIN', 4, NULL, 70),
+  ('PICKLEBALL', 'women', 'SGOAT', 1, 'gold', 100),
   ('PICKLEBALL', 'women', 'NOWL', 2, 'silver', 90),
   ('PICKLEBALL', 'women', 'PANTHER', 3, 'bronze', 80),
   ('PICKLEBALL', 'women', 'DPEACOCK', 4, NULL, 70),
@@ -1955,10 +1979,8 @@ VALUES ('PICKLEBALL', 'women', 'SGOAT', 1, 'gold', 100),
   ('PICKLEBALL', 'women', 'REDFOX', 1, 'gold', 100),
   ('PICKLEBALL', 'women', 'DOLPHIN', 2, 'silver', 90),
   ('PICKLEBALL', 'women', 'MANTIS', 3, 'bronze', 80),
-  ('PICKLEBALL', 'women', 'BBEES', 4, NULL, 70);
--- Pickleball Mixed
-INSERT INTO tmp_results
-VALUES ('PICKLEBALL', 'mixed', 'SGOAT', 1, 'gold', 100),
+  ('PICKLEBALL', 'women', 'BBEES', 4, NULL, 70),
+  ('PICKLEBALL', 'mixed', 'SGOAT', 1, 'gold', 100),
   ('PICKLEBALL', 'mixed', 'NOWL', 2, 'silver', 90),
   ('PICKLEBALL', 'mixed', 'DPEACOCK', 3, 'bronze', 80),
   ('PICKLEBALL', 'mixed', 'PANTHER', 4, NULL, 70),
@@ -1966,19 +1988,15 @@ VALUES ('PICKLEBALL', 'mixed', 'SGOAT', 1, 'gold', 100),
   ('PICKLEBALL', 'mixed', 'REDFOX', 1, 'gold', 100),
   ('PICKLEBALL', 'mixed', 'DOLPHIN', 2, 'silver', 90),
   ('PICKLEBALL', 'mixed', 'MANTIS', 3, 'bronze', 80),
-  ('PICKLEBALL', 'mixed', 'BBEES', 4, NULL, 70);
--- Sepak Takraw
-INSERT INTO tmp_results
-VALUES ('SEPAK_TAKRAW', 'open', 'STALLION', 1, 'gold', 100),
+  ('PICKLEBALL', 'mixed', 'BBEES', 4, NULL, 70),
+  ('SEPAK_TAKRAW', 'open', 'STALLION', 1, 'gold', 100),
   ('SEPAK_TAKRAW', 'open', 'SGOAT', 2, 'silver', 90),
   ('SEPAK_TAKRAW', 'open', 'DPEACOCK', 3, 'bronze', 80),
   ('SEPAK_TAKRAW', 'open', 'PANTHER', 4, NULL, 70),
   ('SEPAK_TAKRAW', 'open', 'NOWL', 5, NULL, 60),
   ('SEPAK_TAKRAW', 'open', 'REDFOX', 1, 'gold', 100),
-  ('SEPAK_TAKRAW', 'open', 'BBEES', 2, 'silver', 90);
--- Mobile Legends
-INSERT INTO tmp_results
-VALUES ('MOBILE_LEGENDS', 'open', 'PANTHER', 1, 'gold', 100),
+  ('SEPAK_TAKRAW', 'open', 'BBEES', 2, 'silver', 90),
+  ('MOBILE_LEGENDS', 'open', 'PANTHER', 1, 'gold', 100),
   ('MOBILE_LEGENDS', 'open', 'SGOAT', 2, 'silver', 90),
   ('MOBILE_LEGENDS', 'open', 'STALLION', 3, 'bronze', 80),
   ('MOBILE_LEGENDS', 'open', 'DPEACOCK', 4, NULL, 70),
@@ -1986,10 +2004,8 @@ VALUES ('MOBILE_LEGENDS', 'open', 'PANTHER', 1, 'gold', 100),
   ('MOBILE_LEGENDS', 'open', 'REDFOX', 1, 'gold', 100),
   ('MOBILE_LEGENDS', 'open', 'DOLPHIN', 2, 'silver', 90),
   ('MOBILE_LEGENDS', 'open', 'MANTIS', 3, 'bronze', 80),
-  ('MOBILE_LEGENDS', 'open', 'BBEES', 4, NULL, 70);
--- Track & Field
-INSERT INTO tmp_results
-VALUES ('TRACK_FIELD', 'women', 'PANTHER', 1, 'gold', 100),
+  ('MOBILE_LEGENDS', 'open', 'BBEES', 4, NULL, 70),
+  ('TRACK_FIELD', 'women', 'PANTHER', 1, 'gold', 100),
   ('TRACK_FIELD', 'women', 'NOWL', 2, 'silver', 90),
   ('TRACK_FIELD', 'women', 'DPEACOCK', 3, 'bronze', 80),
   ('TRACK_FIELD', 'women', 'STALLION', 4, NULL, 70),
@@ -2154,13 +2170,7 @@ VALUES ('BANNER_RACING', 'open', 'SGOAT', 1, 'gold', 25),
 DELETE tr
 FROM tournament_results tr
   JOIN tournaments t ON tr.tournament_id = t.id
-WHERE t.sport_fest_id = @fest_id
-  AND t.name NOT LIKE 'Mr. SGO%'
-  AND t.name NOT LIKE 'Ms. SGO%'
-  AND t.name NOT LIKE 'Group Impersonation%'
-  AND t.name NOT LIKE 'Theatrical Act%'
-  AND t.name NOT LIKE 'Zumba%'
-  AND t.name NOT LIKE 'Booth-Making%';
+WHERE t.sport_fest_id = @fest_id;
 INSERT INTO tournament_results (
     tournament_id,
     department_id,
@@ -2219,16 +2229,7 @@ FROM tmp_results r
     )
   )
   JOIN departments d ON d.code = r.division_code;
--- Mark all result-bearing tournaments as completed
-UPDATE tournaments
-SET status = 'completed',
-  updated_at = NOW()
-WHERE sport_fest_id = @fest_id
-  AND id IN (
-    SELECT DISTINCT tournament_id
-    FROM tournament_results
-  );
--- Mark all result-bearing tournaments complete even if 0 rows landed
+-- Mark every SGO tournament as completed
 UPDATE tournaments
 SET status = 'completed',
   updated_at = NOW()
@@ -2562,7 +2563,7 @@ SELECT 'bonus_points rows',
 FROM sport_fest_bonus_points
 WHERE sport_fest_id = @fest_id
 UNION ALL
-SELECT 'MISSING SCORES ⚠️',
+SELECT 'MISSING SCORES',
   COUNT(*)
 FROM matches m
   JOIN tournaments t ON m.tournament_id = t.id
