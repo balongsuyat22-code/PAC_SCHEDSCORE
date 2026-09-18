@@ -84,6 +84,65 @@
             color: var(--text);
         }
 
+        /* Division filter bar */
+        .division-filter-bar {
+            display: none;
+            flex-wrap: wrap;
+            align-items: center;
+            gap: 8px;
+            background: var(--bg3);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            padding: 10px 14px;
+            margin-bottom: 16px;
+        }
+
+        .division-filter-bar.visible {
+            display: flex;
+        }
+
+        .division-filter-bar .filter-label {
+            font-family: 'Barlow Condensed', sans-serif;
+            font-weight: 700;
+            font-size: 13px;
+            text-transform: uppercase;
+            letter-spacing: .4px;
+            color: var(--muted);
+            margin-right: 4px;
+        }
+
+        .div-chip {
+            border: 1px solid var(--border);
+            background: var(--bg2);
+            color: var(--text);
+            font-family: 'Barlow', sans-serif;
+            font-size: 13px;
+            font-weight: 600;
+            padding: 7px 14px;
+            border-radius: 100px;
+            cursor: pointer;
+            transition: all .15s;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .div-chip:hover {
+            border-color: var(--gold, #f5b800);
+        }
+
+        .div-chip.active {
+            background: var(--gold, #f5b800);
+            color: #000;
+            border-color: var(--gold, #f5b800);
+        }
+
+        .div-chip .chip-count {
+            font-size: 11px;
+            opacity: .75;
+            font-weight: 500;
+        }
+
         .download-bar {
             display: flex;
             gap: 8px;
@@ -160,6 +219,12 @@
 
         .sheet-section-title:first-child {
             margin-top: 0;
+        }
+
+        .sheet-section-title.sub-div {
+            margin-top: 18px;
+            font-size: 14px;
+            border-left-color: #b45309;
         }
 
         table.sheet-table {
@@ -350,6 +415,7 @@
             .export-toolbar,
             .mode-toggle,
             .season-banner,
+            .division-filter-bar,
             .download-bar,
             .page-header {
                 display: none !important;
@@ -396,7 +462,7 @@
             <div class="page-header">
                 <div class="page-title">Export Finalized Results</div>
                 <div class="page-sub">Export the overall Sport Fest champion report, or pick a single finalized
-                    tournament — current season only.</div>
+                    tournament — current season only. Filter by division to print one champion or all.</div>
             </div>
 
             <div id="season-banner" class="season-banner">Loading current season…</div>
@@ -408,6 +474,15 @@
                 <button class="mode-btn" id="mode-single" onclick="switchMode('single')">
                     <i class="fa-solid fa-list-check"></i> Individual Tournament
                 </button>
+            </div>
+
+            <!-- Division filter (Season mode only) -->
+            <div id="division-filter-bar" class="division-filter-bar">
+                <span class="filter-label"><i class="fa-solid fa-filter"></i> Print scope:</span>
+                <button type="button" class="div-chip active" data-div="all" onclick="setDivisionFilter('all')">
+                    All Divisions
+                </button>
+                <!-- dynamic division chips inserted here -->
             </div>
 
             <div class="export-toolbar" id="single-toolbar" style="display:none">
@@ -442,6 +517,8 @@
     <script>
         let currentMode = 'season';
         let currentSheetTitle = 'export';
+        let seasonDataCache = null;       // full API response for season
+        let selectedDivision = 'all';     // 'all' | division key
 
         document.addEventListener('DOMContentLoaded', async () => {
             const allowedRoles = ['admin', 'sgo_president'];
@@ -450,14 +527,7 @@
                 Auth.requireAuth('sgo_president');
                 return;
             }
-            if (window.location.pathname.startsWith('/admin/')) {
-                const adminSidebar = document.createElement('script');
-                adminSidebar.src = '../../js/admin-sidebar.js';
-                adminSidebar.onload = () => renderSidebar('tournament-export');
-                document.head.appendChild(adminSidebar);
-            } else if (typeof renderSidebar === 'function') {
-                renderSidebar('tournament-export');
-            }
+            if (typeof renderSidebar === 'function') renderSidebar('reports');
 
             await loadTournamentList();
 
@@ -477,9 +547,12 @@
             document.getElementById('mode-single').classList.toggle('active', mode === 'single');
             document.getElementById('single-toolbar').style.display = mode === 'single' ? 'flex' : 'none';
 
+            const filterBar = document.getElementById('division-filter-bar');
             if (mode === 'season') {
+                filterBar.classList.add('visible');
                 loadSeasonExport();
             } else {
+                filterBar.classList.remove('visible');
                 const id = document.getElementById('t-select').value;
                 if (id) {
                     loadSingleExport();
@@ -520,25 +593,106 @@
             const printBtn = document.getElementById('btn-print');
             const downloadBar = document.getElementById('download-bar');
             const banner = document.getElementById('season-banner');
+            const filterBar = document.getElementById('division-filter-bar');
 
             host.innerHTML = `<div class="empty-state"><div class="empty-text">Loading...</div></div>`;
             downloadBar.style.display = 'none';
             printBtn.style.display = 'none';
 
-            const res = await api('/reports/sportfest/export');
-            if (!res.success) {
-                host.innerHTML = `<div class="empty-state"><div class="empty-text">${res.message || 'Failed to load the season report.'}</div></div>`;
-                banner.innerHTML = `<span><i class="fa-solid fa-circle-exclamation"></i> ${res.message || 'No active season found.'}</span>`;
+            // Re-fetch only if we don't have cache yet (or force refresh)
+            if (!seasonDataCache) {
+                const res = await api('/reports/sportfest/export');
+                if (!res.success) {
+                    host.innerHTML = `<div class="empty-state"><div class="empty-text">${res.message || 'Failed to load the season report.'}</div></div>`;
+                    banner.innerHTML = `<span><i class="fa-solid fa-circle-exclamation"></i> ${res.message || 'No active season found.'}</span>`;
+                    filterBar.classList.remove('visible');
+                    return;
+                }
+                seasonDataCache = res.data;
+            }
+
+            const data = seasonDataCache;
+            const fest = data.sport_fest;
+            banner.innerHTML = `Current season: <strong>${fest.name}${fest.year ? ' (' + fest.year + ')' : ''}</strong>`;
+
+            // Build division chips
+            buildDivisionFilter(data);
+
+            // Render with current filter
+            applyDivisionFilterAndRender();
+            downloadBar.style.display = 'flex';
+            printBtn.style.display = '';
+            filterBar.classList.add('visible');
+        }
+
+        function buildDivisionFilter(data) {
+            const filterBar = document.getElementById('division-filter-bar');
+            // Keep the "All Divisions" chip, remove the rest
+            filterBar.querySelectorAll('.div-chip:not([data-div="all"])').forEach(el => el.remove());
+
+            const champions = (Array.isArray(data.champions) && data.champions.length)
+                ? data.champions
+                : (data.champion ? [data.champion] : []);
+
+            const divisionsFromLeaderboard = [...new Set(
+                (data.leaderboard || []).map(d => d.division).filter(Boolean)
+            )];
+            const divisionsFromChampions = [...new Set(
+                champions.map(c => c.division).filter(Boolean)
+            )];
+            const divisionsFromTourneys = [...new Set(
+                (data.tournaments || []).map(t => t.division).filter(Boolean)
+            )];
+            const divisions = [...new Set([
+                ...divisionsFromChampions,
+                ...divisionsFromLeaderboard,
+                ...divisionsFromTourneys
+            ])];
+
+            if (divisions.length <= 1) {
+                // Only one (or zero) division → hide extra chips, force "all"
+                selectedDivision = 'all';
+                filterBar.querySelector('[data-div="all"]').classList.add('active');
                 return;
             }
 
-            const fest = res.data.sport_fest;
-            banner.innerHTML = `Current season: <strong>${fest.name}${fest.year ? ' (' + fest.year + ')' : ''}</strong>`;
+            divisions.forEach(div => {
+                const label = formatDivisionLabel(div);
+                const champCount = champions.filter(c => c.division === div).length;
+                const tourneyCount = (data.tournaments || []).filter(t => t.division === div).length;
+                const btn = document.createElement('button');
+                btn.type = 'button';
+                btn.className = 'div-chip' + (selectedDivision === div ? ' active' : '');
+                btn.dataset.div = div;
+                btn.onclick = () => setDivisionFilter(div);
+                btn.innerHTML = `${label}` +
+                    (champCount || tourneyCount
+                        ? ` <span class="chip-count">(${champCount ? champCount + ' champ' : ''}${champCount && tourneyCount ? ' · ' : ''}${tourneyCount ? tourneyCount + ' events' : ''})</span>`
+                        : '');
+                filterBar.appendChild(btn);
+            });
 
-            currentSheetTitle = `${fest.name}-season-report`.replace(/[^a-z0-9\-]+/gi, '_');
-            host.innerHTML = renderSeasonSheet(res.data);
-            downloadBar.style.display = 'flex';
-            printBtn.style.display = '';
+            // Sync active state on "All"
+            filterBar.querySelector('[data-div="all"]').classList.toggle('active', selectedDivision === 'all');
+        }
+
+        function setDivisionFilter(div) {
+            selectedDivision = div;
+            document.querySelectorAll('#division-filter-bar .div-chip').forEach(chip => {
+                chip.classList.toggle('active', chip.dataset.div === div);
+            });
+            applyDivisionFilterAndRender();
+        }
+
+        function applyDivisionFilterAndRender() {
+            if (!seasonDataCache) return;
+            const host = document.getElementById('sheet-host');
+            const fest = seasonDataCache.sport_fest;
+            const scopeLabel = selectedDivision === 'all'
+                ? 'all-divisions'
+                : String(selectedDivision).replace(/[^a-z0-9\-]+/gi, '_');
+            currentSheetTitle = `${fest.name}-${scopeLabel}-season-report`.replace(/[^a-z0-9\-]+/gi, '_');
+            host.innerHTML = renderSeasonSheet(seasonDataCache, selectedDivision);
         }
 
         async function loadSingleExport() {
@@ -587,26 +741,41 @@
             return String(division).replace(/_/g, ' ');
         }
 
-        // Supports 1 or 2+ champions + separates standings & tournament rankings by division
-        function renderSeasonSheet(data) {
+        /**
+         * @param {object} data  - full season export payload
+         * @param {string} filterDiv - 'all' | division key (e.g. 'senior_high')
+         */
+        function renderSeasonSheet(data, filterDiv = 'all') {
             const fest = data.sport_fest;
-            const champions = (Array.isArray(data.champions) && data.champions.length)
+            const allChampions = (Array.isArray(data.champions) && data.champions.length)
                 ? data.champions
                 : (data.champion ? [data.champion] : []);
-            const multiChamp = champions.length > 1;
             const finalized = !!data.champion_finalized;
 
-            // Collect unique divisions that actually appear
-            const divisionsFromLeaderboard = [...new Set(
-                (data.leaderboard || [])
-                    .map(d => d.division)
-                    .filter(Boolean)
-            )];
-            const divisionsFromChampions = [...new Set(
-                champions.map(c => c.division).filter(Boolean)
-            )];
-            const divisions = [...new Set([...divisionsFromChampions, ...divisionsFromLeaderboard])];
-            const hasDivisions = multiChamp || divisions.length > 1;
+            // Apply filter
+            const isFiltered = filterDiv && filterDiv !== 'all';
+            const champions = isFiltered
+                ? allChampions.filter(c => c.division === filterDiv)
+                : allChampions;
+            const leaderboard = isFiltered
+                ? (data.leaderboard || []).filter(d => d.division === filterDiv)
+                : (data.leaderboard || []);
+            const tournaments = isFiltered
+                ? (data.tournaments || []).filter(t => t.division === filterDiv)
+                : (data.tournaments || []);
+
+            // Divisions present in the *filtered* data (for grouping inside "all")
+            const divisionsFromLeaderboard = [...new Set(leaderboard.map(d => d.division).filter(Boolean))];
+            const divisionsFromChampions = [...new Set(champions.map(c => c.division).filter(Boolean))];
+            const divisionsFromTourneys = [...new Set(tournaments.map(t => t.division).filter(Boolean))];
+            const divisions = [...new Set([
+                ...divisionsFromChampions,
+                ...divisionsFromLeaderboard,
+                ...divisionsFromTourneys
+            ])];
+            const multiChamp = champions.length > 1;
+            // Only group by division when showing "all" and multiple divisions exist
+            const hasDivisions = !isFiltered && (multiChamp || divisions.length > 1);
 
             // ----- Champion cards -----
             const champCards = champions.map((champ) => {
@@ -632,7 +801,7 @@
                     </div>`;
             }).join('');
 
-            // ----- Department Standings (grouped by division when multiple) -----
+            // ----- Department Standings -----
             function renderLeaderboardTable(rows) {
                 if (!rows || !rows.length) {
                     return `<tr><td colspan="6" style="text-align:center;color:#888">No department scores recorded.</td></tr>`;
@@ -640,7 +809,7 @@
                 return rows.map((d, i) => `
                     <tr>
                         <td>${i + 1}</td>
-                        <td>${d.name}${(!hasDivisions && d.division) ? ` <span style="color:#888;font-size:11px">(${formatDivisionLabel(d.division)})</span>` : ''}</td>
+                        <td>${d.name}${(!hasDivisions && !isFiltered && d.division) ? ` <span style="color:#888;font-size:11px">(${formatDivisionLabel(d.division)})</span>` : ''}</td>
                         <td class="medal-gold">${d.gold_medals}</td>
                         <td class="medal-silver">${d.silver_medals}</td>
                         <td class="medal-bronze">${d.bronze_medals}</td>
@@ -650,42 +819,37 @@
 
             let leaderboardHtml = '';
             if (hasDivisions && divisions.length) {
-                // One table per division
                 leaderboardHtml = divisions.map(div => {
-                    const rows = (data.leaderboard || []).filter(d => d.division === div);
+                    const rows = leaderboard.filter(d => d.division === div);
                     return `
-                        <div class="sheet-section-title" style="margin-top:18px;font-size:14px;border-left-color:#b45309">
-                            ${formatDivisionLabel(div)} Standings
-                        </div>
+                        <div class="sheet-section-title sub-div">${formatDivisionLabel(div)} Standings</div>
                         <table class="sheet-table">
                             <thead><tr><th>Rank</th><th>Department</th><th>🥇</th><th>🥈</th><th>🥉</th><th>Points</th></tr></thead>
                             <tbody>${renderLeaderboardTable(rows)}</tbody>
                         </table>`;
                 }).join('');
 
-                // Rows with no division
-                const noDivRows = (data.leaderboard || []).filter(d => !d.division);
+                const noDivRows = leaderboard.filter(d => !d.division);
                 if (noDivRows.length) {
                     leaderboardHtml += `
-                        <div class="sheet-section-title" style="margin-top:18px;font-size:14px">Other / Unassigned</div>
+                        <div class="sheet-section-title sub-div">Other / Unassigned</div>
                         <table class="sheet-table">
                             <thead><tr><th>Rank</th><th>Department</th><th>🥇</th><th>🥈</th><th>🥉</th><th>Points</th></tr></thead>
                             <tbody>${renderLeaderboardTable(noDivRows)}</tbody>
                         </table>`;
                 }
             } else {
-                // Single combined table
                 leaderboardHtml = `
                     <table class="sheet-table">
                         <thead><tr><th>Rank</th><th>Department</th><th>🥇</th><th>🥈</th><th>🥉</th><th>Points</th></tr></thead>
-                        <tbody>${renderLeaderboardTable(data.leaderboard || [])}</tbody>
+                        <tbody>${renderLeaderboardTable(leaderboard)}</tbody>
                     </table>`;
             }
 
-            // ----- Tournaments (grouped by division when possible) -----
+            // ----- Tournaments -----
             function renderTourneyBlock(t) {
                 const isDone = t.status === 'completed';
-                const standingRows = (t.standings || []).slice(0, 5).map(s => `
+                const standingRows = (t.standings || []).slice(0, 8).map(s => `
                     <tr>
                         <td>${s.rank}</td>
                         <td>${s.department_name}${s.team_name ? ' — ' + s.team_name : ''}</td>
@@ -698,7 +862,7 @@
                     <div class="tourney-block">
                         <div class="tourney-block-head">
                             <h3>${t.name}</h3>
-                            <div style="display:flex;gap:6px;align-items:center">
+                            <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">
                                 <span class="tag">${t.sport_name}</span>
                                 ${t.division ? `<span class="tag">${formatDivisionLabel(t.division)}</span>` : ''}
                                 <span class="tourney-status-tag ${isDone ? 'completed' : 'other'}">${t.status}</span>
@@ -712,45 +876,52 @@
             }
 
             let tourneyBlocks = '';
-            const allTourneys = data.tournaments || [];
-
             if (hasDivisions && divisions.length) {
                 tourneyBlocks = divisions.map(div => {
-                    const list = allTourneys.filter(t => t.division === div);
+                    const list = tournaments.filter(t => t.division === div);
                     if (!list.length) return '';
                     return `
-                        <div class="sheet-section-title" style="margin-top:18px;font-size:14px;border-left-color:#b45309">
-                            ${formatDivisionLabel(div)} Tournaments
-                        </div>
+                        <div class="sheet-section-title sub-div">${formatDivisionLabel(div)} Tournaments</div>
                         ${list.map(renderTourneyBlock).join('')}`;
                 }).join('');
 
-                // Tournaments without a division
-                const noDivTourneys = allTourneys.filter(t => !t.division);
+                const noDivTourneys = tournaments.filter(t => !t.division);
                 if (noDivTourneys.length) {
                     tourneyBlocks += `
-                        <div class="sheet-section-title" style="margin-top:18px;font-size:14px">Other / Shared Tournaments</div>
+                        <div class="sheet-section-title sub-div">Other / Shared Tournaments</div>
                         ${noDivTourneys.map(renderTourneyBlock).join('')}`;
                 }
             } else {
-                tourneyBlocks = allTourneys.map(renderTourneyBlock).join('') ||
-                    `<div class="empty-state"><div class="empty-text">No tournaments have been added to this season yet.</div></div>`;
+                tourneyBlocks = tournaments.map(renderTourneyBlock).join('') ||
+                    `<div class="empty-state"><div class="empty-text">No tournaments${isFiltered ? ' for this division' : ''} have been added yet.</div></div>`;
             }
 
-            // ----- Header labels -----
-            const champSectionTitle = multiChamp
-                ? `Overall Champions (${champions.length})`
-                : 'Overall Champion';
+            // ----- Titles / badges -----
+            const filterLabel = isFiltered ? formatDivisionLabel(filterDiv) : '';
+            const champSectionTitle = isFiltered
+                ? (champions.length > 1
+                    ? `${filterLabel} Champions (${champions.length})`
+                    : `${filterLabel} Champion`)
+                : (multiChamp
+                    ? `Overall Champions (${champions.length})`
+                    : 'Overall Champion');
+
             const badgeLabel = finalized
-                ? (multiChamp ? 'Champions Declared' : 'Champion Declared')
+                ? (isFiltered
+                    ? (champions.length > 1 ? `${filterLabel} Champions` : `${filterLabel} Champion`)
+                    : (multiChamp ? 'Champions Declared' : 'Champion Declared'))
                 : 'In Progress';
+
+            const headerSub = isFiltered
+                ? `${filterLabel} Division Results${fest.theme ? ' · ' + fest.theme : ''}`
+                : `Overall Sport Fest Results${fest.theme ? ' · ' + fest.theme : ''}`;
 
             return `
             <div class="sheet">
                 <div class="sheet-header">
                     <div>
-                        <h1>${fest.name}${fest.year ? ' — ' + fest.year : ''}</h1>
-                        <div class="sub">Overall Sport Fest Results ${fest.theme ? '· ' + fest.theme : ''}</div>
+                        <h1>${fest.name}${fest.year ? ' — ' + fest.year : ''}${isFiltered ? ' · ' + filterLabel : ''}</h1>
+                        <div class="sub">${headerSub}</div>
                     </div>
                     <div class="sheet-badge ${finalized ? '' : 'pending'}">
                         ${badgeLabel}
@@ -760,16 +931,16 @@
                     <div class="sheet-section-title">${champSectionTitle}</div>
                     ${champions.length
                     ? `<div class="champions-grid">${champCards}</div>`
-                    : `<div class="empty-state"><div class="empty-text">No department scores recorded yet.</div></div>`}
+                    : `<div class="empty-state"><div class="empty-text">No champion recorded${isFiltered ? ' for this division' : ''} yet.</div></div>`}
 
-                    <div class="sheet-section-title">Department Standings</div>
+                    <div class="sheet-section-title">Department Standings${isFiltered ? ' · ' + filterLabel : ''}</div>
                     ${leaderboardHtml}
 
-                    <div class="sheet-section-title">Tournaments This Season (${data.totals?.total_tournaments ?? allTourneys.length})</div>
+                    <div class="sheet-section-title">Tournaments${isFiltered ? ' · ' + filterLabel : ''} (${tournaments.length})</div>
                     ${tourneyBlocks}
 
                     <div class="sheet-footer">
-                        <span>Exported by ${data.exported_by || '—'}</span>
+                        <span>Exported by ${data.exported_by || '—'}${isFiltered ? ' · Scope: ' + filterLabel + ' only' : ''}</span>
                         <span>Generated ${new Date(data.exported_at).toLocaleString('en-PH')}</span>
                     </div>
                 </div>
@@ -808,21 +979,29 @@
                     <td>${s.sport_fest_points ?? 0}</td>
                 </tr>`).join('') || `<tr><td colspan="4" style="text-align:center;color:#888">No standings recorded.</td></tr>`;
 
+            // Support multiple rank-1 (ties) — show all golds as champions
+            const topRank = data.standings?.length
+                ? Math.min(...data.standings.map(s => s.rank ?? 999))
+                : null;
+            const topChampions = (data.standings || []).filter(s => s.rank === topRank);
+            const champHtml = topChampions.length
+                ? `<div class="sheet-section-title">${topChampions.length > 1 ? 'Champions (Tied)' : 'Champion'}</div>
+                   <div style="font-family:'Barlow Condensed',sans-serif;font-size:22px;font-weight:900">
+                       ${topChampions.map(c => `🏆 ${c.department_name}`).join(' &nbsp;·&nbsp; ')}
+                   </div>`
+                : '';
+
             return `
             <div class="sheet">
                 <div class="sheet-header">
                     <div>
                         <h1>${t.name}</h1>
-                        <div class="sub">${t.sport_name} · ${t.category || ''} · ${t.format || ''}</div>
+                        <div class="sub">${t.sport_name} · ${t.category || ''} · ${t.format || ''}${t.division ? ' · ' + formatDivisionLabel(t.division) : ''}</div>
                     </div>
                     <div class="sheet-badge">Finalized</div>
                 </div>
                 <div class="sheet-body">
-                    ${champion ? `
-                    <div class="sheet-section-title">Champion</div>
-                    <div style="font-family:'Barlow Condensed',sans-serif;font-size:22px;font-weight:900">
-                        🏆 ${champion.department_name}
-                    </div>` : ''}
+                    ${champHtml}
 
                     <div class="sheet-section-title">Final Standings</div>
                     <table class="sheet-table">
