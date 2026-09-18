@@ -272,11 +272,7 @@ const getAll = async (req, res, next) => {
                 (SELECT COUNT(*) FROM match_scores ms
                   WHERE ms.match_id = m.id AND ms.score_a > ms.score_b) AS sets_won_a,
                 (SELECT COUNT(*) FROM match_scores ms
-                  WHERE ms.match_id = m.id AND ms.score_b > ms.score_a) AS sets_won_b,
-                                (SELECT COUNT(*) FROM match_scores ms
-                                    WHERE ms.match_id = m.id AND ms.score_a > ms.score_b) AS live_sets_a,
-                                (SELECT COUNT(*) FROM match_scores ms
-                                    WHERE ms.match_id = m.id AND ms.score_b > ms.score_a) AS live_sets_b
+                                    WHERE ms.match_id = m.id AND ms.score_b > ms.score_a) AS sets_won_b,
                 (SELECT COALESCE(SUM(score_a),0) FROM match_scores WHERE match_id = m.id) AS live_total_a,
                 (SELECT COALESCE(SUM(score_b),0) FROM match_scores WHERE match_id = m.id) AS live_total_b
             FROM matches m
