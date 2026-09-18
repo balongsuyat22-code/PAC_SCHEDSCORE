@@ -1504,15 +1504,39 @@ const ensureTbdRounds = async (req, res, next) => {
             created++;
         }
 
+        const slotIdsByLabel = new Map();
+        for (const slot of slots) {
+            slotIdsByLabel.set(normalize(slot.label), idByMatchNum[slot.match]);
+        }
+
+        const junior = {
+            g1: slotIdsByLabel.get('day 2 · junior high · game 1'),
+            g2: slotIdsByLabel.get('day 2 · junior high · game 2'),
+            lll: slotIdsByLabel.get('day 3 · junior high · loser vs loser'),
+            wvw: slotIdsByLabel.get('day 3 · junior high · winner vs winner'),
+            lvw: slotIdsByLabel.get('day 3 · junior high · loser vs winner'),
+            gf: slotIdsByLabel.get('day 4 · junior high · grand final'),
+        };
+        const senior = {
+            g1: slotIdsByLabel.get('day 2 · senior high · game 3'),
+            g2: slotIdsByLabel.get('day 2 · senior high · game 4'),
+            night: slotIdsByLabel.get('day 3 · senior high · night owls entry'),
+            lll: slotIdsByLabel.get('day 3 · senior high · loser vs loser'),
+            wvw: slotIdsByLabel.get('day 3 · senior high · winner vs winner'),
+            gf: slotIdsByLabel.get('day 4 · senior high · grand final'),
+        };
+
         const links = [
-            [1, 5, 'a', 'loser'], [2, 5, 'b', 'loser'], [1, 6, 'a', 'winner'], [2, 6, 'b', 'winner'],
-            [6, 7, 'a', 'loser'], [5, 7, 'b', 'winner'], [4, 8, 'a', 'winner'],
-            [3, 9, 'a', 'loser'], [4, 9, 'b', 'loser'], [3, 10, 'a', 'winner'], [8, 10, 'b', 'winner'],
-            [6, 11, 'a', 'winner'], [7, 11, 'b', 'winner'], [10, 12, 'a', 'winner'], [9, 12, 'b', 'winner'],
+            [junior.g1, junior.lll, 'a', 'loser'], [junior.g2, junior.lll, 'b', 'loser'],
+            [junior.g1, junior.wvw, 'a', 'winner'], [junior.g2, junior.wvw, 'b', 'winner'],
+            [junior.wvw, junior.lvw, 'a', 'loser'], [junior.lll, junior.lvw, 'b', 'winner'],
+            [senior.g2, senior.night, 'a', 'winner'],
+            [senior.g1, senior.lll, 'a', 'loser'], [senior.g2, senior.lll, 'b', 'loser'],
+            [senior.g1, senior.wvw, 'a', 'winner'], [senior.night, senior.wvw, 'b', 'winner'],
+            [junior.wvw, junior.gf, 'a', 'winner'], [junior.lvw, junior.gf, 'b', 'winner'],
+            [senior.wvw, senior.gf, 'a', 'winner'], [senior.lll, senior.gf, 'b', 'winner'],
         ];
-        for (const [srcNum, tgtNum, slot, resultType] of links) {
-            const srcId = idByMatchNum[srcNum];
-            const tgtId = idByMatchNum[tgtNum];
+        for (const [srcId, tgtId, slot, resultType] of links) {
             if (!srcId || !tgtId) continue;
             const column = resultType === 'loser' ? 'loser_next_match_id' : 'next_match_id';
             const slotColumn = resultType === 'loser' ? 'loser_next_match_slot' : 'next_match_slot';

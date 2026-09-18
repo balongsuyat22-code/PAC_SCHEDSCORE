@@ -21,6 +21,22 @@ function groupByDivision(participants) {
     return groups;
 }
 
+function divisionSortPriority(key) {
+    const normalized = String(key || '').trim().toLowerCase();
+    if (!normalized || normalized === '__none__') return 99;
+    const priority = { junior_high: 0, junior: 0, senior_high: 1, senior: 1 };
+    return priority[normalized] ?? 50;
+}
+
+function sortDivisionEntries(entries) {
+    return [...entries].sort(([leftKey, leftGroup], [rightKey, rightGroup]) => {
+        const pLeft = divisionSortPriority(leftKey);
+        const pRight = divisionSortPriority(rightKey);
+        if (pLeft !== pRight) return pLeft - pRight;
+        return String(leftKey).localeCompare(String(rightKey));
+    });
+}
+
 function divisionLabel(key) {
     if (!key || key === '__none__') return '';
     return String(key)
@@ -63,7 +79,7 @@ const generateBracket = async (tournament, participants, pool) => {
 
     if (SPLITTABLE.has(format) && !manualMode && groups.size > 1) {
         let matchNum = 1;
-        for (const [key, group] of groups) {
+        for (const [key, group] of sortDivisionEntries(groups.entries())) {
             if (group.length < 2) continue;
             const label = divisionLabel(key);
             const divisionTournament = { ...tournament, _labelPrefix: label };
@@ -126,7 +142,7 @@ const generateDivisionGauntlet = async (tournament, participants, pool) => {
     }
 
     let matchNum = 1;
-    for (const [key, group] of groups) {
+    for (const [key, group] of sortDivisionEntries(groups.entries())) {
         if (group.length < 2) continue; // skip divisions that can't form matches
         const label = divisionLabel(key);
         const divisionTournament = { ...tournament, _labelPrefix: label };
@@ -541,4 +557,4 @@ const nextPowerOf2 = (n) => {
     return p;
 };
 
-module.exports = { generateBracket, generateKnockoutFromGroups, VALID_FORMATS };
+module.exports = { generateBracket, generateKnockoutFromGroups, VALID_FORMATS, sortDivisionEntries };
