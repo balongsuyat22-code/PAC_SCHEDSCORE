@@ -24,21 +24,43 @@ async function ffaStandings(conn, tournamentId) {
 
 async function divisionGauntletStandings(conn, tournamentId) {
     const [finals] = await conn.execute(
-        `SELECT participant_a_department_id, participant_b_department_id, winner_department_id
+        `SELECT id, match_number, round_number, bracket_position, bracket_side,
+                participant_a_department_id, participant_b_department_id, winner_department_id, status
          FROM matches
-         WHERE tournament_id = ? AND bracket_position LIKE 'Day 4%'
-         ORDER BY match_number`,
+         WHERE tournament_id = ?
+           AND (
+               bracket_side = 'grand_final'
+               OR bracket_position LIKE 'Day 4%'
+               OR bracket_position LIKE '%Grand Final'
+               OR bracket_position LIKE '%grand final'
+           )
+         ORDER BY round_number ASC, match_number ASC, id ASC`,
         [tournamentId]
     );
+
     const standings = [];
-    finals.forEach((match) => {
-        if (!match.winner_department_id) return;
+    const seen = new Set();
+
+    for (const match of finals) {
+        if (!match.winner_department_id) continue;
+        if (match.status && !['completed', 'walkover'].includes(match.status)) continue;
+
         const loser = Number(match.participant_a_department_id) === Number(match.winner_department_id)
             ? match.participant_b_department_id
             : match.participant_a_department_id;
-        standings.push({ department_id: match.winner_department_id, rank: 1 });
-        if (loser) standings.push({ department_id: loser, rank: 2 });
-    });
+
+        const addDepartment = (departmentId, rank) => {
+            if (!departmentId || Number(departmentId) === 0) return;
+            const key = `${Number(departmentId)}:${rank}`;
+            if (seen.has(key)) return;
+            seen.add(key);
+            standings.push({ department_id: Number(departmentId), rank });
+        };
+
+        addDepartment(match.winner_department_id, 1);
+        if (loser) addDepartment(loser, 2);
+    }
+
     return standings;
 }
 async function singleEliminationStandings(conn, tournamentId) {
