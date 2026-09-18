@@ -5,18 +5,23 @@ const fs = require('fs');
 const path = require('path');
 
 /**
- * FORCE RESET:
- *   FORCE_RESET=1 node src/config/setupDatabase.js
+ * DEFAULT BEHAVIOUR (no env vars needed):
+ *   node src/config/setupDatabase.js
  *
- * This will:
- *   1. Re-apply schema.sql (wipes all tables except `users`)
- *   2. Recreate base departments / sports / venues / sport fest
- *   3. Run sgo_days_2026_COMPLETE_ALL.sql       (brackets + schedules)
- *   4. Run sgo_days_2026_RESULTS_AND_SCORES.sql (ranks + FFA matches)
- *   5. Run sgo_days_2026_FIX_SCORES_FORMAT.sql  (propagate winners + scores)
+ *   → Wipes every table except `users` (via schema.sql)
+ *   → Recreates base data (departments / sports / venues / users / fest)
+ *   → Runs COMPLETE_ALL.sql       (brackets + schedules)
+ *   → Runs RESULTS_AND_SCORES.sql (ranks + FFA matches)
+ *   → Runs FIX_SCORES_FORMAT.sql  (propagate winners + scores)
+ *
+ * OPT-OUT (for a live DB you don't want to wipe):
+ *   PRESERVE_DATA=1 node src/config/setupDatabase.js
+ *     → skips schema reset; still seeds any missing pieces
  */
 
-const FORCE_RESET = process.env.FORCE_RESET === '1' || process.env.FORCE_RESET === 'true';
+const PRESERVE_DATA =
+    process.env.PRESERVE_DATA === '1' ||
+    process.env.PRESERVE_DATA === 'true';
 
 const buildConnectionOptions = () => {
     if (process.env.MYSQL_URL) {
@@ -54,58 +59,6 @@ const findFile = (names) => {
     return null;
 };
 
-const isSchemaInitialized = async (conn) => {
-    const [rows] = await conn.query(`
-        SELECT COUNT(*) AS total
-        FROM information_schema.tables
-        WHERE table_schema = DATABASE()
-          AND table_name IN ('departments', 'sport_fest_events', 'sports', 'tournaments', 'matches')
-    `);
-    return Number(rows[0].total) >= 4;
-};
-
-const isSgoSeedAlreadyInserted = async (conn) => {
-    try {
-        const [rows] = await conn.query(`
-            SELECT COUNT(*) AS total
-            FROM tournaments
-            WHERE name LIKE '%SGO Days 2026%'
-               OR sport_fest_id = (
-                    SELECT id FROM sport_fest_events
-                    WHERE year = 2026 AND name = 'High School SGO Days 2026'
-                    LIMIT 1
-               )
-        `);
-        return Number(rows[0].total) > 0;
-    } catch { return false; }
-};
-
-const isResultsAlreadyInserted = async (conn) => {
-    try {
-        const [rows] = await conn.query(`
-            SELECT COUNT(*) AS total FROM tournament_results tr
-            JOIN tournaments t ON tr.tournament_id = t.id
-            WHERE t.name LIKE '%SGO Days 2026%'
-        `);
-        return Number(rows[0].total) > 0;
-    } catch { return false; }
-};
-
-const isScoresFixAlreadyApplied = async (conn) => {
-    try {
-        const [rows] = await conn.query(`
-            SELECT COUNT(*) AS total
-            FROM matches m
-            JOIN tournaments t ON m.tournament_id = t.id
-            WHERE t.name LIKE '%SGO Days 2026%'
-              AND m.status = 'completed'
-              AND m.winner_department_id IS NOT NULL
-              AND EXISTS (SELECT 1 FROM match_results mr WHERE mr.match_id = m.id)
-        `);
-        return Number(rows[0].total) > 0;
-    } catch { return false; }
-};
-
 const runSqlFile = async (conn, filePath, label) => {
     console.log(`\n📄 Running ${label}...`);
     console.log('   file:', filePath);
@@ -123,7 +76,7 @@ const run = async () => {
         console.log('  host:', process.env.DB_HOST || process.env.MYSQLHOST || '(from URL)');
         console.log('  user:', process.env.DB_USER || process.env.MYSQLUSER || 'root');
         console.log('  database (target):', dbName);
-        console.log('  FORCE_RESET:', FORCE_RESET ? 'YES (will wipe & reseed)' : 'no');
+        console.log('  mode:', PRESERVE_DATA ? 'PRESERVE_DATA (no wipe, only fill gaps)' : 'FULL RESEED (wipe + reseed every run)');
 
         const opts = buildConnectionOptions();
         conn = await mysql.createConnection(opts);
@@ -136,20 +89,13 @@ const run = async () => {
         const schemaPath = findFile(['schema.sql', 'sql/schema.sql']);
         if (!schemaPath) throw new Error('schema.sql not found');
 
-        const initialized = await isSchemaInitialized(conn);
-
-        if (FORCE_RESET || !initialized) {
-            if (FORCE_RESET && initialized) {
-                console.log('⚠️  FORCE_RESET=1 → re-applying schema (keeps users, wipes everything else)...');
-            } else {
-                console.log('📦 Applying schema...');
-            }
+        if (PRESERVE_DATA) {
+            console.log('⏭️  PRESERVE_DATA → skipping schema reset');
+        } else {
+            console.log('📦 Applying schema (keeps `users`, wipes everything else)...');
             console.log('   file:', schemaPath);
             await conn.query(fs.readFileSync(schemaPath, 'utf8'));
             console.log('✅ Schema applied\n');
-        } else {
-            console.log('✅ Database already initialized; skipping schema reset.');
-            console.log('   (Set FORCE_RESET=1 to wipe and reseed)\n');
         }
 
         try {
@@ -275,23 +221,13 @@ const run = async () => {
         console.log('  ✅ Sport Fest Event');
         console.log('✅ Base data ready\n');
 
-        // ── Seed 1: COMPLETE_ALL (schedules + brackets) ─────────
+        // ── Seed 1: COMPLETE_ALL (brackets + schedules) ─────────
         const seedPath = findFile([
             'sgo_days_2026_COMPLETE_ALL.sql',
             'sql/sgo_days_2026_COMPLETE_ALL.sql',
         ]);
-
-        if (seedPath) {
-            const already = !FORCE_RESET && (await isSgoSeedAlreadyInserted(conn));
-            if (already) {
-                console.log('✅ SGO Days 2026 seed already exists; skipping COMPLETE_ALL.');
-                console.log('   (Set FORCE_RESET=1 to wipe and re-import)\n');
-            } else {
-                await runSqlFile(conn, seedPath, 'SGO Days 2026 COMPLETE_ALL seed');
-            }
-        } else {
-            console.log('⏭️  sgo_days_2026_COMPLETE_ALL.sql not found – skipping.');
-        }
+        if (!seedPath) throw new Error('sgo_days_2026_COMPLETE_ALL.sql not found');
+        await runSqlFile(conn, seedPath, 'SGO Days 2026 COMPLETE_ALL seed');
 
         // ── Seed 2: RESULTS + SCORES ────────────────────────────
         const resultsPath = findFile([
@@ -299,42 +235,17 @@ const run = async () => {
             'sql/sgo_days_2026_RESULTS_AND_SCORES.sql',
             'artifacts/sgo_days_2026_RESULTS_AND_SCORES.sql',
         ]);
+        if (!resultsPath) throw new Error('sgo_days_2026_RESULTS_AND_SCORES.sql not found');
+        await runSqlFile(conn, resultsPath, 'SGO Days 2026 RESULTS + MATCH SCORES');
 
-        if (resultsPath) {
-            const resultsExist = !FORCE_RESET && (await isResultsAlreadyInserted(conn));
-            if (resultsExist) {
-                console.log('✅ Tournament results already exist; skipping RESULTS_AND_SCORES.');
-                console.log('   (Set FORCE_RESET=1 to wipe and re-import)\n');
-            } else {
-                await runSqlFile(conn, resultsPath, 'SGO Days 2026 RESULTS + MATCH SCORES');
-            }
-        } else {
-            console.log('⏭️  sgo_days_2026_RESULTS_AND_SCORES.sql not found – skipping.');
-        }
-
-        // ── Seed 3: FIX_SCORES_FORMAT (propagate winners + scores) ──
-        // This is the step that was MISSING before — it reads tournament_results
-        // (populated by Seed 2), sets winner_department_id on every bracket match,
-        // and rebuilds match_results with proper, scoring-type-aware scores.
+        // ── Seed 3: FIX_SCORES_FORMAT (winners + scores) ────────
         const fixPath = findFile([
             'sgo_days_2026_FIX_SCORES_FORMAT.sql',
             'sql/sgo_days_2026_FIX_SCORES_FORMAT.sql',
             'artifacts/sgo_days_2026_FIX_SCORES_FORMAT.sql',
         ]);
-
-        if (fixPath) {
-            const alreadyFixed = !FORCE_RESET && (await isScoresFixAlreadyApplied(conn));
-            if (alreadyFixed) {
-                console.log('✅ Scores already fixed; skipping FIX_SCORES_FORMAT.');
-                console.log('   (Set FORCE_RESET=1 to wipe and re-apply)\n');
-            } else {
-                await runSqlFile(conn, fixPath, 'SGO Days 2026 FIX_SCORES_FORMAT (winners + scores)');
-            }
-        } else {
-            console.log('⏭️  sgo_days_2026_FIX_SCORES_FORMAT.sql not found – skipping.');
-            console.log('   ⚠️  Without this file, most matches will show 0–0 / Result pending.');
-            console.log('   Copy it next to COMPLETE_ALL, or into sql/ / artifacts/');
-        }
+        if (!fixPath) throw new Error('sgo_days_2026_FIX_SCORES_FORMAT.sql not found');
+        await runSqlFile(conn, fixPath, 'SGO Days 2026 FIX_SCORES_FORMAT (winners + scores)');
 
         // ── Summary ─────────────────────────────────────────────
         try {
@@ -367,10 +278,7 @@ const run = async () => {
         console.log('  president@sportfest.com');
         console.log('  officer@sportfest.com');
         console.log('═══════════════════════════════════════════════════════════\n');
-        if (!FORCE_RESET) {
-            console.log('📌 To wipe everything and reseed with results:');
-            console.log('   FORCE_RESET=1 node src/config/setupDatabase.js\n');
-        }
+        console.log('📌 To run again without wiping, use: PRESERVE_DATA=1 node src/config/setupDatabase.js\n');
     } catch (err) {
         console.error('\n❌ Setup failed:', err.message);
         if (err.sqlMessage) console.error('   SQL:', err.sqlMessage);
