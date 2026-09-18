@@ -5,18 +5,8 @@ const fs = require('fs');
 const path = require('path');
 
 /**
- * DEFAULT BEHAVIOUR (no env vars needed):
- *   node src/config/setupDatabase.js
- *
- *   → Wipes every table except `users` (via schema.sql)
- *   → Recreates base data (departments / sports / venues / users / fest)
- *   → Runs COMPLETE_ALL.sql       (brackets + schedules)
- *   → Runs RESULTS_AND_SCORES.sql (ranks + FFA matches)
- *   → Runs FIX_SCORES_FORMAT.sql  (propagate winners + scores)
- *
- * OPT-OUT (for a live DB you don't want to wipe):
- *   PRESERVE_DATA=1 node src/config/setupDatabase.js
- *     → skips schema reset; still seeds any missing pieces
+ * Always wipes & reseeds by default.
+ * Opt out with:  PRESERVE_DATA=1 node src/config/setupDatabase.js
  */
 
 const PRESERVE_DATA =
@@ -67,6 +57,28 @@ const runSqlFile = async (conn, filePath, label) => {
     console.log(`✅ ${label} applied`);
 };
 
+/** Safety net: TRUNCATE every non-users table regardless of schema outcome. */
+const hardWipeAllTables = async (conn) => {
+    const tables = [
+        'sport_fest_bonus_points', 'sport_fest_champions', 'notifications',
+        'schedules', 'department_scores', 'tournament_results',
+        'ffa_results', 'round_robin_standings', 'match_results',
+        'match_scores', 'matches', 'tournament_participants', 'venues',
+        'players', 'teams', 'sport_fest_tournaments', 'tournaments',
+        'sports', 'activity_logs', 'refresh_tokens',
+        'sport_fest_events', 'departments',
+    ];
+    console.log('🧹 Safety wipe of all non-user tables...');
+    await conn.query('SET FOREIGN_KEY_CHECKS = 0');
+    for (const t of tables) {
+        try {
+            await conn.query(`TRUNCATE TABLE \`${t}\``);
+        } catch (_) { /* table may not exist yet */ }
+    }
+    await conn.query('SET FOREIGN_KEY_CHECKS = 1');
+    console.log('✅ Safety wipe complete\n');
+};
+
 const run = async () => {
     let conn;
     try {
@@ -76,7 +88,7 @@ const run = async () => {
         console.log('  host:', process.env.DB_HOST || process.env.MYSQLHOST || '(from URL)');
         console.log('  user:', process.env.DB_USER || process.env.MYSQLUSER || 'root');
         console.log('  database (target):', dbName);
-        console.log('  mode:', PRESERVE_DATA ? 'PRESERVE_DATA (no wipe, only fill gaps)' : 'FULL RESEED (wipe + reseed every run)');
+        console.log('  mode:', PRESERVE_DATA ? 'PRESERVE_DATA (no wipe)' : 'FULL RESEED (wipe + reseed every run)');
 
         const opts = buildConnectionOptions();
         conn = await mysql.createConnection(opts);
@@ -90,12 +102,18 @@ const run = async () => {
         if (!schemaPath) throw new Error('schema.sql not found');
 
         if (PRESERVE_DATA) {
-            console.log('⏭️  PRESERVE_DATA → skipping schema reset');
+            console.log('⏭️  PRESERVE_DATA → skipping schema reset + hard wipe');
         } else {
             console.log('📦 Applying schema (keeps `users`, wipes everything else)...');
             console.log('   file:', schemaPath);
-            await conn.query(fs.readFileSync(schemaPath, 'utf8'));
-            console.log('✅ Schema applied\n');
+            try {
+                await conn.query(fs.readFileSync(schemaPath, 'utf8'));
+                console.log('✅ Schema applied');
+            } catch (err) {
+                console.warn('⚠️  schema.sql failed halfway:', err.message);
+                console.warn('   → running hard wipe safety net anyway');
+            }
+            await hardWipeAllTables(conn);
         }
 
         try {
@@ -210,18 +228,12 @@ const run = async () => {
             VALUES ('High School SGO Days 2026', 2026, 'ongoing', 1, '2026-09-14', '2026-09-16', 2)
             ON DUPLICATE KEY UPDATE is_current = 1, status = 'ongoing', champion_count = 2
         `);
-        await conn.query(`
-            UPDATE sport_fest_events SET is_current = 0
-            WHERE NOT (year = 2026 AND name = 'High School SGO Days 2026')
-        `);
-        await conn.query(`
-            UPDATE sport_fest_events SET is_current = 1
-            WHERE year = 2026 AND name = 'High School SGO Days 2026'
-        `);
+        await conn.query(`UPDATE sport_fest_events SET is_current = 0 WHERE NOT (year = 2026 AND name = 'High School SGO Days 2026')`);
+        await conn.query(`UPDATE sport_fest_events SET is_current = 1 WHERE year = 2026 AND name = 'High School SGO Days 2026'`);
         console.log('  ✅ Sport Fest Event');
         console.log('✅ Base data ready\n');
 
-        // ── Seed 1: COMPLETE_ALL (brackets + schedules) ─────────
+        // ── Seed 1: COMPLETE_ALL ────────────────────────────────
         const seedPath = findFile([
             'sgo_days_2026_COMPLETE_ALL.sql',
             'sql/sgo_days_2026_COMPLETE_ALL.sql',
@@ -238,7 +250,7 @@ const run = async () => {
         if (!resultsPath) throw new Error('sgo_days_2026_RESULTS_AND_SCORES.sql not found');
         await runSqlFile(conn, resultsPath, 'SGO Days 2026 RESULTS + MATCH SCORES');
 
-        // ── Seed 3: FIX_SCORES_FORMAT (winners + scores) ────────
+        // ── Seed 3: FIX_SCORES_FORMAT ───────────────────────────
         const fixPath = findFile([
             'sgo_days_2026_FIX_SCORES_FORMAT.sql',
             'sql/sgo_days_2026_FIX_SCORES_FORMAT.sql',
@@ -254,7 +266,7 @@ const run = async () => {
                   (SELECT COUNT(*) FROM tournaments WHERE name LIKE '%SGO Days 2026%') AS tournaments,
                   (SELECT COUNT(*) FROM matches m JOIN tournaments t ON m.tournament_id=t.id WHERE t.name LIKE '%SGO Days 2026%') AS matches,
                   (SELECT COUNT(*) FROM matches m JOIN tournaments t ON m.tournament_id=t.id
-                    WHERE t.name LIKE '%SGO Days 2026%' AND m.winner_department_id IS NOT NULL) AS matches_with_winner,
+                    WHERE t.name LIKE '%SGO Days 2026%' AND m.winner_department_id IS NOT NULL) AS with_winner,
                   (SELECT COUNT(*) FROM match_results mr JOIN matches m ON mr.match_id=m.id JOIN tournaments t ON m.tournament_id=t.id WHERE t.name LIKE '%SGO Days 2026%') AS match_results,
                   (SELECT COUNT(*) FROM tournament_results tr JOIN tournaments t ON tr.tournament_id=t.id WHERE t.name LIKE '%SGO Days 2026%') AS tournament_results,
                   (SELECT COUNT(*) FROM sport_fest_bonus_points) AS bonus_points
@@ -262,7 +274,7 @@ const run = async () => {
             console.log('\n📊 Database summary:');
             console.log(`   tournaments:         ${stats.tournaments}`);
             console.log(`   matches:             ${stats.matches}`);
-            console.log(`   matches with winner: ${stats.matches_with_winner}`);
+            console.log(`   matches with winner: ${stats.with_winner}`);
             console.log(`   match_results:       ${stats.match_results}`);
             console.log(`   tournament_results:  ${stats.tournament_results}`);
             console.log(`   bonus_points rows:   ${stats.bonus_points}`);
@@ -278,7 +290,7 @@ const run = async () => {
         console.log('  president@sportfest.com');
         console.log('  officer@sportfest.com');
         console.log('═══════════════════════════════════════════════════════════\n');
-        console.log('📌 To run again without wiping, use: PRESERVE_DATA=1 node src/config/setupDatabase.js\n');
+        console.log('📌 To run without wiping: PRESERVE_DATA=1 node src/config/setupDatabase.js\n');
     } catch (err) {
         console.error('\n❌ Setup failed:', err.message);
         if (err.sqlMessage) console.error('   SQL:', err.sqlMessage);
