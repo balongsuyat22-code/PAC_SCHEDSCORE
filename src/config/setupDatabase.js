@@ -85,20 +85,19 @@ const seedDefaultUsers = async (conn) => {
     }
 };
 
-// ══════════════════════════════════════════════════════════════
-// FFA schedule map (time slots from the SGO Days document)
-// ══════════════════════════════════════════════════════════════
+// ────────────────────────────────────────────────────────────
+// Schedules
+// ────────────────────────────────────────────────────────────
 const FFA_SCHEDULE = {
-    QUIZ_BEE: { date: '2026-09-14', time: '09:00:00' },
-    BIBLE_QUIZ: { date: '2026-09-14', time: '09:00:00' },
-    BANNER_RACING: { date: '2026-09-14', time: '10:00:00' },
-    BIG_VOLLEYBALL: { date: '2026-09-14', time: '13:00:00' },
-    TUG_OF_WAR: { date: '2026-09-14', time: '13:00:00' },
-    SACK_RACE: { date: '2026-09-14', time: '14:00:00' },
-    SPIN_WHEEL: { date: '2026-09-14', time: '15:00:00' },
+    QUIZ_BEE: { date: '2026-09-14', time: '09:00:00', done: '2026-09-14 10:00:00' },
+    BIBLE_QUIZ: { date: '2026-09-14', time: '09:00:00', done: '2026-09-14 10:00:00' },
+    BANNER_RACING: { date: '2026-09-14', time: '10:00:00', done: '2026-09-14 10:30:00' },
+    BIG_VOLLEYBALL: { date: '2026-09-14', time: '13:00:00', done: '2026-09-14 13:30:00' },
+    TUG_OF_WAR: { date: '2026-09-14', time: '13:00:00', done: '2026-09-14 13:30:00' },
+    SACK_RACE: { date: '2026-09-14', time: '14:00:00', done: '2026-09-14 14:30:00' },
+    SPIN_WHEEL: { date: '2026-09-14', time: '15:00:00', done: '2026-09-14 15:30:00' },
 };
 
-// Gauntlet slot schedule (all sports use the same time grid)
 const GAUNTLET_SCHEDULE = {
     'JHS-A': { date: '2026-09-14', time: '07:30:00', done: '2026-09-14 08:25:00' },
     'JHS-B': { date: '2026-09-14', time: '08:30:00', done: '2026-09-14 09:25:00' },
@@ -115,9 +114,9 @@ const GAUNTLET_SCHEDULE = {
     'CH-SHS': { date: '2026-09-15', time: '15:00:00', done: '2026-09-15 15:55:00' },
 };
 
-// ══════════════════════════════════════════════════════════════
+// ────────────────────────────────────────────────────────────
 // Write match_results + match_scores for one match
-// ══════════════════════════════════════════════════════════════
+// ────────────────────────────────────────────────────────────
 async function writeScore(conn, matchId, stype, winnerIsA, adminId, championName = null) {
     await conn.query(`DELETE FROM match_results WHERE match_id = ?`, [matchId]);
     await conn.query(`DELETE FROM match_scores  WHERE match_id = ?`, [matchId]);
@@ -184,11 +183,11 @@ async function writeScore(conn, matchId, stype, winnerIsA, adminId, championName
     }
 }
 
-// ══════════════════════════════════════════════════════════════
-// Fill every tournament with real matches + scores + schedule
-// ══════════════════════════════════════════════════════════════
+// ────────────────────────────────────────────────────────────
+// Fill every tournament with matches + scores + ffa_results
+// ────────────────────────────────────────────────────────────
 async function fillAll(conn) {
-    console.log('\n🎯 Filling every tournament with matches + scores + schedule...');
+    console.log('\n🎯 Filling every tournament with matches + scores + schedules...');
 
     const [[fest]] = await conn.query(
         `SELECT id FROM sport_fest_events WHERE year = 2026 AND name = 'High School SGO Days 2026' LIMIT 1`
@@ -204,8 +203,7 @@ async function fillAll(conn) {
       WHERE code IN ('MANTIS','BBEES','DOLPHIN','REDFOX','PANTHER','DPEACOCK','STALLION','SGOAT','NOWL')`
     );
     const D = {};
-    const Dname = {};
-    for (const r of deptRows) { D[r.code] = r.id; Dname[r.id] = r.short_name || r.name; }
+    for (const r of deptRows) D[r.code] = r.id;
 
     const [tournaments] = await conn.query(
         `SELECT t.id, t.sport_id, t.format, t.gender, t.name AS tname,
@@ -229,8 +227,8 @@ async function fillAll(conn) {
     const noResults = [];
     let gauntletCount = 0;
     let ffaCount = 0;
+    let ffaResultRows = 0;
     let totalMatches = 0;
-    let totalScores = 0;
 
     for (const t of tournaments) {
         // ── DIVISION-GAUNTLET ──
@@ -321,25 +319,39 @@ async function fillAll(conn) {
 
                 await writeScore(conn, matchId, stype, w === a, adminId);
                 totalMatches++;
-                totalScores++;
             }
             gauntletCount++;
         }
 
         // ── FREE-FOR-ALL ──
         if (t.format === 'free_for_all') {
-            const [[top]] = await conn.query(
-                `SELECT tr.department_id, d.short_name, d.name
+            const [allResults] = await conn.query(
+                `SELECT tr.department_id, tr.\`rank\`, d.short_name, d.name
            FROM tournament_results tr
            JOIN departments d ON d.id = tr.department_id
           WHERE tr.tournament_id = ?
-          ORDER BY tr.\`rank\` ASC LIMIT 1`, [t.id]
+          ORDER BY tr.\`rank\` ASC`, [t.id]
             );
-            if (!top?.department_id) { noResults.push({ id: t.id, name: t.tname }); continue; }
+            if (!allResults.length) { noResults.push({ id: t.id, name: t.tname }); continue; }
 
-            const championName = top.short_name || top.name;
-            const sched = FFA_SCHEDULE[t.sport_code] || { date: '2026-09-14', time: '09:00:00' };
+            const champion = allResults[0];
+            const championName = champion.short_name || champion.name;
+            const sched = FFA_SCHEDULE[t.sport_code] || { date: '2026-09-14', time: '09:00:00', done: '2026-09-14 10:00:00' };
 
+            // ─── POPULATE ffa_results for EVERY ranking row ───
+            //     This is what getFFAResults reads for the UI panel.
+            await conn.query(`DELETE FROM ffa_results WHERE tournament_id = ?`, [t.id]);
+            for (const r of allResults) {
+                await conn.query(
+                    `INSERT INTO ffa_results
+             (tournament_id, department_id, result_value, rank_position, recorded_by)
+           VALUES (?, ?, ?, ?, ?)`,
+                    [t.id, r.department_id, r.rank, r.rank, adminId]
+                );
+                ffaResultRows++;
+            }
+
+            // Create / update the FFA event match
             const [exist] = await conn.query(
                 `SELECT id FROM matches WHERE tournament_id = ? LIMIT 1`, [t.id]
             );
@@ -357,7 +369,7 @@ async function fillAll(conn) {
                   bracket_side = 'ffa',
                   bracket_position = 'FFA Event'
             WHERE id = ?`,
-                    [top.department_id, top.department_id, sched.done || sched.date + ' 10:00:00',
+                    [champion.department_id, champion.department_id, sched.done,
                     sched.date, sched.time, matchId]
                 );
             } else {
@@ -369,32 +381,30 @@ async function fillAll(conn) {
               completed_at, scheduled_date, scheduled_time)
            VALUES (?, ?, 1, 1, 'FFA Event', 'ffa', 'completed',
                    ?, ?, ?, ?, ?)`,
-                    [t.id, t.sport_id, top.department_id, top.department_id,
-                    sched.date + ' 10:00:00', sched.date, sched.time]
+                    [t.id, t.sport_id, champion.department_id, champion.department_id,
+                    sched.done, sched.date, sched.time]
                 );
                 matchId = ins.insertId;
             }
 
             await writeScore(conn, matchId, 'ffa', true, adminId, championName);
             totalMatches++;
-            totalScores++;
             ffaCount++;
         }
     }
 
     console.log(`  ✅ ${gauntletCount} division_gauntlet tournament(s) × 13 slots = ${gauntletCount * 13} matches`);
-    console.log(`  ✅ ${ffaCount} free_for_all event(s) scored`);
+    console.log(`  ✅ ${ffaCount} free_for_all event(s) → ${ffaResultRows} ffa_results rows written`);
     console.log(`  ✅ Total matches created/filled: ${totalMatches}`);
-    console.log(`  ✅ Total match_results written:  ${totalScores}`);
     if (noResults.length) {
         console.log(`  ⚠️  ${noResults.length} tournament(s) had NO official results:`);
         for (const t of noResults) console.log(`      id=${t.id}  ${t.name}`);
     }
 }
 
-// ══════════════════════════════════════════════════════════════
+// ────────────────────────────────────────────────────────────
 // Rebuild department_scores
-// ══════════════════════════════════════════════════════════════
+// ────────────────────────────────────────────────────────────
 async function rebuildDepartmentScores(conn, festId) {
     await conn.query(`
     INSERT INTO department_scores (department_id, sport_fest_id, total_points, bonus_points)
@@ -444,10 +454,9 @@ async function rebuildDepartmentScores(conn, festId) {
   `, [festId]);
 }
 
-// ══════════════════════════════════════════════════════════════
-// SANITY CHECK — every tournament must have matches, all completed
-// matches must have match_results + schedules
-// ══════════════════════════════════════════════════════════════
+// ────────────────────────────────────────────────────────────
+// Sanity check
+// ────────────────────────────────────────────────────────────
 async function sanityCheck(conn) {
     console.log('\n🔎 Sanity check...');
 
@@ -475,20 +484,24 @@ async function sanityCheck(conn) {
   `);
     console.log(`  ${noSchedule.n === 0 ? '✅' : '⚠️ '} Matches without a schedule: ${noSchedule.n}`);
 
-    const [ffaEmpty] = await conn.query(`
-    SELECT t.id, t.name FROM tournaments t
-     JOIN matches m ON m.tournament_id = t.id
-     LEFT JOIN match_results mr ON mr.match_id = m.id
+    // FFA check: every FFA tournament must have ffa_results for every participant
+    const [ffaMissing] = await conn.query(`
+    SELECT t.id, t.name, COUNT(DISTINCT fr.department_id) AS ffa_rows
+      FROM tournaments t
+      LEFT JOIN ffa_results fr ON fr.tournament_id = t.id
      WHERE t.format = 'free_for_all'
-       AND (mr.final_score_display IS NULL OR mr.final_score_display LIKE '%FFA%')
+       AND t.sport_fest_id = (SELECT id FROM sport_fest_events
+                               WHERE year=2026 AND name='High School SGO Days 2026' LIMIT 1)
+     GROUP BY t.id
+    HAVING ffa_rows < 2
   `);
-    console.log(`  ${ffaEmpty.length === 0 ? '✅' : '⚠️ '} FFA events with no champion display: ${ffaEmpty.length}`);
-    for (const f of ffaEmpty) console.log(`      id=${f.id}  ${f.name}`);
+    console.log(`  ${ffaMissing.length === 0 ? '✅' : '⚠️ '} FFA events with < 2 ffa_results rows: ${ffaMissing.length}`);
+    for (const f of ffaMissing) console.log(`      id=${f.id}  ${f.name}  (rows: ${f.ffa_rows})`);
 }
 
-// ══════════════════════════════════════════════════════════════
+// ────────────────────────────────────────────────────────────
 // MAIN
-// ══════════════════════════════════════════════════════════════
+// ────────────────────────────────────────────────────────────
 const run = async () => {
     let conn;
     try {
@@ -529,7 +542,6 @@ const run = async () => {
             `SELECT id FROM sport_fest_events WHERE year=2026 AND name='High School SGO Days 2026' LIMIT 1`
         );
         await rebuildDepartmentScores(conn, fest.id);
-
         await sanityCheck(conn);
 
         // Summary
@@ -541,14 +553,10 @@ const run = async () => {
         (SELECT COUNT(*) FROM tournaments WHERE format = 'division_gauntlet') AS gauntlet,
         (SELECT COUNT(*) FROM tournaments WHERE format = 'free_for_all')      AS ffa,
         (SELECT COUNT(*) FROM matches)                                        AS matches,
-        (SELECT COUNT(*) FROM matches WHERE winner_department_id IS NOT NULL) AS with_winner,
         (SELECT COUNT(*) FROM match_results)                                  AS match_results,
         (SELECT COUNT(*) FROM match_scores)                                   AS match_scores,
-        (SELECT COUNT(*) FROM tournament_results)                             AS tournament_results,
-        (SELECT COUNT(*) FROM matches
-          WHERE winner_department_id IS NOT NULL
-            AND NOT EXISTS (SELECT 1 FROM match_results mr WHERE mr.match_id = matches.id))
-                                                                              AS missing_scores
+        (SELECT COUNT(*) FROM ffa_results)                                    AS ffa_results,
+        (SELECT COUNT(*) FROM tournament_results)                             AS tournament_results
     `);
         console.log('\n📊 Database summary:');
         console.log(`   active departments:    ${s.depts}`);
@@ -557,11 +565,10 @@ const run = async () => {
         console.log(`     • division_gauntlet: ${s.gauntlet}`);
         console.log(`     • free_for_all:      ${s.ffa}`);
         console.log(`   matches:               ${s.matches}`);
-        console.log(`   matches with winner:   ${s.with_winner}`);
         console.log(`   match_results:         ${s.match_results}`);
         console.log(`   match_scores:          ${s.match_scores}`);
+        console.log(`   ffa_results:           ${s.ffa_results}  ← feeds FFA panel`);
         console.log(`   tournament_results:    ${s.tournament_results}`);
-        console.log(`   ⚠️  missing scores:     ${s.missing_scores}  ← must be 0`);
 
         console.log('\n🎉 Setup complete!\n');
         console.log('═══════════════════════════════════════════════════════════');

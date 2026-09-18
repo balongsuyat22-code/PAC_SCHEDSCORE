@@ -3633,8 +3633,12 @@
                 if (rank === 1) { rankClass = 'rank-gold'; medal = I.trophy; }
                 else if (rank === 2) { rankClass = 'rank-silver'; medal = I.medal; }
                 else if (rank === 3) { rankClass = 'rank-bronze'; medal = I.medal; }
-                const hasScore = p.ffa_result_value !== null;
-                const score = hasScore ? p.ffa_result_value : '—';
+                const hasScore = p.ffa_result_value !== undefined && p.ffa_result_value !== null && p.ffa_result_value !== '';
+                const score = hasScore
+                    ? Number.isFinite(Number(p.ffa_result_value))
+                        ? Number(p.ffa_result_value).toLocaleString(undefined, { maximumFractionDigits: 2 })
+                        : p.ffa_result_value
+                    : '—';
                 const isWinner = done && rank === 1;
                 const color = p.department_color || deptColor(p.department_name || '');
                 return `<div class="ffa-participant${isWinner ? ' is-winner' : ''}">
