@@ -97,11 +97,25 @@
                     class="refresh-icon">↻</span> Refresh</button>
         </div>
         <div class="auto-refresh-strip"><span class="arf-dot"></span><span id="refresh-ts">Loading…</span></div>
+        <div class="status-filters division-filters" id="lb-division-filters" style="display:none"></div>
         <div id="leader-banner" class="winner-banner" style="display:none"></div>
         <div id="lb-container">
             <div class="empty-state">
                 <div class="live-dot" style="margin:0 auto 12px"></div>
                 <div class="empty-sub">Loading standings…</div>
+            </div>
+        </div>
+
+        <div class="sec-head" style="margin-top:1.75rem">
+            <h2 class="sec-title">Tournament <span>Champions</span></h2>
+            <button type="button" class="refresh-btn" onclick="refreshTournamentChampions(this)"><span
+                    class="refresh-icon">↻</span> Refresh</button>
+        </div>
+        <div class="sport-filters" id="tc-sport-filters"></div>
+        <div id="tc-container">
+            <div class="empty-state">
+                <div class="live-dot" style="margin:0 auto 12px"></div>
+                <div class="empty-sub">Loading champions…</div>
             </div>
         </div>
     </main>

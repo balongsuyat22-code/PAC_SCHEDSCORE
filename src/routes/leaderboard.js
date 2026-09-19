@@ -12,7 +12,7 @@ router.get('/champions', lbc.getChampionTeams);
 router.get('/overall-champion', lbc.getOverallChampion);
 router.get('/department-mvp/:departmentId', lbc.getDepartmentMVP);
 router.get('/overall-mvp', lbc.getOverallMVP);
-
+router.get('/tournament-champions', lbc.getTournamentChampions);
 router.get('/live', lbc.getLiveLeaderboard);
 router.get('/activity', lbc.getActivityFeed);
 

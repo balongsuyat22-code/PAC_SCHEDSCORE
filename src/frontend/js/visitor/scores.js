@@ -17,6 +17,7 @@
     let filteredMatches = [];
     let currentStatus = 'all';
     let currentSport = 'all';
+    let currentDivision = 'all';
     let spotlightDeptId = null;
     let socket = null;
     let countdownTimer = null;
@@ -49,6 +50,7 @@
             if (!json.success) throw new Error(json.message || 'Failed to load');
             allMatches = (json.data || []).map(normalizeMatch);
             buildSportFilters();
+            buildDivisionFilters();
             buildSpotlightOptions();
             applyFilters();
             updateHeroStats();
@@ -146,6 +148,7 @@
             sets_to_win: m.sets_to_win || null,
             dept_a_name: m.dept_a_name || m.dept_a || null,
             dept_b_name: m.dept_b_name || m.dept_b || null,
+            division: m.division || m.dept_a_division || m.dept_b_division || null,
             scores: scores || m.scores || null,
             result: result || m.result || null,
             live_total_a: pickTotal(m.live_total_a, m.total_score_a, 'a'),
@@ -254,10 +257,13 @@
         if (fab) {
             fab.style.display = 'flex';
             const champs = c.champions || [];
-            const label = champs.length > 1
+            const isDual = champs.length > 1;
+            const label = isDual
                 ? champs.map((d) => d.name).join(' & ')
                 : (c.name || 'Champion');
-            fab.title = label + (champs.length > 1 ? ' — Division Champions' : ' — Sport Fest Champion');
+            fab.title = label + (isDual ? ' — Division Champions' : ' — Sport Fest Champion');
+            const labelEl = fab.querySelector('.champion-fab-label');
+            if (labelEl) labelEl.textContent = isDual ? 'Champions' : 'Champion';
         }
         const key = 'champ_confetti_' + (c.department_id || c.name);
         if (!sessionStorage.getItem(key)) {
@@ -342,10 +348,18 @@
         applyFilters();
     };
 
+    window.filterByDivision = function (division, el) {
+        currentDivision = division;
+        $$('.division-filters .filter-chip').forEach((c) => c.classList.remove('active'));
+        if (el) el.classList.add('active');
+        applyFilters();
+    };
+
     function applyFilters() {
         filteredMatches = allMatches.filter((m) => {
             if (currentStatus !== 'all' && m.status !== currentStatus) return false;
             if (currentSport !== 'all' && m.sport_name !== currentSport) return false;
+            if (currentDivision !== 'all' && (m.division || '') !== currentDivision) return false;
             return true;
         });
         if (spotlightDeptId) {
@@ -379,6 +393,34 @@
         <span class="sport-chip-label">${escapeHtml(s)}</span></button>`;
         });
         wrap.innerHTML = html;
+    }
+
+    function buildDivisionFilters() {
+        const wrap = $('#division-filters');
+        if (!wrap) return;
+        const divisions = [...new Set(allMatches.map((m) => m.division).filter(Boolean))].sort();
+        // Nothing to disambiguate (single or no division in the data) — don't
+        // clutter the UI with a filter that has nothing to filter.
+        if (divisions.length < 2) {
+            wrap.innerHTML = '';
+            wrap.style.display = 'none';
+            if (currentDivision !== 'all') { currentDivision = 'all'; }
+            return;
+        }
+        wrap.style.display = '';
+        let html = `<button type="button" class="filter-chip ${currentDivision === 'all' ? 'active' : ''}"
+      onclick="filterByDivision('all', this)">All Divisions</button>`;
+        divisions.forEach((d) => {
+            html += `<button type="button" class="filter-chip ${currentDivision === d ? 'active' : ''}"
+        onclick="filterByDivision('${escapeAttr(d)}', this)">${escapeHtml(prettyDivision(d))}</button>`;
+        });
+        wrap.innerHTML = html;
+    }
+
+    function divisionBadgeHTML(div) {
+        if (!div) return '';
+        const cls = div === 'senior_high' ? 'sh' : div === 'junior_high' ? 'jh' : '';
+        return `<span class="division-pill ${cls}">${escapeHtml(prettyDivision(div))}</span>`;
     }
 
     function buildSpotlightOptions() {
@@ -529,6 +571,7 @@
           <div class="match-meta">
             <span class="sport-pill">${escapeHtml(m.sport_name || 'Sport')}</span>
             ${formatPill}
+            ${divisionBadgeHTML(m.division)}
             ${m.tournament_name ? `<span class="tournament-pill">${escapeHtml(m.tournament_name)}</span>` : ''}
           </div>
           ${statusBadge}
@@ -566,7 +609,7 @@
            data-match-id="${m.id}" role="button" tabindex="0" onclick="openMatchModal(${m.id})">
         <div class="ffa-header">
           <div>
-            <span class="ffa-badge">FFA</span>
+            <span class="ffa-badge">FFA</span>${divisionBadgeHTML(m.division)}
             <div class="ffa-title" style="margin-top:6px">${escapeHtml(m.sport_name || m.tournament_name || 'FFA Event')}</div>
           </div>
           ${statusBadge}
@@ -589,7 +632,7 @@
           <div class="featured-label"><span class="live-dot"></span> Featured FFA</div>
           <div class="ffa-header">
             <div>
-              <span class="ffa-badge">FFA</span>
+              <span class="ffa-badge">FFA</span>${divisionBadgeHTML(m.division)}
               <div class="ffa-title" style="margin-top:6px">${escapeHtml(m.sport_name || m.tournament_name || 'FFA Event')}</div>
             </div>
             <span class="status-badge status-live"><span class="status-dot"></span>Live</span>
@@ -904,16 +947,19 @@
     async function buildFFAModal(match) {
         let participants = [];
         let ffaScoring = match.ffa_scoring || 'points';
+        let division = match.division || null;
         try {
             const res = await fetch(`${API_BASE}/matches/ffa/${match.tournament_id}`);
             const json = await res.json();
             if (json.success && json.data) {
                 participants = json.data.participants || [];
                 ffaScoring = json.data.ffa_scoring || ffaScoring;
+                division = division || json.data.division || null;
             }
         } catch (e) {
             console.warn('FFA results fetch failed', e);
         }
+        const ffaBadgeHtml = `<div class="modal-ffa-badge">FFA · Free For All${division ? ` · ${escapeHtml(prettyDivision(division))}` : ''}</div>`;
         const sorted = [...participants].sort((a, b) => {
             if (a.rank_position != null && b.rank_position != null)
                 return a.rank_position - b.rank_position;
@@ -988,7 +1034,7 @@
         if (!participants.length) {
             return `<div class="modal-ffa">
         <div class="modal-header">
-          <div class="modal-ffa-badge">FFA · Free For All</div>
+          ${ffaBadgeHtml}
           <div class="modal-ffa-title">${escapeHtml(match.sport_name || match.tournament_name || 'FFA Event')}</div>
           <div class="modal-ffa-sub">${escapeHtml(match.tournament_name || '')}</div>
         </div>
@@ -1002,7 +1048,7 @@
         }
         return `<div class="modal-ffa">
       <div class="modal-header">
-        <div class="modal-ffa-badge">FFA · Free For All</div>
+        ${ffaBadgeHtml}
         <div class="modal-ffa-title">${escapeHtml(match.sport_name || match.tournament_name || 'FFA Event')}</div>
         <div class="modal-ffa-sub">${escapeHtml(match.tournament_name || '')}</div>
       </div>

@@ -1,28 +1,61 @@
 /** Standings / Leaderboard page */
 let allLbData = [];
 let lbRefreshTimer = null;
+let currentLbDivision = 'all';
+
+function buildDivisionFilters() {
+    const wrap = document.getElementById('lb-division-filters');
+    if (!wrap) return;
+    const divisions = [...new Set(allLbData.map(d => d.division).filter(Boolean))].sort();
+    // Only one (or zero) divisions in the data — nothing to disambiguate.
+    if (divisions.length < 2) {
+        wrap.innerHTML = '';
+        wrap.style.display = 'none';
+        currentLbDivision = 'all';
+        return;
+    }
+    wrap.style.display = '';
+    let html = `<button type="button" class="filter-chip ${currentLbDivision === 'all' ? 'active' : ''}"
+      onclick="filterLbByDivision('all', this)">All Divisions</button>`;
+    divisions.forEach(d => {
+        html += `<button type="button" class="filter-chip ${currentLbDivision === d ? 'active' : ''}"
+      onclick="filterLbByDivision('${d}', this)">${esc(prettyDivision(d))}</button>`;
+    });
+    wrap.innerHTML = html;
+}
+
+function filterLbByDivision(division, el) {
+    currentLbDivision = division;
+    document.querySelectorAll('#lb-division-filters .filter-chip').forEach(c => c.classList.remove('active'));
+    if (el) el.classList.add('active');
+    renderLeaderboard();
+    renderChampionBanner();
+}
+window.filterLbByDivision = filterLbByDivision;
 
 function renderLeaderboard() {
     const el = document.getElementById('lb-container');
     if (!el) return;
-    const data = allLbData;
+    const data = currentLbDivision === 'all'
+        ? allLbData
+        : allLbData.filter(d => (d.division || '') === currentLbDivision);
     if (!data.length) {
         el.innerHTML = `<div class="empty-state"><span class="empty-icon">${I.trophy}</span><div class="empty-title">No standings yet</div><div class="empty-sub">Points appear as tournaments finish</div></div>`;
         return;
     }
     const rankLabel = n => {
-        if (n === 1) return `<div class="rank-badge rank-1">1st</div>`;
-        if (n === 2) return `<div class="rank-badge rank-2">2nd</div>`;
-        if (n === 3) return `<div class="rank-badge rank-3">3rd</div>`;
+        if (n === 1) return `<div class="rank-badge rank-1">${n}</div>`;
+        if (n === 2) return `<div class="rank-badge rank-2">${n}</div>`;
+        if (n === 3) return `<div class="rank-badge rank-3">${n}</div>`;
         return `<div class="rank-badge rank-other">${n}</div>`;
     };
     const topClass = n => n === 1 ? 'top1' : n === 2 ? 'top2' : n === 3 ? 'top3' : '';
     el.innerHTML = `<div class="lb-table">
     <div class="lb-header"><div>#</div><div>Department</div><div style="text-align:center">Medals</div><div style="text-align:right">Points</div></div>
     ${data.map((d, i) => {
-        const rank = d.rank || i + 1;
+        const rank = currentLbDivision === 'all' ? (d.rank || i + 1) : i + 1;
         const previous = data[i - 1];
-        const divisionHeading = d.division && (!previous || previous.division !== d.division)
+        const divisionHeading = currentLbDivision === 'all' && d.division && (!previous || previous.division !== d.division)
             ? `<div class="lb-division-heading">${esc(prettyDivision(d.division))}</div>`
             : '';
         const col = d.color || deptColor(d.name);
@@ -43,6 +76,22 @@ function renderLeaderboard() {
   </div>`;
 }
 
+/** Last-known champion/leader state, cached so the banner can be redrawn
+ *  (e.g. after a division-filter re-render, which rebuilds #lb-container
+ *  from scratch) without re-hitting the API every time. */
+let lastChampionState = null;
+
+/** Re-applies the cached champion/leader banner onto the current
+ *  #lb-container. Safe to call after any renderLeaderboard() re-render. */
+function renderChampionBanner() {
+    if (!lastChampionState) return;
+    if (lastChampionState.type === 'final') {
+        showWinnerBanner(lastChampionState.champion, lastChampionState.champions);
+    } else if (lastChampionState.type === 'leader') {
+        showLeaderBanner(lastChampionState.leader, lastChampionState.message);
+    }
+}
+
 /** Checks whether a champion has already been declared (page-load / poll
  *  path) and shows either the persistent leader banner or the "final"
  *  winner banner + a one-time-per-session confetti burst. */
@@ -52,17 +101,21 @@ async function checkAndFireConfetti() {
         if (!r.ok) return;
         const j = await r.json();
         if (j.data && j.data.is_final && j.data.champion) {
-            showWinnerBanner(j.data.champion, j.data.champions || []);
+            const champs = j.data.champions || [];
+            lastChampionState = { type: 'final', champion: j.data.champion, champions: champs };
+            showWinnerBanner(j.data.champion, champs);
 
             const c = j.data.champion;
-            const champs = j.data.champions || [];
             const key = 'champ_confetti_' + (c.department_id || c.id || c.name);
             if (!sessionStorage.getItem(key)) {
                 sessionStorage.setItem(key, '1');
                 window.fireChampionConfetti?.(c.color || deptColor(c.name), champs.length > 1 ? champs[1]?.color : undefined);
             }
         } else if (j.data && j.data.current_leader && !j.data.is_final) {
+            lastChampionState = { type: 'leader', leader: j.data.current_leader, message: j.data.message };
             showLeaderBanner(j.data.current_leader, j.data.message);
+        } else {
+            lastChampionState = null;
         }
     } catch { /* ignore */ }
 }
@@ -155,6 +208,7 @@ async function loadLeaderboard() {
         if (!r.ok) throw new Error();
         const j = await r.json();
         allLbData = j.data || [];
+        buildDivisionFilters();
         renderLeaderboard();
         if (allLbData.length && allLbData[0].color) applyDynamicTheme(allLbData[0].color);
         checkAndFireConfetti();
@@ -187,6 +241,7 @@ function bindChampionSocket() {
     socket.on('champion:declared', (data) => {
         if (data?.champion) {
             const c = data.champion;
+            lastChampionState = { type: 'final', champion: c, champions: data.champions || [] };
             showWinnerBanner(c, data.champions || []);
             window.showChampionCelebration?.({
                 name: c.name,
@@ -209,10 +264,112 @@ document.addEventListener('DOMContentLoaded', () => {
     setActiveNav('standings');
     startClock();
     initSocket({
-        onLeaderboardChanged: () => loadLeaderboard(),
-        onMatchCompleted: () => loadLeaderboard()
+        onLeaderboardChanged: () => { loadLeaderboard(); loadTournamentChampions(); },
+        onMatchCompleted: () => { loadLeaderboard(); loadTournamentChampions(); }
     });
     bindChampionSocket();
     loadLeaderboard();
+    loadTournamentChampions();
     lbRefreshTimer = setInterval(loadLeaderboard, LEADERBOARD_POLL_MS);
 });
+
+/* ── Tournament Champions ──────────────────────────────────────────────
+   Per-tournament gold medalist(s) — distinct from the overall Sport Fest
+   champion above. Most tournaments have a single winner; a tournament
+   whose bracket spans both divisions (ranked separately) can surface two
+   champions side by side, same as the overall dual-champion banner. */
+let allTcData = [];
+let currentTcSport = 'all';
+
+async function loadTournamentChampions() {
+    const el = document.getElementById('tc-container');
+    try {
+        const r = await fetch(`${BASE}/api/leaderboard/tournament-champions`);
+        if (!r.ok) throw new Error();
+        const j = await r.json();
+        allTcData = j.data || [];
+        buildTcSportFilters();
+        renderTournamentChampions();
+    } catch {
+        if (!allTcData.length && el) {
+            el.innerHTML = `<div class="empty-state"><span class="empty-icon">${I.trophy}</span><div class="empty-title">Champions unavailable</div><div class="empty-sub">Check server connection</div></div>`;
+        }
+    }
+}
+
+function refreshTournamentChampions(btn) {
+    const icon = btn?.querySelector('.refresh-icon');
+    if (icon) { icon.classList.add('spin'); setTimeout(() => icon.classList.remove('spin'), 500); }
+    loadTournamentChampions();
+}
+window.refreshTournamentChampions = refreshTournamentChampions;
+
+function buildTcSportFilters() {
+    const wrap = document.getElementById('tc-sport-filters');
+    if (!wrap) return;
+    const sports = [...new Set(allTcData.map(t => t.sport_name).filter(Boolean))].sort();
+    if (sports.length < 2) {
+        wrap.innerHTML = '';
+        wrap.style.display = 'none';
+        currentTcSport = 'all';
+        return;
+    }
+    wrap.style.display = '';
+    let html = `<button type="button" class="filter-chip ${currentTcSport === 'all' ? 'active' : ''}"
+      onclick="filterTcBySport('all', this)">All Sports</button>`;
+    sports.forEach(s => {
+        html += `<button type="button" class="filter-chip ${currentTcSport === s ? 'active' : ''}"
+      onclick="filterTcBySport('${s.replace(/'/g, "\\'")}', this)">${esc(s)}</button>`;
+    });
+    wrap.innerHTML = html;
+}
+
+function filterTcBySport(sport, el) {
+    currentTcSport = sport;
+    document.querySelectorAll('#tc-sport-filters .filter-chip').forEach(c => c.classList.remove('active'));
+    if (el) el.classList.add('active');
+    renderTournamentChampions();
+}
+window.filterTcBySport = filterTcBySport;
+
+function tcChampionHtml(c) {
+    const col = c.color || deptColor(c.name);
+    const avatar = c.logo_url
+        ? `<img src="${esc(c.logo_url)}" class="tc-champ-img" alt="${esc(c.name)}">`
+        : `<div class="tc-champ-img tc-champ-initials" style="background:${col}">${initials(c.name)}</div>`;
+    return `<div class="tc-champ" style="--tc-color:${col}">
+        ${avatar}
+        <div class="tc-champ-body">
+          ${c.division ? `<div class="tc-champ-division">${esc(prettyDivision(c.division))}</div>` : ''}
+          <div class="tc-champ-name">${esc(c.name)}</div>
+          <div class="tc-champ-sub">${c.team_name ? `${esc(c.team_name)} · ` : ''}${Number(c.points || 0).toLocaleString()} pts</div>
+        </div>
+      </div>`;
+}
+
+function renderTournamentChampions() {
+    const el = document.getElementById('tc-container');
+    if (!el) return;
+    const data = currentTcSport === 'all'
+        ? allTcData
+        : allTcData.filter(t => t.sport_name === currentTcSport);
+
+    if (!data.length) {
+        el.innerHTML = `<div class="empty-state"><span class="empty-icon">${I.trophy}</span><div class="empty-title">No champions yet</div><div class="empty-sub">Champions appear once a tournament is finalized</div></div>`;
+        return;
+    }
+
+    el.innerHTML = `<div class="tc-grid">${data.map(t => {
+        const isDual = t.champions.length > 1;
+        return `<div class="tc-card${isDual ? ' tc-dual' : ''}">
+        <div class="tc-card-head">
+          <span class="tc-sport-icon">${t.sport_icon ? esc(t.sport_icon) : '🏅'}</span>
+          <div>
+            <div class="tc-sport-name">${esc(t.sport_name || 'Sport')}</div>
+            <div class="tc-tournament-name">${esc(t.tournament_name || '')}</div>
+          </div>
+        </div>
+        <div class="tc-champs">${t.champions.map(tcChampionHtml).join(isDual ? '<div class="tc-x">×</div>' : '')}</div>
+      </div>`;
+    }).join('')}</div>`;
+}

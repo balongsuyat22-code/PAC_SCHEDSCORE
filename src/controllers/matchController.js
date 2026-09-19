@@ -243,7 +243,7 @@ const getMatchStatus = async (matchId) => {
 
 const getAll = async (req, res, next) => {
     try {
-        const { tournament_id, status, date, referee_id, department_id, venue_id } = req.query;
+        const { tournament_id, status, date, referee_id, department_id, venue_id, division } = req.query;
         const callerRole = req.user?.role;
         const showAll = req.query.all === 'true';
         const sportFestId = showAll ? null : await getActiveSportFestId();
@@ -259,11 +259,17 @@ const getAll = async (req, res, next) => {
                 t.name   AS tournament_name,
                 t.format AS tournament_format,
                 t.ffa_scoring AS ffa_scoring_type,
-                da.name  AS dept_a_name, da.color AS dept_a_color, da.logo_url AS dept_a_logo,
-                db.name  AS dept_b_name, db.color AS dept_b_color, db.logo_url AS dept_b_logo,
+                da.name  AS dept_a_name, da.color AS dept_a_color, da.logo_url AS dept_a_logo, da.division AS dept_a_division,
+                db.name  AS dept_b_name, db.color AS dept_b_color, db.logo_url AS dept_b_logo, db.division AS dept_b_division,
                 v.name   AS venue_name,
                 CONCAT(referee_user.first_name,' ',referee_user.last_name) AS referee_name,
                 referee_user.id AS referee_user_id,
+                COALESCE(da.division, db.division, (
+                    SELECT d2.division FROM tournament_participants tp2
+                    JOIN departments d2 ON tp2.department_id = d2.id
+                    WHERE tp2.tournament_id = t.id
+                    LIMIT 1
+                )) AS division,
                 mr.total_score_a,
                 mr.total_score_b,
                 mr.final_score_display,
@@ -332,6 +338,15 @@ const getAll = async (req, res, next) => {
             query += ' AND (m.participant_a_department_id = ? OR m.participant_b_department_id = ?)';
             params.push(department_id, department_id);
         }
+        if (division) {
+            query += ` AND COALESCE(da.division, db.division, (
+                SELECT d2.division FROM tournament_participants tp2
+                JOIN departments d2 ON tp2.department_id = d2.id
+                WHERE tp2.tournament_id = t.id
+                LIMIT 1
+            )) = ?`;
+            params.push(division);
+        }
 
         query += ' ORDER BY m.scheduled_date ASC, m.scheduled_time ASC';
 
@@ -394,11 +409,17 @@ const getOne = async (req, res, next) => {
                     DATE_FORMAT(m.scheduled_time, '%H:%i')    AS scheduled_time,
                     s.name  AS sport_name, s.scoring_type, s.sets_to_win,
                     t.name  AS tournament_name, t.format AS tournament_format, t.ffa_scoring,
-                    da.name AS dept_a_name, da.color AS dept_a_color, da.logo_url AS dept_a_logo,
-                    db.name AS dept_b_name, db.color AS dept_b_color, db.logo_url AS dept_b_logo,
+                    da.name AS dept_a_name, da.color AS dept_a_color, da.logo_url AS dept_a_logo, da.division AS dept_a_division,
+                    db.name AS dept_b_name, db.color AS dept_b_color, db.logo_url AS dept_b_logo, db.division AS dept_b_division,
                     v.name  AS venue_name, v.location AS venue_location,
                     CONCAT(referee_user.first_name,' ',referee_user.last_name) AS referee_name,
-                    referee_user.id AS referee_user_id
+                    referee_user.id AS referee_user_id,
+                    COALESCE(da.division, db.division, (
+                        SELECT d2.division FROM tournament_participants tp2
+                        JOIN departments d2 ON tp2.department_id = d2.id
+                        WHERE tp2.tournament_id = t.id
+                        LIMIT 1
+                    )) AS division
              FROM matches m
              JOIN  tournaments t ON m.tournament_id = t.id
              JOIN  sports      s ON t.sport_id      = s.id
@@ -1268,7 +1289,7 @@ const getFFAResults = async (req, res, next) => {
         const { tournamentId } = req.params;
 
         const [participants] = await pool.execute(
-            `SELECT tp.department_id, d.name AS department_name, d.color AS department_color,
+            `SELECT tp.department_id, d.name AS department_name, d.color AS department_color, d.division AS department_division,
                     fr.result_value AS ffa_result_value, fr.rank_position
              FROM tournament_participants tp
              JOIN departments d ON tp.department_id = d.id
@@ -1284,9 +1305,15 @@ const getFFAResults = async (req, res, next) => {
             [tournamentId]
         );
 
+        // All participants in an FFA tournament normally belong to the same
+        // division; surface it once so the modal/badge can say "Senior High"
+        // or "Junior High" instead of just "FFA" and leaving it ambiguous.
+        const divisions = [...new Set(participants.map(p => p.department_division).filter(Boolean))];
+        const division = divisions.length === 1 ? divisions[0] : null;
+
         return res.json({
             success: true,
-            data: { participants, ffa_scoring: tourInfo?.ffa_scoring || 'points' },
+            data: { participants, ffa_scoring: tourInfo?.ffa_scoring || 'points', division },
         });
     } catch (err) {
         next(err);

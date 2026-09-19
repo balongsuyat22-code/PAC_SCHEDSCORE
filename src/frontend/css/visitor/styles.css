@@ -241,7 +241,7 @@ body{
 .ffa-footer{margin-top:.7rem;padding-top:.7rem;border-top:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;font-size:11px;color:var(--muted)}
 
 /* Winner banner */
-.winner-banner{background:linear-gradient(135deg,rgba(245,158,11,.12) 0%,rgba(245,158,11,.04) 100%);border:1px solid rgba(245,158,11,.4);border-radius:var(--r2);padding:1rem 1.15rem;margin-bottom:1rem;display:flex;align-items:center;gap:.85rem;position:relative;overflow:hidden;flex-wrap:wrap}
+.winner-banner{background:linear-gradient(135deg,rgba(245,158,11,.12) 0%,rgba(245,158,11,.04) 100%);border:1px solid rgba(245,158,11,.4);border-radius:var(--r2);padding:1rem 1.15rem;margin-bottom:1rem;display:flex;align-items:center;gap:.85rem;position:relative;overflow:hidden;flex-wrap:wrap;box-shadow:0 8px 20px rgba(0,0,0,.16)}
 .wb-trophy{font-size:32px;flex-shrink:0}
 .wb-body{flex:1;min-width:0}
 .wb-label{font-size:9px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--gold);margin-bottom:3px;font-family:var(--font-mono)}
@@ -268,35 +268,69 @@ body{
 .wb-dept-stack > *:last-child{border-color:var(--wb-color-2,var(--wb-color,#f59e0b));margin-left:-14px;position:relative;z-index:1}
 
 /* Leaderboard */
-.lb-table{background:var(--bg2);border:1px solid var(--border);border-radius:var(--r2);overflow:hidden}
-.lb-header{display:grid;grid-template-columns:40px 1fr 90px 70px;padding:.6rem 1rem;font-size:9px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);border-bottom:1px solid var(--border);font-family:var(--font-mono)}
-.lb-division-heading{padding:.65rem 1rem .35rem;color:var(--accent);font-family:var(--font-mono);font-size:10px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;border-top:1px solid var(--border);background:rgba(var(--accent-rgb),.04)}
-.lb-row{display:grid;grid-template-columns:40px 1fr 90px 70px;align-items:center;padding:.75rem 1rem;border-bottom:1px solid var(--border);gap:6px;transition:background .15s}
+.lb-table{background:var(--bg2);border:1px solid var(--border);border-radius:var(--r2);overflow:hidden;box-shadow:0 8px 24px rgba(0,0,0,.18)}
+.lb-header{display:grid;grid-template-columns:44px 1fr 96px 76px;padding:.7rem 1.1rem;font-size:9px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);border-bottom:1px solid var(--border);font-family:var(--font-mono);background:var(--bg3)}
+.lb-division-heading{display:flex;align-items:center;gap:.5rem;padding:.7rem 1.1rem .55rem;margin-top:2px;color:var(--accent);font-family:var(--font-mono);font-size:10px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;border-top:1px solid var(--border);background:rgba(var(--accent-rgb),.05)}
+.lb-division-heading::before{content:'';width:6px;height:6px;border-radius:50%;background:var(--accent);flex-shrink:0}
+.lb-row{display:grid;grid-template-columns:44px 1fr 96px 76px;align-items:center;padding:.8rem 1.1rem;border-bottom:1px solid var(--border);gap:8px;transition:background .15s;position:relative}
 .lb-row:last-child{border-bottom:none}
 .lb-row:hover{background:var(--bg3)}
-.lb-row.top1{background:rgba(245,158,11,.06)}
-.lb-row.top2{background:rgba(148,163,184,.04)}
-.lb-row.top3{background:rgba(194,98,42,.05)}
-.lb-row.spotlight-lb{border-left:3px solid var(--accent);background:rgba(var(--accent-rgb),.05)}
-.rank-badge{font-family:var(--font-head);font-size:16px;font-weight:700;text-align:center;line-height:1}
-.rank-1{color:var(--gold)}.rank-2{color:var(--silver)}.rank-3{color:var(--bronze)}.rank-other{color:var(--muted);font-size:13px}
-.lb-dept{display:flex;align-items:center;gap:8px;min-width:0}
-.lb-dot{width:30px;height:30px;border-radius:50%;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-family:var(--font-head);font-size:11px;font-weight:700;color:#fff;overflow:hidden}
+.lb-row.top1{background:linear-gradient(90deg,rgba(245,158,11,.1),rgba(245,158,11,.02) 60%);box-shadow:inset 3px 0 0 var(--gold)}
+.lb-row.top2{background:linear-gradient(90deg,rgba(148,163,184,.07),rgba(148,163,184,.01) 60%);box-shadow:inset 3px 0 0 var(--silver)}
+.lb-row.top3{background:linear-gradient(90deg,rgba(194,98,42,.08),rgba(194,98,42,.01) 60%);box-shadow:inset 3px 0 0 var(--bronze)}
+.lb-row.spotlight-lb{box-shadow:inset 3px 0 0 var(--accent);background:rgba(var(--accent-rgb),.06)}
+.rank-badge{width:26px;height:26px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-family:var(--font-head);font-size:12px;font-weight:800;line-height:1;flex-shrink:0}
+.rank-1{background:linear-gradient(145deg,#ffd873,var(--gold));color:#1a1204;box-shadow:0 2px 6px rgba(245,158,11,.4)}
+.rank-2{background:linear-gradient(145deg,#e2e8f0,var(--silver));color:#1a1f29;box-shadow:0 2px 6px rgba(148,163,184,.3)}
+.rank-3{background:linear-gradient(145deg,#e08a52,var(--bronze));color:#25130a;box-shadow:0 2px 6px rgba(194,98,42,.35)}
+.rank-other{background:var(--bg3);color:var(--muted2);font-size:11px;border:1px solid var(--border)}
+.lb-dept{display:flex;align-items:center;gap:9px;min-width:0}
+.lb-dot{width:32px;height:32px;border-radius:50%;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-family:var(--font-head);font-size:11px;font-weight:700;color:#fff;overflow:hidden;border:1px solid var(--border2)}
 .lb-dot img{width:100%;height:100%;object-fit:cover;border-radius:50%}
-.lb-name{font-size:13px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:#e8eaed}
-.lb-medals{display:flex;gap:6px;align-items:center;justify-content:center}
-.medal-item{display:flex;flex-direction:column;align-items:center;gap:1px;min-width:22px;text-align:center}
-.medal-icon{width:11px;height:11px;border-radius:50%}
+.lb-name{font-size:13px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:#e8eaed}
+.lb-medals{display:flex;gap:8px;align-items:center;justify-content:center}
+.medal-item{display:flex;flex-direction:column;align-items:center;gap:2px;min-width:22px;text-align:center}
+.medal-icon{width:10px;height:10px;border-radius:50%;box-shadow:inset 0 1px 1px rgba(255,255,255,.4)}
 .mi-gold{background:var(--gold)}.mi-silver{background:var(--silver)}.mi-bronze{background:var(--bronze)}
-.medal-count{font-size:11px;font-weight:500;font-family:var(--font-mono)}
-.lb-pts{font-family:var(--font-mono);font-size:16px;font-weight:700;text-align:right}
+.medal-count{font-size:11px;font-weight:600;font-family:var(--font-mono);color:var(--muted2)}
+.lb-pts{font-family:var(--font-mono);font-size:17px;font-weight:800;text-align:right;line-height:1}
 .lb-pts .pts-num{color:var(--accent)}
-.pts-lbl{font-size:9px;color:#9ca3af;display:block;line-height:1;margin-top:1px}
+.pts-lbl{font-size:9px;color:#9ca3af;display:block;line-height:1;margin-top:2px;letter-spacing:.04em;text-transform:uppercase}
 @media(max-width:380px){
-  .lb-header,.lb-row{grid-template-columns:32px 1fr 70px 56px;padding:.65rem .7rem}
+  .lb-header,.lb-row{grid-template-columns:34px 1fr 74px 60px;padding:.7rem .7rem}
   .lb-dot{width:26px;height:26px;font-size:10px}
+  .rank-badge{width:22px;height:22px;font-size:11px}
   .lb-name{font-size:12px}
 }
+
+/* Division badge/pill — disambiguates senior-high vs junior-high content
+   (match cards, FFA cards, leaderboard filters) so identically-named
+   events/sports across divisions never look the same at a glance. */
+.division-pill{display:inline-flex;align-items:center;padding:2px 8px;border-radius:100px;font-size:9px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;font-family:var(--font-mono);margin-left:5px;border:1px solid var(--border2);color:var(--muted2);background:var(--bg3);vertical-align:middle}
+.division-pill.sh{color:#93c5fd;border-color:rgba(147,197,253,.35);background:rgba(147,197,253,.08)}
+.division-pill.jh{color:#c4b5fd;border-color:rgba(196,181,253,.35);background:rgba(196,181,253,.08)}
+
+/* Tournament Champions — per-tournament gold medalist(s), distinct from the
+   overall Sport Fest champion. Cards flex to fit 1 (single winner) or 2+
+   (per-division) champions without looking lopsided either way. */
+.tc-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:12px}
+.tc-card{background:var(--bg2);border:1px solid var(--border);border-radius:var(--r2);padding:.9rem 1rem;box-shadow:0 6px 18px rgba(0,0,0,.14);transition:border-color .15s,transform .15s}
+.tc-card:hover{border-color:var(--border3);transform:translateY(-1px)}
+.tc-card-head{display:flex;align-items:center;gap:9px;margin-bottom:.75rem;padding-bottom:.65rem;border-bottom:1px solid var(--border)}
+.tc-sport-icon{font-size:20px;flex-shrink:0;line-height:1}
+.tc-sport-name{font-family:var(--font-head);font-size:14px;font-weight:700;text-transform:uppercase;letter-spacing:.02em;color:#e8eaed;line-height:1.2}
+.tc-tournament-name{font-size:10.5px;color:var(--muted2);margin-top:1px}
+.tc-champs{display:flex;align-items:center;gap:8px}
+.tc-card.tc-dual .tc-champs{flex-wrap:wrap}
+.tc-card.tc-dual .tc-champ{flex:1 1 100px;min-width:0}
+.tc-x{font-family:var(--font-head);font-size:14px;color:var(--muted);flex-shrink:0}
+.tc-champ{display:flex;align-items:center;gap:8px;min-width:0;flex:1}
+.tc-champ-img{width:36px;height:36px;border-radius:50%;object-fit:cover;flex-shrink:0;border:2px solid color-mix(in srgb, var(--tc-color,var(--gold)) 55%, transparent)}
+.tc-champ-initials{display:flex;align-items:center;justify-content:center;font-family:var(--font-head);font-size:13px;font-weight:700;color:#fff}
+.tc-champ-body{min-width:0}
+.tc-champ-division{font-size:8.5px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--tc-color,var(--gold));font-family:var(--font-mono);line-height:1.3}
+.tc-champ-name{font-size:12.5px;font-weight:600;color:#e8eaed;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.tc-champ-sub{font-size:10px;color:var(--muted2);font-family:var(--font-mono);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 
 /* MVP */
 .mvp-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:12px}

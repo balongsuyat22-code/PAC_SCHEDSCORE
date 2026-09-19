@@ -1,4 +1,3 @@
-
 const { pool } = require('../config/database');
 const { logActivity } = require('../utils/logger');
 const { getActiveSportFestId } = require('../utils/season');
@@ -291,6 +290,114 @@ const getChampionTeams = async (req, res, next) => {
         );
 
         return res.json({ success: true, data: rows });
+    } catch (err) {
+        next(err);
+    }
+};
+
+/**
+ * Champion(s) for a single tournament (or every finalized tournament, when
+ * no tournament_id is given), grouped from the raw gold-medal rows in
+ * tournament_results.
+ *
+ * A tournament normally has ONE gold medalist (one bracket, one winner).
+ * But a tournament whose participants span both divisions (e.g. a combined
+ * Senior High + Junior High FFA event) can be ranked separately per
+ * division, producing TWO gold medalists for that same tournament. This
+ * endpoint doesn't assume either shape — it just groups whatever gold rows
+ * exist per tournament, so the caller naturally gets a single champion or a
+ * pair (indexed by `division`) without any special-casing.
+ */
+const getTournamentChampions = async (req, res, next) => {
+    try {
+        const { tournament_id, sport_id } = req.query;
+        const sportFestId = await getActiveSportFestId();
+
+        let query = `
+            SELECT
+                t.id     AS tournament_id,
+                t.name   AS tournament_name,
+                t.status AS tournament_status,
+                t.format AS tournament_format,
+                s.id     AS sport_id,
+                s.name   AS sport_name,
+                s.icon   AS sport_icon,
+                d.id     AS department_id,
+                d.name   AS department_name,
+                d.color,
+                d.logo_url,
+                d.division,
+                CASE WHEN COUNT(DISTINCT te.id) = 1 THEN MAX(te.name) ELSE NULL END AS team_name,
+                tr.rank,
+                tr.sport_fest_points,
+                tr.finalized_at
+             FROM tournament_results tr
+             JOIN tournaments t ON tr.tournament_id = t.id
+             JOIN sports      s ON t.sport_id       = s.id
+             JOIN departments d ON tr.department_id = d.id
+             LEFT JOIN teams  te ON te.department_id = d.id AND te.sport_id = s.id
+             WHERE tr.medal = 'gold' AND d.is_exhibition = 0
+        `;
+        const params = [];
+
+        if (tournament_id) {
+            query += ' AND t.id = ?';
+            params.push(tournament_id);
+        } else {
+            // Browsing the whole list — scope to the active sport fest so old
+            // seasons don't bleed into the current one.
+            query += ` AND EXISTS (
+                SELECT 1 FROM sport_fest_tournaments sft
+                WHERE sft.tournament_id = t.id AND sft.sport_fest_id <=> ?
+            )`;
+            params.push(sportFestId);
+        }
+        if (sport_id) {
+            query += ' AND s.id = ?';
+            params.push(sport_id);
+        }
+
+        query += `
+            GROUP BY t.id, t.name, t.status, t.format, s.id, s.name, s.icon,
+                     d.id, d.name, d.color, d.logo_url, d.division,
+                     tr.rank, tr.sport_fest_points, tr.finalized_at
+            ORDER BY tr.finalized_at DESC, t.name, d.division
+        `;
+
+        const [rows] = await pool.execute(query, params);
+
+        const byTournament = new Map();
+        for (const r of rows) {
+            if (!byTournament.has(r.tournament_id)) {
+                byTournament.set(r.tournament_id, {
+                    tournament_id: r.tournament_id,
+                    tournament_name: r.tournament_name,
+                    tournament_status: r.tournament_status,
+                    tournament_format: r.tournament_format,
+                    sport_id: r.sport_id,
+                    sport_name: r.sport_name,
+                    sport_icon: r.sport_icon,
+                    finalized_at: r.finalized_at,
+                    champions: [],
+                });
+            }
+            byTournament.get(r.tournament_id).champions.push({
+                department_id: r.department_id,
+                name: r.department_name,
+                color: r.color,
+                logo_url: r.logo_url,
+                division: r.division,
+                team_name: r.team_name,
+                points: r.sport_fest_points,
+            });
+        }
+
+        const data = [...byTournament.values()];
+
+        if (tournament_id) {
+            return res.json({ success: true, data: data[0] || null });
+        }
+        return res.json({ success: true, data });
     } catch (err) {
         next(err);
     }
@@ -609,6 +716,7 @@ module.exports = {
     getTopScorers,
     getWinningTeams,
     getChampionTeams,
+    getTournamentChampions,
     getOverallChampion,
     getDepartmentMVP,
     getOverallMVP,
