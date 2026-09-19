@@ -408,13 +408,13 @@
             const values = new Set();
             (data.leaderboard || []).forEach(row => row.division && values.add(row.division));
             (data.champions || []).forEach(row => row.division && values.add(row.division));
-            (data.tournaments || []).forEach(row => tournamentDivision(row, data) && values.add(tournamentDivision(row, data)));
+            (data.tournaments || []).forEach(row => tournamentDivisions(row, data).forEach(division => values.add(division)));
             return [...values].sort((a, b) => String(a).localeCompare(String(b)));
         }
 
         function hasUnassignedDivisionData(data) {
             return (data.leaderboard || []).some(row => !row.division) ||
-                (data.tournaments || []).some(row => !tournamentDivision(row, data));
+                (data.tournaments || []).some(row => !tournamentDivisions(row, data).length);
         }
 
         function departmentDivisions(data) {
@@ -433,6 +433,15 @@
                 return map[name] || null;
             }).filter(Boolean));
             return divisions.size === 1 ? [...divisions][0] : null;
+        }
+
+        function tournamentDivisions(tournament, data) {
+            if (tournament.division) return [tournament.division];
+            const map = departmentDivisions(data);
+            return [...new Set((tournament.standings || []).map(row => {
+                const name = String(row.department_name || row.name || '').trim().toLowerCase();
+                return map[name] || null;
+            }).filter(Boolean))];
         }
 
         function buildDivisionScope() {
@@ -471,7 +480,12 @@
         }
 
         function tournamentBlock(t, data, division) {
-            const standings = (t.standings || []).slice().sort((a, b) => Number(a.rank || 999) - Number(b.rank || 999));
+            const map = departmentDivisions(data);
+            const standings = (t.standings || []).filter(row => {
+                if (division === '__all__') return true;
+                const rowDivision = map[String(row.department_name || '').trim().toLowerCase()];
+                return !rowDivision || rowDivision === division;
+            }).slice().sort((a, b) => Number(a.rank || 999) - Number(b.rank || 999));
             const matches = (t.matches || []).filter(match => {
                 if (division === '__all__') return true;
                 const map = departmentDivisions(data);
@@ -496,8 +510,8 @@
                 const rows = isAll ? (data.leaderboard || []) : (data.leaderboard || []).filter(d => d.division === division);
                 const champs = isAll ? champions : champions.filter(c => c.division === division);
                 const tournaments = isAll
-                    ? tourneys.filter(t => !tournamentDivision(t, data))
-                    : tourneys.filter(t => tournamentDivision(t, data) === division);
+                    ? tourneys.filter(t => !tournamentDivisions(t, data).length)
+                    : tourneys.filter(t => tournamentDivisions(t, data).includes(division));
                 return `<section class="division-section"><div class="division-heading">${isAll ? 'Other / Unassigned' : esc(label(division))} Division</div>${selectedSections.has('champions') && champs.length ? `<div class="sheet-title">Champion</div><div class="champions">${champs.map(c => `<div class="champion"><div class="champion-name">${esc(c.name)}</div><div class="champion-meta">${c.total_points ?? 0} points - ${c.gold_medals || 0} gold</div></div>`).join('')}</div>` : ''}${selectedSections.has('standings') ? `<div class="sheet-title">Department Standings</div>${standingsTable(rows)}` : ''}${selectedSections.has('tournaments') || selectedSections.has('matches') ? `<div class="sheet-title">Tournament Results</div>${tournaments.length ? tournaments.map(t => tournamentBlock(t, data, division)).join('') : '<div class="empty">No tournaments recorded for this division.</div>'}` : ''}</section>`;
             }).join('');
             return `<div class="sheet"><header class="sheet-header"><div><h1>${esc(data.sport_fest?.name || 'Sport Fest')}</h1><div class="sheet-sub">Admin final results export${data.sport_fest?.year ? ` - ${esc(data.sport_fest.year)}` : ''}</div></div><div class="sheet-badge">Admin Export</div></header><div class="sheet-body">${divisionHtml}<div class="sheet-footer"><span>Exported by ${esc(data.exported_by || 'Admin')}</span><span>${new Date(data.exported_at || Date.now()).toLocaleString('en-PH')}</span></div></div></div>`;

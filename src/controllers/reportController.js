@@ -758,6 +758,7 @@ const getSportFestExport = async (req, res, next) => {
         );
 
         let resultsByTournament = {};
+        let matchesByTournament = {};
         if (tournaments.length) {
             const ids = tournaments.map((t) => t.id);
             const placeholders = ids.map(() => '?').join(',');
@@ -775,11 +776,35 @@ const getSportFestExport = async (req, res, next) => {
                 (acc[r.tournament_id] = acc[r.tournament_id] || []).push(r);
                 return acc;
             }, {});
+
+            const [allMatches] = await pool.execute(
+                `SELECT m.id, m.tournament_id, m.round_number, m.match_number,
+                        m.bracket_position, m.bracket_side, m.status,
+                        m.scheduled_date, m.scheduled_time, m.started_at, m.completed_at,
+                        da.name AS dept_a_name, db.name AS dept_b_name,
+                        m.winner_department_id, dw.name AS winner_name,
+                        v.name AS venue_name,
+                        mr.total_score_a, mr.total_score_b, mr.final_score_display
+                 FROM matches m
+                 LEFT JOIN departments da ON da.id = m.participant_a_department_id
+                 LEFT JOIN departments db ON db.id = m.participant_b_department_id
+                 LEFT JOIN departments dw ON dw.id = m.winner_department_id
+                 LEFT JOIN venues v ON v.id = m.venue_id
+                 LEFT JOIN match_results mr ON mr.match_id = m.id
+                 WHERE m.tournament_id IN (${placeholders})
+                 ORDER BY m.tournament_id ASC, m.round_number ASC, m.match_number ASC, m.id ASC`,
+                ids
+            );
+            matchesByTournament = allMatches.reduce((acc, match) => {
+                (acc[match.tournament_id] = acc[match.tournament_id] || []).push(match);
+                return acc;
+            }, {});
         }
 
         const tournamentsWithResults = tournaments.map((t) => ({
             ...t,
             standings: resultsByTournament[t.id] || [],
+            matches: matchesByTournament[t.id] || [],
         }));
 
         const championFinalized = declaredChampions.length > 0 || !!fest.champion_department_id;

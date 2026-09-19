@@ -972,9 +972,16 @@
             // ----- Tournaments (shared; filter standing rows by division) -----
             let tourneyHtml = '';
             if (sections.has('tournaments') || sections.has('matches')) {
-                function renderTourneyBlock(t) {
+                function renderTourneyBlock(t, divisionFilter = null) {
                     const isDone = t.status === 'completed';
                     let standings = t.standings || [];
+
+                    if (divisionFilter) {
+                        standings = standings.filter(s => {
+                            const div = resolveStandingDivision(s, deptMap);
+                            return !div || div === divisionFilter;
+                        });
+                    }
 
                     // Filter standing rows to selected divisions (using dept map)
                     if (!showAllDivs && activeDivs.size) {
@@ -1013,6 +1020,13 @@
                     if (sections.has('matches') && Array.isArray(t.matches) && t.matches.length) {
                         // Optionally filter matches to teams in selected divisions
                         let matches = t.matches;
+                        if (divisionFilter) {
+                            matches = matches.filter(m => {
+                                const aDiv = deptMap[(m.dept_a_name || '').trim().toLowerCase()];
+                                const bDiv = deptMap[(m.dept_b_name || '').trim().toLowerCase()];
+                                return !aDiv && !bDiv || aDiv === divisionFilter || bDiv === divisionFilter;
+                            });
+                        }
                         if (!showAllDivs && activeDivs.size) {
                             matches = matches.filter(m => {
                                 const aDiv = deptMap[(m.dept_a_name || '').trim().toLowerCase()];
@@ -1072,7 +1086,17 @@
                         </div>`;
                 }
 
-                const blocks = allTourneys.map(renderTourneyBlock).filter(Boolean).join('');
+                let blocks = '';
+                if (orderedDivs.length) {
+                    blocks = orderedDivs.map(div => {
+                        const divisionBlocks = allTourneys.map(t => renderTourneyBlock(t, div)).filter(Boolean).join('');
+                        return divisionBlocks
+                            ? `<div class="sheet-section-title sub-div">${formatDivisionLabel(div)} Tournaments</div>${divisionBlocks}`
+                            : '';
+                    }).join('');
+                } else {
+                    blocks = allTourneys.map(t => renderTourneyBlock(t)).filter(Boolean).join('');
+                }
                 tourneyHtml = `
                     <div class="sheet-section-title">Tournaments This Season (${allTourneys.length})</div>
                     ${blocks || `<div class="empty-state"><div class="empty-text">No tournaments to show for the current filters.</div></div>`}`;

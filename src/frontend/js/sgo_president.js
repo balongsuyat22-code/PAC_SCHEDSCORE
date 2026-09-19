@@ -6,6 +6,7 @@
         { section: 'Overview' },
         { key: 'dashboard', icon: 'fa-solid fa-gauge-high', label: 'Dashboard', href: '/president/dashboard' },
         { key: 'live', icon: 'fa-solid fa-circle-play', label: 'Live Scores', href: '/president/live', badge: 'live' },
+        { key: 'matches', icon: 'fa-solid fa-scoreboard', label: 'Matches & Scoring', href: '/president/matches' },
         { key: 'leaderboard', icon: 'fa-solid fa-ranking-star', label: 'Leaderboard', href: '/president/leaderboard' },
         { section: 'Tournament Ops' },
         { key: 'sports', icon: 'fa-solid fa-medal', label: 'Sports', href: '/president/sports' },
@@ -419,6 +420,7 @@
                 assignment: 'schedule', live: 'live', 'live-scores': 'live',
                 leaderboard: 'leaderboard',
                 departments: 'departments', users: 'users',
+                matches: 'matches',
                 'tournament-export': 'tournament-export',
                 reports: 'reports', notifications: 'notifications'
             };
