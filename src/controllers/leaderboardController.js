@@ -4,6 +4,7 @@ const { getActiveSportFestId } = require('../utils/season');
 const { emitToLeaderboard } = require('../utils/socketEmit');
 const cache = require('../utils/cache');
 const { rebuildDepartmentScores } = require('../utils/scoring');
+const { createNotification } = require('./notificationController');
 
 const LEADERBOARD_TTL = 10;
 
@@ -606,6 +607,18 @@ const recalculate = async (req, res, next) => {
         );
 
         emitToLeaderboard('leaderboard:changed', { reason: 'manual_recalculate' });
+
+        const actor = `${req.user.first_name || ''} ${req.user.last_name || ''}`.trim() || req.user.username || 'an authorized user';
+        const placementNotice = {
+            type: 'placement_changed',
+            severity: 'warning',
+            title: 'Leaderboard recalculated',
+            message: `Sport Fest placements and points were manually recalculated by ${actor}. Review the leaderboard for unexpected changes.`,
+            entity_type: 'leaderboard',
+            created_by: req.user.id,
+        };
+        await createNotification({ ...placementNotice, role: 'dean_adviser', link: '/dean/leaderboard' });
+        await createNotification({ ...placementNotice, role: 'sgo_president', link: '/president/leaderboard' });
 
         return res.json({ success: true, message: 'Leaderboard recalculated successfully.' });
     } catch (err) {

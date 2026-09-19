@@ -61,6 +61,13 @@
             margin-bottom: 16px;
         }
 
+        .scope-group {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+            align-items: center;
+        }
+
         .scope-label {
             color: var(--muted);
             font-size: 12px;
@@ -78,6 +85,22 @@
             border-radius: 12px;
             overflow: hidden;
             box-shadow: 0 20px 50px rgba(0, 0, 0, .3);
+        }
+
+        .tournament-block {
+            break-inside: avoid;
+            page-break-inside: avoid;
+            margin-bottom: 18px;
+        }
+
+        .tournament-block h3 {
+            margin: 0 0 8px;
+            font: 800 17px 'Barlow Condensed', sans-serif;
+        }
+
+        .tournament-block h3 small {
+            color: #666;
+            font: 500 12px 'Barlow', sans-serif;
         }
 
         .sheet-header {
@@ -243,6 +266,8 @@
                 inset: 0;
                 width: 100%;
                 max-width: none;
+                height: auto;
+                overflow: visible;
                 box-shadow: none;
                 border-radius: 0;
             }
@@ -327,6 +352,7 @@
         let seasonData = null;
         let sheetTitle = 'admin-season-report';
         const selectedDivisions = new Set();
+        const selectedSections = new Set(['champions', 'standings', 'tournaments', 'matches']);
         const esc = value => String(value ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
         const label = value => String(value || 'Other / Unassigned').replace(/_/g, ' ');
         const medalClass = value => value && String(value).toLowerCase().includes('gold') ? 'medal-gold' : value && String(value).toLowerCase().includes('silver') ? 'medal-silver' : value && String(value).toLowerCase().includes('bronze') ? 'medal-bronze' : '';
@@ -334,9 +360,15 @@
         document.addEventListener('DOMContentLoaded', async () => {
             Auth.requireAuth('admin');
             renderSidebar('tournament-export');
-            document.getElementById('burger-menu')?.addEventListener('click', toggleSidebar);
             await loadTournamentList();
-            await loadSeasonExport();
+            const tournamentId = new URLSearchParams(window.location.search).get('tournament_id');
+            if (tournamentId) {
+                switchMode('single');
+                document.getElementById('t-select').value = tournamentId;
+                await loadSingleExport();
+            } else {
+                await loadSeasonExport();
+            }
         });
 
         function switchMode(next) {
@@ -380,6 +412,11 @@
             return [...values].sort((a, b) => String(a).localeCompare(String(b)));
         }
 
+        function hasUnassignedDivisionData(data) {
+            return (data.leaderboard || []).some(row => !row.division) ||
+                (data.tournaments || []).some(row => !tournamentDivision(row, data));
+        }
+
         function departmentDivisions(data) {
             const map = {};
             (data.leaderboard || []).forEach(row => {
@@ -402,11 +439,18 @@
             const panel = document.getElementById('scope-panel');
             const divisions = getDivisions(seasonData);
             if (!selectedDivisions.size) divisions.forEach(d => selectedDivisions.add(d));
-            panel.innerHTML = '<span class="scope-label">Print divisions</span><button class="scope-chip" onclick="selectAllDivisions()">All</button>' + divisions.map(d => `<button class="scope-chip ${selectedDivisions.has(d) ? 'active' : ''}" data-division="${esc(d)}" onclick="toggleDivision('${esc(d)}')">${esc(label(d))}</button>`).join('');
+            panel.innerHTML = '<div class="scope-group"><span class="scope-label">Print divisions</span><button class="scope-chip" onclick="selectAllDivisions()">All</button>' + divisions.map(d => `<button class="scope-chip ${selectedDivisions.has(d) ? 'active' : ''}" data-division="${esc(d)}" onclick="toggleDivision('${esc(d)}')">${esc(label(d))}</button>`).join('') + '</div><div class="scope-group"><span class="scope-label">Include</span>' + ['champions', 'standings', 'tournaments', 'matches'].map(section => `<button class="scope-chip ${selectedSections.has(section) ? 'active' : ''}" onclick="toggleSection('${section}')">${label(section)}</button>`).join('') + '</div>';
         }
 
         function selectAllDivisions() { getDivisions(seasonData).forEach(d => selectedDivisions.add(d)); buildDivisionScope(); loadSeasonExport(); }
         function toggleDivision(division) { if (selectedDivisions.has(division) && selectedDivisions.size > 1) selectedDivisions.delete(division); else selectedDivisions.add(division); buildDivisionScope(); document.getElementById('sheet-host').innerHTML = renderSeason(seasonData); showDownloads(); }
+        function toggleSection(section) {
+            if (selectedSections.has(section) && selectedSections.size <= 1) return;
+            if (selectedSections.has(section)) selectedSections.delete(section); else selectedSections.add(section);
+            buildDivisionScope();
+            document.getElementById('sheet-host').innerHTML = renderSeason(seasonData);
+            showDownloads();
+        }
 
         async function loadSingleExport() {
             const id = document.getElementById('t-select').value;
@@ -426,16 +470,27 @@
             return `<table><thead><tr><th>Rank</th><th>Department</th><th>Gold</th><th>Silver</th><th>Bronze</th><th>Points</th></tr></thead><tbody>${list.length ? list.map((d, i) => `<tr><td>${i + 1}</td><td>${esc(d.name)}</td><td class="medal-gold">${d.gold_medals || 0}</td><td class="medal-silver">${d.silver_medals || 0}</td><td class="medal-bronze">${d.bronze_medals || 0}</td><td><strong>${d.total_points || 0}</strong></td></tr>`).join('') : '<tr><td colspan="6">No standings recorded.</td></tr>'}</tbody></table>`;
         }
 
-        function tournamentBlock(t) {
+        function tournamentBlock(t, data, division) {
             const standings = (t.standings || []).slice().sort((a, b) => Number(a.rank || 999) - Number(b.rank || 999));
-            return `<article class="tournament-block"><h3>${esc(t.name)} <small>${esc(t.sport_name || '')}</small></h3><table><thead><tr><th>Rank</th><th>Department</th><th>Medal</th><th>Points</th></tr></thead><tbody>${standings.length ? standings.map(s => `<tr class="${s.rank === 1 ? 'winner' : ''}"><td>${s.rank ?? '-'}</td><td>${esc(s.department_name)}${s.team_name ? ` - ${esc(s.team_name)}` : ''}</td><td class="${medalClass(s.medal)}">${esc(s.medal || '-')}</td><td>${s.sport_fest_points ?? 0}</td></tr>`).join('') : '<tr><td colspan="4">No standings recorded.</td></tr>'}</tbody></table></article>`;
+            const matches = (t.matches || []).filter(match => {
+                if (division === '__all__') return true;
+                const map = departmentDivisions(data);
+                const a = map[String(match.dept_a_name || '').trim().toLowerCase()];
+                const b = map[String(match.dept_b_name || '').trim().toLowerCase()];
+                return !a && !b || a === division || b === division;
+            });
+            const standingsHtml = selectedSections.has('standings') ? `<table><thead><tr><th>Rank</th><th>Department</th><th>Medal</th><th>Points</th></tr></thead><tbody>${standings.length ? standings.map(s => `<tr class="${s.rank === 1 ? 'winner' : ''}"><td>${s.rank ?? '-'}</td><td>${esc(s.department_name)}${s.team_name ? ` - ${esc(s.team_name)}` : ''}</td><td class="${medalClass(s.medal)}">${esc(s.medal || '-')}</td><td>${s.sport_fest_points ?? 0}</td></tr>`).join('') : '<tr><td colspan="4">No standings recorded.</td></tr>'}</tbody></table>` : '';
+            const matchesHtml = selectedSections.has('matches') ? `<table><thead><tr><th>Round</th><th>Matchup</th><th>Score</th><th>Winner</th><th>Date</th></tr></thead><tbody>${matches.length ? matches.map(m => `<tr><td>R${m.round_number ?? '-'}/${m.match_number ?? '-'}</td><td>${esc(m.dept_a_name || '-')} vs ${esc(m.dept_b_name || '-')}</td><td>${esc(m.final_score_display || (m.total_score_a != null ? `${m.total_score_a} - ${m.total_score_b}` : '-'))}</td><td>${esc(m.winner_name || '-')}</td><td>${esc(m.scheduled_date || '-')}</td></tr>`).join('') : '<tr><td colspan="5">No matches recorded.</td></tr>'}</tbody></table>` : '';
+            return `<article class="tournament-block"><h3>${esc(t.name)} <small>${esc(t.sport_name || '')}</small></h3>${selectedSections.has('standings') ? '<div class="sheet-title">Tournament Rankings</div>' : ''}${standingsHtml}${selectedSections.has('matches') ? '<div class="sheet-title">Matches / Schedule</div>' : ''}${matchesHtml}</article>`;
         }
 
         function renderSeason(data) {
             const divisions = getDivisions(data).filter(d => selectedDivisions.has(d));
             const champions = data.champions || (data.champion ? [data.champion] : []);
             const tourneys = data.tournaments || [];
-            const sections = divisions.length ? divisions : ['__all__'];
+            const sections = divisions.length
+                ? (hasUnassignedDivisionData(data) ? [...divisions, '__all__'] : divisions)
+                : ['__all__'];
             const divisionHtml = sections.map((division, index) => {
                 const isAll = division === '__all__';
                 const rows = isAll ? (data.leaderboard || []) : (data.leaderboard || []).filter(d => d.division === division);
@@ -443,7 +498,7 @@
                 const tournaments = isAll
                     ? tourneys.filter(t => !tournamentDivision(t, data))
                     : tourneys.filter(t => tournamentDivision(t, data) === division);
-                return `<section class="division-section"><div class="division-heading">${isAll ? 'Other / Unassigned' : esc(label(division))} Division</div>${champs.length ? `<div class="champions">${champs.map(c => `<div class="champion"><div class="champion-name">${esc(c.name)}</div><div class="champion-meta">${c.total_points ?? 0} points - ${c.gold_medals || 0} gold</div></div>`).join('')}</div>` : ''}<div class="sheet-title">Department Standings</div>${standingsTable(rows)}<div class="sheet-title">Tournament Results</div>${tournaments.length ? tournaments.map(tournamentBlock).join('') : '<div class="empty">No tournaments recorded for this division.</div>'}</section>`;
+                return `<section class="division-section"><div class="division-heading">${isAll ? 'Other / Unassigned' : esc(label(division))} Division</div>${selectedSections.has('champions') && champs.length ? `<div class="sheet-title">Champion</div><div class="champions">${champs.map(c => `<div class="champion"><div class="champion-name">${esc(c.name)}</div><div class="champion-meta">${c.total_points ?? 0} points - ${c.gold_medals || 0} gold</div></div>`).join('')}</div>` : ''}${selectedSections.has('standings') ? `<div class="sheet-title">Department Standings</div>${standingsTable(rows)}` : ''}${selectedSections.has('tournaments') || selectedSections.has('matches') ? `<div class="sheet-title">Tournament Results</div>${tournaments.length ? tournaments.map(t => tournamentBlock(t, data, division)).join('') : '<div class="empty">No tournaments recorded for this division.</div>'}` : ''}</section>`;
             }).join('');
             return `<div class="sheet"><header class="sheet-header"><div><h1>${esc(data.sport_fest?.name || 'Sport Fest')}</h1><div class="sheet-sub">Admin final results export${data.sport_fest?.year ? ` - ${esc(data.sport_fest.year)}` : ''}</div></div><div class="sheet-badge">Admin Export</div></header><div class="sheet-body">${divisionHtml}<div class="sheet-footer"><span>Exported by ${esc(data.exported_by || 'Admin')}</span><span>${new Date(data.exported_at || Date.now()).toLocaleString('en-PH')}</span></div></div></div>`;
         }
@@ -455,7 +510,7 @@
             return `<div class="sheet"><header class="sheet-header"><div><h1>${esc(t.name || 'Tournament Results')}</h1><div class="sheet-sub">${esc(t.sport_name || '')} - ${esc(t.format || '')}</div></div><div class="sheet-badge">Admin Export</div></header><div class="sheet-body"><div class="sheet-title">Final Standings</div>${standingsTable(standings.map(s => ({ ...s, name: s.department_name, total_points: s.sport_fest_points, gold_medals: s.medal === 'Gold' ? 1 : 0, silver_medals: s.medal === 'Silver' ? 1 : 0, bronze_medals: s.medal === 'Bronze' ? 1 : 0 })))}<div class="sheet-title">All Matches</div><table><thead><tr><th>Round</th><th>Matchup</th><th>Score</th><th>Winner</th><th>Date</th></tr></thead><tbody>${matches.length ? matches.map(m => `<tr><td>R${m.round_number ?? '-'}/${m.match_number ?? '-'}</td><td>${esc(m.dept_a_name || '-')} vs ${esc(m.dept_b_name || '-')}</td><td>${esc(m.final_score_display || (m.total_score_a != null ? `${m.total_score_a} - ${m.total_score_b}` : '-'))}</td><td>${esc(m.winner_name || '-')}</td><td>${esc(m.scheduled_date || '-')}</td></tr>`).join('') : '<tr><td colspan="5">No matches recorded.</td></tr>'}</tbody></table><div class="sheet-footer"><span>Exported by Admin</span><span>${new Date(data.exported_at || Date.now()).toLocaleString('en-PH')}</span></div></div></div>`;
         }
 
-        function downloadPdf(event) { const sheet = document.querySelector('.sheet'); if (!sheet) return; const button = event?.target?.closest('button'); if (button) button.disabled = true; html2pdf().set({ margin: .3, filename: `${sheetTitle}.pdf`, image: { type: 'jpeg', quality: .98 }, html2canvas: { scale: 2, useCORS: true }, jsPDF: { unit: 'in', format: 'letter', orientation: 'portrait' }, pagebreak: { mode: ['avoid-all', 'css', 'legacy'] } }).from(sheet).save().finally(() => { if (button) button.disabled = false; }); }
+        function downloadPdf(event) { const sheet = document.querySelector('.sheet'); if (!sheet) return; const button = event?.target?.closest('button'); if (button) button.disabled = true; html2pdf().set({ margin: .3, filename: `${sheetTitle}.pdf`, image: { type: 'jpeg', quality: .98 }, html2canvas: { scale: 2, useCORS: true }, jsPDF: { unit: 'in', format: 'letter', orientation: 'portrait' }, pagebreak: { mode: ['css', 'legacy'] } }).from(sheet).save().finally(() => { if (button) button.disabled = false; }); }
         function downloadWord() { const sheet = document.querySelector('.sheet'); if (!sheet) return; const blob = new Blob([`<html><head><meta charset="utf-8"><title>${esc(sheetTitle)}</title></head><body>${sheet.outerHTML}</body></html>`], { type: 'application/msword' }); const url = URL.createObjectURL(blob); const link = document.createElement('a'); link.href = url; link.download = `${sheetTitle}.doc`; link.click(); URL.revokeObjectURL(url); }
     </script>
 </body>

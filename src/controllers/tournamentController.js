@@ -4,7 +4,7 @@ const { recordResultsAndRebuild, DEFAULT_MEDAL_POINTS } = require('../utils/scor
 const cache = require('../utils/cache');
 const { emitToLeaderboard } = require('../utils/socketEmit');
 const { generateBracket: generateBracketService } = require('../services/bracketService');
-const { notifyRoles } = require('./notificationController');
+const { createNotification, notifyRoles } = require('./notificationController');
 const {
     getFixedBlock,
     findTeamConflict,
@@ -1335,6 +1335,19 @@ const finalizeTournament = async (req, res, next) => {
             reason: 'tournament_finalized',
             tournament_id: Number(req.params.id),
         });
+
+        const actor = `${req.user.first_name || ''} ${req.user.last_name || ''}`.trim() || req.user.username || 'an authorized user';
+        const placementNotice = {
+            type: 'placement_changed',
+            severity: 'warning',
+            title: t.status === 'completed' ? 'Tournament placements recalculated' : 'Tournament placements finalized',
+            message: `${t.name} placements and Sport Fest points were ${t.status === 'completed' ? 'recalculated' : 'finalized'} by ${actor}. Review the results and rankings.`,
+            entity_type: 'tournament',
+            entity_id: Number(req.params.id),
+            created_by: req.user.id,
+        };
+        await createNotification({ ...placementNotice, role: 'dean_adviser', link: '/dean/leaderboard' });
+        await createNotification({ ...placementNotice, role: 'sgo_president', link: '/president/leaderboard' });
 
         res.json({
             success: true,

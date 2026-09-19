@@ -946,27 +946,24 @@ const updateScore = async (req, res, next) => {
             `Score updated: ${safeA}-${safeB} in period ${safePeriod}`
         );
 
+        const scoreActor = `${req.user.first_name || ''} ${req.user.last_name || ''}`.trim() || req.user.username || 'an authorized user';
+        const scoreChangedAfterCompletion = match.status === 'completed';
+        const scoreNotice = {
+            type: 'score_updated',
+            severity: scoreChangedAfterCompletion ? 'warning' : 'info',
+            title: scoreChangedAfterCompletion ? 'Completed match score changed' : 'Match score updated',
+            message: `${match.dept_a_name || 'Team A'} vs ${match.dept_b_name || 'Team B'} was updated to ${totals.total_a}-${totals.total_b} by ${scoreActor}${scoreChangedAfterCompletion ? '. Review this completed result.' : ''}`,
+            entity_type: 'match',
+            entity_id: matchId,
+            created_by: userId,
+        };
         await createNotification({
+            ...scoreNotice,
             role: 'dean_adviser',
-            type: 'score_updated',
-            title: 'Match score updated',
-            message: `${match.dept_a_name || 'Team A'} vs ${match.dept_b_name || 'Team B'} was updated to ${totals.total_a}-${totals.total_b} by ${req.user.first_name || ''} ${req.user.last_name || ''}`.trim(),
             link: `/dean/matches?match_id=${matchId}`,
-            severity: 'info',
-            entity_type: 'match',
-            entity_id: matchId,
-            created_by: userId,
         });
-        await notifyRoles(['admin', 'sgo_president'], {
-            type: 'score_updated',
-            title: 'Match score updated',
-            message: `${match.dept_a_name || 'Team A'} vs ${match.dept_b_name || 'Team B'} was updated to ${totals.total_a}-${totals.total_b} by ${req.user.first_name || ''} ${req.user.last_name || ''}`.trim(),
-            link: '/admin/live',
-            severity: 'info',
-            entity_type: 'match',
-            entity_id: matchId,
-            created_by: userId,
-        });
+        await createNotification({ ...scoreNotice, role: 'sgo_president', link: '/president/live' });
+        await createNotification({ ...scoreNotice, role: 'admin', link: '/admin/live' });
 
         return res.json({
             success: true,
@@ -1361,6 +1358,34 @@ const saveFFAResults = async (req, res, next) => {
         await conn.commit();
 
         emitToTournament(tournamentId, 'ffa:resultsUpdated', { tournament_id: tournamentId });
+
+        const [[tournament]] = await pool.execute(
+            'SELECT name FROM tournaments WHERE id = ?',
+            [tournamentId]
+        );
+        const actor = `${req.user.first_name || ''} ${req.user.last_name || ''}`.trim() || req.user.username || 'an authorized user';
+        await createNotification({
+            role: 'dean_adviser',
+            type: 'placement_changed',
+            severity: 'warning',
+            title: 'FFA placements updated',
+            message: `${tournament?.name || 'An FFA tournament'} scores and placements were updated by ${actor}. Review the rankings for accuracy.`,
+            link: '/dean/leaderboard',
+            entity_type: 'tournament',
+            entity_id: Number(tournamentId),
+            created_by: userId,
+        });
+        await createNotification({
+            role: 'sgo_president',
+            type: 'placement_changed',
+            severity: 'warning',
+            title: 'FFA placements updated',
+            message: `${tournament?.name || 'An FFA tournament'} scores and placements were updated by ${actor}. Review the rankings for accuracy.`,
+            link: '/president/leaderboard',
+            entity_type: 'tournament',
+            entity_id: Number(tournamentId),
+            created_by: userId,
+        });
 
         return res.json({ success: true, message: 'FFA results saved.' });
     } catch (err) {

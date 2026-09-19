@@ -1563,7 +1563,7 @@
                                 <button type="button" class="ffa-toggle-btn" id="ffa-toggle-${m.id}" onclick="toggleFFADetails(${m.id}, ${m.tournament_id})">
                                     View Details <span class="chev">▾</span>
                                 </button>
-                                <button class="btn btn-secondary btn-sm" onclick="openFFAResultsEditor(${m.id}, ${m.tournament_id})"><span class="icon" data-icon="dashboard"></span> ${isDone ? 'Edit Finished Scores' : 'Edit Results'}</button>
+                                <button class="btn btn-secondary btn-sm" onclick="${isDone ? `openFFAResultsEditor(${m.id}, ${m.tournament_id})` : `toggleFFADetails(${m.id}, ${m.tournament_id})`}"><span class="icon" data-icon="dashboard"></span> ${isDone ? 'View Details / Edit Score' : 'Edit Results'}</button>
                                 <button class="btn btn-primary btn-sm" style="background:var(--green);color:#000" onclick="location.href='/admin/tournaments?id=${m.tournament_id}'"><span class="icon" data-icon="tournaments"></span> Manage FFA Event</button>
                                 ${(isSched || isUnSched) ? `<button class="btn btn-secondary btn-sm" onclick="openSchedule(${m.id})"><span class="icon" data-icon="schedule"></span> Schedule</button>` : ''}
                             ` : `
@@ -1571,7 +1571,7 @@
                                 ${isSched ? `<button class="btn btn-primary btn-sm" onclick="startMatch(${m.id})"><span class="icon" data-icon="play"></span> Start Match</button>` : ''}
                                 ${isLive ? `<button class="btn btn-primary btn-sm" onclick="openScore(${m.id})"><span class="icon" data-icon="dashboard"></span> ${isBinary ? 'Result' : 'Score'}</button>` : ''}
                                 ${isLive ? `<button class="btn btn-sm" style="background:var(--green);color:#000;font-weight:800" onclick="openComplete(${m.id})"><span class="icon" data-icon="flagIcon"></span> Finish</button>` : ''}
-                                ${isDone ? `<button class="btn btn-secondary btn-sm" onclick="openScore(${m.id})"><span class="icon" data-icon="eye"></span> View Details</button>` : ''}
+                                ${isDone ? `<button class="btn btn-secondary btn-sm" onclick="openScore(${m.id}, true)"><span class="icon" data-icon="eye"></span> View Details / Edit Score</button>` : ''}
                             `}
                         </div>
                     </td>
@@ -1859,7 +1859,7 @@
             if (res.success) await refresh();
         }
 
-        async function openScore(id) {
+        async function openScore(id, editFinished = false) {
             activeId = id;
             const m = allMatches.find(x => x.id === id);
             if (!m) return;
@@ -1871,7 +1871,7 @@
 
             const type = matchType(m);
             activeMatchType = type;
-            const readOnly = type === 'binary' && m.status === 'completed';
+            const readOnly = type === 'binary' && m.status === 'completed' && !editFinished;
 
             const nA = m.team_a_name || m.dept_a_name || 'A';
             const nB = m.team_b_name || m.dept_b_name || 'B';
