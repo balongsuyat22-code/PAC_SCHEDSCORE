@@ -1042,8 +1042,8 @@
         <div class="modal">
             <div class="modal-header">
                 <div class="modal-title"><span class="icon" data-icon="schedule"></span> Schedule Match</div>
-                <button class="modal-close" onclick="Modal.close('modal-schedule')"><span class="icon"
-                        data-icon="x"></span></button>
+                <button class="modal-close" type="button" aria-label="Close schedule modal"
+                    onclick="Modal.close('modal-schedule')">&times;</button>
             </div>
             <div class="modal-body">
                 <div id="sched-preview" style="margin-bottom:16px"></div>
@@ -1091,8 +1091,8 @@
             <div class="modal-header">
                 <div class="modal-title" id="score-modal-title"><span class="icon" data-icon="dashboard"></span> Live
                     Scoring</div>
-                <button class="modal-close" onclick="Modal.close('modal-score')"><span class="icon"
-                        data-icon="x"></span></button>
+                <button class="modal-close" type="button" aria-label="Close score modal"
+                    onclick="Modal.close('modal-score')">&times;</button>
             </div>
             <div class="modal-body">
                 <div id="score-preview" style="margin-bottom:16px"></div>
@@ -1141,8 +1141,8 @@
         <div class="modal" style="max-width:540px">
             <div class="modal-header">
                 <div class="modal-title"><span class="icon" data-icon="flagIcon"></span> Complete Match</div>
-                <button class="modal-close" onclick="Modal.close('modal-complete')"><span class="icon"
-                        data-icon="x"></span></button>
+                <button class="modal-close" type="button" aria-label="Close complete match modal"
+                    onclick="Modal.close('modal-complete')">&times;</button>
             </div>
             <div class="modal-body">
                 <div id="complete-preview" style="margin-bottom:20px"></div>
@@ -1563,6 +1563,7 @@
                                 <button type="button" class="ffa-toggle-btn" id="ffa-toggle-${m.id}" onclick="toggleFFADetails(${m.id}, ${m.tournament_id})">
                                     View Details <span class="chev">▾</span>
                                 </button>
+                                <button class="btn btn-secondary btn-sm" onclick="openFFAResultsEditor(${m.id}, ${m.tournament_id})"><span class="icon" data-icon="dashboard"></span> ${isDone ? 'Edit Finished Scores' : 'Edit Results'}</button>
                                 <button class="btn btn-primary btn-sm" style="background:var(--green);color:#000" onclick="location.href='/admin/tournaments?id=${m.tournament_id}'"><span class="icon" data-icon="tournaments"></span> Manage FFA Event</button>
                                 ${(isSched || isUnSched) ? `<button class="btn btn-secondary btn-sm" onclick="openSchedule(${m.id})"><span class="icon" data-icon="schedule"></span> Schedule</button>` : ''}
                             ` : `
@@ -1590,6 +1591,8 @@
         }
 
         const _ffaLoaded = {};
+        const _ffaData = {};
+        const _ffaEditMode = {};
 
         function toggleFFADetails(matchId, tournamentId) {
             const sub = document.getElementById(`ffa-subrow-${matchId}`);
@@ -1618,37 +1621,80 @@
                 const res = await api(`/matches/ffa/${tid}`);
                 if (!res.success) throw new Error(res.message || 'Failed');
                 const t = res.data || {};
-                const scoringType = t.ffa_scoring || 'points';
-                const scoreLabel = scoringType === 'time' ? 'Time (s)' : scoringType === 'distance' ? 'Distance / Score' : 'Points';
-                const participants = t.participants || [];
+                _ffaData[match.id] = {
+                    tournament_id: tid,
+                    scoringType: t.ffa_scoring || 'points',
+                    participants: t.participants || [],
+                };
                 _ffaLoaded[match.id] = true;
+                renderFFAPanel(match.id);
+            } catch (err) {
+                _ffaLoaded[match.id] = false;
+                container.innerHTML = `<div class="ffa-panel"><div style="padding:12px;color:var(--red);font-size:13px">Failed to load participants${err.message ? ': ' + err.message : ''}</div></div>`;
+            }
+        }
 
-                if (!participants.length) {
-                    container.innerHTML = `<div class="ffa-panel"><div style="padding:12px;color:var(--muted);font-size:13px">No participants registered yet.</div></div>`;
-                    return;
-                }
+        function toggleFFAEditMode(matchId) {
+            _ffaEditMode[matchId] = !_ffaEditMode[matchId];
+            renderFFAPanel(matchId);
+        }
 
-                const sorted = [...participants].sort((a, b) => {
-                    if (a.rank_position != null && b.rank_position != null) return a.rank_position - b.rank_position;
-                    const va = Number(a.ffa_result_value), vb = Number(b.ffa_result_value);
-                    if (Number.isNaN(va) && Number.isNaN(vb)) return 0;
-                    if (Number.isNaN(va)) return 1;
-                    if (Number.isNaN(vb)) return -1;
-                    return scoringType === 'time' ? va - vb : vb - va;
-                });
+        /** Row-action shortcut: opens (or expands) the FFA standings panel and
+         *  jumps straight into edit mode, whether the event is still ongoing
+         *  or already finished — no need to detour through "Manage Event". */
+        async function openFFAResultsEditor(matchId, tournamentId) {
+            const sub = document.getElementById(`ffa-subrow-${matchId}`);
+            const btn = document.getElementById(`ffa-toggle-${matchId}`);
+            if (sub && !sub.classList.contains('open')) {
+                sub.classList.add('open');
+                if (btn) { btn.classList.add('open'); btn.innerHTML = 'Hide Details <span class="chev">▾</span>'; }
+            }
+            if (!_ffaLoaded[matchId]) {
+                await loadFFADetails({ id: matchId, tournament_id: tournamentId });
+            }
+            _ffaEditMode[matchId] = true;
+            renderFFAPanel(matchId);
+        }
 
+        function renderFFAPanel(matchId) {
+            const container = document.getElementById(`ffa-list-${matchId}`);
+            const cached = _ffaData[matchId];
+            if (!container || !cached) return;
+
+            const { tournament_id: tid, scoringType, participants } = cached;
+            const scoreLabel = scoringType === 'time' ? 'Time (s)' : scoringType === 'distance' ? 'Distance / Score' : 'Points';
+            const m = allMatches.find(x => x.id === matchId) || {};
+            const isDone = m.status === 'completed';
+            const editing = !!_ffaEditMode[matchId];
+
+            if (!participants.length) {
+                container.innerHTML = `<div class="ffa-panel"><div style="padding:12px;color:var(--muted);font-size:13px">No participants registered yet.</div></div>`;
+                return;
+            }
+
+            const sorted = [...participants].sort((a, b) => {
+                if (a.rank_position != null && b.rank_position != null) return a.rank_position - b.rank_position;
+                const va = Number(a.ffa_result_value), vb = Number(b.ffa_result_value);
+                if (Number.isNaN(va) && Number.isNaN(vb)) return 0;
+                if (Number.isNaN(va)) return 1;
+                if (Number.isNaN(vb)) return -1;
+                return scoringType === 'time' ? va - vb : vb - va;
+            });
+
+            const editToggleBtn = `<button type="button" class="btn btn-secondary btn-sm" onclick="toggleFFAEditMode(${matchId})">
+                ${editing ? 'Cancel' : (isDone ? '<span class="icon" style="width:12px;height:12px">' + (ICON.eye || '') + '</span> Edit Finished Scores' : 'Edit Results')}
+            </button>`;
+
+            if (editing) {
                 let rowsHtml = '';
-                let cardsHtml = '';
-                sorted.forEach((p, idx) => {
+                sorted.forEach((p) => {
                     const init = (p.team_name || p.department_name || '?').split(' ').map(w => w[0]).slice(0, 2).join('').toUpperCase();
                     const col = p.department_color || '#555';
                     const primary = p.team_name || p.department_name || '—';
                     const secondary = p.team_name ? (p.department_name || '') : '';
-                    const val = formatFFAValue(p.ffa_result_value, scoringType);
-                    const rank = p.rank_position != null ? p.rank_position : (idx + 1);
+                    const rawVal = p.ffa_result_value != null ? p.ffa_result_value : '';
                     rowsHtml += `
                         <tr>
-                            <td>${rank}</td>
                             <td>
                                 <div class="ffa-participant">
                                     <div class="ffa-avatar" style="background:${col}">${init}</div>
@@ -1658,11 +1704,49 @@
                                     </div>
                                 </div>
                             </td>
-                            <td>${val}</td>
+                            <td>
+                                <input type="number" step="any" class="ffa-edit-input" data-dept="${p.department_id}"
+                                    value="${rawVal}" placeholder="${scoreLabel}"
+                                    style="width:100px;padding:7px 9px;border-radius:8px;border:1px solid var(--border,#333);background:var(--bg2,#141518);color:#fff;font-family:'JetBrains Mono',monospace;font-size:13px">
+                            </td>
                         </tr>`;
-                    cardsHtml += `
-                        <div class="ffa-card">
-                            <div class="ffa-card-rank">${rank}</div>
+                });
+
+                container.innerHTML = `
+                    <div class="ffa-panel">
+                        <div class="ffa-toolbar">
+                            <span class="ffa-toolbar-title">Edit FFA Results · ${scoreLabel}${isDone ? ' · <span style="color:var(--gold)">Event Completed</span>' : ''}</span>
+                            <div style="display:flex;gap:8px;flex-wrap:wrap">${editToggleBtn}</div>
+                        </div>
+                        ${isDone ? `<div style="padding:8px 16px 0;font-size:11.5px;color:var(--muted)">This event is already finished — saving will update the standings/ranking. Run <b>Recalculate</b> on the Leaderboard page afterward if points already got awarded.</div>` : ''}
+                        <div class="ffa-table-wrap">
+                            <table class="ffa-table">
+                                <thead><tr><th>Participant</th><th>${scoreLabel}</th></tr></thead>
+                                <tbody>${rowsHtml}</tbody>
+                            </table>
+                        </div>
+                        <div style="display:flex;gap:8px;justify-content:flex-end;padding:12px 16px">
+                            <button type="button" class="btn btn-primary btn-sm" onclick="saveFFAResultsInline(${matchId}, ${tid})">
+                                <span class="icon" style="width:12px;height:12px">${ICON.save || ''}</span> Save Results
+                            </button>
+                        </div>
+                    </div>`;
+                return;
+            }
+
+            let rowsHtml = '';
+            let cardsHtml = '';
+            sorted.forEach((p, idx) => {
+                const init = (p.team_name || p.department_name || '?').split(' ').map(w => w[0]).slice(0, 2).join('').toUpperCase();
+                const col = p.department_color || '#555';
+                const primary = p.team_name || p.department_name || '—';
+                const secondary = p.team_name ? (p.department_name || '') : '';
+                const val = formatFFAValue(p.ffa_result_value, scoringType);
+                const rank = p.rank_position != null ? p.rank_position : (idx + 1);
+                rowsHtml += `
+                    <tr>
+                        <td>${rank}</td>
+                        <td>
                             <div class="ffa-participant">
                                 <div class="ffa-avatar" style="background:${col}">${init}</div>
                                 <div class="ffa-participant-text">
@@ -1670,33 +1754,63 @@
                                     ${secondary ? `<div class="sub">${secondary}</div>` : ''}
                                 </div>
                             </div>
-                            <div class="ffa-card-score">${val}</div>
-                        </div>`;
-                });
-
-                container.innerHTML = `
-                    <div class="ffa-panel">
-                        <div class="ffa-toolbar">
-                            <span class="ffa-toolbar-title">FFA Standings · ${scoreLabel}</span>
+                        </td>
+                        <td>${val}</td>
+                    </tr>`;
+                cardsHtml += `
+                    <div class="ffa-card">
+                        <div class="ffa-card-rank">${rank}</div>
+                        <div class="ffa-participant">
+                            <div class="ffa-avatar" style="background:${col}">${init}</div>
+                            <div class="ffa-participant-text">
+                                <div class="name">${primary}</div>
+                                ${secondary ? `<div class="sub">${secondary}</div>` : ''}
+                            </div>
                         </div>
-                        <div class="ffa-table-wrap">
-                            <table class="ffa-table">
-                                <thead>
-                                    <tr>
-                                        <th>#</th>
-                                        <th>Participant</th>
-                                        <th>${scoreLabel}</th>
-                                    </tr>
-                                </thead>
-                                <tbody>${rowsHtml}</tbody>
-                            </table>
-                            <div class="ffa-cards">${cardsHtml}</div>
-                        </div>
+                        <div class="ffa-card-score">${val}</div>
                     </div>`;
+            });
 
-            } catch (err) {
-                _ffaLoaded[match.id] = false;
-                container.innerHTML = `<div class="ffa-panel"><div style="padding:12px;color:var(--red);font-size:13px">Failed to load participants${err.message ? ': ' + err.message : ''}</div></div>`;
+            container.innerHTML = `
+                <div class="ffa-panel">
+                    <div class="ffa-toolbar">
+                        <span class="ffa-toolbar-title">FFA Standings · ${scoreLabel}${isDone ? ' · <span style="color:var(--gold)">Completed</span>' : ''}</span>
+                        <div style="display:flex;gap:8px;flex-wrap:wrap">${editToggleBtn}</div>
+                    </div>
+                    <div class="ffa-table-wrap">
+                        <table class="ffa-table">
+                            <thead>
+                                <tr>
+                                    <th>#</th>
+                                    <th>Participant</th>
+                                    <th>${scoreLabel}</th>
+                                </tr>
+                            </thead>
+                            <tbody>${rowsHtml}</tbody>
+                        </table>
+                        <div class="ffa-cards">${cardsHtml}</div>
+                    </div>
+                </div>`;
+            if (typeof populateIcons === 'function') populateIcons(container);
+        }
+
+        async function saveFFAResultsInline(matchId, tournamentId) {
+            const container = document.getElementById(`ffa-list-${matchId}`);
+            if (!container) return;
+            const inputs = container.querySelectorAll('.ffa-edit-input');
+            const results = [...inputs].map(inp => ({
+                department_id: inp.dataset.dept,
+                result_value: inp.value === '' ? null : parseFloat(inp.value),
+            }));
+
+            const res = await api(`/matches/ffa/${tournamentId}/results`, {
+                method: 'POST',
+                body: JSON.stringify({ results }),
+            });
+            Toast.show(res.message || (res.success ? 'FFA results saved!' : 'Error saving results'), res.success ? 'success' : 'error');
+            if (res.success) {
+                _ffaEditMode[matchId] = false;
+                await loadFFADetails({ id: matchId, tournament_id: tournamentId });
             }
         }
 

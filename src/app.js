@@ -167,7 +167,7 @@ app.get('/admin/schedule', sendPageFrom(frontendAdmin, 'admin-schedule.html'));
 app.get('/admin/departments', sendPageFrom(frontendAdmin, 'admin-departments.html'));
 app.get('/admin/sport-fest', sendPageFrom(frontendAdmin, 'admin-sport-fest.html'));
 app.get('/admin/reports', sendPageFrom(frontendAdmin, 'admin-reports.html'));
-app.get('/admin/tournament-export', sendPageFrom(frontendPresident, 'pres-tournament-export.html'));
+app.get('/admin/tournament-export', sendPageFrom(frontendAdmin, 'admin-tournament-export.html'));
 
 app.get('/dean', sendPageFrom(frontendDean, 'dashboard.html'));
 app.get('/dean/dashboard', sendPageFrom(frontendDean, 'dashboard.html'));

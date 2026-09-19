@@ -144,6 +144,7 @@ const getBySport = async (req, res, next) => {
                 d.name AS department_name,
                 d.color,
                 d.logo_url,
+                d.division,
                 MIN(tr.rank)               AS best_rank,
                 SUM(tr.sport_fest_points)  AS sport_points,
                 SUM(CASE WHEN tr.medal = 'gold'   THEN 1 ELSE 0 END) AS gold,
@@ -164,7 +165,7 @@ const getBySport = async (req, res, next) => {
         }
 
         query += `
-            GROUP BY s.id, d.id
+            GROUP BY s.id, d.id, d.division
             ORDER BY s.name, sport_points DESC
         `;
 

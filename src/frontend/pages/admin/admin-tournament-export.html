@@ -1,0 +1,463 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PAC SCHED-SCORE - Admin Tournament Export</title>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;600;700;800;900&family=Barlow:wght@300;400;500;600&display=swap"
+        rel="stylesheet">
+    <link rel="stylesheet" href="../../css/shared.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+    <style>
+        .export-toolbar,
+        .download-bar,
+        .mode-toggle {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+            align-items: center;
+            margin-bottom: 16px;
+        }
+
+        .export-toolbar select {
+            flex: 1;
+            min-width: 260px;
+        }
+
+        .mode-btn,
+        .scope-chip {
+            border: 1px solid var(--border);
+            background: var(--bg3);
+            color: var(--muted);
+            border-radius: 8px;
+            padding: 9px 14px;
+            cursor: pointer;
+            font: 700 13px 'Barlow', sans-serif;
+        }
+
+        .mode-btn.active,
+        .scope-chip.active {
+            background: var(--gold-bg);
+            border-color: var(--border-gold);
+            color: var(--gold);
+        }
+
+        .season-banner {
+            background: var(--bg3);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            padding: 12px 16px;
+            margin-bottom: 16px;
+            color: var(--muted);
+        }
+
+        .scope-panel {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+            align-items: center;
+            margin-bottom: 16px;
+        }
+
+        .scope-label {
+            color: var(--muted);
+            font-size: 12px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: .7px;
+            margin-right: 4px;
+        }
+
+        .sheet {
+            max-width: 960px;
+            margin: 0 auto;
+            background: #fff;
+            color: #111;
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 20px 50px rgba(0, 0, 0, .3);
+        }
+
+        .sheet-header {
+            padding: 28px 32px 20px;
+            border-bottom: 3px solid #111;
+            display: flex;
+            justify-content: space-between;
+            gap: 16px;
+            flex-wrap: wrap;
+        }
+
+        .sheet-header h1 {
+            font: 900 28px 'Barlow Condensed', sans-serif;
+            text-transform: uppercase;
+        }
+
+        .sheet-sub {
+            color: #555;
+            font-size: 13px;
+            margin-top: 4px;
+        }
+
+        .sheet-badge {
+            background: #111;
+            color: #fff;
+            border-radius: 100px;
+            padding: 6px 12px;
+            font-size: 11px;
+            font-weight: 800;
+            text-transform: uppercase;
+            height: max-content;
+        }
+
+        .sheet-body {
+            padding: 24px 32px 32px;
+        }
+
+        .sheet-title {
+            margin: 22px 0 10px;
+            border-left: 4px solid #b45309;
+            padding-left: 10px;
+            font: 800 15px 'Barlow Condensed', sans-serif;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .sheet-title:first-child {
+            margin-top: 0;
+        }
+
+        .division-section {
+            break-before: page;
+            page-break-before: always;
+        }
+
+        .division-section:first-of-type {
+            break-before: auto;
+            page-break-before: auto;
+        }
+
+        .division-heading {
+            margin: 18px 0 10px;
+            padding: 10px 12px;
+            background: #f5f5f5;
+            border: 1px solid #ddd;
+            border-left: 5px solid #b45309;
+            font: 900 18px 'Barlow Condensed', sans-serif;
+            text-transform: uppercase;
+        }
+
+        .champions {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+            gap: 10px;
+        }
+
+        .champion {
+            border: 2px solid #f5b800;
+            border-radius: 10px;
+            padding: 14px;
+            background: #fffaf0;
+        }
+
+        .champion-name {
+            font: 900 22px 'Barlow Condensed', sans-serif;
+        }
+
+        .champion-meta {
+            color: #666;
+            font-size: 12px;
+            margin-top: 3px;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 12px;
+            margin-bottom: 14px;
+        }
+
+        th,
+        td {
+            border: 1px solid #ddd;
+            padding: 8px 9px;
+            text-align: left;
+        }
+
+        th {
+            background: #f1f1f1;
+            text-transform: uppercase;
+            font-size: 10px;
+        }
+
+        tr.winner td {
+            background: #f0fdf4;
+            font-weight: 700;
+        }
+
+        .medal-gold {
+            color: #a16207;
+            font-weight: 800;
+        }
+
+        .medal-silver {
+            color: #52525b;
+            font-weight: 800
+        }
+
+        .medal-bronze {
+            color: #92400e;
+            font-weight: 800
+        }
+
+        .empty {
+            padding: 36px;
+            text-align: center;
+            color: var(--muted);
+        }
+
+        .sheet-footer {
+            margin-top: 24px;
+            padding-top: 12px;
+            border-top: 1px dashed #ccc;
+            display: flex;
+            justify-content: space-between;
+            gap: 8px;
+            color: #666;
+            font-size: 11px;
+        }
+
+        @media print {
+            body * {
+                visibility: hidden;
+            }
+
+            .sheet,
+            .sheet * {
+                visibility: visible;
+            }
+
+            .sheet {
+                position: absolute;
+                inset: 0;
+                width: 100%;
+                max-width: none;
+                box-shadow: none;
+                border-radius: 0;
+            }
+
+            .topbar,
+            .page-header,
+            .season-banner,
+            .mode-toggle,
+            .scope-panel,
+            .export-toolbar,
+            .download-bar {
+                display: none !important;
+            }
+
+            .division-section {
+                break-before: page;
+                page-break-before: always;
+            }
+
+            .division-section:first-of-type {
+                break-before: auto;
+                page-break-before: auto;
+            }
+        }
+
+        @media(max-width:640px) {
+
+            .sheet-header,
+            .sheet-body {
+                padding-left: 18px;
+                padding-right: 18px
+            }
+
+            .sheet-footer {
+                flex-direction: column
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <main class="main">
+        <div class="topbar">
+            <button class="burger-menu" id="burger-menu" aria-label="Toggle navigation menu" type="button"><span
+                    class="icon">&#9776;</span></button>
+            <div class="topbar-title">Tournament Export</div>
+            <button class="btn btn-secondary btn-sm" id="top-print" style="display:none"
+                onclick="window.print()">Print</button>
+        </div>
+        <div class="content">
+            <div class="page-header">
+                <div class="page-title">Admin Tournament Export</div>
+                <div class="page-sub">Generate final results for the current Sport Fest season. Tournament results are
+                    printed in separate division sections.</div>
+            </div>
+            <div id="season-banner" class="season-banner">Loading current season...</div>
+            <div class="mode-toggle">
+                <button class="mode-btn active" id="mode-season" onclick="switchMode('season')">Season Report</button>
+                <button class="mode-btn" id="mode-single" onclick="switchMode('single')">Individual Tournament</button>
+            </div>
+            <div id="scope-panel" class="scope-panel"></div>
+            <div id="single-toolbar" class="export-toolbar" style="display:none">
+                <select id="t-select" class="form-select" onchange="loadSingleExport()">
+                    <option value="">Select a finalized tournament...</option>
+                </select>
+                <button class="btn btn-secondary btn-sm" onclick="loadTournamentList()">Refresh List</button>
+            </div>
+            <div id="download-bar" class="download-bar" style="display:none">
+                <button class="btn btn-secondary btn-sm" onclick="window.print()">Print</button>
+                <button class="btn btn-primary btn-sm" onclick="downloadPdf(event)">Download PDF</button>
+                <button class="btn btn-secondary btn-sm" onclick="downloadWord()">Download Word</button>
+            </div>
+            <div id="sheet-host">
+                <div class="empty">Loading season report...</div>
+            </div>
+        </div>
+    </main>
+    <script src="../../js/shared.js"></script>
+    <script src="../../js/admin-sidebar.js"></script>
+    <script>
+        let mode = 'season';
+        let seasonData = null;
+        let sheetTitle = 'admin-season-report';
+        const selectedDivisions = new Set();
+        const esc = value => String(value ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+        const label = value => String(value || 'Other / Unassigned').replace(/_/g, ' ');
+        const medalClass = value => value && String(value).toLowerCase().includes('gold') ? 'medal-gold' : value && String(value).toLowerCase().includes('silver') ? 'medal-silver' : value && String(value).toLowerCase().includes('bronze') ? 'medal-bronze' : '';
+
+        document.addEventListener('DOMContentLoaded', async () => {
+            Auth.requireAuth('admin');
+            renderSidebar('tournament-export');
+            document.getElementById('burger-menu')?.addEventListener('click', toggleSidebar);
+            await loadTournamentList();
+            await loadSeasonExport();
+        });
+
+        function switchMode(next) {
+            mode = next;
+            document.getElementById('mode-season').classList.toggle('active', next === 'season');
+            document.getElementById('mode-single').classList.toggle('active', next === 'single');
+            document.getElementById('scope-panel').style.display = next === 'season' ? 'flex' : 'none';
+            document.getElementById('single-toolbar').style.display = next === 'single' ? 'flex' : 'none';
+            if (next === 'season') loadSeasonExport();
+            else if (document.getElementById('t-select').value) loadSingleExport();
+            else showEmpty('Select a finalized tournament to preview its export.');
+        }
+
+        async function loadTournamentList() {
+            const result = await api('/reports/current-season/tournaments');
+            const select = document.getElementById('t-select');
+            if (!result.success) return;
+            select.innerHTML = '<option value="">Select a finalized tournament...</option>' + (result.data || []).map(t => `<option value="${t.id}">${esc(t.name)} - ${esc(t.sport_name)}</option>`).join('');
+            document.getElementById('season-banner').textContent = result.meta?.sport_fest_id ? 'Current season finalized tournaments loaded.' : 'No active Sport Fest season found.';
+        }
+
+        async function loadSeasonExport() {
+            if (!seasonData) {
+                const result = await api('/reports/sportfest/export');
+                if (!result.success) { showEmpty(result.message || 'Season export unavailable.'); return; }
+                seasonData = result.data;
+            }
+            const fest = seasonData.sport_fest || {};
+            document.getElementById('season-banner').innerHTML = `Current season: <strong>${esc(fest.name)}${fest.year ? ` (${esc(fest.year)})` : ''}</strong>`;
+            buildDivisionScope();
+            sheetTitle = `${fest.name || 'season'}-admin-report`.replace(/[^a-z0-9-]+/gi, '_');
+            document.getElementById('sheet-host').innerHTML = renderSeason(seasonData);
+            showDownloads();
+        }
+
+        function getDivisions(data) {
+            const values = new Set();
+            (data.leaderboard || []).forEach(row => row.division && values.add(row.division));
+            (data.champions || []).forEach(row => row.division && values.add(row.division));
+            (data.tournaments || []).forEach(row => tournamentDivision(row, data) && values.add(tournamentDivision(row, data)));
+            return [...values].sort((a, b) => String(a).localeCompare(String(b)));
+        }
+
+        function departmentDivisions(data) {
+            const map = {};
+            (data.leaderboard || []).forEach(row => {
+                if (row.name && row.division) map[String(row.name).trim().toLowerCase()] = row.division;
+            });
+            return map;
+        }
+
+        function tournamentDivision(tournament, data) {
+            if (tournament.division) return tournament.division;
+            const map = departmentDivisions(data);
+            const divisions = new Set((tournament.standings || []).map(row => {
+                const name = String(row.department_name || row.name || '').trim().toLowerCase();
+                return map[name] || null;
+            }).filter(Boolean));
+            return divisions.size === 1 ? [...divisions][0] : null;
+        }
+
+        function buildDivisionScope() {
+            const panel = document.getElementById('scope-panel');
+            const divisions = getDivisions(seasonData);
+            if (!selectedDivisions.size) divisions.forEach(d => selectedDivisions.add(d));
+            panel.innerHTML = '<span class="scope-label">Print divisions</span><button class="scope-chip" onclick="selectAllDivisions()">All</button>' + divisions.map(d => `<button class="scope-chip ${selectedDivisions.has(d) ? 'active' : ''}" data-division="${esc(d)}" onclick="toggleDivision('${esc(d)}')">${esc(label(d))}</button>`).join('');
+        }
+
+        function selectAllDivisions() { getDivisions(seasonData).forEach(d => selectedDivisions.add(d)); buildDivisionScope(); loadSeasonExport(); }
+        function toggleDivision(division) { if (selectedDivisions.has(division) && selectedDivisions.size > 1) selectedDivisions.delete(division); else selectedDivisions.add(division); buildDivisionScope(); document.getElementById('sheet-host').innerHTML = renderSeason(seasonData); showDownloads(); }
+
+        async function loadSingleExport() {
+            const id = document.getElementById('t-select').value;
+            if (!id) { showEmpty('Select a finalized tournament to preview its export.'); return; }
+            const result = await api(`/reports/tournaments/${id}/export`);
+            if (!result.success) { showEmpty(result.message || 'Tournament export unavailable.'); return; }
+            sheetTitle = `${result.data.tournament?.name || 'tournament'}-admin-results`.replace(/[^a-z0-9-]+/gi, '_');
+            document.getElementById('sheet-host').innerHTML = renderSingle(result.data);
+            showDownloads();
+        }
+
+        function showEmpty(message) { document.getElementById('sheet-host').innerHTML = `<div class="empty">${esc(message)}</div>`; document.getElementById('download-bar').style.display = 'none'; document.getElementById('top-print').style.display = 'none'; }
+        function showDownloads() { document.getElementById('download-bar').style.display = 'flex'; document.getElementById('top-print').style.display = ''; }
+
+        function standingsTable(rows) {
+            const list = [...rows].sort((a, b) => Number(b.total_points || 0) - Number(a.total_points || 0));
+            return `<table><thead><tr><th>Rank</th><th>Department</th><th>Gold</th><th>Silver</th><th>Bronze</th><th>Points</th></tr></thead><tbody>${list.length ? list.map((d, i) => `<tr><td>${i + 1}</td><td>${esc(d.name)}</td><td class="medal-gold">${d.gold_medals || 0}</td><td class="medal-silver">${d.silver_medals || 0}</td><td class="medal-bronze">${d.bronze_medals || 0}</td><td><strong>${d.total_points || 0}</strong></td></tr>`).join('') : '<tr><td colspan="6">No standings recorded.</td></tr>'}</tbody></table>`;
+        }
+
+        function tournamentBlock(t) {
+            const standings = (t.standings || []).slice().sort((a, b) => Number(a.rank || 999) - Number(b.rank || 999));
+            return `<article class="tournament-block"><h3>${esc(t.name)} <small>${esc(t.sport_name || '')}</small></h3><table><thead><tr><th>Rank</th><th>Department</th><th>Medal</th><th>Points</th></tr></thead><tbody>${standings.length ? standings.map(s => `<tr class="${s.rank === 1 ? 'winner' : ''}"><td>${s.rank ?? '-'}</td><td>${esc(s.department_name)}${s.team_name ? ` - ${esc(s.team_name)}` : ''}</td><td class="${medalClass(s.medal)}">${esc(s.medal || '-')}</td><td>${s.sport_fest_points ?? 0}</td></tr>`).join('') : '<tr><td colspan="4">No standings recorded.</td></tr>'}</tbody></table></article>`;
+        }
+
+        function renderSeason(data) {
+            const divisions = getDivisions(data).filter(d => selectedDivisions.has(d));
+            const champions = data.champions || (data.champion ? [data.champion] : []);
+            const tourneys = data.tournaments || [];
+            const sections = divisions.length ? divisions : ['__all__'];
+            const divisionHtml = sections.map((division, index) => {
+                const isAll = division === '__all__';
+                const rows = isAll ? (data.leaderboard || []) : (data.leaderboard || []).filter(d => d.division === division);
+                const champs = isAll ? champions : champions.filter(c => c.division === division);
+                const tournaments = isAll
+                    ? tourneys.filter(t => !tournamentDivision(t, data))
+                    : tourneys.filter(t => tournamentDivision(t, data) === division);
+                return `<section class="division-section"><div class="division-heading">${isAll ? 'Other / Unassigned' : esc(label(division))} Division</div>${champs.length ? `<div class="champions">${champs.map(c => `<div class="champion"><div class="champion-name">${esc(c.name)}</div><div class="champion-meta">${c.total_points ?? 0} points - ${c.gold_medals || 0} gold</div></div>`).join('')}</div>` : ''}<div class="sheet-title">Department Standings</div>${standingsTable(rows)}<div class="sheet-title">Tournament Results</div>${tournaments.length ? tournaments.map(tournamentBlock).join('') : '<div class="empty">No tournaments recorded for this division.</div>'}</section>`;
+            }).join('');
+            return `<div class="sheet"><header class="sheet-header"><div><h1>${esc(data.sport_fest?.name || 'Sport Fest')}</h1><div class="sheet-sub">Admin final results export${data.sport_fest?.year ? ` - ${esc(data.sport_fest.year)}` : ''}</div></div><div class="sheet-badge">Admin Export</div></header><div class="sheet-body">${divisionHtml}<div class="sheet-footer"><span>Exported by ${esc(data.exported_by || 'Admin')}</span><span>${new Date(data.exported_at || Date.now()).toLocaleString('en-PH')}</span></div></div></div>`;
+        }
+
+        function renderSingle(data) {
+            const t = data.tournament || {};
+            const standings = data.standings || [];
+            const matches = data.matches || [];
+            return `<div class="sheet"><header class="sheet-header"><div><h1>${esc(t.name || 'Tournament Results')}</h1><div class="sheet-sub">${esc(t.sport_name || '')} - ${esc(t.format || '')}</div></div><div class="sheet-badge">Admin Export</div></header><div class="sheet-body"><div class="sheet-title">Final Standings</div>${standingsTable(standings.map(s => ({ ...s, name: s.department_name, total_points: s.sport_fest_points, gold_medals: s.medal === 'Gold' ? 1 : 0, silver_medals: s.medal === 'Silver' ? 1 : 0, bronze_medals: s.medal === 'Bronze' ? 1 : 0 })))}<div class="sheet-title">All Matches</div><table><thead><tr><th>Round</th><th>Matchup</th><th>Score</th><th>Winner</th><th>Date</th></tr></thead><tbody>${matches.length ? matches.map(m => `<tr><td>R${m.round_number ?? '-'}/${m.match_number ?? '-'}</td><td>${esc(m.dept_a_name || '-')} vs ${esc(m.dept_b_name || '-')}</td><td>${esc(m.final_score_display || (m.total_score_a != null ? `${m.total_score_a} - ${m.total_score_b}` : '-'))}</td><td>${esc(m.winner_name || '-')}</td><td>${esc(m.scheduled_date || '-')}</td></tr>`).join('') : '<tr><td colspan="5">No matches recorded.</td></tr>'}</tbody></table><div class="sheet-footer"><span>Exported by Admin</span><span>${new Date(data.exported_at || Date.now()).toLocaleString('en-PH')}</span></div></div></div>`;
+        }
+
+        function downloadPdf(event) { const sheet = document.querySelector('.sheet'); if (!sheet) return; const button = event?.target?.closest('button'); if (button) button.disabled = true; html2pdf().set({ margin: .3, filename: `${sheetTitle}.pdf`, image: { type: 'jpeg', quality: .98 }, html2canvas: { scale: 2, useCORS: true }, jsPDF: { unit: 'in', format: 'letter', orientation: 'portrait' }, pagebreak: { mode: ['avoid-all', 'css', 'legacy'] } }).from(sheet).save().finally(() => { if (button) button.disabled = false; }); }
+        function downloadWord() { const sheet = document.querySelector('.sheet'); if (!sheet) return; const blob = new Blob([`<html><head><meta charset="utf-8"><title>${esc(sheetTitle)}</title></head><body>${sheet.outerHTML}</body></html>`], { type: 'application/msword' }); const url = URL.createObjectURL(blob); const link = document.createElement('a'); link.href = url; link.download = `${sheetTitle}.doc`; link.click(); URL.revokeObjectURL(url); }
+    </script>
+</body>
+
+</html>
