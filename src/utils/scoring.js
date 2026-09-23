@@ -131,7 +131,24 @@ async function recordResultsAndRebuild(conn, tournamentId, pointsMap = DEFAULT_M
     const [[t]] = await conn.execute('SELECT format, is_exhibition FROM tournaments WHERE id = ?', [tournamentId]);
     if (!t) return { recorded: 0 };
 
-    const standings = await computeFinalStandings(conn, tournamentId, t.format);
+    let standings = await computeFinalStandings(conn, tournamentId, t.format);
+    if (!standings.length) {
+        const [existingResults] = await conn.execute(
+            `SELECT department_id, \`rank\`
+             FROM tournament_results
+             WHERE tournament_id = ? AND \`rank\` IS NOT NULL
+             ORDER BY \`rank\` ASC, department_id ASC`,
+            [tournamentId]
+        );
+        standings = existingResults.map((result) => ({
+            department_id: result.department_id,
+            rank: result.rank,
+        }));
+    }
+    if (!standings.length) {
+        throw new Error('Cannot finalize tournament without standings or existing results');
+    }
+
     const [participantRows] = await conn.execute(
         'SELECT department_id, no_points FROM tournament_participants WHERE tournament_id = ?',
         [tournamentId]
@@ -161,6 +178,7 @@ async function rebuildDepartmentScores(conn) {
     await conn.execute(
         `UPDATE department_scores
          SET total_points       = 0,
+             bonus_points       = 0,
              gold_medals        = 0,
              silver_medals      = 0,
              bronze_medals      = 0,
@@ -171,7 +189,7 @@ async function rebuildDepartmentScores(conn) {
     const [results] = await conn.execute(
         `SELECT
             tr.department_id,
-            sft.sport_fest_id,
+            COALESCE(sft.sport_fest_id, t.sport_fest_id) AS sport_fest_id,
             SUM(tr.sport_fest_points)                             AS total_points,
             SUM(CASE WHEN tr.medal = 'gold'   THEN 1 ELSE 0 END) AS gold,
             SUM(CASE WHEN tr.medal = 'silver' THEN 1 ELSE 0 END) AS silver,
@@ -182,11 +200,11 @@ async function rebuildDepartmentScores(conn) {
          LEFT JOIN sport_fest_tournaments sft ON tr.tournament_id = sft.tournament_id
          JOIN departments d ON d.id = tr.department_id
          JOIN tournaments t ON t.id = tr.tournament_id
-                 JOIN tournament_participants tp
-                     ON tp.tournament_id = tr.tournament_id
-                    AND tp.department_id = tr.department_id
-                 WHERE d.is_exhibition = 0 AND t.is_exhibition = 0 AND tp.no_points = 0
-         GROUP BY tr.department_id, sft.sport_fest_id`
+         JOIN tournament_participants tp
+             ON tp.tournament_id = tr.tournament_id
+            AND tp.department_id = tr.department_id
+         WHERE d.is_exhibition = 0 AND t.is_exhibition = 0 AND tp.no_points = 0
+         GROUP BY tr.department_id, COALESCE(sft.sport_fest_id, t.sport_fest_id)`
     );
 
     for (const r of results) {
@@ -202,6 +220,24 @@ async function rebuildDepartmentScores(conn) {
              total_participations = VALUES(total_participations),
              tournaments_entered  = VALUES(tournaments_entered)`,
             [r.department_id, r.sport_fest_id, r.total_points, r.gold, r.silver, r.bronze, r.participations, r.tournaments]
+        );
+    }
+
+    const [bonuses] = await conn.execute(
+        `SELECT department_id, sport_fest_id, SUM(points) AS bonus_points
+         FROM sport_fest_bonus_points
+         GROUP BY department_id, sport_fest_id`
+    );
+
+    for (const bonus of bonuses) {
+        await conn.execute(
+            `INSERT INTO department_scores
+             (department_id, sport_fest_id, total_points, bonus_points)
+             VALUES (?, ?, ?, ?)
+             ON DUPLICATE KEY UPDATE
+             total_points = total_points + VALUES(total_points),
+             bonus_points = VALUES(bonus_points)`,
+            [bonus.department_id, bonus.sport_fest_id, bonus.bonus_points, bonus.bonus_points]
         );
     }
 }
