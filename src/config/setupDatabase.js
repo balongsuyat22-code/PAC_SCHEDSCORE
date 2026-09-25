@@ -4,7 +4,8 @@ const bcrypt = require('bcryptjs');
 const fs = require('fs');
 const path = require('path');
 
-const PRESERVE_DATA = process.env.PRESERVE_DATA === '1' || process.env.PRESERVE_DATA === 'true';
+const RESET_DATABASE = process.env.RESET_DATABASE === '1' || process.env.RESET_DATABASE === 'true';
+const SEED_DATABASE = process.env.SEED_DATABASE === '1' || process.env.SEED_DATABASE === 'true';
 
 const buildConnectionOptions = () => {
     if (process.env.MYSQL_URL) return { uri: process.env.MYSQL_URL, multipleStatements: true };
@@ -44,6 +45,15 @@ const runSqlFile = async (conn, filePath, label) => {
     console.log(`✅ ${label} applied`);
 };
 
+const tableExists = async (conn, tableName) => {
+    const [[row]] = await conn.query(
+        `SELECT COUNT(*) AS count FROM information_schema.tables
+         WHERE table_schema = DATABASE() AND table_name = ?`,
+        [tableName]
+    );
+    return row.count > 0;
+};
+
 const hardWipeAllTables = async (conn) => {
     const tables = [
         'sport_fest_bonus_points', 'sport_fest_champions', 'notifications',
@@ -78,7 +88,7 @@ const seedDefaultUsers = async (conn) => {
         await conn.query(
             `INSERT INTO users (uuid, username, email, password_hash, role, first_name, last_name, is_active)
        VALUES (UUID(), ?, ?, ?, ?, ?, ?, 1)
-       ON DUPLICATE KEY UPDATE password_hash = VALUES(password_hash), is_active = 1`,
+    ON DUPLICATE KEY UPDATE id = id`,
             [u.username, u.email, hash, u.role, u.first, u.last]
         );
         console.log(`  ✅  ${u.role.padEnd(14)} → ${u.email}`);
@@ -510,23 +520,29 @@ const run = async () => {
         console.log('🔧 Connecting to MySQL...');
         console.log('  host:', process.env.DB_HOST || process.env.MYSQLHOST || '(from URL)');
         console.log('  database:', dbName);
-        console.log('  mode:', PRESERVE_DATA ? 'PRESERVE_DATA' : 'FULL RESEED');
+        console.log('  mode:', RESET_DATABASE ? 'FULL RESEED' : SEED_DATABASE ? 'SEED' : 'PRESERVE DATA');
 
         conn = await mysql.createConnection(buildConnectionOptions());
         await conn.query(`CREATE DATABASE IF NOT EXISTS \`${dbName}\``);
         await conn.query(`USE \`${dbName}\``);
         console.log('✅ Connected\n');
 
-        if (!PRESERVE_DATA) {
+        const hasSchema = await tableExists(conn, 'departments');
+        if (RESET_DATABASE || !hasSchema) {
             const schemaPath = findFile(['schema.sql', 'sql/schema.sql']);
             if (!schemaPath) throw new Error('schema.sql not found');
             console.log('📦 Applying schema...');
             try { await conn.query(fs.readFileSync(schemaPath, 'utf8')); console.log('✅ Schema applied'); }
             catch (err) { console.warn('⚠️  schema.sql failed halfway:', err.message); }
-            await hardWipeAllTables(conn);
+            if (RESET_DATABASE) await hardWipeAllTables(conn);
         }
 
         await seedDefaultUsers(conn);
+
+        if (hasSchema && !RESET_DATABASE && !SEED_DATABASE) {
+            console.log('🛡️  Existing data preserved. Skipping full seed and generated results.');
+            return;
+        }
 
         const seedPath = findFile([
             'sgo_days_2026_COMPLETE_ALL.sql',
