@@ -12,7 +12,7 @@
   --font-body:'DM Sans',sans-serif;
   --font-mono:'JetBrains Mono',ui-monospace,monospace;
   --r:10px;--r2:16px;--r3:20px;
-  --maxw:1680px;--sidebar-width:min(388px,100%);
+  --maxw:1680px;
   --safe-bottom:env(safe-area-inset-bottom,0px);
   --safe-top:env(safe-area-inset-top,0px);
   --nav-h:56px;--topbar-h:52px;
@@ -43,6 +43,19 @@ body{
 @keyframes live-pulse{0%,100%{box-shadow:0 0 0 0 rgba(var(--live-rgb),.4)}50%{box-shadow:0 0 0 8px rgba(var(--live-rgb),0)}}
 @keyframes crown-float{0%,100%{transform:translateX(-50%) translateY(0)}50%{transform:translateX(-50%) translateY(-3px)}}
 .score-flash{animation:flash-score .55s ease-out}
+
+/* Respect reduced-motion: stop the continuous decorative motion
+   (marquee scroll, floating crown, glowing pulse) — a person who's
+   asked for less motion shouldn't get an infinite horizontal scroll
+   they can't turn off. Leave the brief, meaningful ones (refresh
+   spin, score-flash, the small "live" blink) since those convey real
+   state changes rather than just decoration. */
+@media (prefers-reduced-motion: reduce) {
+  .ticker-track{animation:none}
+  .ticker-item:nth-child(n+2){display:none}
+  .winner-crown{animation:none}
+  .champion-fab{animation:none}
+}
 
 .topbar{position:sticky;top:0;z-index:200;background:rgba(10,12,14,.96);backdrop-filter:blur(14px);border-bottom:1px solid var(--border);padding-top:var(--safe-top)}
 .topbar-inner{max-width:var(--maxw);margin:auto;padding:.65rem clamp(.85rem,3vw,2rem);display:flex;justify-content:space-between;align-items:center;gap:10px;min-height:var(--topbar-h)}
@@ -128,13 +141,6 @@ body{
 
 .main{max-width:var(--maxw);margin:0 auto;padding:1.25rem clamp(.75rem,2.5vw,2rem) 2rem}
 .section{display:none}.section.active{display:block}
-@media(min-width:1024px){
-  .main{display:grid;grid-template-columns:1fr var(--sidebar-width);gap:28px;align-items:start;padding:1.75rem clamp(1rem,2.5vw,2rem) 4rem}
-  #sec-scores{grid-column:1/2}
-  #sec-leaderboard{grid-column:2/3;display:block!important;position:sticky;top:110px}
-  #sec-schedule,#sec-highlights,#sec-mvp{grid-column:1/-1}
-}
-@media(min-width:1600px){.main{grid-template-columns:1fr 420px;gap:40px}}
 
 .sport-filters{display:flex;gap:6px;margin-bottom:.85rem;overflow-x:auto;scrollbar-width:none;padding-bottom:4px;-webkit-overflow-scrolling:touch}
 .sport-filters::-webkit-scrollbar{display:none}
@@ -170,6 +176,16 @@ body{
 }
 .featured-match::after{background:linear-gradient(90deg,transparent,var(--accent),transparent);height:3px}
 .match-card:hover,.ffa-card:hover,.sched-card:hover{border-color:var(--border3)}
+/* Lift + shadow on hover for pointer devices — the transition was
+   already declared above (transform, box-shadow) but nothing used it,
+   so mouse users got no feedback beyond a border tint. Gated to
+   hover-capable devices so touch doesn't get a "stuck" lifted card. */
+@media (hover: hover) and (pointer: fine) {
+  .match-card:hover,.ffa-card:hover,.sched-card:hover,.highlight-card:hover,.mvp-card:hover{
+    transform:translateY(-2px);
+    box-shadow:0 10px 24px rgba(0,0,0,.22);
+  }
+}
 .match-card.is-live,.ffa-card.is-live{border-color:rgba(var(--live-rgb),.45)}
 .match-card.spotlight-highlight{border-color:rgba(var(--accent-rgb),.6);box-shadow:0 0 16px rgba(var(--accent-rgb),.15)}
 .match-card.is-winner-card,.ffa-card.is-winner-card{border-color:rgba(var(--gold-rgb),.45);background:linear-gradient(160deg,rgba(245,158,11,.08) 0%,var(--bg2) 55%)}
@@ -334,7 +350,7 @@ body{
 
 /* MVP */
 .mvp-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:12px}
-.mvp-card{background:var(--bg2);border:1px solid var(--border);border-radius:var(--r2);padding:1rem .85rem;text-align:center;transition:border-color .2s}
+.mvp-card{background:var(--bg2);border:1px solid var(--border);border-radius:var(--r2);padding:1rem .85rem;text-align:center;transition:border-color .2s,transform .15s,box-shadow .2s}
 .mvp-card.featured{border-color:rgba(var(--gold-rgb),.4);background:linear-gradient(160deg,rgba(245,158,11,.08),var(--bg2))}
 .mvp-card.spotlight-mvp{border-color:rgba(var(--accent-rgb),.5)}
 .mvp-card.hidden-by-search{display:none}
@@ -366,7 +382,7 @@ body{
 .sched-meta-row{display:flex;gap:10px;font-size:11px;color:var(--muted);margin-top:3px;flex-wrap:wrap}
 
 /* Highlights */
-.highlight-card{display:flex;align-items:center;gap:12px;background:var(--bg2);border:1px solid var(--border);border-radius:var(--r2);padding:.9rem 1rem;margin-bottom:8px}
+.highlight-card{display:flex;align-items:center;gap:12px;background:var(--bg2);border:1px solid var(--border);border-radius:var(--r2);padding:.9rem 1rem;margin-bottom:8px;transition:transform .15s,box-shadow .2s}
 .hl-icon{font-size:22px;flex-shrink:0;width:36px;text-align:center}
 .hl-body{flex:1;min-width:0}
 .hl-title{font-size:13px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
@@ -536,6 +552,11 @@ body{
   /* Filters sit in one tidy row */
   .sport-filters {
     margin-bottom: 0.75rem;
+    /* There's room now — wrap instead of forcing a horizontal-scroll
+       drag with no visible scrollbar, which reads as broken on a
+       mouse/trackpad. */
+    overflow-x: visible;
+    flex-wrap: wrap;
   }
   .status-filters {
     margin-bottom: 1.25rem;
@@ -619,10 +640,34 @@ body{
   }
 }
 
+/* Ultra-wide / large monitors: a little more room instead of huge
+   dead margins, plus a 3rd match column so the board reads as a
+   proper scoreboard rather than two narrow columns floating in
+   the middle of the screen. */
+@media (min-width: 1700px) {
+  .main,
+  .page-main,
+  .nav,
+  .topbar-inner {
+    max-width: 1360px;
+  }
+  #matches-container {
+    gap: 16px;
+  }
+  .mvp-grid {
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  }
+}
+
 /* Standings / schedule / mvp / highlights pages — same width rhythm */
 @media (min-width: 1024px) {
+  /* The leaderboard's middle column is 1fr — on a wide .page-main that
+     stretches into a huge empty gap between the name and the medals/
+     points. Cap it to a normal reading width like every real standings
+     table (ESPN, league sites, etc.) instead of going edge-to-edge. */
   .lb-table {
-    max-width: 100%;
+    max-width: 760px;
+    margin: 0 auto;
   }
   .mvp-grid {
     grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
@@ -632,12 +677,25 @@ body{
   .highlight-card {
     padding: 1rem 1.25rem;
   }
+  /* Same problem on the search bar: flex:1 inside a 1100px+ container
+     makes it a huge stretched pill. Cap and center it. */
+  .search-row {
+    max-width: 460px;
+    margin-left: auto;
+    margin-right: auto;
+  }
+  /* Schedule and Highlights are flat lists (time/icon + text + a small
+     badge) — stretched across 1100px+ they leave the same dead gap
+     before the badge that the leaderboard had. Read better as a
+     centered column, same idea as an email inbox or activity feed. */
+  #schedule-container,
+  #highlights-container {
+    max-width: 820px;
+    margin-left: auto;
+    margin-right: auto;
+  }
 }
 
-/* Avoid hero-stats column layout from old 1100px rule fighting the new one */
-@media (min-width: 1100px) and (max-width: 1023px) {
-  /* no-op guard — real desktop rules start at 1024 */
-}
 /* ── Highlights cards: no overflow ── */
 .highlight-card {
   display: flex;
@@ -1341,60 +1399,9 @@ body{
   background: var(--live);
   animation: blink 1.3s ease-in-out infinite;
 }
-/* ── Champion bar ── */
-.champion-bar {
-  position: sticky;
-  top: calc(var(--topbar-h) + var(--safe-top));
-  z-index: 150;
-  margin: 0 clamp(.75rem, 2.5vw, 2rem) 1rem;
-  max-width: var(--maxw);
-  margin-left: auto;
-  margin-right: auto;
-  cursor: pointer;
-  border-radius: var(--r2);
-  background: linear-gradient(135deg, rgba(245, 158, 11, .2), rgba(245, 158, 11, .06));
-  border: 1px solid rgba(245, 158, 11, .45);
-  box-shadow: 0 0 24px rgba(245, 158, 11, .15);
-  animation: champ-glow 2.5s ease-in-out infinite;
-}
 @keyframes champ-glow {
   0%, 100% { box-shadow: 0 0 16px rgba(245, 158, 11, .12); }
   50% { box-shadow: 0 0 28px rgba(245, 158, 11, .28); }
-}
-.champion-bar-inner {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: .85rem 1.1rem;
-}
-.champion-bar-icon { font-size: 28px; flex-shrink: 0; }
-.champion-bar-text { flex: 1; min-width: 0; }
-.champion-bar-label {
-  display: block;
-  font-size: 9px;
-  font-weight: 700;
-  letter-spacing: .12em;
-  text-transform: uppercase;
-  color: var(--gold);
-  font-family: var(--font-mono);
-}
-.champion-bar-name {
-  display: block;
-  font-family: var(--font-head);
-  font-size: clamp(16px, 4vw, 22px);
-  font-weight: 800;
-  text-transform: uppercase;
-  color: var(--gold);
-  line-height: 1.15;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-.champion-bar-cta {
-  font-size: 11px;
-  color: var(--muted2);
-  font-weight: 600;
-  flex-shrink: 0;
 }
 
 /* Long pill FAB — no overlap */
@@ -1443,4 +1450,243 @@ body{
     bottom: 24px;
     right: 24px;
   }
+}
+/* ═══════════════════════════════════════════════════════════
+   DESKTOP ADD-ONS: standings sidebar, podium, featured match,
+   site footer
+   ═══════════════════════════════════════════════════════════ */
+
+/* ── Scores page: Live Standings sidebar ──
+   Only exists on index.html (#live-standings-widget). Hidden by
+   default / on narrower screens — the standings page is one tap
+   away — and only takes a column once there's genuinely spare
+   width, instead of leaving an empty gutter next to a 2-col match
+   board. */
+#live-standings-widget { display: none; }
+
+@media (min-width: 1300px) {
+  .main {
+    display: grid;
+    grid-template-columns: 1fr 320px;
+    gap: 28px;
+    align-items: start;
+  }
+  #sec-scores { grid-column: 1; min-width: 0; }
+  #live-standings-widget {
+    display: block;
+    grid-column: 2;
+    position: sticky;
+    top: calc(var(--topbar-h) + var(--safe-top) + 16px);
+  }
+}
+@media (min-width: 1700px) {
+  .main { grid-template-columns: 1fr 360px; }
+}
+
+.side-panel {
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: var(--r2);
+  overflow: hidden;
+  box-shadow: 0 8px 24px rgba(0,0,0,.18);
+}
+.side-panel-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: .9rem 1.1rem;
+  border-bottom: 1px solid var(--border);
+  background: var(--bg3);
+}
+.side-panel-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-family: var(--font-head);
+  font-size: 14px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: .4px;
+}
+.side-panel-empty {
+  padding: 1.5rem 1.1rem;
+  text-align: center;
+  color: var(--muted);
+  font-size: 12px;
+}
+.mini-lb-row {
+  display: grid;
+  grid-template-columns: 26px 26px 1fr auto;
+  align-items: center;
+  gap: 8px;
+  padding: .6rem 1.1rem;
+  border-bottom: 1px solid var(--border);
+  transition: background .15s;
+}
+.mini-lb-row:last-child { border-bottom: none; }
+.mini-lb-row:hover { background: var(--bg3); }
+.mini-lb-row .rank-badge { width: 22px; height: 22px; font-size: 10px; }
+.mini-lb-row .lb-dot { width: 24px; height: 24px; font-size: 9px; }
+.mini-lb-name {
+  font-size: 12.5px;
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: #e8eaed;
+}
+.mini-lb-pts {
+  font-family: var(--font-mono);
+  font-weight: 800;
+  font-size: 12.5px;
+  color: var(--accent);
+  text-align: right;
+}
+.side-panel-foot {
+  padding: .75rem 1.1rem;
+  text-align: center;
+  border-top: 1px solid var(--border);
+}
+.side-panel-foot a {
+  color: var(--accent);
+  font-size: 12px;
+  font-weight: 700;
+  text-decoration: none;
+}
+.side-panel-foot a:hover { text-decoration: underline; }
+
+/* ── Standings page: top-3 podium ──
+   Sits above the table. Built from whichever ranked list is
+   currently showing (no podium when "All Divisions" mixes divisions
+   together, since a merged rank across divisions isn't a real
+   podium — the table's division headings already handle that case). */
+.podium {
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  gap: clamp(8px, 2.5vw, 20px);
+  margin-bottom: 1.5rem;
+  padding: 1.5rem 1rem 0;
+}
+.podium-place {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: clamp(84px, 22vw, 140px);
+}
+.podium-place.p1 { order: 2; }
+.podium-place.p2 { order: 1; }
+.podium-place.p3 { order: 3; }
+.podium-avatar {
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--font-head);
+  font-size: 17px;
+  font-weight: 700;
+  color: #fff;
+  overflow: hidden;
+  flex-shrink: 0;
+}
+.podium-avatar img { width: 100%; height: 100%; object-fit: cover; }
+.podium-place.p1 .podium-avatar {
+  width: 76px; height: 76px; font-size: 22px;
+  box-shadow: 0 0 0 3px var(--gold), 0 0 26px rgba(245,158,11,.5);
+}
+.podium-place.p2 .podium-avatar { box-shadow: 0 0 0 3px var(--silver), 0 0 14px rgba(148,163,184,.35); }
+.podium-place.p3 .podium-avatar { box-shadow: 0 0 0 3px var(--bronze), 0 0 14px rgba(194,98,42,.35); }
+.podium-name {
+  margin-top: 8px;
+  font-size: 12px;
+  font-weight: 700;
+  text-align: center;
+  max-width: 100%;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.podium-pts {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--muted2);
+  margin-top: 2px;
+}
+.podium-place.p1 .podium-pts { color: var(--gold); font-weight: 700; }
+.podium-step {
+  width: 100%;
+  margin-top: 10px;
+  border-radius: 10px 10px 0 0;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding-top: 8px;
+  font-family: var(--font-head);
+  font-weight: 900;
+  font-size: 22px;
+  color: rgba(0,0,0,.55);
+}
+.podium-place.p1 .podium-step {
+  height: 88px;
+  background: linear-gradient(180deg, #ffd873, var(--gold));
+  box-shadow: 0 -2px 20px rgba(245,158,11,.3);
+}
+.podium-place.p2 .podium-step { height: 64px; background: linear-gradient(180deg, #e2e8f0, var(--silver)); }
+.podium-place.p3 .podium-step { height: 46px; background: linear-gradient(180deg, #e08a52, var(--bronze)); }
+
+/* ── Featured / live match: more presence than a regular card ── */
+#featured-match-wrap .featured-match {
+  position: relative;
+  background: linear-gradient(160deg, rgba(var(--accent-rgb),.09), var(--bg2) 55%);
+  border-width: 1px;
+}
+#featured-match-wrap .featured-match::before {
+  content: '★ FEATURED';
+  position: absolute;
+  top: 12px;
+  left: 50%;
+  transform: translateX(-50%);
+  font-family: var(--font-mono);
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: .12em;
+  color: var(--accent);
+  background: rgba(var(--accent-rgb), .12);
+  border: 1px solid rgba(var(--accent-rgb), .35);
+  border-radius: 100px;
+  padding: 3px 10px;
+  z-index: 2;
+}
+#featured-match-wrap .featured-match.is-live {
+  box-shadow: 0 0 0 1px rgba(var(--live-rgb),.35), 0 20px 50px -20px rgba(var(--live-rgb),.35);
+}
+@media (min-width: 1024px) {
+  #featured-match-wrap .featured-match { padding-top: 2.5rem; }
+}
+
+/* ── Footer ── */
+.site-footer {
+  border-top: 1px solid var(--border);
+  margin-top: 2.5rem;
+  padding: 1.5rem clamp(.85rem, 3vw, 2rem) calc(1.5rem + var(--nav-h) + var(--safe-bottom));
+  text-align: center;
+}
+.site-footer-brand {
+  font-family: var(--font-head);
+  font-size: 13px;
+  font-weight: 800;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  color: var(--muted2);
+}
+.site-footer-meta {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--muted);
+  margin-top: 4px;
+}
+@media (min-width: 1024px) {
+  .site-footer { padding-bottom: 1.5rem; }
 }

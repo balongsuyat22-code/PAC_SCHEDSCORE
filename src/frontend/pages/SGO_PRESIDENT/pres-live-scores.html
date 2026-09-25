@@ -42,6 +42,37 @@
             border-radius: 100px;
             padding: 3px 10px;
         }
+
+        .live-score-row {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .live-score-team {
+            flex: 1;
+            min-width: 0;
+        }
+
+        .live-score-team>div {
+            overflow-wrap: break-word;
+        }
+
+        .live-score-box {
+            flex-shrink: 0;
+            text-align: center;
+        }
+
+        @media (max-width: 400px) {
+            .live-score-box {
+                font-size: 32px !important;
+                min-width: 64px !important;
+            }
+
+            .live-score-team>div {
+                font-size: 15px !important;
+            }
+        }
     </style>
 </head>
 
@@ -209,12 +240,12 @@
                 <div style="font-size:12px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:var(--green);margin-bottom:6px">
                     <span class="live-dot"></span>LIVE · ${m.sport_name} · ${m.tournament_name}
                 </div>
-                <div style="display:flex;align-items:center;gap:16px">
-                    <div style="text-align:center;flex:1">
+                <div class="live-score-row">
+                    <div class="live-score-team" style="text-align:center">
                         <div style="font-family:'Barlow Condensed',sans-serif;font-size:18px;font-weight:800">${m.dept_a || '?'}</div>
                     </div>
-                        <div style="font-family:'Barlow Condensed',sans-serif;font-size:44px;font-weight:900;color:var(--gold);text-align:center;min-width:100px">${m.scoring_type === 'sets' ? `${m.live_sets_a || 0}–${m.live_sets_b || 0}` : `${m.live_score_a || 0}–${m.live_score_b || 0}`}</div>
-                    <div style="text-align:center;flex:1">
+                        <div class="live-score-box" style="font-family:'Barlow Condensed',sans-serif;font-size:44px;font-weight:900;color:var(--gold);min-width:100px">${m.scoring_type === 'sets' ? `${m.live_sets_a || 0}–${m.live_sets_b || 0}` : `${m.live_score_a || 0}–${m.live_score_b || 0}`}</div>
+                    <div class="live-score-team" style="text-align:center">
                         <div style="font-family:'Barlow Condensed',sans-serif;font-size:18px;font-weight:800">${m.dept_b || '?'}</div>
                     </div>
                 </div>

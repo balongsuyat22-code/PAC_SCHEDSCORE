@@ -50,7 +50,7 @@ function renderLeaderboard() {
         return `<div class="rank-badge rank-other">${n}</div>`;
     };
     const topClass = n => n === 1 ? 'top1' : n === 2 ? 'top2' : n === 3 ? 'top3' : '';
-    el.innerHTML = `<div class="lb-table">
+    el.innerHTML = `${podiumHtml(data)}<div class="lb-table">
     <div class="lb-header"><div>#</div><div>Department</div><div style="text-align:center">Medals</div><div style="text-align:right">Points</div></div>
     ${data.map((d, i) => {
         const rank = currentLbDivision === 'all' ? (d.rank || i + 1) : i + 1;
@@ -75,6 +75,33 @@ function renderLeaderboard() {
     }).join('')}
   </div>`;
 }
+
+/** Top-3 podium shown above the table. Only meaningful for a single
+ *  ranked list — skipped when "All Divisions" is mixing multiple
+ *  divisions together, since there's no one real #1/#2/#3 across
+ *  divisions that haven't been ranked against each other (the table's
+ *  per-division headings already handle that case on their own). */
+function podiumHtml(data) {
+    const divisions = new Set(data.map(d => d.division).filter(Boolean));
+    if (divisions.size > 1) return '';
+    const top3 = data.slice(0, 3);
+    if (top3.length < 2) return ''; // not enough for a podium to mean anything
+    const place = (d, n) => {
+        if (!d) return '';
+        const col = d.color || deptColor(d.name);
+        const avatar = d.logo_url
+            ? `<img src="${esc(d.logo_url)}" alt="">`
+            : initials(d.name);
+        return `<div class="podium-place p${n}">
+      <div class="podium-avatar" style="background:${col}">${avatar}</div>
+      <div class="podium-name">${esc(d.name)}</div>
+      <div class="podium-pts">${d.total_points || 0} pts</div>
+      <div class="podium-step">${n}</div>
+    </div>`;
+    };
+    return `<div class="podium">${place(top3[0], 1)}${place(top3[1], 2)}${place(top3[2], 3)}</div>`;
+}
+
 
 /** Last-known champion/leader state, cached so the banner can be redrawn
  *  (e.g. after a division-filter re-render, which rebuilds #lb-container

@@ -103,6 +103,11 @@
             </div>
         </div>
     </main>
+
+    <footer class="site-footer">
+        <div class="site-footer-brand">PAC SCHED-SCORE</div>
+        <div class="site-footer-meta">Live results, standings &amp; schedule &middot; <span id="footer-year"></span></div>
+    </footer>
     <nav class="mobile-nav" aria-label="Main">
         <a href="/live" data-page="index">
             <span class="mnav-icon" aria-hidden="true">
@@ -159,6 +164,7 @@
         </a>
     </nav>
     <script src="../../js/visitor/config.js"></script>
+    <script>document.getElementById('footer-year').textContent = new Date().getFullYear();</script>
     <script src="../../js/visitor/schedule.js"></script>
 </body>
 
