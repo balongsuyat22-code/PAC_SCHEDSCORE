@@ -302,4 +302,7 @@ const start = async () => {
 
 if (require.main === module) start();
 
-module.exports = { app, server, io };
+module.exports = app;
+module.exports.app = app;
+module.exports.server = server;
+module.exports.io = io;
