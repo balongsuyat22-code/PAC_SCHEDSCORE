@@ -6,6 +6,7 @@ const socketIo = require('socket.io');
 const cors = require('cors');
 const path = require('path');
 const fs = require('fs');
+const os = require('os');
 const app = express();
 app.set('trust proxy', 1);
 
@@ -32,8 +33,9 @@ const { initSocket } = require('./utils/socketEmit');
 
 const server = http.createServer(app);
 const PORT = process.env.PORT || 3000;
+const isVercel = process.env.VERCEL === '1';
 
-const io = socketIo(server, {
+const io = isVercel ? null : socketIo(server, {
     cors: {
         origin: process.env.CORS_ORIGIN || '*',
         methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
@@ -45,8 +47,8 @@ const io = socketIo(server, {
     pingInterval: 25000,
 });
 
-const socketHelpers = require('./socket')(io);
-initSocket(socketHelpers);
+const socketHelpers = io ? require('./socket')(io) : null;
+if (socketHelpers) initSocket(socketHelpers);
 
 app.set('io', io);
 
@@ -76,7 +78,10 @@ app.use(cors({
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true }));
 
-app.use('/uploads', express.static('uploads'));
+const uploadsRoot = isVercel
+    ? path.join(os.tmpdir(), 'uploads')
+    : path.join(__dirname, '..', 'uploads');
+app.use('/uploads', express.static(uploadsRoot));
 
 if (process.env.NODE_ENV === 'development') {
     app.use((req, _res, next) => {
@@ -91,11 +96,12 @@ app.get('/socket-status', (req, res) => {
     res.json({
         success: true,
         data: {
-            connected: socketHelpers.getConnectedUsers(),
+            available: Boolean(io),
+            connected: socketHelpers ? socketHelpers.getConnectedUsers() : 0,
             rooms: {
                 matches: 'dynamic',
                 tournaments: 'dynamic',
-                leaderboard: io.sockets.adapter.rooms.get('leaderboard')?.size || 0
+                leaderboard: io?.sockets.adapter.rooms.get('leaderboard')?.size || 0
             }
         }
     });
@@ -294,6 +300,6 @@ const start = async () => {
     }
 };
 
-start();
+if (require.main === module) start();
 
 module.exports = { app, server, io };

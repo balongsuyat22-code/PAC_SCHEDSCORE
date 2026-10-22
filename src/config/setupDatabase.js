@@ -7,16 +7,45 @@ const path = require('path');
 const RESET_DATABASE = process.env.RESET_DATABASE === '1' || process.env.RESET_DATABASE === 'true';
 const SEED_DATABASE = process.env.SEED_DATABASE === '1' || process.env.SEED_DATABASE === 'true';
 
+const buildSslConfig = () => {
+    if (process.env.DB_SSL !== 'true') return undefined;
+
+    const ca = process.env.DB_CA_CERT?.replace(/\\n/g, '\n');
+    return {
+        rejectUnauthorized: true,
+        minVersion: 'TLSv1.2',
+        ...(ca ? { ca } : {}),
+    };
+};
+
 const buildConnectionOptions = () => {
-    if (process.env.MYSQL_URL) return { uri: process.env.MYSQL_URL, multipleStatements: true };
-    if (process.env.DATABASE_URL && process.env.DATABASE_URL.startsWith('mysql'))
-        return { uri: process.env.DATABASE_URL, multipleStatements: true };
+    const databaseUrl = process.env.DATABASE_URL || process.env.MYSQL_URL;
+    const ssl = buildSslConfig();
+    if (databaseUrl) {
+        const url = new URL(databaseUrl);
+        if (url.protocol !== 'mysql:') {
+            throw new Error('DATABASE_URL must use the mysql:// protocol');
+        }
+
+        return {
+            host: url.hostname,
+            port: Number(url.port || 3306),
+            user: decodeURIComponent(url.username),
+            password: decodeURIComponent(url.password),
+            database: decodeURIComponent(url.pathname.replace(/^\//, '')) || undefined,
+            multipleStatements: true,
+            ...(ssl ? { ssl } : {}),
+        };
+    }
+
     return {
         host: process.env.DB_HOST || process.env.MYSQLHOST || 'localhost',
         port: Number(process.env.DB_PORT || process.env.MYSQLPORT || 3306),
         user: process.env.DB_USER || process.env.MYSQLUSER || 'root',
         password: process.env.DB_PASSWORD || process.env.MYSQLPASSWORD || '',
+        database: process.env.DB_NAME || process.env.MYSQLDATABASE || undefined,
         multipleStatements: true,
+        ...(ssl ? { ssl } : {}),
     };
 };
 
@@ -127,7 +156,7 @@ const GAUNTLET_SCHEDULE = {
 // ────────────────────────────────────────────────────────────
 // Write match_results + match_scores for one match
 // ────────────────────────────────────────────────────────────
-async function writeScore(conn, matchId, stype, winnerIsA, adminId, championName = null) {
+async function writeScore(conn, matchId, stype, winnerIsA, adminId, championName = null, sportCode = '') {
     await conn.query(`DELETE FROM match_results WHERE match_id = ?`, [matchId]);
     await conn.query(`DELETE FROM match_scores  WHERE match_id = ?`, [matchId]);
 
@@ -135,8 +164,13 @@ async function writeScore(conn, matchId, stype, winnerIsA, adminId, championName
     let scoreA, scoreB, display, side;
 
     if (stype === 'points') {
-        scoreA = winnerIsA ? 18 + rnd(10) : 5 + rnd(10);
-        scoreB = winnerIsA ? 5 + rnd(10) : 18 + rnd(10);
+        const isBasketball = sportCode.toUpperCase() === 'BASKETBALL';
+        const winningScore = isBasketball ? 60 + rnd(21) : 18 + rnd(10);
+        const losingScore = isBasketball
+            ? 50 + rnd(winningScore - 50)
+            : 5 + rnd(10);
+        scoreA = winnerIsA ? winningScore : losingScore;
+        scoreB = winnerIsA ? losingScore : winningScore;
         if (scoreA === scoreB) scoreA += 1;
         display = `${scoreA}-${scoreB}`;
     } else if (stype === 'sets') {
@@ -327,7 +361,7 @@ async function fillAll(conn) {
                     matchId = ins.insertId;
                 }
 
-                await writeScore(conn, matchId, stype, w === a, adminId);
+                await writeScore(conn, matchId, stype, w === a, adminId, null, t.sport_code);
                 totalMatches++;
             }
             gauntletCount++;
@@ -515,16 +549,20 @@ async function sanityCheck(conn) {
 const run = async () => {
     let conn;
     try {
-        const dbName = process.env.DB_NAME || process.env.MYSQLDATABASE || 'sportfest_db';
+        const connectionOptions = buildConnectionOptions();
+        const dbName = connectionOptions.database ||
+            process.env.DB_NAME || process.env.MYSQLDATABASE || 'sportfest_db';
 
-        console.log('🔧 Connecting to MySQL...');
-        console.log('  host:', process.env.DB_HOST || process.env.MYSQLHOST || '(from URL)');
+        console.log('🔧 Connecting to MySQL-compatible database...');
+        console.log('  host:', connectionOptions.host || '(from URL)');
         console.log('  database:', dbName);
         console.log('  mode:', RESET_DATABASE ? 'FULL RESEED' : SEED_DATABASE ? 'SEED' : 'PRESERVE DATA');
 
-        conn = await mysql.createConnection(buildConnectionOptions());
-        await conn.query(`CREATE DATABASE IF NOT EXISTS \`${dbName}\``);
-        await conn.query(`USE \`${dbName}\``);
+        conn = await mysql.createConnection(connectionOptions);
+        if (!connectionOptions.database) {
+            await conn.query(`CREATE DATABASE IF NOT EXISTS \`${dbName}\``);
+            await conn.query(`USE \`${dbName}\``);
+        }
         console.log('✅ Connected\n');
 
         const hasSchema = await tableExists(conn, 'departments');

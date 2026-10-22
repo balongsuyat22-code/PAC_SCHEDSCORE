@@ -129,6 +129,35 @@ API docs at **http://localhost:3000/api**
 
 ---
 
+## ☁️ Deploy to Vercel with TiDB Cloud
+
+This repository includes a Vercel Node function entry point and routing configuration. The same Express routes serve the frontend and `/api` endpoints. Vercel runs the app as a serverless function, so it does not call `listen()` or run the database setup script on each deployment.
+
+1. Create a TiDB Cloud database and import `sql/schema.sql` into the database you intend to use. To initialize a new database with the included seed data, configure the environment variables locally and run `npm run setup-db` once. Do not run database initialization as part of Vercel's build or request startup.
+2. Import this repository into Vercel and set these **Project → Settings → Environment Variables** for Production (and Preview if needed):
+   - `DATABASE_URL`: TiDB's `mysql://` connection URL, including the database name in its path. Alternatively set `DB_HOST`, `DB_PORT`, `DB_USER`, `DB_PASSWORD`, and `DB_NAME`.
+   - `DB_SSL`: `true` (TLS certificate verification is enabled).
+   - `JWT_SECRET`: a long, randomly generated secret. Do not use the development fallback.
+   - `CORS_ORIGIN`: your deployed site's exact origin, such as `https://your-project.vercel.app`.
+   - `DB_CONNECTION_LIMIT`: `5` is a suitable serverless starting point; tune it together with your TiDB connection limits.
+3. Deploy. Verify `/health`, `/api`, and a database-backed API endpoint after deployment.
+
+Vercel functions do not provide persistent WebSocket connections or writable durable local storage. Socket.IO is therefore disabled in the Vercel runtime (`/socket-status` reports `available: false`), and department logo uploads go to temporary `/tmp` storage and can disappear between invocations. For production real-time updates and persistent uploads, use a separate WebSocket-capable service and durable object storage; the default local/Railway runtime retains Socket.IO and local uploads.
+
+### Continuous integration and deployment
+
+The GitHub Actions workflow at `.github/workflows/deploy.yml` validates JavaScript and deployment configuration on pull requests and pushes to `main`. A push to `main` (or manually running the workflow) deploys the production build to Vercel after validation succeeds.
+
+Add these repository secrets under **GitHub → Settings → Secrets and variables → Actions**:
+
+- `VERCEL_TOKEN`: a Vercel access token.
+- `VERCEL_ORG_ID`: the Vercel team/account ID for the project.
+- `VERCEL_PROJECT_ID`: the Vercel project ID.
+
+Find the project and org IDs in the Vercel project settings or the `.vercel/project.json` file after linking the project with the Vercel CLI. Keep database credentials, `JWT_SECRET`, and other runtime environment variables configured in **Vercel → Project → Settings → Environment Variables**; the workflow does not copy or print them. After adding the secrets, push to `main` or use **Actions → CI and Vercel deployment → Run workflow**.
+
+---
+
 ## 🗄 Database Setup
 
 The `schema.sql` file creates everything automatically:

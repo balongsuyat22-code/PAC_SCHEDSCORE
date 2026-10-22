@@ -601,7 +601,7 @@ SELECT
 WHERE EXISTS (SELECT 1 FROM tournaments WHERE name='Basketball - SGO Days 2026');
 
 INSERT INTO match_results (match_id, total_score_a, total_score_b, final_score_display, winner_side, win_type, recorded_by)
-SELECT m.id, 19, 12, '19-12', 'a', 'normal', @admin_id
+SELECT m.id, 68, 62, '68-62', 'a', 'normal', @admin_id
 FROM matches m
 JOIN tournaments t ON m.tournament_id = t.id
 WHERE t.name = 'Basketball - SGO Days 2026' AND m.match_number = 9001
@@ -627,7 +627,7 @@ SELECT
 WHERE EXISTS (SELECT 1 FROM tournaments WHERE name='Basketball - SGO Days 2026');
 
 INSERT INTO match_results (match_id, total_score_a, total_score_b, final_score_display, winner_side, win_type, recorded_by)
-SELECT m.id, 26, 18, '26-18', 'a', 'normal', @admin_id
+SELECT m.id, 72, 65, '72-65', 'a', 'normal', @admin_id
 FROM matches m
 JOIN tournaments t ON m.tournament_id = t.id
 WHERE t.name = 'Basketball - SGO Days 2026' AND m.match_number = 9002
@@ -653,7 +653,7 @@ SELECT
 WHERE EXISTS (SELECT 1 FROM tournaments WHERE name='Basketball - SGO Days 2026');
 
 INSERT INTO match_results (match_id, total_score_a, total_score_b, final_score_display, winner_side, win_type, recorded_by)
-SELECT m.id, 28, 13, '28-13', 'a', 'normal', @admin_id
+SELECT m.id, 70, 58, '70-58', 'a', 'normal', @admin_id
 FROM matches m
 JOIN tournaments t ON m.tournament_id = t.id
 WHERE t.name = 'Basketball - SGO Days 2026' AND m.match_number = 9003
@@ -679,7 +679,7 @@ SELECT
 WHERE EXISTS (SELECT 1 FROM tournaments WHERE name='Basketball - SGO Days 2026');
 
 INSERT INTO match_results (match_id, total_score_a, total_score_b, final_score_display, winner_side, win_type, recorded_by)
-SELECT m.id, 21, 18, '21-18', 'a', 'normal', @admin_id
+SELECT m.id, 64, 59, '64-59', 'a', 'normal', @admin_id
 FROM matches m
 JOIN tournaments t ON m.tournament_id = t.id
 WHERE t.name = 'Basketball - SGO Days 2026' AND m.match_number = 9004
@@ -705,7 +705,7 @@ SELECT
 WHERE EXISTS (SELECT 1 FROM tournaments WHERE name='Basketball - SGO Days 2026');
 
 INSERT INTO match_results (match_id, total_score_a, total_score_b, final_score_display, winner_side, win_type, recorded_by)
-SELECT m.id, 24, 19, '24-19', 'a', 'normal', @admin_id
+SELECT m.id, 75, 68, '75-68', 'a', 'normal', @admin_id
 FROM matches m
 JOIN tournaments t ON m.tournament_id = t.id
 WHERE t.name = 'Basketball - SGO Days 2026' AND m.match_number = 9005
@@ -731,7 +731,7 @@ SELECT
 WHERE EXISTS (SELECT 1 FROM tournaments WHERE name='Basketball - SGO Days 2026');
 
 INSERT INTO match_results (match_id, total_score_a, total_score_b, final_score_display, winner_side, win_type, recorded_by)
-SELECT m.id, 26, 23, '26-23', 'a', 'normal', @admin_id
+SELECT m.id, 71, 69, '71-69', 'a', 'normal', @admin_id
 FROM matches m
 JOIN tournaments t ON m.tournament_id = t.id
 WHERE t.name = 'Basketball - SGO Days 2026' AND m.match_number = 9006
@@ -757,7 +757,7 @@ SELECT
 WHERE EXISTS (SELECT 1 FROM tournaments WHERE name='Basketball - SGO Days 2026');
 
 INSERT INTO match_results (match_id, total_score_a, total_score_b, final_score_display, winner_side, win_type, recorded_by)
-SELECT m.id, 25, 22, '25-22', 'a', 'normal', @admin_id
+SELECT m.id, 66, 61, '66-61', 'a', 'normal', @admin_id
 FROM matches m
 JOIN tournaments t ON m.tournament_id = t.id
 WHERE t.name = 'Basketball - SGO Days 2026' AND m.match_number = 9007
@@ -783,7 +783,7 @@ SELECT
 WHERE EXISTS (SELECT 1 FROM tournaments WHERE name='Basketball - SGO Days 2026');
 
 INSERT INTO match_results (match_id, total_score_a, total_score_b, final_score_display, winner_side, win_type, recorded_by)
-SELECT m.id, 27, 17, '27-17', 'a', 'normal', @admin_id
+SELECT m.id, 78, 55, '78-55', 'a', 'normal', @admin_id
 FROM matches m
 JOIN tournaments t ON m.tournament_id = t.id
 WHERE t.name = 'Basketball - SGO Days 2026' AND m.match_number = 9008
@@ -809,7 +809,7 @@ SELECT
 WHERE EXISTS (SELECT 1 FROM tournaments WHERE name='Basketball - SGO Days 2026');
 
 INSERT INTO match_results (match_id, total_score_a, total_score_b, final_score_display, winner_side, win_type, recorded_by)
-SELECT m.id, 21, 10, '21-10', 'a', 'normal', @admin_id
+SELECT m.id, 69, 63, '69-63', 'a', 'normal', @admin_id
 FROM matches m
 JOIN tournaments t ON m.tournament_id = t.id
 WHERE t.name = 'Basketball - SGO Days 2026' AND m.match_number = 9009
@@ -835,7 +835,7 @@ SELECT
 WHERE EXISTS (SELECT 1 FROM tournaments WHERE name='Basketball - SGO Days 2026');
 
 INSERT INTO match_results (match_id, total_score_a, total_score_b, final_score_display, winner_side, win_type, recorded_by)
-SELECT m.id, 27, 11, '27-11', 'a', 'normal', @admin_id
+SELECT m.id, 73, 60, '73-60', 'a', 'normal', @admin_id
 FROM matches m
 JOIN tournaments t ON m.tournament_id = t.id
 WHERE t.name = 'Basketball - SGO Days 2026' AND m.match_number = 9010
@@ -861,7 +861,7 @@ SELECT
 WHERE EXISTS (SELECT 1 FROM tournaments WHERE name='Basketball - SGO Days 2026');
 
 INSERT INTO match_results (match_id, total_score_a, total_score_b, final_score_display, winner_side, win_type, recorded_by)
-SELECT m.id, 19, 12, '19-12', 'a', 'normal', @admin_id
+SELECT m.id, 67, 52, '67-52', 'a', 'normal', @admin_id
 FROM matches m
 JOIN tournaments t ON m.tournament_id = t.id
 WHERE t.name = 'Basketball - SGO Days 2026' AND m.match_number = 9011
@@ -887,7 +887,7 @@ SELECT
 WHERE EXISTS (SELECT 1 FROM tournaments WHERE name='Basketball - SGO Days 2026');
 
 INSERT INTO match_results (match_id, total_score_a, total_score_b, final_score_display, winner_side, win_type, recorded_by)
-SELECT m.id, 19, 13, '19-13', 'a', 'normal', @admin_id
+SELECT m.id, 62, 58, '62-58', 'a', 'normal', @admin_id
 FROM matches m
 JOIN tournaments t ON m.tournament_id = t.id
 WHERE t.name = 'Basketball - SGO Days 2026' AND m.match_number = 9012
@@ -913,7 +913,7 @@ SELECT
 WHERE EXISTS (SELECT 1 FROM tournaments WHERE name='Basketball - SGO Days 2026');
 
 INSERT INTO match_results (match_id, total_score_a, total_score_b, final_score_display, winner_side, win_type, recorded_by)
-SELECT m.id, 18, 15, '18-15', 'a', 'normal', @admin_id
+SELECT m.id, 70, 64, '70-64', 'a', 'normal', @admin_id
 FROM matches m
 JOIN tournaments t ON m.tournament_id = t.id
 WHERE t.name = 'Basketball - SGO Days 2026' AND m.match_number = 9013
@@ -10504,4 +10504,3 @@ WHERE t.sport_fest_id = @fest_id
   AND m.status = 'completed'
   AND m.winner_department_id IS NOT NULL
   AND NOT EXISTS (SELECT 1 FROM match_results mr WHERE mr.match_id = m.id);
-
