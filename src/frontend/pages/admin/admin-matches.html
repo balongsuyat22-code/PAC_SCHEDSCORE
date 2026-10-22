@@ -9,7 +9,15 @@
         href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;600;700;800;900&family=Barlow:wght@300;400;500;600&display=swap"
         rel="stylesheet">
     <link rel="stylesheet" href="../../css/shared.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
     <style>
+        body.president-view {
+            --gold: #8B5CF6;
+            --gold-dim: #6D28D9;
+            --gold-bg: rgba(139, 92, 246, 0.10);
+            --border-gold: rgba(139, 92, 246, 0.25);
+        }
+
         .live-banner {
             background: linear-gradient(135deg, #0a1a0a, #0d1f0d);
             border: 1px solid rgba(34, 197, 94, 0.25);
@@ -1204,7 +1212,10 @@
         document.addEventListener('DOMContentLoaded', async () => {
             const user = Auth.requireAuth(['admin', 'sgo_president']);
             if (!user) return;
-            if (user.role === 'sgo_president') renderSidebar('matches');
+            if (user.role === 'sgo_president') {
+                document.body.classList.add('president-view');
+                renderSidebar('matches');
+            }
             else window.adminRenderSidebar('matches');
             if (typeof populateIcons === 'function') populateIcons();
             try {

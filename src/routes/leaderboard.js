@@ -10,6 +10,7 @@ router.get('/top-scorers', lbc.getTopScorers);
 router.get('/winning-teams', lbc.getWinningTeams);
 router.get('/champions', lbc.getChampionTeams);
 router.get('/overall-champion', lbc.getOverallChampion);
+router.get('/champion', lbc.getOverallChampion);
 router.get('/department-mvp/:departmentId', lbc.getDepartmentMVP);
 router.get('/overall-mvp', lbc.getOverallMVP);
 router.get('/tournament-champions', lbc.getTournamentChampions);

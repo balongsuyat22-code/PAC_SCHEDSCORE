@@ -59,12 +59,9 @@ const getDepartmentRanking = async (req, res, next) => {
             COALESCE(ds.bronze_medals,       0) AS bronze_medals,
             COALESCE(ds.total_participations,0) AS total_participations,
             COALESCE(ds.tournaments_entered, 0) AS tournaments_entered,
-            COUNT(DISTINCT CASE WHEN m.winner_department_id = d.id AND m.status = 'completed' THEN m.id END) AS total_wins,
-            COUNT(DISTINCT CASE WHEN (m.participant_a_department_id = d.id OR m.participant_b_department_id = d.id)
-                                 AND m.status = 'completed'
-                                 AND m.winner_department_id != d.id THEN m.id END) AS total_losses,
-            COUNT(DISTINCT CASE WHEN (m.participant_a_department_id = d.id OR m.participant_b_department_id = d.id)
-                                 AND m.status = 'completed' THEN m.id END) AS total_matches_played,
+            COALESCE(ms.total_wins, 0) AS total_wins,
+            COALESCE(ms.total_losses, 0) AS total_losses,
+            COALESCE(ms.total_matches_played, 0) AS total_matches_played,
             RANK() OVER (
                 PARTITION BY d.division
                 ORDER BY
@@ -74,17 +71,46 @@ const getDepartmentRanking = async (req, res, next) => {
                     COALESCE(ds.bronze_medals, 0) DESC
             ) AS \`rank\`
          FROM departments d
-         LEFT JOIN department_scores ds ON d.id = ds.department_id AND ds.sport_fest_id <=> ?
-         LEFT JOIN matches m
-               ON (m.participant_a_department_id = d.id OR m.participant_b_department_id = d.id)
-              AND EXISTS (
-                  SELECT 1 FROM sport_fest_tournaments sft
-                  WHERE sft.tournament_id = m.tournament_id AND sft.sport_fest_id <=> ?
-              )
+         LEFT JOIN (
+             SELECT department_id,
+                    SUM(total_points) AS total_points,
+                    SUM(gold_medals) AS gold_medals,
+                    SUM(silver_medals) AS silver_medals,
+                    SUM(bronze_medals) AS bronze_medals,
+                    SUM(total_participations) AS total_participations,
+                    SUM(tournaments_entered) AS tournaments_entered
+             FROM department_scores
+             WHERE sport_fest_id <=> ?
+             GROUP BY department_id
+         ) ds ON ds.department_id = d.id
+         LEFT JOIN (
+             SELECT department_id,
+                    COUNT(DISTINCT CASE WHEN winner_department_id = department_id THEN match_id END) AS total_wins,
+                    COUNT(DISTINCT CASE WHEN winner_department_id != department_id THEN match_id END) AS total_losses,
+                    COUNT(DISTINCT match_id) AS total_matches_played
+             FROM (
+                 SELECT m.id AS match_id, m.status, m.winner_department_id,
+                        m.participant_a_department_id AS department_id
+                 FROM matches m
+                 JOIN sport_fest_tournaments sft ON sft.tournament_id = m.tournament_id
+                 WHERE sft.sport_fest_id <=> ?
+                   AND m.participant_a_department_id IS NOT NULL
+                   AND m.status = 'completed'
+                 UNION ALL
+                 SELECT m.id AS match_id, m.status, m.winner_department_id,
+                        m.participant_b_department_id AS department_id
+                 FROM matches m
+                 JOIN sport_fest_tournaments sft ON sft.tournament_id = m.tournament_id
+                 WHERE sft.sport_fest_id <=> ?
+                   AND m.participant_b_department_id IS NOT NULL
+                   AND m.participant_b_department_id != m.participant_a_department_id
+                   AND m.status = 'completed'
+             ) match_departments
+             GROUP BY department_id
+         ) ms ON ms.department_id = d.id
          WHERE d.is_active = 1 AND d.is_exhibition = 0 AND d.division IS NOT NULL
-         GROUP BY d.id
          ORDER BY total_points DESC, gold_medals DESC`,
-                [sportFestId, sportFestId]
+                [sportFestId, sportFestId, sportFestId]
             );
             return r;
         });
@@ -166,7 +192,8 @@ const getBySport = async (req, res, next) => {
         }
 
         query += `
-            GROUP BY s.id, d.id, d.division
+            GROUP BY s.id, s.name, s.code, s.icon,
+                     d.id, d.name, d.color, d.logo_url, d.division
             ORDER BY s.name, sport_points DESC
         `;
 
@@ -210,7 +237,7 @@ const getTopScorers = async (req, res, next) => {
         }
 
         query += `
-            GROUP BY mr.mvp_player_id, mr.mvp_player_name, d.id, s.id
+            GROUP BY mr.mvp_player_id, mr.mvp_player_name, d.id, d.name, d.color, s.id, s.name
             ORDER BY mvp_count DESC, win_count DESC
             LIMIT ?
         `;
@@ -234,23 +261,22 @@ const getWinningTeams = async (req, res, next) => {
                 d.name AS department_name,
                 d.color,
                 s.name AS sport_name,
-                COUNT(m.id) AS total_wins
+                wins.total_wins AS total_wins
              FROM teams t
              JOIN departments d ON t.department_id = d.id
              JOIN sports      s ON t.sport_id      = s.id
-             JOIN matches m
-                   ON m.winner_department_id = d.id
-                   AND m.tournament_id IN (
-                       SELECT id FROM tournaments WHERE sport_id = t.sport_id
-                   )
+             JOIN (
+                 SELECT m.winner_department_id, t.sport_id, COUNT(*) AS total_wins
+                 FROM matches m
+                 JOIN tournaments t ON t.id = m.tournament_id
+                 JOIN sport_fest_tournaments sft ON sft.tournament_id = t.id
+                 WHERE sft.sport_fest_id <=> ?
                    AND m.status = 'completed'
-                         JOIN sport_fest_tournaments sft
-                             ON sft.tournament_id = m.tournament_id
-                            AND sft.sport_fest_id <=> ?
-                         WHERE d.is_exhibition = 0
-             GROUP BY t.id
+                 GROUP BY m.winner_department_id, t.sport_id
+             ) wins ON wins.winner_department_id = d.id AND wins.sport_id = t.sport_id
+             WHERE d.is_exhibition = 0
              ORDER BY total_wins DESC
-                         LIMIT 20`,
+             LIMIT 20`,
             [sportFestId]
         );
 
@@ -410,22 +436,11 @@ const getOverallChampion = async (req, res, next) => {
         const sportFestId = await getActiveSportFestId();
 
         const [[festRow]] = await pool.execute(
-            `SELECT champion_department_id, status, champion_count FROM sport_fest_events WHERE id <=> ?`,
+            `SELECT champion_department_id, status FROM sport_fest_events WHERE id <=> ?`,
             [sportFestId]
         );
         const manuallyDeclared = !!(festRow && festRow.champion_department_id);
-        const [[totals]] = await pool.execute(
-            `SELECT
-        COUNT(*) AS total,
-        SUM(CASE WHEN t.status NOT IN ('completed','cancelled') THEN 1 ELSE 0 END) AS incomplete
-     FROM tournaments t
-     JOIN sport_fest_tournaments sft ON t.id = sft.tournament_id
-     WHERE sft.sport_fest_id <=> ?`,
-            [sportFestId]
-        );
-        const tournamentTotal = Number(totals?.total || 0);
-        const incompleteTournaments = Number(totals?.incomplete || 0);
-        const allComplete = manuallyDeclared || (tournamentTotal > 0 && incompleteTournaments === 0);
+        const allComplete = manuallyDeclared && festRow.status === 'completed';
 
         const [leaders] = await pool.execute(
             `SELECT
@@ -546,7 +561,7 @@ const getDepartmentMVP = async (req, res, next) => {
              WHERE m.winner_department_id = ?
                AND mr.mvp_player_name IS NOT NULL
                AND mr.mvp_player_name != ''
-             GROUP BY mr.mvp_player_id, mr.mvp_player_name, s.id
+             GROUP BY mr.mvp_player_id, mr.mvp_player_name, s.id, s.name
              ORDER BY mvp_count DESC
              LIMIT 10`,
             [departmentId]
@@ -575,7 +590,7 @@ const getOverallMVP = async (req, res, next) => {
              LEFT JOIN tournaments t ON m.tournament_id     = t.id
              LEFT JOIN sports      s ON t.sport_id          = s.id
              WHERE mr.mvp_player_name IS NOT NULL AND mr.mvp_player_name != ''
-             GROUP BY mr.mvp_player_id, mr.mvp_player_name, d.id, s.id
+             GROUP BY mr.mvp_player_id, mr.mvp_player_name, d.id, d.name, d.color, s.id, s.name
              ORDER BY mvp_count DESC
              LIMIT 10`
         );

@@ -563,7 +563,7 @@
         async function loadPage(opts = {}) {
             const [lbRes, champRes, sportRes] = await Promise.all([
                 api('/leaderboard'),
-                api('/leaderboard/champion').catch(() => api('/leaderboard/overall-champion').catch(() => ({ success: false }))),
+                api('/leaderboard/overall-champion').catch(() => ({ success: false })),
                 api('/leaderboard/by-sport').catch(() => ({ success: false, data: [] })),
             ]);
             lbData = lbRes.data || [];

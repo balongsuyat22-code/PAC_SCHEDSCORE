@@ -314,22 +314,45 @@ const addMember = async (req, res, next) => {
             });
         }
 
-        const [claim] = await pool.execute(
-            `UPDATE players p
-             JOIN sports s ON s.id = ?
-             SET p.team_id = ?, p.updated_at = NOW()
-             WHERE p.id = ?
-               AND (SELECT COUNT(*) FROM players WHERE team_id = ? AND status = 'approved') < s.max_players`,
-            [team[0].sport_id, teamId, player_id, teamId]
-        );
-        if (claim.affectedRows === 0) {
-            const [sport] = await pool.execute('SELECT max_players FROM sports WHERE id = ?', [
-                team[0].sport_id,
-            ]);
-            return res.status(400).json({
-                success: false,
-                message: `Team is at max capacity (${sport[0]?.max_players ?? '?'} approved players).`,
-            });
+        const conn = await pool.getConnection();
+        try {
+            await conn.beginTransaction();
+            const [lockedTeam] = await conn.execute(
+                `SELECT t.id, s.max_players
+                 FROM teams t JOIN sports s ON s.id = t.sport_id
+                 WHERE t.id = ? FOR UPDATE`,
+                [teamId]
+            );
+            if (!lockedTeam.length) {
+                await conn.rollback();
+                return res.status(404).json({ success: false, message: 'Team not found.' });
+            }
+            const [[{ approved_count: approvedCount }]] = await conn.execute(
+                `SELECT COUNT(*) AS approved_count
+                 FROM players WHERE team_id = ? AND status = 'approved'`,
+                [teamId]
+            );
+            if (lockedTeam[0].max_players != null && approvedCount >= lockedTeam[0].max_players) {
+                await conn.rollback();
+                return res.status(400).json({
+                    success: false,
+                    message: `Team is at max capacity (${lockedTeam[0].max_players} approved players).`,
+                });
+            }
+            const [claim] = await conn.execute(
+                'UPDATE players SET team_id = ?, updated_at = NOW() WHERE id = ?',
+                [teamId, player_id]
+            );
+            if (!claim.affectedRows) {
+                await conn.rollback();
+                return res.status(404).json({ success: false, message: 'Player not found.' });
+            }
+            await conn.commit();
+        } catch (err) {
+            await conn.rollback();
+            throw err;
+        } finally {
+            conn.release();
         }
 
         return res.json({ success: true, message: 'Player added to team.' });
@@ -386,20 +409,56 @@ const updatePlayerStatus = async (req, res, next) => {
         }
 
         if (status === 'approved') {
-            const [claim] = await pool.execute(
-                `UPDATE players p
-                 JOIN teams t ON t.id = ?
-                 JOIN sports s ON t.sport_id = s.id
-                 SET p.status = 'approved', p.updated_at = NOW()
-                 WHERE p.id = ? AND p.team_id = ?
-                   AND (SELECT COUNT(*) FROM players WHERE team_id = ? AND status = 'approved') < s.max_players`,
-                [teamId, playerId, teamId, teamId]
-            );
-            if (claim.affectedRows === 0) {
-                return res.status(400).json({
-                    success: false,
-                    message: 'Cannot approve. Max roster limit reached (or player not on this team).',
-                });
+            const conn = await pool.getConnection();
+            try {
+                await conn.beginTransaction();
+                const [lockedTeam] = await conn.execute(
+                    `SELECT t.id, s.max_players
+                     FROM teams t JOIN sports s ON s.id = t.sport_id
+                     WHERE t.id = ? FOR UPDATE`,
+                    [teamId]
+                );
+                if (!lockedTeam.length) {
+                    await conn.rollback();
+                    return res.status(404).json({ success: false, message: 'Team not found.' });
+                }
+                const [member] = await conn.execute(
+                    `SELECT id, status FROM players
+                     WHERE id = ? AND team_id = ? FOR UPDATE`,
+                    [playerId, teamId]
+                );
+                if (!member.length) {
+                    await conn.rollback();
+                    return res.status(400).json({
+                        success: false,
+                        message: 'Cannot approve a player who is not on this team.',
+                    });
+                }
+                const [[{ approved_count: approvedCount }]] = await conn.execute(
+                    `SELECT COUNT(*) AS approved_count
+                     FROM players WHERE team_id = ? AND status = 'approved'`,
+                    [teamId]
+                );
+                if (member[0].status !== 'approved'
+                    && lockedTeam[0].max_players != null
+                    && approvedCount >= lockedTeam[0].max_players) {
+                    await conn.rollback();
+                    return res.status(400).json({
+                        success: false,
+                        message: `Cannot approve. Max roster limit reached (${lockedTeam[0].max_players} approved players).`,
+                    });
+                }
+                await conn.execute(
+                    `UPDATE players SET status = 'approved', updated_at = NOW()
+                     WHERE id = ? AND team_id = ?`,
+                    [playerId, teamId]
+                );
+                await conn.commit();
+            } catch (err) {
+                await conn.rollback();
+                throw err;
+            } finally {
+                conn.release();
             }
             return res.json({ success: true, message: 'Player marked as approved.' });
         }

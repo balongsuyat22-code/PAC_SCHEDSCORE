@@ -204,9 +204,9 @@
         let sportRows = [];
         let champion = null;
         const esc = value => String(value ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
-        const initials = name => String(name || '?').split(/\s+/).map(x => x[0]).slice(0, 2).join('').toUpperCase();
+        const departmentInitials = name => String(name || '?').split(/\s+/).map(x => x[0]).slice(0, 2).join('').toUpperCase();
         const division = value => String(value || 'Overall').replace(/_/g, ' ');
-        const deptCell = d => `<div class="dept"><span class="logo" style="background:${esc(d.color || '#555')}" >${d.logo_url ? `<img src="${esc(d.logo_url)}" alt="">` : initials(d.name)}</span><span>${esc(d.name)}</span></div>`;
+        const deptCell = d => `<div class="dept"><span class="logo" style="background:${esc(d.color || '#555')}" >${d.logo_url ? `<img src="${esc(d.logo_url)}" alt="">` : departmentInitials(d.name)}</span><span>${esc(d.name)}</span></div>`;
 
         document.addEventListener('DOMContentLoaded', async () => {
             Auth.requireAuth('sgo_president');

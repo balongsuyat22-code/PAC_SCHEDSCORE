@@ -42,6 +42,34 @@
             overflow-x: hidden;
         }
 
+        body,
+        .login-panel {
+            scrollbar-width: thin;
+            scrollbar-color: var(--gold) var(--bg2);
+        }
+
+        body::-webkit-scrollbar,
+        .login-panel::-webkit-scrollbar {
+            width: 10px;
+        }
+
+        body::-webkit-scrollbar-track,
+        .login-panel::-webkit-scrollbar-track {
+            background: var(--bg2);
+        }
+
+        body::-webkit-scrollbar-thumb,
+        .login-panel::-webkit-scrollbar-thumb {
+            background: linear-gradient(180deg, var(--gold), #c99200);
+            border: 2px solid var(--bg2);
+            border-radius: 10px;
+        }
+
+        body::-webkit-scrollbar-thumb:hover,
+        .login-panel::-webkit-scrollbar-thumb:hover {
+            background: var(--text);
+        }
+
         /* ── Hero ── */
         .hero {
             flex: 1;
@@ -262,58 +290,6 @@
             gap: 8px;
         }
 
-        .auto-login-badge {
-            display: inline-block;
-            background: rgba(34, 197, 94, 0.15);
-            color: var(--success);
-            padding: 4px 10px;
-            border-radius: 12px;
-            font-size: 10px;
-            font-weight: 600;
-            letter-spacing: 0.5px;
-            border: 1px solid rgba(34, 197, 94, 0.2);
-        }
-
-        /* Role tabs */
-        .role-tabs {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 4px;
-            margin-bottom: 24px;
-            background: var(--bg3);
-            border-radius: 10px;
-            padding: 4px;
-            position: relative;
-            z-index: 1;
-        }
-
-        .role-tab {
-            padding: 12px 8px;
-            border: none;
-            background: none;
-            color: var(--muted);
-            font-family: 'Barlow Condensed', sans-serif;
-            font-size: 12px;
-            font-weight: 700;
-            letter-spacing: 0.4px;
-            text-transform: uppercase;
-            border-radius: 7px;
-            cursor: pointer;
-            transition: all 0.2s;
-            text-align: center;
-            line-height: 1.25;
-        }
-
-        .role-tab.active {
-            background: var(--gold);
-            color: #000;
-        }
-
-        .role-tab:not(.active):hover {
-            color: var(--text);
-            background: rgba(255, 255, 255, 0.05);
-        }
-
         /* Form */
         .form-group {
             margin-bottom: 16px;
@@ -481,94 +457,6 @@
             right: 0;
         }
 
-        .demo-credentials {
-            background: var(--bg3);
-            border: 1px solid var(--border);
-            border-radius: 8px;
-            padding: 12px 14px;
-            position: relative;
-            z-index: 1;
-        }
-
-        .demo-title {
-            font-size: 11px;
-            font-weight: 700;
-            letter-spacing: 1.5px;
-            text-transform: uppercase;
-            color: var(--gold);
-            margin-bottom: 10px;
-        }
-
-        .demo-row {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            gap: 10px;
-            border-bottom: 1px solid rgba(255, 255, 255, 0.04);
-            cursor: pointer;
-            transition: background 0.15s;
-            border-radius: 4px;
-            padding: 8px;
-            min-width: 0;
-        }
-
-        .demo-row:last-child {
-            border-bottom: none;
-        }
-
-        .demo-row:hover {
-            background: rgba(245, 184, 0, 0.06);
-        }
-
-        .demo-role {
-            font-size: 12px;
-            font-weight: 600;
-            display: flex;
-            align-items: center;
-            gap: 6px;
-            min-width: 0;
-        }
-
-        .demo-role .badge {
-            padding: 2px 6px;
-            border-radius: 4px;
-            font-size: 10px;
-            font-family: 'Barlow Condensed', sans-serif;
-            font-weight: 700;
-            letter-spacing: 1px;
-            flex-shrink: 0;
-        }
-
-        .badge-admin {
-            background: rgba(245, 184, 0, 0.2);
-            color: var(--gold);
-        }
-
-        .badge-dean {
-            background: rgba(59, 130, 246, 0.2);
-            color: var(--blue);
-        }
-
-        .badge-president {
-            background: rgba(139, 92, 246, 0.2);
-            color: var(--purple);
-        }
-
-        .badge-officer {
-            background: rgba(34, 197, 94, 0.2);
-            color: var(--success);
-        }
-
-        .demo-creds {
-            font-size: 11px;
-            color: var(--muted);
-            font-family: ui-monospace, monospace;
-            overflow: hidden;
-            text-overflow: ellipsis;
-            white-space: nowrap;
-            max-width: 55%;
-        }
-
         .alert-box {
             border-radius: 8px;
             padding: 12px 16px;
@@ -623,25 +511,6 @@
         }
 
         @media (max-width: 480px) {
-            .role-tabs {
-                grid-template-columns: 1fr 1fr;
-            }
-
-            .role-tab {
-                font-size: 11px;
-                padding: 10px 6px;
-            }
-
-            .demo-row {
-                flex-direction: column;
-                align-items: flex-start;
-                gap: 4px;
-            }
-
-            .demo-creds {
-                max-width: 100%;
-            }
-
             .hero-title {
                 font-size: 40px;
             }
@@ -724,23 +593,7 @@
         <h2>Welcome Back</h2>
         <p class="subtitle">
             Sign in to your dashboard
-            <span class="auto-login-badge">Auto-fill enabled</span>
         </p>
-
-        <div class="role-tabs" role="tablist">
-            <button type="button" class="role-tab active" data-role="admin" onclick="setRole('admin', this)">
-                Admin
-            </button>
-            <button type="button" class="role-tab" data-role="dean_adviser" onclick="setRole('dean_adviser', this)">
-                Dean Adviser
-            </button>
-            <button type="button" class="role-tab" data-role="sgo_president" onclick="setRole('sgo_president', this)">
-                SGO President
-            </button>
-            <button type="button" class="role-tab" data-role="sgo_officer" onclick="setRole('sgo_officer', this)">
-                SGO Officer
-            </button>
-        </div>
 
         <div class="alert-box alert-error" id="alert-box">
             <span id="alert-msg">Invalid credentials</span>
@@ -777,78 +630,10 @@
             New player? <a href="/player-registration">Register here</a>
         </p>
 
-        <div class="divider">Demo Accounts</div>
-
-        <div class="demo-credentials">
-            <div class="demo-title">Quick login — click to fill</div>
-            <div class="demo-row" onclick="fillDemo('admin')">
-                <div class="demo-role"><span class="badge badge-admin">ADMIN</span> System Admin</div>
-                <div class="demo-creds" id="d-admin"></div>
-            </div>
-            <div class="demo-row" onclick="fillDemo('dean_adviser')">
-                <div class="demo-role"><span class="badge badge-dean">DEAN</span> Dean Adviser</div>
-                <div class="demo-creds" id="d-dean"></div>
-            </div>
-            <div class="demo-row" onclick="fillDemo('sgo_president')">
-                <div class="demo-role"><span class="badge badge-president">PRES</span> SGO President</div>
-                <div class="demo-creds" id="d-president"></div>
-            </div>
-            <div class="demo-row" onclick="fillDemo('sgo_officer')">
-                <div class="demo-role"><span class="badge badge-officer">OFF</span> SGO Officer</div>
-                <div class="demo-creds" id="d-officer"></div>
-            </div>
-        </div>
     </div>
 
     <script>
-        const DOMAIN = 'sportfest.com';
-
-        const ACCOUNTS = {
-            admin: { u: 'admin', p: 'password', e: 'admin@' + DOMAIN },
-            dean_adviser: { u: 'dean_adviser', p: 'password', e: 'dean@' + DOMAIN },
-            sgo_president: { u: 'sgo_president', p: 'password', e: 'president@' + DOMAIN },
-            sgo_officer: { u: 'sgo_officer', p: 'password', e: 'officer@' + DOMAIN }
-        };
-
-        const DEFAULT_ROLE = 'admin';
-
-        document.getElementById('d-admin').textContent = ACCOUNTS.admin.e;
-        document.getElementById('d-dean').textContent = ACCOUNTS.dean_adviser.e;
-        document.getElementById('d-president').textContent = ACCOUNTS.sgo_president.e;
-        document.getElementById('d-officer').textContent = ACCOUNTS.sgo_officer.e;
-
         const API = window.location.origin + '/api';
-
-        function autoFillLogin(role) {
-            const account = ACCOUNTS[role];
-            if (account) {
-                document.getElementById('sf-email').value = account.e;
-                document.getElementById('sf-password').value = account.p;
-                document.querySelectorAll('.role-tab').forEach(t => {
-                    t.classList.toggle('active', t.dataset.role === role);
-                });
-                hideAlert();
-            }
-        }
-
-        function setRole(role, btn) {
-            document.querySelectorAll('.role-tab').forEach(t => t.classList.remove('active'));
-            btn.classList.add('active');
-            const account = ACCOUNTS[role];
-            document.getElementById('sf-email').value = account.e;
-            document.getElementById('sf-password').value = '';
-            hideAlert();
-        }
-
-        function fillDemo(role) {
-            const account = ACCOUNTS[role];
-            document.getElementById('sf-email').value = account.e;
-            document.getElementById('sf-password').value = account.p;
-            document.querySelectorAll('.role-tab').forEach(t =>
-                t.classList.toggle('active', t.dataset.role === role)
-            );
-            hideAlert();
-        }
 
         function togglePw() {
             const inp = document.getElementById('sf-password');
@@ -927,10 +712,6 @@
                 btn.textContent = 'Sign In';
             }
         }
-
-        window.addEventListener('DOMContentLoaded', function () {
-            autoFillLogin(DEFAULT_ROLE);
-        });
 
         document.addEventListener('keydown', function (e) {
             if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {

@@ -10,12 +10,20 @@ const getAll = async (req, res, next) => {
             SELECT sf.*,
                    d.name as champion_department_name,
                    d.color as champion_color,
-                   COUNT(DISTINCT sft.tournament_id) as tournament_count,
-                   (SELECT COUNT(*) FROM sport_fest_champions c WHERE c.sport_fest_id = sf.id) AS declared_champion_count
+                   COALESCE(tournament_counts.tournament_count, 0) AS tournament_count,
+                   COALESCE(champion_counts.declared_champion_count, 0) AS declared_champion_count
             FROM sport_fest_events sf
             LEFT JOIN departments d ON sf.champion_department_id = d.id
-            LEFT JOIN sport_fest_tournaments sft ON sf.id = sft.sport_fest_id
-            GROUP BY sf.id
+            LEFT JOIN (
+                SELECT sport_fest_id, COUNT(DISTINCT tournament_id) AS tournament_count
+                FROM sport_fest_tournaments
+                GROUP BY sport_fest_id
+            ) tournament_counts ON tournament_counts.sport_fest_id = sf.id
+            LEFT JOIN (
+                SELECT sport_fest_id, COUNT(*) AS declared_champion_count
+                FROM sport_fest_champions
+                GROUP BY sport_fest_id
+            ) champion_counts ON champion_counts.sport_fest_id = sf.id
             ORDER BY sf.year DESC, sf.id DESC
         `);
 
@@ -203,42 +211,21 @@ const declareChampion = async (req, res, next) => {
     try {
         const festId = req.params.id;
 
-        const [[festConfig]] = await pool.execute(
-            'SELECT champion_count FROM sport_fest_events WHERE id = ?',
-            [festId]
-        );
-        const championCount = Math.min(2, Math.max(1, Number(festConfig?.champion_count) || 1));
-
         const [divisions] = await pool.execute(`
             SELECT DISTINCT d.division
             FROM departments d
-            JOIN department_scores ds
-              ON d.id = ds.department_id AND ds.sport_fest_id = ?
             WHERE d.is_active = 1
               AND d.is_exhibition = 0
               AND d.division IS NOT NULL
-        `, [festId]);
+            ORDER BY d.division
+        `);
 
         if (!divisions.length) {
             return res.status(400).json({ success: false, message: 'No eligible divisions found for this Sport Fest.' });
         }
 
-        let selectedDivisions = divisions.slice(0, championCount);
-        if (championCount === 1 && divisions.length > 1) {
-            const [topDivision] = await pool.execute(`
-                SELECT d.division
-                FROM departments d
-                LEFT JOIN department_scores ds
-                  ON d.id = ds.department_id AND ds.sport_fest_id = ?
-                WHERE d.is_active = 1 AND d.is_exhibition = 0 AND d.division IS NOT NULL
-                ORDER BY COALESCE(ds.total_points, 0) DESC, COALESCE(ds.gold_medals, 0) DESC, d.name ASC
-                LIMIT 1
-            `, [festId]);
-            selectedDivisions = topDivision.length ? topDivision : divisions.slice(0, 1);
-        }
-
         const declared = [];
-        for (const { division } of selectedDivisions) {
+        for (const { division } of divisions) {
             const [rows] = await pool.execute(`
                 SELECT d.id, d.name, d.color, d.logo_url,
                        COALESCE(ds.total_points, 0) AS total_points,
@@ -273,9 +260,9 @@ const declareChampion = async (req, res, next) => {
 
         await pool.execute(
             `UPDATE sport_fest_events
-             SET champion_department_id = ?, status = 'completed'
+             SET champion_department_id = ?, status = 'completed', champion_count = ?
              WHERE id = ?`,
-            [declared[0]?.id || null, festId]
+            [declared[0]?.id || null, declared.length, festId]
         );
 
         await logActivity(

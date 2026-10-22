@@ -403,13 +403,15 @@ const getOfficers = async (req, res, next) => {
     try {
         const [rows] = await pool.execute(
             `SELECT u.id, u.first_name, u.last_name, u.email, u.is_active,
-                    COUNT(m.id) AS assigned_matches
+                    COALESCE(active_matches.assigned_matches, 0) AS assigned_matches
              FROM users u
-             LEFT JOIN matches m
-                   ON m.referee_id = u.id
-                   AND m.status IN ('scheduled', 'ongoing')
+             LEFT JOIN (
+                 SELECT referee_id, COUNT(*) AS assigned_matches
+                 FROM matches
+                 WHERE status IN ('scheduled', 'ongoing')
+                 GROUP BY referee_id
+             ) active_matches ON active_matches.referee_id = u.id
              WHERE u.role = 'sgo_officer' AND u.is_active = 1
-             GROUP BY u.id
              ORDER BY u.first_name, u.last_name`
         );
         return res.json({ success: true, data: rows });

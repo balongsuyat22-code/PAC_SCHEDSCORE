@@ -114,28 +114,30 @@ const hardWipeAllTables = async (conn) => {
     console.log('✅ Safety wipe complete\n');
 };
 
-const seedDefaultUsers = async (conn) => {
-    const users = [
-        { username: 'admin', email: 'admin@sportfest.com', role: 'admin', first: 'System', last: 'Admin' },
-        { username: 'dean_adviser', email: 'dean@sportfest.com', role: 'dean_adviser', first: 'Dean', last: 'Adviser' },
-        { username: 'sgo_president', email: 'president@sportfest.com', role: 'sgo_president', first: 'SGO', last: 'President' },
-        { username: 'sgo_officer', email: 'officer@sportfest.com', role: 'sgo_officer', first: 'SGO', last: 'Officer' },
-        { username: 'aogarte', email: 'aogarte@sportfest.com', role: 'sgo_officer', first: 'A.', last: 'Ogarte' },
-        { username: 'klongakit', email: 'klongakit@sportfest.com', role: 'sgo_officer', first: 'K.', last: 'Longakit' },
-        { username: 'rmontemayor', email: 'rmontemayor@sportfest.com', role: 'sgo_officer', first: 'R.', last: 'Montemayor' },
-        { username: 'mdumaboc', email: 'mdumaboc@sportfest.com', role: 'sgo_officer', first: 'M.', last: 'Dumaboc' },
-    ];
-    console.log('👤 Creating default users...');
-    for (const u of users) {
-        const hash = await bcrypt.hash('password', 10);
-        await conn.query(
-            `INSERT INTO users (uuid, username, email, password_hash, role, first_name, last_name, is_active)
-       VALUES (UUID(), ?, ?, ?, ?, ?, ?, 1)
-    ON DUPLICATE KEY UPDATE id = id`,
-            [u.username, u.email, hash, u.role, u.first, u.last]
-        );
-        console.log(`  ✅  ${u.role.padEnd(14)} → ${u.email}`);
+const createInitialAdmin = async (conn) => {
+    const username = process.env.INITIAL_ADMIN_USERNAME?.trim();
+    const email = process.env.INITIAL_ADMIN_EMAIL?.trim();
+    const password = process.env.INITIAL_ADMIN_PASSWORD;
+    const supplied = [username, email, password].filter(Boolean).length;
+    if (!supplied) {
+        console.log('👤 Initial admin creation skipped; configure INITIAL_ADMIN_* to bootstrap an administrator.');
+        return;
     }
+    if (supplied !== 3) {
+        throw new Error('Set INITIAL_ADMIN_USERNAME, INITIAL_ADMIN_EMAIL, and INITIAL_ADMIN_PASSWORD together.');
+    }
+    if (password.length < 12) {
+        throw new Error('INITIAL_ADMIN_PASSWORD must be at least 12 characters.');
+    }
+
+    const hash = await bcrypt.hash(password, 12);
+    await conn.query(
+        `INSERT INTO users (uuid, username, email, password_hash, role, first_name, last_name, is_active)
+         VALUES (UUID(), ?, ?, ?, 'admin', 'System', 'Administrator', 1)
+         ON DUPLICATE KEY UPDATE id = id`,
+        [username, email, hash]
+    );
+    console.log('👤 Initial administrator bootstrap checked (credentials are not logged).');
 };
 
 // ────────────────────────────────────────────────────────────
@@ -590,7 +592,7 @@ const run = async () => {
         }
 
         await ensureUsersTable(conn);
-        await seedDefaultUsers(conn);
+        await createInitialAdmin(conn);
 
         if (hasSchema && !RESET_DATABASE && !SEED_DATABASE) {
             console.log('🛡️  Existing data preserved. Skipping full seed and generated results.');
@@ -640,13 +642,6 @@ const run = async () => {
         console.log(`   tournament_results:    ${s.tournament_results}`);
 
         console.log('\n🎉 Setup complete!\n');
-        console.log('═══════════════════════════════════════════════════════════');
-        console.log('  LOGIN (password = "password" for all):');
-        console.log('    admin@sportfest.com');
-        console.log('    dean@sportfest.com');
-        console.log('    president@sportfest.com');
-        console.log('    officer@sportfest.com');
-        console.log('═══════════════════════════════════════════════════════════\n');
     } catch (err) {
         console.error('\n❌ Setup failed:', err.message);
         if (err.sqlMessage) console.error('   SQL:', err.sqlMessage);

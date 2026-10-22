@@ -600,7 +600,7 @@ function installPageAutoRefresh() {
 async function loadDashboard() {
     const [dash, champion] = await Promise.all([
         api('/reports/dashboard'),
-        api('/leaderboard/champion')
+        api('/leaderboard/overall-champion')
     ]);
 
     if (dash.success) {
@@ -756,7 +756,7 @@ async function loadLeaderboard() {
             </tr>`).join('')}</tbody></table>`;
     }
 
-    const champion = await api('/leaderboard/champion');
+    const champion = await api('/leaderboard/overall-champion');
     if (champion.success) {
         const s = champion.data.tournament_stats;
         const epEl = document.getElementById('event-progress');
@@ -1134,7 +1134,7 @@ const MOCK_DATA = {
             { id: 6, name: 'Nursing', code: 'NRS', color: '#EC4899', total_points: 42, gold_medals: 1, silver_medals: 1, bronze_medals: 1, total_participations: 6, rank: 6 },
         ]
     },
-    '/leaderboard/champion': {
+    '/leaderboard/overall-champion': {
         success: true,
         data: {
             is_final: false,
@@ -1207,13 +1207,6 @@ const MOCK_DATA = {
         success: true, data: [
             { id: 1, name: 'IT Eagles', department_name: 'IT Dept', sport_name: 'Basketball', status: 'active', member_count: 10 },
             { id: 2, name: 'ENGR Titans', department_name: 'Engineering', sport_name: 'Basketball', status: 'active', member_count: 10 },
-        ]
-    },
-    '/users': {
-        success: true, data: [
-            { id: 1, first_name: 'System', last_name: 'Admin', email: 'admin@sportfest.com', role: 'admin', department_name: '—', is_active: 1 },
-            { id: 2, first_name: 'Juan', last_name: 'Dela Cruz', email: 'referee@sportfest.com', role: 'referee', department_name: '—', is_active: 1 },
-            { id: 3, first_name: 'Maria', last_name: 'Santos', email: 'player@sportfest.com', role: 'player', department_name: 'IT Dept', is_active: 1 },
         ]
     },
     '/venues': {

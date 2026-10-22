@@ -12,31 +12,40 @@ const getAll = async (req, res, next) => {
         let tournamentJoin;
         let params;
         if (unscoped) {
-            tournamentJoin = 'LEFT JOIN tournaments t ON s.id = t.sport_id';
+            tournamentJoin = `LEFT JOIN (
+                SELECT sport_id, COUNT(*) AS total_tournaments
+                FROM tournaments
+                GROUP BY sport_id
+            ) tournament_counts ON tournament_counts.sport_id = s.id`;
             params = [];
         } else if (sportFestId != null) {
             tournamentJoin = `
-                LEFT JOIN tournaments t
-                  ON s.id = t.sport_id
-                 AND EXISTS (
-                     SELECT 1 FROM sport_fest_tournaments sft
-                     WHERE sft.tournament_id = t.id AND sft.sport_fest_id = ?
-                 )`;
+                LEFT JOIN (
+                    SELECT t.sport_id, COUNT(DISTINCT t.id) AS total_tournaments
+                    FROM tournaments t
+                    JOIN sport_fest_tournaments sft
+                      ON sft.tournament_id = t.id AND sft.sport_fest_id = ?
+                    GROUP BY t.sport_id
+                ) tournament_counts ON tournament_counts.sport_id = s.id`;
             params = [sportFestId];
         } else {
-            tournamentJoin = 'LEFT JOIN tournaments t ON 1 = 0';
+            tournamentJoin = `LEFT JOIN (
+                SELECT sport_id, COUNT(*) AS total_tournaments
+                FROM tournaments
+                WHERE 1 = 0
+                GROUP BY sport_id
+            ) tournament_counts ON tournament_counts.sport_id = s.id`;
             params = [];
         }
 
         const [rows] = await pool.execute(
             `
             SELECT s.*,
-                   COUNT(DISTINCT t.id) as total_tournaments,
+                   COALESCE(tournament_counts.total_tournaments, 0) AS total_tournaments,
                    (s.max_entries IS NULL OR s.current_entries < s.max_entries) AS is_available
             FROM sports s
             ${tournamentJoin}
             WHERE s.is_active = 1
-            GROUP BY s.id
             ORDER BY s.name
             `,
             params
@@ -67,27 +76,32 @@ const getTournaments = async (req, res, next) => {
     try {
         const { sportFestId, unscoped } = await resolveSportFestId(req.query.season_id);
 
+        let seasonJoin = '';
+        const params = [req.params.id];
+        if (!unscoped && sportFestId != null) {
+            seasonJoin = `JOIN sport_fest_tournaments sft
+                ON sft.tournament_id = t.id AND sft.sport_fest_id = ?`;
+            params.unshift(sportFestId);
+        }
+
         let query = `
             SELECT t.*,
-                   COUNT(DISTINCT tp.department_id) as participant_count
+                   COALESCE(tp.participant_count, 0) AS participant_count
             FROM tournaments t
-            LEFT JOIN tournament_participants tp ON t.id = tp.tournament_id
+            LEFT JOIN (
+                SELECT tournament_id, COUNT(DISTINCT department_id) AS participant_count
+                FROM tournament_participants
+                GROUP BY tournament_id
+            ) tp ON tp.tournament_id = t.id
+            ${seasonJoin}
             WHERE t.sport_id = ?
         `;
-        const params = [req.params.id];
 
-        if (!unscoped && sportFestId != null) {
-            query += ` AND EXISTS (
-                SELECT 1 FROM sport_fest_tournaments sft
-                WHERE sft.tournament_id = t.id AND sft.sport_fest_id = ?
-            )`;
-            params.push(sportFestId);
-        } else if (!unscoped && sportFestId == null) {
+        if (!unscoped && sportFestId == null) {
             query += ' AND 1 = 0';
         }
 
         query += `
-            GROUP BY t.id
             ORDER BY t.created_at DESC
         `;
 

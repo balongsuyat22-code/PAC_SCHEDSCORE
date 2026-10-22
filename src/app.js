@@ -137,7 +137,7 @@ app.use(`${API}/notifications`, notificationRoutes);
 app.get(`${API}`, (_req, res) => res.json({
     service: 'Sport Fest Management System API',
     version: '1.0.0',
-    websocket: 'enabled',
+    websocket: io ? 'enabled' : 'unavailable',
     endpoints: {
         auth: `${API}/auth`,
         departments: `${API}/departments`,

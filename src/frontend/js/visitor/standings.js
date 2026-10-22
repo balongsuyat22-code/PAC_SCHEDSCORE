@@ -43,6 +43,13 @@ function renderLeaderboard() {
         el.innerHTML = `<div class="empty-state"><span class="empty-icon">${I.trophy}</span><div class="empty-title">No standings yet</div><div class="empty-sub">Points appear as tournaments finish</div></div>`;
         return;
     }
+    const divisions = [...new Set(data.map(d => d.division).filter(Boolean))].sort();
+    const groups = currentLbDivision === 'all' && divisions.length > 1
+        ? divisions.map(division => ({
+            division,
+            rows: data.filter(d => d.division === division),
+        }))
+        : [{ division: currentLbDivision === 'all' ? divisions[0] : currentLbDivision, rows: data }];
     const rankLabel = n => {
         if (n === 1) return `<div class="rank-badge rank-1">${n}</div>`;
         if (n === 2) return `<div class="rank-badge rank-2">${n}</div>`;
@@ -50,19 +57,17 @@ function renderLeaderboard() {
         return `<div class="rank-badge rank-other">${n}</div>`;
     };
     const topClass = n => n === 1 ? 'top1' : n === 2 ? 'top2' : n === 3 ? 'top3' : '';
-    el.innerHTML = `${podiumHtml(data)}<div class="lb-table">
+    const renderGroup = ({ division, rows }) => `${divisions.length > 1
+        ? `<div class="lb-division-heading">${esc(prettyDivision(division))}</div>`
+        : ''}${podiumHtml(rows)}<div class="lb-table">
     <div class="lb-header"><div>#</div><div>Department</div><div style="text-align:center">Medals</div><div style="text-align:right">Points</div></div>
-    ${data.map((d, i) => {
-        const rank = currentLbDivision === 'all' ? (d.rank || i + 1) : i + 1;
-        const previous = data[i - 1];
-        const divisionHeading = currentLbDivision === 'all' && d.division && (!previous || previous.division !== d.division)
-            ? `<div class="lb-division-heading">${esc(prettyDivision(d.division))}</div>`
-            : '';
+    ${rows.map((d, i) => {
+        const rank = i + 1;
         const col = d.color || deptColor(d.name);
         const logoHtml = d.logo_url
             ? `<div class="lb-dot" style="background:${col}"><img src="${esc(d.logo_url)}" alt="${esc(d.name)}"></div>`
             : `<div class="lb-dot" style="background:${col}">${initials(d.name)}</div>`;
-        return `${divisionHeading}<div class="lb-row ${topClass(rank)}">
+        return `<div class="lb-row ${topClass(rank)}">
         ${rankLabel(rank)}
         <div class="lb-dept">${logoHtml}<div class="lb-name">${esc(d.name)}</div></div>
         <div class="lb-medals">
@@ -74,6 +79,7 @@ function renderLeaderboard() {
       </div>`;
     }).join('')}
   </div>`;
+    el.innerHTML = groups.map(renderGroup).join('');
 }
 
 /** Top-3 podium shown above the table. Only meaningful for a single
@@ -130,6 +136,8 @@ async function checkAndFireConfetti() {
         if (j.data && j.data.is_final && j.data.champion) {
             const champs = j.data.champions || [];
             lastChampionState = { type: 'final', champion: j.data.champion, champions: champs };
+            const leaderBanner = document.getElementById('leader-banner');
+            if (leaderBanner) leaderBanner.style.display = 'none';
             showWinnerBanner(j.data.champion, champs);
 
             const c = j.data.champion;
@@ -166,7 +174,8 @@ function showLeaderBanner(c, message) {
  *  with a button to re-open the full celebration modal on demand. */
 function showWinnerBanner(champion, champions = []) {
     const container = document.getElementById('lb-container');
-    if (!container || container.querySelector('.winner-banner')) return;
+    if (!container) return;
+    container.querySelector('.winner-banner')?.remove();
 
     const isDual = champions.length > 1;
     const avatarHtml = (c) => (c.logo_url
@@ -269,6 +278,8 @@ function bindChampionSocket() {
         if (data?.champion) {
             const c = data.champion;
             lastChampionState = { type: 'final', champion: c, champions: data.champions || [] };
+            const leaderBanner = document.getElementById('leader-banner');
+            if (leaderBanner) leaderBanner.style.display = 'none';
             showWinnerBanner(c, data.champions || []);
             window.showChampionCelebration?.({
                 name: c.name,

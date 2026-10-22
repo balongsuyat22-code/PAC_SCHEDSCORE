@@ -811,32 +811,71 @@ const updatePlayerStatus = async (req, res, next) => {
 
         if (status === 'approved') {
             if (player.team_id) {
-                const [claim] = await pool.execute(
-                    `UPDATE players p
-                     JOIN teams t ON p.team_id = t.id
-                     JOIN sports s ON t.sport_id = s.id
-                     LEFT JOIN (
-                         SELECT team_id, COUNT(*) AS approved_count
-                         FROM players
-                         WHERE status = 'approved'
-                         GROUP BY team_id
-                     ) AS counts ON counts.team_id = t.id
-                     SET p.status = 'approved', p.rejection_reason = NULL, p.updated_at = NOW()
-                     WHERE p.id = ?
-                       AND (counts.approved_count IS NULL OR counts.approved_count < s.max_players)`,
-                    [playerId]
-                );
-                if (claim.affectedRows === 0) {
-                    return res.status(400).json({
-                        success: false,
-                        message: 'Cannot approve. Team is already at the maximum roster limit.',
-                    });
+                const conn = await pool.getConnection();
+                try {
+                    await conn.beginTransaction();
+                    const [lockedTeam] = await conn.execute(
+                        `SELECT t.id, s.max_players
+                         FROM teams t JOIN sports s ON s.id = t.sport_id
+                         WHERE t.id = ? FOR UPDATE`,
+                        [player.team_id]
+                    );
+                    if (!lockedTeam.length) {
+                        await conn.rollback();
+                        return res.status(404).json({ success: false, message: 'Team not found.' });
+                    }
+                    const [lockedPlayer] = await conn.execute(
+                        `SELECT id, status FROM players
+                         WHERE id = ? AND team_id = ? FOR UPDATE`,
+                        [playerId, player.team_id]
+                    );
+                    if (!lockedPlayer.length) {
+                        await conn.rollback();
+                        return res.status(409).json({
+                            success: false,
+                            message: 'Player team changed. Reload the roster and try again.',
+                        });
+                    }
+                    const [[{ approved_count: approvedCount }]] = await conn.execute(
+                        `SELECT COUNT(*) AS approved_count
+                         FROM players WHERE team_id = ? AND status = 'approved'`,
+                        [player.team_id]
+                    );
+                    if (lockedPlayer[0].status !== 'approved'
+                        && lockedTeam[0].max_players != null
+                        && approvedCount >= lockedTeam[0].max_players) {
+                        await conn.rollback();
+                        return res.status(400).json({
+                            success: false,
+                            message: 'Cannot approve. Team is already at the maximum roster limit.',
+                        });
+                    }
+                    await conn.execute(
+                        `UPDATE players
+                         SET status = 'approved', rejection_reason = NULL, updated_at = NOW()
+                         WHERE id = ? AND team_id = ?`,
+                        [playerId, player.team_id]
+                    );
+                    await conn.commit();
+                } catch (err) {
+                    await conn.rollback();
+                    throw err;
+                } finally {
+                    conn.release();
                 }
             } else {
-                await pool.execute(
-                    "UPDATE players SET status = 'approved', rejection_reason = NULL, updated_at = NOW() WHERE id = ?",
+                const [result] = await pool.execute(
+                    `UPDATE players
+                     SET status = 'approved', rejection_reason = NULL, updated_at = NOW()
+                     WHERE id = ? AND team_id IS NULL`,
                     [playerId]
                 );
+                if (!result.affectedRows) {
+                    return res.status(409).json({
+                        success: false,
+                        message: 'Player team changed. Reload the roster and try again.',
+                    });
+                }
             }
         } else {
             await pool.execute(

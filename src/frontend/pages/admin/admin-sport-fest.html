@@ -591,12 +591,6 @@
                     <div class="form-group"><label class="form-label">End Date</label><input type="date" id="fst-end"
                             class="form-input"></div>
                 </div>
-                <div class="form-group"><label class="form-label">Champions to Declare</label>
-                    <select id="fst-champion-count" class="form-select">
-                        <option value="1">1 champion</option>
-                        <option value="2">2 champions (JHS + SHS)</option>
-                    </select>
-                </div>
                 <div class="form-group">
                     <label class="form-label">Status</label>
                     <select id="fst-status" class="form-select">
@@ -640,12 +634,6 @@
                             class="form-input"></div>
                     <div class="form-group"><label class="form-label">End Date</label><input type="date" id="ns-end"
                             class="form-input"></div>
-                </div>
-                <div class="form-group"><label class="form-label">Champions to Declare</label>
-                    <select id="ns-champion-count" class="form-select">
-                        <option value="1">1 champion</option>
-                        <option value="2">2 champions (JHS + SHS)</option>
-                    </select>
                 </div>
                 <div class="form-group"><label class="form-label">Description</label><textarea id="ns-desc"
                         class="form-textarea" placeholder="Optional notes..."></textarea></div>
@@ -859,9 +847,8 @@
             el.innerHTML = allFests.map(f => {
                 const init = (f.champion_department_name || '').split(' ').map(w => w[0]).slice(0, 2).join('').toUpperCase();
                 const isCurrent = !!f.is_current;
-                const championTarget = Number(f.champion_count || 1);
                 const declaredCount = Number(f.declared_champion_count || 0);
-                const needsChampion = f.status === 'completed' && declaredCount < championTarget;
+                const needsChampion = f.status === 'completed' && declaredCount === 0;
 
                 return `
                 <div class="fest-card ${isCurrent ? 'is-current' : 'is-archived'}">
@@ -882,7 +869,7 @@
                         <div class="fest-champion">
                             <div class="fest-champion-logo" style="background:${f.champion_color || '#555'}">${init || '★'}</div>
                             <div class="fest-champion-info">
-                                <div style="font-size:11px;color:var(--muted);text-transform:uppercase">${declaredCount}/${championTarget} Champion${championTarget === 1 ? '' : 's'}</div>
+                                <div style="font-size:11px;color:var(--muted);text-transform:uppercase">${declaredCount} Division Champion${declaredCount === 1 ? '' : 's'}</div>
                                 <div class="fest-champion-name">${escapeHtml(f.champion_department_name)}</div>
                             </div>
                         </div>` : needsChampion ? `
@@ -922,7 +909,6 @@
             document.getElementById('fst-end').value = f.end_date ? String(f.end_date).split('T')[0] : '';
             document.getElementById('fst-desc').value = f.description || '';
             document.getElementById('fst-status').value = f.status || 'upcoming';
-            document.getElementById('fst-champion-count').value = String(f.champion_count || 1);
             Modal.open('modal-fest');
         }
 
@@ -942,7 +928,6 @@
                 end_date: document.getElementById('fst-end').value || null,
                 description: document.getElementById('fst-desc').value.trim() || null,
                 status: document.getElementById('fst-status').value || 'upcoming',
-                champion_count: parseInt(document.getElementById('fst-champion-count').value, 10) || 1,
             };
             const res = await api(`/sport-fest/${id}`, { method: 'PUT', body: JSON.stringify(body) });
             Toast.show(res.message || (res.success ? 'Saved!' : 'Error'), res.success ? 'success' : 'error');
@@ -972,7 +957,6 @@
             ['ns-name', 'ns-year', 'ns-theme', 'ns-start', 'ns-end', 'ns-desc'].forEach(id => {
                 document.getElementById(id).value = '';
             });
-            document.getElementById('ns-champion-count').value = '1';
             const y = new Date().getFullYear();
             document.getElementById('ns-year').value = y;
             document.getElementById('ns-name').value = `PAC Sport Fest ${y}`;
@@ -994,7 +978,6 @@
                 start_date: document.getElementById('ns-start').value || null,
                 end_date: document.getElementById('ns-end').value || null,
                 description: document.getElementById('ns-desc').value.trim() || null,
-                champion_count: parseInt(document.getElementById('ns-champion-count').value, 10) || 1,
             };
 
             const current = allFests.find(f => f.is_current);

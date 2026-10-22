@@ -2,13 +2,32 @@
 require('dotenv').config();
 const mysql = require('mysql2/promise');
 const bcrypt = require('bcryptjs');
+const { getDatabaseSslConfig } = require('./databaseSsl');
 
-const ACCOUNTS_TO_CHECK = [
-    { email: 'admin@sportfest.com', password: 'password' },
-    { email: 'dean@sportfest.com', password: 'password' },
-    { email: 'president@sportfest.com', password: 'password' },
-    { email: 'officer@sportfest.com', password: 'password' },
-];
+const buildConnectionOptions = () => {
+    const databaseUrl = process.env.DATABASE_URL || process.env.MYSQL_URL;
+    const ssl = getDatabaseSslConfig();
+    if (databaseUrl) {
+        const url = new URL(databaseUrl);
+        if (url.protocol !== 'mysql:') throw new Error('DATABASE_URL must use the mysql:// protocol');
+        return {
+            host: url.hostname,
+            port: Number(url.port || 3306),
+            user: decodeURIComponent(url.username),
+            password: decodeURIComponent(url.password),
+            database: decodeURIComponent(url.pathname.replace(/^\//, '')),
+            ...(ssl ? { ssl } : {}),
+        };
+    }
+    return {
+        host: process.env.DB_HOST || process.env.MYSQLHOST || 'localhost',
+        port: Number(process.env.DB_PORT || process.env.MYSQLPORT || 3306),
+        user: process.env.DB_USER || process.env.MYSQLUSER || 'root',
+        password: process.env.DB_PASSWORD || process.env.MYSQLPASSWORD || '',
+        database: process.env.DB_NAME || process.env.MYSQLDATABASE || 'sportfest_db',
+        ...(ssl ? { ssl } : {}),
+    };
+};
 
 const run = async () => {
     console.log('═══════════════════════════════════════════════════════════');
@@ -23,13 +42,7 @@ const run = async () => {
 
     let conn;
     try {
-        conn = await mysql.createConnection({
-            host: process.env.DB_HOST || 'localhost',
-            port: process.env.DB_PORT || 3306,
-            user: process.env.DB_USER || 'root',
-            password: process.env.DB_PASSWORD || '',
-            database: process.env.DB_NAME || 'sportfest_db',
-        });
+        conn = await mysql.createConnection(buildConnectionOptions());
     } catch (err) {
         console.error('❌ Could not connect to the database at all:', err.message);
         console.error('   → This means your server would also fail to start. Check DB_HOST/DB_USER/DB_PASSWORD/DB_NAME in .env.');
@@ -41,8 +54,7 @@ const run = async () => {
     console.log(`Step 1 — Total rows in "users" table: ${countRow.count}`);
     if (countRow.count === 0) {
         console.log('❌ FOUND IT: the users table is EMPTY.');
-        console.log('   → Run the seed script: node src/config/setupDatabase.js');
-        console.log('   → Make sure it prints "✅ sgo_officer created → officer@sportfest.com" etc. without errors.\n');
+        console.log('   → Provision an administrator using INITIAL_ADMIN_* when initializing a new database.\n');
         await conn.end();
         return;
     }
@@ -62,34 +74,40 @@ const run = async () => {
         console.log('✅ Column length looks fine (>= 60 chars)\n');
     }
 
-    console.log('Step 3 — Checking each demo account:\n');
-    for (const { email, password } of ACCOUNTS_TO_CHECK) {
+    const loginIdentifier = process.env.LOGIN_CHECK_USERNAME;
+    const loginPassword = process.env.LOGIN_CHECK_PASSWORD;
+    if (!loginIdentifier && !loginPassword) {
+        console.log('Step 3 — Login credential check skipped (set LOGIN_CHECK_USERNAME and LOGIN_CHECK_PASSWORD to test one account).');
+        await conn.end();
+        return;
+    }
+    if (!loginIdentifier || !loginPassword) {
+        throw new Error('Set LOGIN_CHECK_USERNAME and LOGIN_CHECK_PASSWORD together to test a login.');
+    }
+
+    console.log('Step 3 — Checking the supplied account:\n');
+    {
         const [users] = await conn.execute(
             `SELECT id, username, email, role, is_active, password_hash, LENGTH(password_hash) AS hash_len
              FROM users WHERE LOWER(email) = LOWER(?) OR LOWER(username) = LOWER(?)`,
-            [email, email]
+            [loginIdentifier, loginIdentifier]
         );
 
         if (!users.length) {
-            console.log(`  ❌ ${email} — NOT FOUND in users table at all.`);
-            continue;
+            console.log('  ❌ Account not found.');
+        } else {
+            const u = users[0];
+            console.log(`  🔎 Account found: role=${u.role}, is_active=${u.is_active}, hash_len=${u.hash_len}`);
+
+            if (!u.is_active) {
+                console.log('     ❌ Account is inactive — login is blocked.');
+            } else if (u.hash_len < 60) {
+                console.log(`     ❌ Stored hash is only ${u.hash_len} chars — it may be truncated.`);
+            } else {
+                const match = await bcrypt.compare(loginPassword, u.password_hash);
+                console.log(`     ${match ? '✅' : '❌'} Password matches the stored hash: ${match}`);
+            }
         }
-
-        const u = users[0];
-        console.log(`  🔎 ${email} — found: id=${u.id}, role=${u.role}, is_active=${u.is_active}, hash_len=${u.hash_len}`);
-
-        if (!u.is_active) {
-            console.log(`     ❌ Account is marked is_active=0 — login blocked before password check.`);
-            continue;
-        }
-
-        if (u.hash_len < 60) {
-            console.log(`     ❌ Stored hash is only ${u.hash_len} chars — it's truncated/corrupted, compare will always fail.`);
-            continue;
-        }
-
-        const match = await bcrypt.compare(password, u.password_hash);
-        console.log(`     ${match ? '✅' : '❌'} bcrypt.compare('${password}', stored hash) → ${match}`);
     }
 
     console.log('\n═══════════════════════════════════════════════════════════');

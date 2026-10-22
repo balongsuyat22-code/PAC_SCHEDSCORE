@@ -31,7 +31,7 @@ A full-featured REST API for managing multi-sport tournaments, team/player regis
 | 🔴 **Live Scoring**          | Real-time score updates per period/set/round                  |
 | 📊 **Match History**         | Full records with scores, winner, referee, duration           |
 | 🏆 **Leaderboard**           | Department rankings · Medal tally · Sport-by-sport            |
-| 🥇 **Champion Calculator**   | Auto-declares Overall Champion when all events finish         |
+| 🥇 **Champion Calculator**   | Shows division champions and finalizes the overall champion when the season is finalized |
 | 📈 **Admin Dashboard**       | Summary stats · Upcoming matches · Recent results             |
 
 ---
@@ -166,14 +166,27 @@ The `schema.sql` file creates everything automatically:
 - All tables with foreign key relationships
 - Performance indexes
 - MySQL triggers that **auto-update department points** when tournament results are saved
-- Seed data: 6 departments, 6 venues, 11 sports, 1 admin account
+- Seed data: departments, venues, and sports. Demo users are not created.
 
-### Default Admin Account
+### Initial Administrator
 
-```
-Email:    admin@sportfest.com
-Password: Admin@1234
-```
+Set `INITIAL_ADMIN_USERNAME`, `INITIAL_ADMIN_EMAIL`, and
+`INITIAL_ADMIN_PASSWORD` in your local environment before running
+`npm run setup-db` to create the first administrator. This also works against
+an already-initialized database; normal setup preserves its existing data.
+The password must be at least 12 characters. These values are only used for
+the bootstrap insert and are never logged. Existing users are not overwritten.
+Do not put these credentials in a tracked file or Vercel variables unless you
+are intentionally using the setup script there.
+Existing database accounts are preserved; this does not remove any demo users
+that may already exist from an earlier setup. Remove or deactivate those
+accounts explicitly in the application if needed.
+
+To reset the password for one existing account, set `RESET_ACCOUNT_USERNAME`
+and `RESET_ACCOUNT_PASSWORD` in your local environment and run
+`node reset_password.js`. The script updates only a matching existing account,
+requires a 12-character password, supports the same TiDB TLS settings, and
+never creates demo users or prints the password.
 
 ### Points Trigger
 
@@ -200,8 +213,8 @@ POST /api/auth/login
 Content-Type: application/json
 
 {
-  "email": "admin@sportfest.com",
-  "password": "Admin@1234"
+  "email": "your-account@example.com",
+  "password": "your-password"
 }
 ```
 

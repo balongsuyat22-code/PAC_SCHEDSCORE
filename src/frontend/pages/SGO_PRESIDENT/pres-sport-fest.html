@@ -5,6 +5,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>PAC SCHED-SCORE - Sport Fest</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
     <link rel="stylesheet" href="../../css/sgo_president.css">
     <style>
         .sf-grid {
@@ -87,12 +88,6 @@
                             class="form-input" placeholder="PAC Sport Fest 2027"></div>
                     <div class="form-group"><label class="form-label">Year *</label><input id="sf-year"
                             class="form-input" type="number"></div>
-                    <div class="form-group"><label class="form-label">Champions to Declare</label>
-                        <select id="sf-champion-count" class="form-input">
-                            <option value="1">1 champion</option>
-                            <option value="2">2 champions (JHS + SHS)</option>
-                        </select>
-                    </div>
                     <div class="form-group"><label class="form-label">Theme</label><input id="sf-theme"
                             class="form-input" placeholder="Optional theme"></div>
                     <div class="form-group"><label class="form-label">Description</label><textarea id="sf-description"
@@ -132,7 +127,7 @@
             if (!seasons.length) { el.innerHTML = '<div style="color:var(--muted)">No Sport Fest seasons yet.</div>'; return; }
             el.innerHTML = seasons.map(s => `
             <div class="sf-card ${s.is_current ? 'current' : ''}">
-                <div class="sf-card-head"><div><div class="sf-name">${escapeHtml(s.name)}</div><div class="sf-meta">${s.year} · ${escapeHtml(s.status || 'upcoming')} · ${Number(s.champion_count || 1)} champion${Number(s.champion_count || 1) === 1 ? '' : 's'}</div></div>${s.is_current ? '<span class="status-badge status-live">CURRENT</span>' : ''}</div>
+                <div class="sf-card-head"><div><div class="sf-name">${escapeHtml(s.name)}</div><div class="sf-meta">${s.year} · ${escapeHtml(s.status || 'upcoming')} · ${Number(s.declared_champion_count || 0)} division champion${Number(s.declared_champion_count || 0) === 1 ? '' : 's'} declared</div></div>${s.is_current ? '<span class="status-badge status-live">CURRENT</span>' : ''}</div>
                 ${s.champion_department_name ? `<div class="sf-meta" style="color:var(--gold);margin-top:10px">Declared lead: ${escapeHtml(s.champion_department_name)}</div>` : ''}
                 <div class="sf-actions"><button class="btn btn-secondary btn-sm" type="button" onclick="editSeason(${s.id})">Edit</button><button class="btn btn-secondary btn-sm" type="button" onclick="viewSummary(${s.id})">Summary</button></div>
             </div>`).join('');
@@ -145,8 +140,7 @@
             const res = await api('/sport-fest/start-new-season', {
                 method: 'POST', body: JSON.stringify({
                     name, year, theme: document.getElementById('sf-theme').value.trim() || null,
-                    description: document.getElementById('sf-description').value.trim() || null,
-                    champion_count: parseInt(document.getElementById('sf-champion-count').value, 10) || 1
+                    description: document.getElementById('sf-description').value.trim() || null
                 })
             });
             showMessage(res.message || (res.success ? 'Sport Fest started.' : 'Could not start Sport Fest'), !res.success);
@@ -158,12 +152,10 @@
             if (!s) return;
             const name = await Modal.prompt('Sport Fest name:', s.name, 'Edit Sport Fest');
             if (name === null) return;
-            const count = await Modal.prompt('Champions to declare (1 or 2):', String(s.champion_count || 1), 'Champion count');
-            if (count === null) return;
             const res = await api(`/sport-fest/${id}`, {
                 method: 'PUT', body: JSON.stringify({
                     name: name.trim() || s.name, year: s.year, theme: s.theme || null,
-                    description: s.description || null, status: s.status || 'upcoming', champion_count: Number(count) === 2 ? 2 : 1
+                    description: s.description || null, status: s.status || 'upcoming'
                 })
             });
             showMessage(res.message || (res.success ? 'Sport Fest updated.' : 'Could not update Sport Fest'), !res.success);

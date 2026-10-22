@@ -31,7 +31,7 @@
 .champion-card,
 .champion {
     border-radius: 14px;
-    border-color: rgba(245, 184, 0, .38);
+    border-color: var(--border-gold, rgba(245, 184, 0, .38));
 }
 
 .lb-table,
@@ -56,7 +56,7 @@
 
 .lb-row:hover,
 #leaderboard-root .lb-row:hover {
-    background: rgba(245, 184, 0, .045);
+    background: var(--gold-bg, rgba(245, 184, 0, .045));
 }
 
 @media (max-width: 640px) {

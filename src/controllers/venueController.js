@@ -5,11 +5,16 @@ const { logActivity } = require('../utils/logger');
 const getAll = async (req, res, next) => {
     try {
         const [rows] = await pool.execute(
-            `SELECT v.*, COUNT(DISTINCT m.id) as scheduled_matches
-       FROM venues v
-       LEFT JOIN matches m ON v.id = m.venue_id AND m.status IN ('scheduled','ongoing')
-       WHERE v.is_active = 1
-       GROUP BY v.id ORDER BY v.name`
+            `SELECT v.*, COALESCE(m.scheduled_matches, 0) AS scheduled_matches
+             FROM venues v
+             LEFT JOIN (
+                 SELECT venue_id, COUNT(DISTINCT id) AS scheduled_matches
+                 FROM matches
+                 WHERE status IN ('scheduled','ongoing')
+                 GROUP BY venue_id
+             ) m ON m.venue_id = v.id
+             WHERE v.is_active = 1
+             ORDER BY v.name`
         );
         res.json({ success: true, data: rows });
     } catch (err) {

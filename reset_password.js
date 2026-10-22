@@ -2,70 +2,70 @@
 require('dotenv').config();
 const mysql = require('mysql2/promise');
 const bcrypt = require('bcryptjs');
+const { getDatabaseSslConfig } = require('./src/config/databaseSsl');
 
-const SEED_USERS = [
-    { username: 'admin', email: 'admin@sportfest.com', password: 'Admin@1234', role: 'admin' },
-    { username: 'referee', email: 'referee@sportfest.com', password: 'Referee@1234', role: 'referee' },
-    { username: 'player', email: 'player@sportfest.com', password: 'Player@1234', role: 'player' },
-];
+const buildConnectionOptions = () => {
+    const databaseUrl = process.env.DATABASE_URL || process.env.MYSQL_URL;
+    const ssl = getDatabaseSslConfig();
+    if (databaseUrl) {
+        const url = new URL(databaseUrl);
+        if (url.protocol !== 'mysql:') throw new Error('DATABASE_URL must use the mysql:// protocol');
+        return {
+            host: url.hostname,
+            port: Number(url.port || 3306),
+            user: decodeURIComponent(url.username),
+            password: decodeURIComponent(url.password),
+            database: decodeURIComponent(url.pathname.replace(/^\//, '')),
+            ...(ssl ? { ssl } : {}),
+        };
+    }
+    return {
+        host: process.env.DB_HOST || process.env.MYSQLHOST || 'localhost',
+        port: Number(process.env.DB_PORT || process.env.MYSQLPORT || 3306),
+        user: process.env.DB_USER || process.env.MYSQLUSER || 'root',
+        password: process.env.DB_PASSWORD || process.env.MYSQLPASSWORD || '',
+        database: process.env.DB_NAME || process.env.MYSQLDATABASE || 'sportfest_db',
+        ...(ssl ? { ssl } : {}),
+    };
+};
 
 async function run() {
     let conn;
     try {
-        console.log('🔧 Connecting to MySQL...');
-        conn = await mysql.createConnection({
-            host: process.env.DB_HOST || 'localhost',
-            port: process.env.DB_PORT || 3306,
-            user: process.env.DB_USER || 'root',
-            password: process.env.DB_PASSWORD || '',
-            database: process.env.DB_NAME || 'sportfest_db',
-        });
-        console.log('✅ Connected\n');
-
-        for (const u of SEED_USERS) {
-            const hash = await bcrypt.hash(u.password, 10);
-
-            // Upsert: update if exists, insert if not
-            await conn.execute(`
-        INSERT INTO users (uuid, username, email, password_hash, role, first_name, last_name)
-        VALUES (UUID(), ?, ?, ?, ?, ?, 'User')
-        ON DUPLICATE KEY UPDATE password_hash = VALUES(password_hash)
-      `, [u.username, u.email, hash, u.role, u.role.charAt(0).toUpperCase() + u.role.slice(1)]);
-
-            // Verify the hash works
-            const ok = await bcrypt.compare(u.password, hash);
-            console.log(`${ok ? '✅' : '❌'}  ${u.role.padEnd(8)} | ${u.email.padEnd(32)} | password: ${u.password} | hash ok: ${ok}`);
+        const username = process.env.RESET_ACCOUNT_USERNAME?.trim();
+        const password = process.env.RESET_ACCOUNT_PASSWORD;
+        if (!username || !password) {
+            throw new Error('Set RESET_ACCOUNT_USERNAME and RESET_ACCOUNT_PASSWORD to reset one existing account.');
+        }
+        if (password.length < 12) {
+            throw new Error('RESET_ACCOUNT_PASSWORD must be at least 12 characters.');
         }
 
-        // Also create referee and player profiles if missing
-        const [[adminRow]] = await conn.execute("SELECT id FROM users WHERE username = 'referee'");
-        if (adminRow) {
-            await conn.execute(
-                'INSERT IGNORE INTO referees (user_id) VALUES (?)',
-                [adminRow.id]
+        console.log('🔧 Connecting to MySQL...');
+        conn = await mysql.createConnection(buildConnectionOptions());
+        console.log('✅ Connected\n');
+
+        const [users] = await conn.execute(
+            'SELECT id FROM users WHERE LOWER(username) = LOWER(?) OR LOWER(email) = LOWER(?)',
+            [username, username]
+        );
+        if (users.length !== 1) {
+            throw new Error(
+                users.length
+                    ? 'Account lookup was ambiguous; no password was changed.'
+                    : 'Account was not found; no account was created.'
             );
         }
 
-        const [[playerRow]] = await conn.execute("SELECT id FROM users WHERE username = 'player'");
-        if (playerRow) {
-            const [[dept]] = await conn.execute('SELECT id FROM departments LIMIT 1');
-            if (dept) {
-                await conn.execute(
-                    'INSERT IGNORE INTO players (user_id, department_id) VALUES (?, ?)',
-                    [playerRow.id, dept.id]
-                );
-            }
-        }
-
-        console.log('\n✅ All passwords reset successfully!\n');
-        console.log('  You can now log in with:');
-        SEED_USERS.forEach(u => {
-            console.log(`  ${u.role.padEnd(8)} → ${u.email} / ${u.password}`);
-        });
-        console.log('');
-
+        const hash = await bcrypt.hash(password, 12);
+        await conn.execute('UPDATE users SET password_hash = ?, updated_at = NOW() WHERE id = ?', [
+            hash,
+            users[0].id,
+        ]);
+        console.log('✅ Password updated for the specified existing account.');
     } catch (err) {
-        console.error('❌ Error:', err.message);
+        console.error('❌ Password reset failed:', err.message);
+        process.exitCode = 1;
     } finally {
         if (conn) await conn.end();
     }
