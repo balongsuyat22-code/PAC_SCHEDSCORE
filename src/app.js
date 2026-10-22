@@ -222,6 +222,7 @@ app.get('/president/sports.html', sendPageFrom(frontendPresident, 'pres-sports.h
 app.get('/president/sport-fest', sendPageFrom(frontendPresident, 'pres-sport-fest.html'));
 app.get('/president/sport-fest.html', sendPageFrom(frontendPresident, 'pres-sport-fest.html'));
 
+
 app.use('/SGO_PRESIDENT', express.static(frontendPresident));
 app.use('/sgo_president', express.static(frontendPresident));
 
