@@ -168,7 +168,13 @@
             setInterval(loadAll, 8000);
             connectRealtime();
         });
-        function connectRealtime() {
+        async function connectRealtime() {
+            try {
+                const response = await fetch('/socket-status', { cache: 'no-store' });
+                if (response.ok && (await response.json())?.data?.available === false) return;
+            } catch (error) {
+                console.warn('[realtime] socket availability check failed', error.message);
+            }
             try {
                 const socket = io(window.location.origin);
 

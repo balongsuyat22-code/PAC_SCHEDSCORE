@@ -142,15 +142,18 @@ body{
 .main{max-width:var(--maxw);margin:0 auto;padding:1.25rem clamp(.75rem,2.5vw,2rem) 2rem}
 .section{display:none}.section.active{display:block}
 
-.sport-filters{display:flex;gap:6px;margin-bottom:.85rem;overflow-x:auto;scrollbar-width:none;padding-bottom:4px;-webkit-overflow-scrolling:touch}
-.sport-filters::-webkit-scrollbar{display:none}
+.sport-filters{display:flex;gap:6px;margin-bottom:.85rem;overflow-x:auto;overflow-y:hidden;flex-wrap:nowrap;scrollbar-width:thin;scrollbar-color:var(--border3) transparent;padding:0 0 7px;-webkit-overflow-scrolling:touch;overscroll-behavior-x:contain}
+.sport-filters::-webkit-scrollbar{height:4px}
+.sport-filters::-webkit-scrollbar-thumb{background:var(--border3);border-radius:4px}
 .sport-chip{display:flex;flex-direction:column;align-items:center;gap:2px;padding:7px 12px;background:var(--bg3);border:1px solid var(--border);border-radius:var(--r);cursor:pointer;white-space:nowrap;flex-shrink:0;transition:all .2s;min-width:56px}
 .sport-chip:hover,.sport-chip.active{background:rgba(var(--accent-rgb),.1);border-color:rgba(var(--accent-rgb),.4);color:var(--accent)}
 .sport-chip-icon{font-size:16px;line-height:1}
 .sport-chip-label{font-size:9px;font-weight:500;color:var(--muted2);text-transform:uppercase;letter-spacing:.04em}
 .sport-chip.active .sport-chip-label{color:var(--accent)}
-.status-filters{display:flex;gap:6px;margin-bottom:1rem;flex-wrap:wrap}
-.filter-chip{padding:5px 12px;font-size:11px;background:var(--bg3);border:1px solid var(--border);border-radius:100px;color:var(--muted2);cursor:pointer;transition:all .2s}
+.status-filters{display:flex;gap:6px;margin-bottom:1rem;flex-wrap:nowrap;overflow-x:auto;overflow-y:hidden;scrollbar-width:thin;scrollbar-color:var(--border3) transparent;padding:0 0 7px;-webkit-overflow-scrolling:touch;overscroll-behavior-x:contain}
+.status-filters::-webkit-scrollbar{height:4px}
+.status-filters::-webkit-scrollbar-thumb{background:var(--border3);border-radius:4px}
+.filter-chip{flex:0 0 auto;padding:5px 12px;font-size:11px;background:var(--bg3);border:1px solid var(--border);border-radius:100px;color:var(--muted2);cursor:pointer;transition:all .2s}
 .filter-chip.active,.filter-chip:hover{background:rgba(var(--accent-rgb),.1);border-color:rgba(var(--accent-rgb),.4);color:var(--accent)}
 
 .sec-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:1rem;gap:10px;flex-wrap:wrap}
@@ -472,14 +475,14 @@ body{
 @media (min-width: 1024px) {
   .main,
   .page-main {
-    max-width: 1100px;
+    max-width: 1500px;
     margin-left: auto;
     margin-right: auto;
     padding-left: 2rem;
     padding-right: 2rem;
   }
 
-  /* Scores page: no sidebar grid — single balanced column */
+  /* Keep the match board full width and let its cards define the grid. */
   .main {
     display: block;
   }
@@ -549,23 +552,18 @@ body{
     font-size: 28px;
   }
 
-  /* Filters sit in one tidy row */
+  /* Filter rows remain swipeable instead of becoming a crowded chip cloud. */
   .sport-filters {
     margin-bottom: 0.75rem;
-    /* There's room now — wrap instead of forcing a horizontal-scroll
-       drag with no visible scrollbar, which reads as broken on a
-       mouse/trackpad. */
-    overflow-x: visible;
-    flex-wrap: wrap;
   }
   .status-filters {
     margin-bottom: 1.25rem;
   }
 
-  /* Match board: 2 columns so cards aren't ultra-wide */
+  /* Two cards per row on desktop. Wider breakpoints add columns below. */
   #matches-container {
     display: grid;
-    grid-template-columns: 1fr 1fr;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 12px;
     align-items: start;
   }
@@ -630,7 +628,7 @@ body{
   .page-main,
   .nav,
   .topbar-inner {
-    max-width: 1200px;
+    max-width: 1600px;
   }
   .hero-controls {
     max-width: 1040px;
@@ -640,18 +638,22 @@ body{
   }
 }
 
-/* Ultra-wide / large monitors: a little more room instead of huge
-   dead margins, plus a 3rd match column so the board reads as a
-   proper scoreboard rather than two narrow columns floating in
-   the middle of the screen. */
-@media (min-width: 1700px) {
+@media (min-width: 1280px) {
+  #matches-container {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+/* Four cards across on large screens while preserving a readable card width. */
+@media (min-width: 1680px) {
   .main,
   .page-main,
   .nav,
   .topbar-inner {
-    max-width: 1360px;
+    max-width: 1760px;
   }
   #matches-container {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
     gap: 16px;
   }
   .mvp-grid {
@@ -680,7 +682,7 @@ body{
   /* Same problem on the search bar: flex:1 inside a 1100px+ container
      makes it a huge stretched pill. Cap and center it. */
   .search-row {
-    max-width: 460px;
+    max-width: 640px;
     margin-left: auto;
     margin-right: auto;
   }
@@ -690,7 +692,7 @@ body{
      centered column, same idea as an email inbox or activity feed. */
   #schedule-container,
   #highlights-container {
-    max-width: 820px;
+    max-width: 1200px;
     margin-left: auto;
     margin-right: auto;
   }
@@ -1450,53 +1452,6 @@ body{
     bottom: 24px;
     right: 24px;
   }
-}
-/* ═══════════════════════════════════════════════════════════
-   DESKTOP ADD-ONS: standings sidebar, podium, featured match,
-   site footer
-   ═══════════════════════════════════════════════════════════ */
-
-/* ── Scores page: Live Standings sidebar ──
-   Only exists on index.html (#live-standings-widget). Hidden by
-   default / on narrower screens — the standings page is one tap
-   away — and only takes a column once there's genuinely spare
-   width, instead of leaving an empty gutter next to a 2-col match
-   board. */
-#live-standings-widget { display: none; }
-
-@media (min-width: 1300px) {
-  .main {
-    display: grid;
-    grid-template-columns: 1fr 320px;
-    gap: 28px;
-    align-items: start;
-  }
-  #sec-scores { grid-column: 1; min-width: 0; }
-  #live-standings-widget {
-    display: block;
-    grid-column: 2;
-    position: sticky;
-    top: calc(var(--topbar-h) + var(--safe-top) + 16px);
-  }
-}
-@media (min-width: 1700px) {
-  .main { grid-template-columns: 1fr 360px; }
-}
-
-.side-panel {
-  background: var(--bg2);
-  border: 1px solid var(--border);
-  border-radius: var(--r2);
-  overflow: hidden;
-  box-shadow: 0 8px 24px rgba(0,0,0,.18);
-}
-.side-panel-head {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: .9rem 1.1rem;
-  border-bottom: 1px solid var(--border);
-  background: var(--bg3);
 }
 .side-panel-title {
   display: flex;

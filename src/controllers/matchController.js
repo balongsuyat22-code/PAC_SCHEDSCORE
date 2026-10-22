@@ -535,14 +535,12 @@ const getLive = async (req, res, next) => {
                     LEFT JOIN departments da ON m.participant_a_department_id = da.id
                     LEFT JOIN departments db ON m.participant_b_department_id = db.id
                     LEFT JOIN venues      v  ON m.venue_id                    = v.id
-                    LEFT JOIN match_scores ms ON m.id = ms.match_id
                     WHERE m.status IN ('ongoing', 'scheduled')
                       AND (m.bracket_side = 'ffa'
                            OR t.format IN ('free_for_all', 'team_ranking', 'group_stage_ffa')
                            OR m.bracket_side = 'exhibition'
                            OR (m.participant_a_department_id IS NOT NULL
                                AND m.participant_b_department_id IS NOT NULL))
-                    GROUP BY m.id
                     ORDER BY m.status DESC, m.started_at DESC, m.scheduled_date ASC`
         );
 

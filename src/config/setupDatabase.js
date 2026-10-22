@@ -3,24 +3,14 @@ const mysql = require('mysql2/promise');
 const bcrypt = require('bcryptjs');
 const fs = require('fs');
 const path = require('path');
+const { getDatabaseSslConfig } = require('./databaseSsl');
 
 const RESET_DATABASE = process.env.RESET_DATABASE === '1' || process.env.RESET_DATABASE === 'true';
 const SEED_DATABASE = process.env.SEED_DATABASE === '1' || process.env.SEED_DATABASE === 'true';
 
-const buildSslConfig = () => {
-    if (process.env.DB_SSL !== 'true') return undefined;
-
-    const ca = process.env.DB_CA_CERT?.replace(/\\n/g, '\n');
-    return {
-        rejectUnauthorized: true,
-        minVersion: 'TLSv1.2',
-        ...(ca ? { ca } : {}),
-    };
-};
-
 const buildConnectionOptions = () => {
     const databaseUrl = process.env.DATABASE_URL || process.env.MYSQL_URL;
-    const ssl = buildSslConfig();
+    const ssl = getDatabaseSslConfig();
     if (databaseUrl) {
         const url = new URL(databaseUrl);
         if (url.protocol !== 'mysql:') {
@@ -81,6 +71,30 @@ const tableExists = async (conn, tableName) => {
         [tableName]
     );
     return row.count > 0;
+};
+
+const ensureUsersTable = async (conn) => {
+    await conn.query(`
+        CREATE TABLE IF NOT EXISTS users (
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            uuid CHAR(36) NOT NULL UNIQUE,
+            username VARCHAR(50) NOT NULL UNIQUE,
+            email VARCHAR(255) NOT NULL UNIQUE,
+            password_hash VARCHAR(255) NOT NULL,
+            role VARCHAR(30) NOT NULL,
+            first_name VARCHAR(100) NOT NULL,
+            last_name VARCHAR(100) NOT NULL,
+            phone VARCHAR(30) NULL,
+            profile_picture VARCHAR(500) NULL,
+            department_id INT NULL,
+            is_active TINYINT(1) NOT NULL DEFAULT 1,
+            last_login DATETIME NULL,
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+            updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+            INDEX idx_users_department (department_id),
+            CONSTRAINT fk_users_department FOREIGN KEY (department_id) REFERENCES departments(id) ON DELETE SET NULL
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+    `);
 };
 
 const hardWipeAllTables = async (conn) => {
@@ -570,11 +584,12 @@ const run = async () => {
             const schemaPath = findFile(['schema.sql', 'sql/schema.sql']);
             if (!schemaPath) throw new Error('schema.sql not found');
             console.log('📦 Applying schema...');
-            try { await conn.query(fs.readFileSync(schemaPath, 'utf8')); console.log('✅ Schema applied'); }
-            catch (err) { console.warn('⚠️  schema.sql failed halfway:', err.message); }
+            await conn.query(fs.readFileSync(schemaPath, 'utf8'));
+            console.log('✅ Schema applied');
             if (RESET_DATABASE) await hardWipeAllTables(conn);
         }
 
+        await ensureUsersTable(conn);
         await seedDefaultUsers(conn);
 
         if (hasSchema && !RESET_DATABASE && !SEED_DATABASE) {

@@ -56,6 +56,26 @@ CREATE TABLE IF NOT EXISTS sport_fest_events (
     CONSTRAINT fk_sfe_champion FOREIGN KEY (champion_department_id) REFERENCES departments(id) ON DELETE
     SET NULL
 ) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4;
+CREATE TABLE IF NOT EXISTS users (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    uuid CHAR(36) NOT NULL UNIQUE,
+    username VARCHAR(50) NOT NULL UNIQUE,
+    email VARCHAR(255) NOT NULL UNIQUE,
+    password_hash VARCHAR(255) NOT NULL,
+    role VARCHAR(30) NOT NULL,
+    first_name VARCHAR(100) NOT NULL,
+    last_name VARCHAR(100) NOT NULL,
+    phone VARCHAR(30) NULL,
+    profile_picture VARCHAR(500) NULL,
+    department_id INT NULL,
+    is_active TINYINT(1) NOT NULL DEFAULT 1,
+    last_login DATETIME NULL,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    INDEX idx_users_department (department_id),
+    CONSTRAINT fk_users_department FOREIGN KEY (department_id) REFERENCES departments(id) ON DELETE
+    SET NULL
+) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4;
 CREATE TABLE IF NOT EXISTS refresh_tokens (
     id INT AUTO_INCREMENT PRIMARY KEY,
     user_id INT NOT NULL,

@@ -312,6 +312,23 @@ const Realtime = {
     _feed: [],
     _maxFeed: 40,
     _ioReady: null,
+    _availability: null,
+
+    async _isAvailable() {
+        if (!this._availability) {
+            this._availability = fetch('/socket-status', { cache: 'no-store' })
+                .then(response => {
+                    if (!response.ok) throw new Error(`Socket status returned HTTP ${response.status}`);
+                    return response.json();
+                })
+                .then(status => status?.data?.available !== false)
+                .catch(error => {
+                    console.warn('[Realtime] socket availability check failed', error.message);
+                    return true;
+                });
+        }
+        return this._availability;
+    },
 
     _loadIo() {
         if (window.io) return Promise.resolve(window.io);
@@ -329,6 +346,10 @@ const Realtime = {
 
     async connect() {
         if (this.socket?.connected) return this.socket;
+        if (!(await this._isAvailable())) {
+            this._setConnDot(false);
+            return null;
+        }
         try {
             await this._loadIo();
         } catch (e) {

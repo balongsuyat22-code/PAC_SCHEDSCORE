@@ -137,6 +137,7 @@ This repository includes a Vercel Node function entry point and routing configur
 2. Import this repository into Vercel and set these **Project → Settings → Environment Variables** for Production (and Preview if needed):
    - `DATABASE_URL`: TiDB's `mysql://` connection URL, including the database name in its path. Alternatively set `DB_HOST`, `DB_PORT`, `DB_USER`, `DB_PASSWORD`, and `DB_NAME`.
    - `DB_SSL`: `true` (TLS certificate verification is enabled).
+   - `DB_CA_CERT`: the full TiDB CA certificate PEM contents if required. For local database setup, `DB_CA_CERT_PATH` can point to the downloaded CA file instead.
    - `JWT_SECRET`: a long, randomly generated secret. Do not use the development fallback.
    - `CORS_ORIGIN`: your deployed site's exact origin, such as `https://your-project.vercel.app`.
    - `DB_CONNECTION_LIMIT`: `5` is a suitable serverless starting point; tune it together with your TiDB connection limits.

@@ -811,12 +811,22 @@
             gap: 8px;
             margin-bottom: 1rem;
             overflow-x: auto;
-            scrollbar-width: none;
-            padding-bottom: 4px
+            overflow-y: hidden;
+            flex-wrap: nowrap;
+            scrollbar-width: thin;
+            scrollbar-color: var(--border3) transparent;
+            padding-bottom: 7px;
+            -webkit-overflow-scrolling: touch;
+            overscroll-behavior-x: contain
         }
 
         .sport-filters::-webkit-scrollbar {
-            display: none
+            height: 4px
+        }
+
+        .sport-filters::-webkit-scrollbar-thumb {
+            background: var(--border3);
+            border-radius: 4px
         }
 
         .sport-chip {
@@ -862,10 +872,27 @@
             display: flex;
             gap: 8px;
             margin-bottom: 1.25rem;
-            flex-wrap: wrap
+            flex-wrap: nowrap;
+            overflow-x: auto;
+            overflow-y: hidden;
+            scrollbar-width: thin;
+            scrollbar-color: var(--border3) transparent;
+            padding-bottom: 7px;
+            -webkit-overflow-scrolling: touch;
+            overscroll-behavior-x: contain
+        }
+
+        .status-filters::-webkit-scrollbar {
+            height: 4px
+        }
+
+        .status-filters::-webkit-scrollbar-thumb {
+            background: var(--border3);
+            border-radius: 4px
         }
 
         .filter-chip {
+            flex: 0 0 auto;
             padding: 5px 14px;
             font-size: 12px;
             font-family: var(--font-body);
@@ -2514,13 +2541,25 @@
         @media(min-width:1024px) {
             #matches-container {
                 display: grid;
-                grid-template-columns: repeat(2, 1fr);
+                grid-template-columns: repeat(2, minmax(0, 1fr));
                 gap: 14px
             }
 
             .match-card,
             .ffa-card {
                 margin-bottom: 0
+            }
+        }
+
+        @media(min-width:1600px) {
+            #matches-container {
+                grid-template-columns: repeat(3, minmax(0, 1fr))
+            }
+        }
+
+        @media(min-width:2048px) {
+            #matches-container {
+                grid-template-columns: repeat(4, minmax(0, 1fr))
             }
         }
 
@@ -3213,7 +3252,16 @@
 
         const TIME_BASED_SPORTS = ['swimming', 'athletics', 'track', 'cycling', 'running', 'gymnastics', 'triathlon'];
 
-        function initSocket() {
+        async function initSocket() {
+            try {
+                const response = await fetch('/socket-status', { cache: 'no-store' });
+                if (response.ok && (await response.json())?.data?.available === false) {
+                    updateWSStatus(false);
+                    return;
+                }
+            } catch (error) {
+                console.warn('Socket availability check failed', error.message);
+            }
             try {
                 socket = io(WS_URL, {
                     transports: ['websocket', 'polling'],

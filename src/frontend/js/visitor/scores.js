@@ -789,7 +789,16 @@
         clockTimer = setInterval(tick, 1000);
     }
 
-    function connectSocket() {
+    async function connectSocket() {
+        try {
+            const status = await fetch('/socket-status', { cache: 'no-store' });
+            if (status.ok && (await status.json())?.data?.available === false) {
+                setWsStatus(false);
+                return;
+            }
+        } catch (error) {
+            console.warn('Socket availability check failed', error.message);
+        }
         if (typeof io === 'undefined') {
             setWsStatus(false);
             return;

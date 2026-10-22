@@ -1,21 +1,11 @@
 const mysql = require('mysql2/promise');
 require('dotenv').config();
-
-const buildSslConfig = () => {
-    if (process.env.DB_SSL !== 'true') return undefined;
-
-    const ca = process.env.DB_CA_CERT?.replace(/\\n/g, '\n');
-    return {
-        rejectUnauthorized: true,
-        minVersion: 'TLSv1.2',
-        ...(ca ? { ca } : {}),
-    };
-};
+const { getDatabaseSslConfig } = require('./databaseSsl');
 
 const buildPoolConfig = () => {
     const databaseUrl = process.env.DATABASE_URL || process.env.MYSQL_URL;
     const connectionLimit = Number(process.env.DB_CONNECTION_LIMIT || (process.env.VERCEL === '1' ? 5 : 20));
-    const ssl = buildSslConfig();
+    const ssl = getDatabaseSslConfig();
 
     if (databaseUrl) {
         const url = new URL(databaseUrl);
