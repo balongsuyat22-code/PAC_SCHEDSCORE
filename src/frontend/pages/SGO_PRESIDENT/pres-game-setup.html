@@ -3824,8 +3824,8 @@
                 if (submitBtn) submitBtn.innerHTML = '<i class="fa-solid fa-calendar-check"></i> Assign &amp; Schedule';
             } else {
                 if (title) title.innerHTML = '<i class="fa-solid fa-dice"></i> Auto-Schedule Round Robin';
-                if (desc) desc.textContent = 'Build day-by-day slots. Matches are shuffled so the same departments are less likely to play back-to-back.';
-                if (submitBtn) submitBtn.innerHTML = '<i class="fa-solid fa-dice"></i> Shuffle &amp; Schedule';
+                if (desc) desc.textContent = 'Build day-by-day slots. The scheduler prefers matchups with neither department from the previous match and avoids three-match department streaks when possible.';
+                if (submitBtn) submitBtn.innerHTML = '<i class="fa-solid fa-dice"></i> Schedule Matches';
             }
 
             const daysHost = document.getElementById('as-days');

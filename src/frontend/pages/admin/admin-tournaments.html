@@ -852,10 +852,6 @@
             }
         }
 
-        /* Nested modal (timeslot picker) needs to sit above its parent modal */
-        #modal-timeslots {
-            z-index: 9100;
-        }
     </style>
 </head>
 
@@ -984,35 +980,6 @@
         </div>
     </div>
 
-    <!-- Time slots -->
-    <div class="modal-overlay" id="modal-timeslots" onclick="if(event.target===this)Modal.close('modal-timeslots')">
-        <div class="modal">
-            <div class="modal-header">
-                <div class="modal-title"><span style="color:var(--gold)">●</span> Manage Time Slots</div>
-                <button class="modal-close" onclick="Modal.close('modal-timeslots')">×</button>
-            </div>
-            <div class="modal-body">
-                <div
-                    style="background:var(--bg3);border:1px solid rgba(59,130,246,0.3);border-radius:8px;padding:11px 14px;font-size:12px;color:var(--muted);margin-bottom:14px">
-                    <strong>One match per time slot.</strong>
-                </div>
-                <div class="form-group">
-                    <label class="form-label">Date</label>
-                    <input type="date" id="ts-date" class="form-input" onchange="renderTSEntries()">
-                </div>
-                <div class="form-group">
-                    <label class="form-label">Time slots for this day</label>
-                    <div id="timeslot-list" style="display:flex;flex-direction:column;gap:8px"></div>
-                    <button type="button" class="add-slot-btn" onclick="addTSEntry()">+ Add Time Slot</button>
-                </div>
-            </div>
-            <div class="modal-footer">
-                <button class="btn btn-secondary" onclick="Modal.close('modal-timeslots')">Cancel</button>
-                <button class="btn btn-primary" onclick="saveTimeSlots()">Save Slots</button>
-            </div>
-        </div>
-    </div>
-
     <!-- Add participant -->
     <div class="modal-overlay" id="modal-add-participant"
         onclick="if(event.target===this)Modal.close('modal-add-participant')">
@@ -1040,35 +1007,6 @@
         </div>
     </div>
 
-    <!-- Edit match -->
-    <div class="modal-overlay" id="modal-edit-match" onclick="if(event.target===this)Modal.close('modal-edit-match')">
-        <div class="modal" style="max-width:560px">
-            <div class="modal-header">
-                <div class="modal-title" id="em-modal-title"><span style="color:var(--gold)">●</span> Edit Match</div>
-                <button class="modal-close" onclick="Modal.close('modal-edit-match')">×</button>
-            </div>
-            <div class="modal-body">
-                <div id="edit-match-preview" style="margin-bottom:14px"></div>
-
-                <div id="em-teams-section" style="display:none;margin-bottom:16px">
-                    <div
-                        style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin-bottom:10px">
-                        Teams</div>
-                    <div class="form-row">
-                        <div class="form-group">
-                            <label class="form-label">Side A</label>
-                            <select id="em-team-a" class="form-select">
-                                <option value="">— TBD —</option>
-                            </select>
-                        </div>
-                        <div class="form-group">
-                            <label class="form-label">Side B</label>
-                            <select id="em-team-b" class="form-select">
-                                <option value="">— TBD —</option>
-                            </select>
-                        </div>
-                    </div>
-                    <div id="em-exhibition-section" style="display:none;margin-top:8px">
                         <div style="font-size:11px;font-weight:700;color:var(--gold);margin-bottom:6px">Place exhibition
                         </div>
                         <div id="em-exhibition-buttons" style="display:flex;flex-wrap:wrap;gap:6px"></div>
@@ -1303,19 +1241,11 @@
                 </div>
                 <div id="as-format-note"></div>
             </div>
-            <p style="font-size:12px;color:var(--muted);padding:0 20px 12px;margin:0;" id="as-footer-hint">
-                <strong>Assign &amp; Schedule</strong> places matches in order onto your day slots (client-side).
-                <strong>Smart Schedule</strong> uses the server conflict engine so the same team is never double-booked.
-            </p>
             <div class="modal-footer">
                 <button class="btn btn-secondary" onclick="Modal.close('modal-schedule-config')">Cancel</button>
-                <button class="btn btn-secondary" onclick="openTSModal()"><i class="fa-solid fa-clock"></i> Time
-                    Slots</button>
-                <button class="btn btn-secondary" id="as-smart-btn" onclick="confirmSmartAutoSchedule()"
-                    title="Ignores Time Slots — finds conflict-free windows automatically and skips locked school blocks">
-                    ⚡ Smart Schedule</button>
-                <button class="btn btn-primary" id="as-submit-btn" onclick="confirmAutoSchedule()">Start
-                    Auto-Scheduling</button>
+                <button class="btn btn-primary" id="as-submit-btn" onclick="confirmAutoSchedule()">
+                    <i class="fa-solid fa-calendar-check"></i> Auto-Schedule
+                </button>
             </div>
         </div>
     </div>
@@ -1652,7 +1582,6 @@
             tb(tournament.name, `
                 <a href="/admin/tournaments" class="btn btn-secondary btn-sm">Back</a>
                 <button class="btn btn-secondary btn-sm" onclick="reloadDetail()">Refresh</button>
-                ${!done ? `<button class="btn btn-secondary btn-sm" onclick="openTSModal()">Slots</button>` : ''}
                 ${!done ? `<button class="btn btn-primary btn-sm" id="bracket-btn" onclick="genBracket()">${matches.length ? (IS_FFA(fmt) ? 'Re-Initialize Event' : 'Regenerate Bracket') : (IS_FFA(fmt) ? 'Initialize Event' : 'Generate Bracket')}</button>` : ''}
                 ${!done ? `<button class="btn btn-primary btn-sm" onclick="openScheduleConfig()">Auto-Schedule</button>` : ''}
                 ${ongoing || done ? `<button class="btn btn-sm" style="background:var(--green);color:#000" onclick="openFinalizeFlow()">Finalize</button>` : ''}
@@ -1711,8 +1640,7 @@
             return `<div class="dates-bar">
                 <div class="date-item">Start: ${tournament.start_date ? (typeof formatDate === 'function' ? formatDate(tournament.start_date) : tournament.start_date) : 'Not set'}</div>
                 <div class="date-item">End: ${tournament.end_date ? (typeof formatDate === 'function' ? formatDate(tournament.end_date) : tournament.end_date) : 'Not set'}</div>
-                <div class="date-item">Slots: ${sc} total</div>
-                <button class="btn btn-secondary btn-sm" style="margin-left:auto" onclick="openTSModal()">Manage Slots</button>
+                <div class="date-item">Schedule slots: ${sc} configured</div>
             </div>`;
         }
 
@@ -2495,7 +2423,6 @@
             if (res.success) await reloadDetail();
         }
 
-        function openTSModal() { Modal.open('modal-timeslots'); }
         function isSchedulableMatch(m) {
             return ['pending', 'scheduled'].includes(String(m.status || '').toLowerCase()) &&
                 (m.bracket_side === 'ffa' ||
@@ -2820,10 +2747,14 @@
                 if (note) note.innerHTML = '';
             } else {
                 if (title) title.innerHTML = '<span style="color:var(--gold)">●</span> Schedule Configuration';
-                if (desc) desc.textContent = 'Assign default venue and referee for pending matches. Dates and times come from your Time Slots.';
-                if (btn) btn.textContent = 'Start Auto-Scheduling';
+                if (desc) desc.textContent = fmt === 'round_robin'
+                    ? 'Set day-by-day slots. Matchups avoid departments from the previous match when possible and prevent three-match department streaks when a valid order exists.'
+                    : 'Set day-by-day slots and optional venue or officer. Matches are assigned by the server scheduler.';
+                if (btn) btn.textContent = fmt === 'round_robin' ? 'Schedule Matches' : 'Auto-Schedule';
                 if (intro) intro.innerHTML = '';
-                if (note) note.innerHTML = '';
+                if (note) note.innerHTML = fmt === 'round_robin'
+                    ? '<div class="de-as-note"><i class="fa-solid fa-circle-info"></i><span>Slots are placed in chronological order. Add more days or times if the summary shows too few slots.</span></div>'
+                    : '';
             }
 
             // Slot summary is driven by the per-day builder once the modal is open
@@ -3092,10 +3023,9 @@
         }
 
         async function confirmAutoSchedule() {
+            const btn = document.getElementById('as-submit-btn');
             const defaultVenue = document.getElementById('config-venue')?.value;
             const defaultReferee = document.getElementById('config-referee')?.value;
-            const fmt = tournament?.format || '';
-
             const plans = collectDayPlans();
             const incomplete = plans.filter(p => !p.date || !p.times.length);
             if (!plans.length || incomplete.length) {
@@ -3104,113 +3034,55 @@
             }
             const freeSlots = collectFlatSlots(plans);
             syncDayPlansToTimeSlots(plans);
-
-            if (IS_FFA(fmt)) {
-                const ffaMatch = matches.find(m =>
-                    m.bracket_side === 'ffa' ||
-                    m.bracket_position === 'FFA Event' ||
-                    IS_FFA(m.tournament_format || fmt)
-                );
-                if (!ffaMatch) { Toast.show('No FFA match found. Click Initialize Event first.', 'error'); return; }
-                const slot = freeSlots[0];
-                const body = { scheduled_date: slot.date, scheduled_time: slot.time };
-                if (defaultVenue) body.venue_id = parseInt(defaultVenue);
-                if (defaultReferee) body.referee_id = parseInt(defaultReferee);
-                const res = await api(`/matches/${ffaMatch.id}/schedule`, { method: 'PATCH', body });
-                if (res.success) {
-                    Toast.show(`FFA event scheduled for ${typeof formatDate === 'function' ? formatDate(slot.date) : slot.date}`, 'success');
-                    await reloadDetail();
-                    Modal.close('modal-schedule-config');
-                    switchTab('schedule');
-                } else Toast.show(res.message || 'Scheduling failed', 'error');
-                return;
+            const matchesNeeded = autoScheduleMatchCount();
+            if (freeSlots.length < matchesNeeded) {
+                if (!await Modal.confirm(
+                    `You have ${freeSlots.length} slot(s) for ${matchesNeeded} open matches. Some matches may remain unscheduled. Continue?`,
+                    'Schedule matches'
+                )) return;
             }
-
-            let toSchedule = matches.filter(isSchedulableMatch);
-            if (!toSchedule.length) { Toast.show('All matches already scheduled', 'info'); return; }
-
-            if (isKnockoutFormat(fmt)) {
-                toSchedule = sortMatchesForSchedule(toSchedule);
-            }
-
-            if (freeSlots.length < toSchedule.length) {
-                Toast.show(`Only ${freeSlots.length} slots for ${toSchedule.length} matches. Add another day or more times.`, 'error');
-                return;
-            }
-            let scheduled = 0;
-            for (let i = 0; i < toSchedule.length; i++) {
-                const m = toSchedule[i];
-                const slot = freeSlots[i];
-                const body = { scheduled_date: slot.date, scheduled_time: slot.time };
-                if (defaultVenue) body.venue_id = parseInt(defaultVenue);
-                if (defaultReferee) body.referee_id = parseInt(defaultReferee);
-                const res = await api(`/matches/${m.id}/schedule`, { method: 'PATCH', body });
-                if (res.success) scheduled++;
-            }
-            const label = fmt === 'double_elimination' ? 'DE ' : fmt === 'single_elimination' ? 'SE ' : '';
-            Toast.show(`Scheduled ${scheduled} of ${toSchedule.length} ${label}matches`, scheduled === toSchedule.length ? 'success' : 'info');
-            await reloadDetail();
-            Modal.close('modal-schedule-config');
-            switchTab('schedule');
-        }
-
-
-        // Server-side smart scheduler: ignores Time Slots entirely, walks the
-        // tournament's flexible fixtures, skips permanently-locked school
-        // blocks, and places every match into a window where findTeamConflict()
-        // reports no clash for either side. Round-robin assigns venues/refs.
-        async function confirmSmartAutoSchedule() {
-            const btn = document.getElementById('as-smart-btn');
-            const defaultVenue = document.getElementById('config-venue')?.value;
-            const defaultReferee = document.getElementById('config-referee')?.value;
             const assignOfficers = !!document.getElementById('as-assign-officers')?.checked;
-
-            // Prefer live day cards; fall back to saved timeSlots
-            let day_plans = collectDayPlans().filter(p => p.date && p.times.length);
-            if (!day_plans.length) {
-                day_plans = Object.entries(timeSlots || {})
-                    .filter(([, slots]) => Array.isArray(slots) && slots.length)
-                    .sort(([a], [b]) => a.localeCompare(b))
-                    .map(([date, slots]) => ({
-                        date,
-                        times: [...new Set(slots.map(s => String(s.start || '').slice(0, 5)).filter(Boolean))].sort(),
-                    }))
-                    .filter(p => p.times.length);
+            if (btn) {
+                btn.disabled = true;
+                btn.dataset.originalHtml = btn.innerHTML;
+                btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Scheduling…';
             }
-            if (!day_plans.length) {
-                Toast.show('Add at least one day with a date and time slots', 'error');
-                return;
-            }
-            syncDayPlansToTimeSlots(day_plans);
-            const slots = collectFlatSlots(day_plans);
-
-            if (btn) { btn.disabled = true; btn.textContent = 'Scheduling…'; }
             try {
                 const res = await api(`/tournaments/${PAGE_ID}/schedule-auto`, {
                     method: 'POST',
                     body: {
-                        default_venue_id: defaultVenue ? parseInt(defaultVenue) : null,
-                        default_referee_id: defaultReferee ? parseInt(defaultReferee) : null,
-                        day_plans,
-                        slots,
-                        dates: day_plans.map(p => p.date),
+                        default_venue_id: defaultVenue ? parseInt(defaultVenue, 10) : null,
+                        default_referee_id: defaultReferee ? parseInt(defaultReferee, 10) : null,
+                        day_plans: plans,
+                        slots: freeSlots,
+                        dates: plans.map(p => p.date),
+                        times: plans[0]?.times || [],
                         assign_officers: assignOfficers,
                     },
                 });
                 if (res.success) {
                     const d = res.data || {};
-                    const msg = d.skipped
-                        ? `Scheduled ${d.scheduled}, ${d.skipped} could not find a conflict-free slot.`
-                        : `Scheduled ${d.scheduled} match(es) with no team conflicts.`;
-                    Toast.show(msg, d.skipped ? 'info' : 'success');
+                    const skipped = Number(d.skipped) || 0;
+                    Toast.show(
+                        skipped
+                            ? `Scheduled ${d.scheduled}; ${skipped} need more conflict-free slots.`
+                            : `Scheduled ${d.scheduled} match(es).`,
+                        skipped ? 'info' : 'success'
+                    );
                     await reloadDetail();
                     Modal.close('modal-schedule-config');
                     switchTab('schedule');
                 } else {
-                    Toast.show(res.message || 'Smart scheduling failed', 'error');
+                    Toast.show(res.message || 'Auto-scheduling failed', 'error');
                 }
+            } catch (error) {
+                Toast.show(error.message || 'Auto-scheduling failed', 'error');
             } finally {
-                if (btn) { btn.disabled = false; btn.textContent = '⚡ Smart Schedule'; }
+                if (btn) {
+                    btn.disabled = false;
+                    btn.innerHTML = btn.dataset.originalHtml || '<i class="fa-solid fa-calendar-check"></i> Auto-Schedule';
+                    delete btn.dataset.originalHtml;
+                }
             }
         }
 
@@ -3486,63 +3358,6 @@
             catch { timeSlots = {}; }
         }
         function saveTSData() { localStorage.setItem(`sf_slots_${PAGE_ID}`, JSON.stringify(timeSlots)); }
-
-        function renderTSEntries() {
-            const date = document.getElementById('ts-date')?.value;
-            if (!date) return;
-            const slots = timeSlots[date] || [];
-            const listEl = document.getElementById('timeslot-list');
-            if (!listEl) return;
-            listEl.innerHTML = slots.map((s, i) => `
-                <div class="timeslot-entry">
-                    <input type="time" id="ts-s-${i}" value="${s.start || '09:00'}" class="form-input" style="width:100px">
-                    <span class="ts-sep">to</span>
-                    <input type="time" id="ts-e-${i}" value="${s.end || '10:00'}" class="form-input" style="width:100px">
-                    <button class="ts-remove" onclick="removeTS(${i})">×</button>
-                </div>`).join('');
-            if (!slots.length) {
-                listEl.innerHTML = '<div style="font-size:13px;color:var(--muted);text-align:center;padding:8px">No slots yet.</div>';
-            }
-        }
-
-        function addTSEntry() {
-            const date = document.getElementById('ts-date')?.value;
-            if (!date) { Toast.show('Pick a date first', 'error'); return; }
-            if (!timeSlots[date]) timeSlots[date] = [];
-            const last = timeSlots[date][timeSlots[date].length - 1];
-            const ns = last ? last.end : '09:00';
-            const [h, m] = ns.split(':').map(Number);
-            timeSlots[date].push({
-                start: ns,
-                end: `${String(Math.min(h + 1, 23)).padStart(2, '0')}:${String(m).padStart(2, '0')}`,
-            });
-            renderTSEntries();
-        }
-
-        function removeTS(i) {
-            const date = document.getElementById('ts-date')?.value;
-            if (date && timeSlots[date]) {
-                timeSlots[date].splice(i, 1);
-                renderTSEntries();
-            }
-        }
-
-        function saveTimeSlots() {
-            const date = document.getElementById('ts-date')?.value;
-            if (!date) { Toast.show('Please select a date', 'error'); return; }
-            const entries = document.querySelectorAll('#timeslot-list .timeslot-entry');
-            const newSlots = [];
-            entries.forEach((_, i) => {
-                const s = document.getElementById(`ts-s-${i}`)?.value;
-                const e = document.getElementById(`ts-e-${i}`)?.value;
-                if (s && e) newSlots.push({ start: s, end: e });
-            });
-            timeSlots[date] = newSlots;
-            saveTSData();
-            Modal.close('modal-timeslots');
-            Toast.show(`${newSlots.length} slot(s) saved`, 'success');
-            renderDetail();
-        }
     </script>
 </body>
 

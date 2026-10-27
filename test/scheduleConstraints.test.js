@@ -1,6 +1,9 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { rebuildAutoSchedule } = require('../src/services/scheduleConstraints');
+const {
+    rebuildAutoSchedule,
+    orderRoundRobinMatches,
+} = require('../src/services/scheduleConstraints');
 
 function makeRoundRobinMatches(teamIds) {
     const matches = [];
@@ -53,10 +56,13 @@ function makePool(matches, { failMatchId = null, conflictWhen = null } = {}) {
     };
 }
 
-test('round-robin schedules each team with at least one intervening slot', async () => {
+test('round-robin prefers disjoint matches and prevents three-match team streaks', async () => {
     const matches = makeRoundRobinMatches([1, 2, 3, 4]);
     const pool = makePool(matches);
-    const times = Array.from({ length: 12 }, (_, index) => `${String(8 + index).padStart(2, '0')}:00`);
+    const times = Array.from({ length: 24 }, (_, index) => {
+        const start = 8 * 60 + index * 30;
+        return `${String(Math.floor(start / 60)).padStart(2, '0')}:${String(start % 60).padStart(2, '0')}`;
+    });
 
     const result = await rebuildAutoSchedule(1, {
         day_plans: [{ date: '2026-10-28', times }],
@@ -64,17 +70,84 @@ test('round-robin schedules each team with at least one intervening slot', async
 
     assert.equal(result.scheduled, matches.length);
     assert.equal(pool.commits, 1);
-    const slotByTeam = new Map();
-    for (const match of matches) {
-        const placement = pool.updates.find(update => update.matchId === match.id);
-        const slot = Number(placement.time.slice(0, 2)) - 8;
-        for (const teamId of [match.participant_a_department_id, match.participant_b_department_id]) {
-            const previous = slotByTeam.get(teamId);
-            if (previous?.date === placement.date) {
-                assert.ok(slot >= previous.index + 2, `department ${teamId} has no rest slot`);
-            }
-            slotByTeam.set(teamId, { date: placement.date, index: slot });
+    const matchesById = new Map(matches.map(match => [match.id, match]));
+    const orderedMatches = result.placements.map(placement => matchesById.get(placement.match_id));
+    const teamsIn = match => new Set([
+        match.participant_a_department_id,
+        match.participant_b_department_id,
+    ].filter(Boolean));
+
+    assert.equal(
+        [...teamsIn(orderedMatches[0])].some(teamId => teamsIn(orderedMatches[1]).has(teamId)),
+        false,
+        'the first two matches should not share a department when a disjoint pair exists'
+    );
+
+    for (let index = 2; index < orderedMatches.length; index++) {
+        const currentTeams = teamsIn(orderedMatches[index]);
+        const previousTeams = teamsIn(orderedMatches[index - 1]);
+        const twoBackTeams = teamsIn(orderedMatches[index - 2]);
+        assert.equal(
+            [...currentTeams].some(teamId => previousTeams.has(teamId) && twoBackTeams.has(teamId)),
+            false,
+            `department appears in three consecutive matches ending at index ${index}`
+        );
         }
+});
+
+test('round-robin ordering avoids three-match streaks for larger tournaments', () => {
+    const teamsIn = match => new Set([
+        match.participant_a_department_id,
+        match.participant_b_department_id,
+    ].filter(Boolean));
+
+    for (const teamCount of [4, 8, 12, 16]) {
+        const ordered = orderRoundRobinMatches(makeRoundRobinMatches(
+            Array.from({ length: teamCount }, (_, index) => index + 1)
+        ));
+
+        for (let index = 2; index < ordered.length; index++) {
+            const currentTeams = teamsIn(ordered[index]);
+            const previousTeams = teamsIn(ordered[index - 1]);
+            const twoBackTeams = teamsIn(ordered[index - 2]);
+            assert.equal(
+                [...currentTeams].some(teamId => previousTeams.has(teamId) && twoBackTeams.has(teamId)),
+                false,
+                `${teamCount} teams: department appears in three consecutive matches at ${index}`
+            );
+        }
+    }
+});
+
+test('round-robin replans after a conflicting fixture is skipped', async () => {
+    const matches = makeRoundRobinMatches([1, 2, 3, 4]);
+    const pool = makePool(matches, {
+        conflictWhen: ([departmentId]) => departmentId === 1,
+    });
+    const times = Array.from({ length: 8 }, (_, index) => `${String(8 + index).padStart(2, '0')}:00`);
+
+    const result = await rebuildAutoSchedule(1, {
+        day_plans: [{ date: '2026-10-28', times }],
+    }, pool);
+
+    assert.equal(result.scheduled, 3);
+    assert.equal(result.skipped, 3);
+    const matchesById = new Map(matches.map(match => [match.id, match]));
+    const orderedMatches = result.placements
+        .filter(placement => !placement.skipped)
+        .map(placement => matchesById.get(placement.match_id));
+    const teamsIn = match => new Set([
+        match.participant_a_department_id,
+        match.participant_b_department_id,
+    ].filter(Boolean));
+    for (let index = 2; index < orderedMatches.length; index++) {
+        const currentTeams = teamsIn(orderedMatches[index]);
+        const previousTeams = teamsIn(orderedMatches[index - 1]);
+        const twoBackTeams = teamsIn(orderedMatches[index - 2]);
+        assert.equal(
+            [...currentTeams].some(teamId => previousTeams.has(teamId) && twoBackTeams.has(teamId)),
+            false
+        );
     }
 });
 

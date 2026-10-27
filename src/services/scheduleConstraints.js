@@ -121,6 +121,106 @@ function sortMatchesForSchedule(list) {
     });
 }
 
+function matchDepartments(match) {
+    return new Set([
+        match.participant_a_department_id,
+        match.participant_b_department_id,
+    ].filter(Boolean));
+}
+
+function nextRoundRobinMatchIndex(remaining, scheduledMatches, random = Math.random) {
+    const previousTeams = scheduledMatches.length
+        ? matchDepartments(scheduledMatches[scheduledMatches.length - 1])
+        : new Set();
+    const twoBackTeams = scheduledMatches.length > 1
+        ? matchDepartments(scheduledMatches[scheduledMatches.length - 2])
+        : new Set();
+
+    let bestIndex = 0;
+    let bestScore = Infinity;
+    remaining.forEach((match, index) => {
+        const teams = matchDepartments(match);
+        const sharedWithPrevious = [...teams].filter(teamId => previousTeams.has(teamId)).length;
+        const createsThreeInARow = [...teams].some(teamId =>
+            previousTeams.has(teamId) && twoBackTeams.has(teamId)
+        );
+        const sharedWithTwoBack = [...teams].filter(teamId => twoBackTeams.has(teamId)).length;
+        const score = (createsThreeInARow ? 10000 : 0)
+            + sharedWithPrevious * 1000
+            + sharedWithTwoBack * 10
+            + random() / 1000
+            + index / 1000000;
+
+        if (score < bestScore) {
+            bestScore = score;
+            bestIndex = index;
+        }
+    });
+    return bestIndex;
+}
+
+function roundRobinOrderQuality(matches) {
+    let threeMatchStreaks = 0;
+    let consecutiveSharedTeams = 0;
+    let twoBackSharedTeams = 0;
+    for (let index = 0; index < matches.length; index++) {
+        const teams = matchDepartments(matches[index]);
+        if (index > 0) {
+            consecutiveSharedTeams += [...teams].filter(teamId =>
+                matchDepartments(matches[index - 1]).has(teamId)
+            ).length;
+        }
+        if (index > 1) {
+            const previousTeams = matchDepartments(matches[index - 1]);
+            const twoBackTeams = matchDepartments(matches[index - 2]);
+            if ([...teams].some(teamId => previousTeams.has(teamId) && twoBackTeams.has(teamId))) {
+                threeMatchStreaks++;
+            }
+            twoBackSharedTeams += [...teams].filter(teamId => twoBackTeams.has(teamId)).length;
+        }
+    }
+    return [threeMatchStreaks, consecutiveSharedTeams, twoBackSharedTeams];
+}
+
+function orderRoundRobinMatches(list, precedingMatches = []) {
+    const base = sortMatchesForSchedule(list);
+    const prefix = precedingMatches.slice(-2);
+    let bestOrder = base;
+    let bestQuality = [Infinity, Infinity, Infinity];
+    const attempts = Math.min(128, Math.max(16, base.length));
+
+    for (let attempt = 0; attempt < attempts; attempt++) {
+        const remaining = [...base];
+        let seed = (remaining.reduce((total, match) => total + Number(match.id || match.match_number || 1), 0)
+            + attempt + 1) >>> 0;
+        const random = () => {
+            seed = (Math.imul(seed, 1664525) + 1013904223) >>> 0;
+            return seed / 4294967296;
+        };
+        for (let index = remaining.length - 1; index > 0; index--) {
+            const swapIndex = Math.floor(random() * (index + 1));
+            [remaining[index], remaining[swapIndex]] = [remaining[swapIndex], remaining[index]];
+        }
+
+        const ordered = [...prefix];
+        while (remaining.length) {
+            ordered.push(remaining.splice(nextRoundRobinMatchIndex(remaining, ordered, random), 1)[0]);
+        }
+
+        const quality = roundRobinOrderQuality(ordered);
+        const better = quality.some((value, index) =>
+            value < bestQuality[index] && quality.slice(0, index).every((prior, priorIndex) => prior === bestQuality[priorIndex])
+        );
+        if (better) {
+            bestOrder = ordered.slice(prefix.length);
+            bestQuality = quality;
+        }
+        if (quality[0] === 0 && quality[1] === 0 && quality[2] === 0) break;
+    }
+
+    return bestOrder;
+}
+
 /**
  * Pick an active officer with the fewest concurrent assignments at date+time.
  * Returns user id or null.
@@ -215,7 +315,10 @@ async function rebuildAutoScheduleInTransaction(tournamentId, options, pool) {
         return { scheduled: 0, skipped: 0, placements: [], message: 'No open matches to schedule.' };
     }
 
-    const ordered = sortMatchesForSchedule(matches);
+    let remainingMatches = sortMatchesForSchedule(matches);
+    let plannedRoundRobinMatches = tournament.format === 'round_robin'
+        ? orderRoundRobinMatches(remainingMatches)
+        : null;
     let slotList = buildSlotList(options);
 
     // Fallback: generate slots from dayStart/dayEnd/slotMinutes if nothing provided
@@ -258,11 +361,18 @@ async function rebuildAutoScheduleInTransaction(tournamentId, options, pool) {
     // before DB writes are visible to later iterations.
     const occupiedByDept = new Set(); // `${deptId}|${date}|${time}`
     const occupiedSlots = new Set();  // `${date}|${time}` — one match per slot by default
-    const lastSlotByDepartment = new Map();
+    const scheduledRoundRobinMatches = [];
 
     let slotIdx = 0;
 
-    for (const match of ordered) {
+    while (remainingMatches.length) {
+        let matchIndex = 0;
+        if (plannedRoundRobinMatches) {
+            const plannedMatch = plannedRoundRobinMatches.shift();
+            matchIndex = remainingMatches.findIndex(match => match.id === plannedMatch?.id);
+            if (matchIndex < 0) matchIndex = 0;
+        }
+        const [match] = remainingMatches.splice(matchIndex, 1);
         const deptA = match.participant_a_department_id || null;
         const deptB = match.participant_b_department_id || null;
 
@@ -279,11 +389,6 @@ async function rebuildAutoScheduleInTransaction(tournamentId, options, pool) {
             for (const deptId of [deptA, deptB].filter(Boolean)) {
                 const memKey = `${deptId}|${date}|${time}`;
                 if (occupiedByDept.has(memKey)) { conflict = true; break; }
-                const previousSlot = lastSlotByDepartment.get(deptId);
-                if (tournament.format === 'round_robin' && previousSlot?.date === date && i <= previousSlot.index + 1) {
-                    conflict = true;
-                    break;
-                }
                 const row = await findTeamConflict(pool, {
                     departmentId: deptId,
                     date,
@@ -301,6 +406,9 @@ async function rebuildAutoScheduleInTransaction(tournamentId, options, pool) {
         if (!placed) {
             skipped += 1;
             placements.push({ match_id: match.id, skipped: true, reason: 'no_conflict_free_slot' });
+            if (plannedRoundRobinMatches) {
+                plannedRoundRobinMatches = orderRoundRobinMatches(remainingMatches, scheduledRoundRobinMatches);
+            }
             continue;
         }
 
@@ -329,13 +437,13 @@ async function rebuildAutoScheduleInTransaction(tournamentId, options, pool) {
         occupiedSlots.add(`${date}|${time}`);
         for (const deptId of [deptA, deptB].filter(Boolean)) {
             occupiedByDept.add(`${deptId}|${date}|${time}`);
-            lastSlotByDepartment.set(deptId, { date, index: slotIndex });
         }
         // Advance cursor so earlier slots are preferred for earlier matches
         // but later matches can still use gaps we skipped due to conflicts.
         slotIdx = Math.min(slotIndex + 1, slotList.length);
 
         scheduled += 1;
+        if (tournament.format === 'round_robin') scheduledRoundRobinMatches.push(match);
         placements.push({
             match_id: match.id,
             scheduled_date: date,
@@ -350,7 +458,7 @@ async function rebuildAutoScheduleInTransaction(tournamentId, options, pool) {
         skipped,
         placements,
         slots_available: slotList.length,
-        matches_considered: ordered.length,
+        matches_considered: matches.length,
     };
 }
 
@@ -359,4 +467,5 @@ module.exports = {
     rebuildAutoSchedule,
     buildSlotList,
     sortMatchesForSchedule,
+    orderRoundRobinMatches,
 };
