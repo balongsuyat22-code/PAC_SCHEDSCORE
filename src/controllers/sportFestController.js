@@ -333,7 +333,7 @@ const getSummary = async (req, res, next) => {
             FROM departments d
             LEFT JOIN department_scores ds
                 ON d.id = ds.department_id AND ds.sport_fest_id = ?
-                        WHERE d.is_active = 1
+                        WHERE (d.is_active = 1 OR ds.id IS NOT NULL)
                             AND d.is_exhibition = 0
                             AND d.division IS NOT NULL
                         ORDER BY d.division, total_points DESC, gold DESC, d.name ASC
@@ -348,7 +348,8 @@ const getSummary = async (req, res, next) => {
                         FROM departments d
                         LEFT JOIN department_scores ds
                             ON d.id = ds.department_id AND ds.sport_fest_id = ?
-                        WHERE d.is_active = 1 AND d.is_exhibition = 1
+                                                WHERE (d.is_active = 1 OR ds.id IS NOT NULL)
+                                                    AND d.is_exhibition = 1
                         ORDER BY d.name
                 `, [req.params.id]);
 
@@ -490,6 +491,22 @@ const remove = async (req, res, next) => {
                 success: false,
                 message:
                     'Cannot delete the current season. Use "Start New Season" to archive it first, then delete the archived event if needed.',
+            });
+        }
+
+        const [[archiveData]] = await pool.execute(
+            `SELECT
+                (SELECT COUNT(*) FROM sport_fest_tournaments WHERE sport_fest_id = ?) +
+                (SELECT COUNT(*) FROM tournaments WHERE sport_fest_id = ?) +
+                (SELECT COUNT(*) FROM department_scores WHERE sport_fest_id = ?) +
+                (SELECT COUNT(*) FROM sport_fest_champions WHERE sport_fest_id = ?) +
+                (SELECT COUNT(*) FROM sport_fest_bonus_points WHERE sport_fest_id = ?) AS record_count`,
+            [festId, festId, festId, festId, festId]
+        );
+        if (Number(archiveData.record_count) > 0) {
+            return res.status(400).json({
+                success: false,
+                message: 'This season contains archived records and cannot be deleted. Open Manage to view its history.',
             });
         }
 

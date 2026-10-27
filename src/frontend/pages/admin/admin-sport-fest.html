@@ -1010,7 +1010,7 @@
             }
             openConfirm(
                 'Delete Sport Fest?',
-                `Permanently delete "${f.name}"? Blocked if open tournaments or active matches remain.`,
+                `Delete the empty season "${f.name}"? Seasons with archived records cannot be deleted.`,
                 async () => {
                     const res = await api(`/sport-fest/${id}`, { method: 'DELETE' });
                     Toast.show(res.message || (res.success ? 'Deleted' : 'Error'), res.success ? 'success' : 'error');
