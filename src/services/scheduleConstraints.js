@@ -128,6 +128,59 @@ function matchDepartments(match) {
     ].filter(Boolean));
 }
 
+function departmentPairKey(left, right) {
+    const [first, second] = [String(left), String(right)].sort();
+    return `${first}|${second}`;
+}
+
+function orderCompleteRoundRobinMatches(matches, teamIds) {
+    const matchByPair = new Map(matches.map(match => [
+        departmentPairKey(match.participant_a_department_id, match.participant_b_department_id),
+        match,
+    ]));
+    if (matchByPair.size !== matches.length || matches.length !== teamIds.length * (teamIds.length - 1) / 2) {
+        return null;
+    }
+
+    const circle = [...teamIds];
+    if (circle.length % 2) circle.push(null);
+    const rounds = [];
+    for (let roundIndex = 0; roundIndex < circle.length - 1; roundIndex++) {
+        const round = [];
+        for (let index = 0; index < circle.length / 2; index++) {
+            const left = circle[index];
+            const right = circle[circle.length - 1 - index];
+            if (left != null && right != null) {
+                const match = matchByPair.get(departmentPairKey(left, right));
+                if (!match) return null;
+                round.push(match);
+            }
+        }
+        rounds.push(round);
+        circle.splice(1, 0, circle.pop());
+    }
+
+    const ordered = [];
+    let previousTeams = new Set();
+    for (const round of rounds) {
+        while (round.length) {
+            let bestIndex = 0;
+            let fewestSharedTeams = Infinity;
+            round.forEach((match, index) => {
+                const shared = [...matchDepartments(match)].filter(teamId => previousTeams.has(teamId)).length;
+                if (shared < fewestSharedTeams) {
+                    fewestSharedTeams = shared;
+                    bestIndex = index;
+                }
+            });
+            const [match] = round.splice(bestIndex, 1);
+            ordered.push(match);
+            previousTeams = matchDepartments(match);
+        }
+    }
+    return ordered;
+}
+
 function nextRoundRobinMatchIndex(remaining, scheduledMatches, random = Math.random) {
     const previousTeams = scheduledMatches.length
         ? matchDepartments(scheduledMatches[scheduledMatches.length - 1])
@@ -185,6 +238,12 @@ function roundRobinOrderQuality(matches) {
 function orderRoundRobinMatches(list, precedingMatches = []) {
     const base = sortMatchesForSchedule(list);
     const prefix = precedingMatches.slice(-2);
+    if (!prefix.length) {
+        const teamIds = [...new Set(base.flatMap(match => [...matchDepartments(match)]))]
+            .sort((left, right) => String(left).localeCompare(String(right)));
+        const completeOrder = orderCompleteRoundRobinMatches(base, teamIds);
+        if (completeOrder) return completeOrder;
+    }
     let bestOrder = base;
     let bestQuality = [Infinity, Infinity, Infinity];
     const attempts = Math.min(128, Math.max(16, base.length));

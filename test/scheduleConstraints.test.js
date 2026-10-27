@@ -106,6 +106,21 @@ test('round-robin ordering avoids three-match streaks for larger tournaments', (
             Array.from({ length: teamCount }, (_, index) => index + 1)
         ));
 
+        for (let index = 1; index < ordered.length; index++) {
+            const previousTeams = teamsIn(ordered[index - 1]);
+            const currentTeams = teamsIn(ordered[index]);
+            const disjointAlternativeRemains = ordered.slice(index).some(match =>
+                [...teamsIn(match)].every(teamId => !previousTeams.has(teamId))
+            );
+            if (disjointAlternativeRemains) {
+                assert.equal(
+                    [...currentTeams].some(teamId => previousTeams.has(teamId)),
+                    false,
+                    `${teamCount} teams: selected an avoidable adjacent department repeat at ${index}`
+                );
+            }
+        }
+
         for (let index = 2; index < ordered.length; index++) {
             const currentTeams = teamsIn(ordered[index]);
             const previousTeams = teamsIn(ordered[index - 1]);
