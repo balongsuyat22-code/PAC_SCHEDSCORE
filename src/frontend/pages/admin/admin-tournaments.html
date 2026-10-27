@@ -23,6 +23,35 @@
             }
         }
 
+        @keyframes detailSkeletonPulse {
+            50% { opacity: .48; }
+        }
+
+        .detail-loading {
+            display: grid;
+            gap: 16px;
+            padding: 8px 0;
+        }
+
+        .detail-loading-bar {
+            height: 18px;
+            border-radius: 6px;
+            background: var(--bg3);
+            animation: detailSkeletonPulse 1.2s ease-in-out infinite;
+        }
+
+        .detail-loading-hero {
+            height: 132px;
+            border-radius: 10px;
+            background: var(--bg2);
+            border: 1px solid var(--border);
+            animation: detailSkeletonPulse 1.2s ease-in-out infinite;
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+            .detail-loading-bar, .detail-loading-hero { animation: none; }
+        }
+
         .inline-confirm-bar {
             position: fixed;
             bottom: 24px;
@@ -1276,19 +1305,25 @@
         let tournament = null, participants = [], matches = [], bracketMatches = [], departments = [], venues = [], referees = [];
         let timeSlots = {}, activeTab = 'overview', dqList = {};
         let editingMatchId = null, dqTargetId = null, currentSport = {};
+        let detailRefreshSequence = 0;
 
         document.addEventListener('DOMContentLoaded', () => {
             Auth.requireAuth('admin');
             renderSidebar('tournaments');
             if (PAGE_ID && typeof Realtime !== 'undefined') Realtime.joinTournament(PAGE_ID);
             if (typeof populateIcons === 'function') populateIcons();
-            PAGE_ID ? initDetail() : initList();
+            if (PAGE_ID) {
+                renderDetailLoading();
+                initDetail();
+            } else {
+                initList();
+            }
 
             let _t = null;
             const soft = () => {
                 clearTimeout(_t);
                 _t = setTimeout(() => {
-                    if (PAGE_ID && typeof initDetail === 'function') initDetail();
+                    if (PAGE_ID && typeof reloadDetail === 'function') reloadDetail();
                     else if (typeof initList === 'function') initList();
                 }, 400);
             };
@@ -1367,6 +1402,15 @@
         }
         function setContent(html) {
             document.getElementById('page-content').innerHTML = html;
+        }
+
+        function renderDetailLoading() {
+            setContent(`<div class="detail-loading" role="status" aria-live="polite" aria-label="Loading tournament">
+                <div class="detail-loading-hero"></div>
+                <div class="detail-loading-bar" style="width:42%"></div>
+                <div class="detail-loading-bar" style="width:100%;height:220px"></div>
+                <div class="detail-loading-bar" style="width:76%;height:120px"></div>
+            </div>`);
         }
 
         /* ── List view ── */
@@ -1521,15 +1565,24 @@
         async function initDetail() {
             loadTS();
             loadDQ();
-            const [tRes, dRes, vRes, rRes, sRes] = await Promise.all([
+            const [tRes, dRes, vRes, rRes, sRes, mRes, bRes] = await Promise.all([
                 api(`/tournaments/${PAGE_ID}`),
                 api('/departments'),
                 api('/venues'),
                 api('/matches/officers'),
                 api('/sports'),
+                api(`/matches?tournament_id=${PAGE_ID}`),
+                api(`/tournaments/${PAGE_ID}/bracket`),
             ]);
             if (!tRes.success) {
-                setContent(`<div class="empty-state"><div class="empty-text">Not found. <a href="/admin/tournaments" style="color:var(--gold)">Back</a></div></div>`);
+                const message = /not found/i.test(tRes.message || '')
+                    ? 'Tournament not found.'
+                    : 'Could not load tournament details. Check your connection and try again.';
+                setContent(`<div class="empty-state">
+                    <div class="empty-text" style="margin-bottom:14px">${message}</div>
+                    <button class="btn btn-secondary btn-sm" type="button" onclick="initDetail()"><i class="fa-solid fa-rotate-right"></i> Retry</button>
+                    <a class="btn btn-secondary btn-sm" href="/admin/tournaments">Back to tournaments</a>
+                </div>`);
                 return;
             }
             tournament = tRes.data;
@@ -1539,10 +1592,6 @@
             referees = rRes.data || [];
             allSports = sRes.data || [];
             currentSport = allSports.find(s => s.id === tournament.sport_id) || { min_players: 1, category: 'individual' };
-            const [mRes, bRes] = await Promise.all([
-                api(`/matches?tournament_id=${PAGE_ID}`),
-                api(`/tournaments/${PAGE_ID}/bracket`),
-            ]);
             matches = mRes.data || [];
             bracketMatches = bRes.data || [];
             document.title = `${tournament.name} — PAC SCHED-SCORE`;
@@ -1558,18 +1607,19 @@
         }
 
         async function reloadDetail() {
+            const refreshSequence = ++detailRefreshSequence;
             const [tR, mR, bR] = await Promise.all([
                 api(`/tournaments/${PAGE_ID}`),
                 api(`/matches?tournament_id=${PAGE_ID}`),
                 api(`/tournaments/${PAGE_ID}/bracket`),
             ]);
-            if (tR.success) {
-                tournament = tR.data;
-                participants = tournament.participants || [];
-            }
+            if (refreshSequence !== detailRefreshSequence || !tR.success || !mR.success || !bR.success) return false;
+            tournament = tR.data;
+            participants = tournament.participants || [];
             matches = mR.data || [];
             bracketMatches = bR.data || [];
             renderDetail();
+            return true;
         }
 
         function renderDetail() {
@@ -1585,7 +1635,7 @@
                 ${!done ? `<button class="btn btn-primary btn-sm" id="bracket-btn" onclick="genBracket()">${matches.length ? (IS_FFA(fmt) ? 'Re-Initialize Event' : 'Regenerate Bracket') : (IS_FFA(fmt) ? 'Initialize Event' : 'Generate Bracket')}</button>` : ''}
                 ${!done ? `<button class="btn btn-primary btn-sm" onclick="openScheduleConfig()">Auto-Schedule</button>` : ''}
                 ${ongoing || done ? `<button class="btn btn-sm" style="background:var(--green);color:#000" onclick="openFinalizeFlow()">Finalize</button>` : ''}
-                ${canDelete ? `<button class="btn btn-sm" style="background:#ef4444;color:#fff;border:none" onclick="openDeleteTournament()">Delete</button>` : ''}
+                ${canDelete ? `<button class="btn btn-danger btn-sm" id="delete-tournament-btn" onclick="openDeleteTournament()"><i class="fa-solid fa-trash"></i> Delete</button>` : ''}
             `);
 
             const tabs = [
@@ -2372,33 +2422,45 @@
             const name = tournament.name || 'this tournament';
             const matchCount = (matches || []).length;
             const partCount = (participants || []).length;
-            const msg = 'Delete "' + name + '" permanently?\n\n'
-                + '• This cannot be undone\n'
-                + '• ' + partCount + ' participant(s) will be removed from this tournament\n'
-                + (matchCount
-                    ? '• ' + matchCount + ' scheduled match slot(s) will be deleted (none have started)\n'
-                    : '• No matches generated yet\n')
-                + '• Related scores/standings for this tournament will be removed';
-
-            if (typeof showConfirm === 'function') {
-                showConfirm(msg.replace(/\n/g, ' · '), async () => {
-                    await confirmDeleteTournament();
-                }, true);
-            } else if (await Modal.confirm(msg, 'Delete tournament')) {
-                await confirmDeleteTournament();
+            const details = [
+                `This permanently deletes “${name}”.`,
+                `${partCount} participant(s) and ${matchCount} match(es) will be removed along with related results and standings.`,
+                'This action cannot be undone.',
+                `Type the tournament name exactly to confirm: ${name}`,
+            ].join('\n\n');
+            const typedName = await Modal.prompt(details, '', 'Delete tournament');
+            if (typedName === null) return;
+            if (typedName.trim() !== name) {
+                Toast.show('Tournament name did not match. Nothing was deleted.', 'error');
+                return;
             }
+            await confirmDeleteTournament();
         }
 
         async function confirmDeleteTournament() {
             if (!PAGE_ID) return;
+            const btn = document.getElementById('delete-tournament-btn');
+            if (btn) {
+                btn.disabled = true;
+                btn.dataset.originalHtml = btn.innerHTML;
+                btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Deleting…';
+            }
             try {
                 const res = await api('/tournaments/' + PAGE_ID, { method: 'DELETE' });
-                Toast.show(res.message || (res.success ? 'Tournament deleted.' : 'Could not delete'), res.success ? 'success' : 'error');
                 if (res.success) {
+                    Toast.show(res.message || 'Tournament deleted.', 'success');
                     window.location.href = '/admin/tournaments';
+                } else {
+                    Toast.show(res.message || 'Could not delete tournament.', 'error');
                 }
             } catch (e) {
-                Toast.show('Delete failed', 'error');
+                Toast.show(e.message || 'Delete failed. Please try again.', 'error');
+            } finally {
+                if (btn) {
+                    btn.disabled = false;
+                    btn.innerHTML = btn.dataset.originalHtml || '<i class="fa-solid fa-trash"></i> Delete';
+                    delete btn.dataset.originalHtml;
+                }
             }
         }
 
@@ -3062,13 +3124,20 @@
                 });
                 if (res.success) {
                     const d = res.data || {};
+                    const scheduled = Number(d.scheduled) || 0;
                     const skipped = Number(d.skipped) || 0;
-                    Toast.show(
-                        skipped
-                            ? `Scheduled ${d.scheduled}; ${skipped} need more conflict-free slots.`
-                            : `Scheduled ${d.scheduled} match(es).`,
-                        skipped ? 'info' : 'success'
-                    );
+                    if (!scheduled && !skipped) {
+                        Toast.show('There are no pending or scheduled matches to update.', 'info');
+                    } else if (!scheduled) {
+                        Toast.show(`No matches were scheduled; ${skipped} could not find a conflict-free slot. Add more days or times.`, 'error');
+                    } else {
+                        Toast.show(
+                            skipped
+                                ? `Scheduled ${scheduled}; ${skipped} need more conflict-free slots.`
+                                : `Scheduled ${scheduled} match(es).`,
+                            skipped ? 'info' : 'success'
+                        );
+                    }
                     await reloadDetail();
                     Modal.close('modal-schedule-config');
                     switchTab('schedule');

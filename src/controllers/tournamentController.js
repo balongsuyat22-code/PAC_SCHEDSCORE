@@ -726,50 +726,51 @@ const update = async (req, res, next) => {
  */
 const remove = async (req, res, next) => {
     const conn = await pool.getConnection();
+    let transactionStarted = false;
     try {
         const id = parseInt(req.params.id, 10);
         if (!id) {
-            conn.release();
             return res.status(400).json({ success: false, message: 'Invalid tournament id' });
         }
 
-        const t = await getTournamentWithSport(id);
+        await conn.beginTransaction();
+        transactionStarted = true;
+        const [[t]] = await conn.execute(
+            'SELECT id, name, status FROM tournaments WHERE id = ? FOR UPDATE',
+            [id]
+        );
         if (!t) {
-            conn.release();
+            await conn.rollback();
+            transactionStarted = false;
             return res.status(404).json({ success: false, message: 'Tournament not found' });
         }
 
         if (t.status === 'completed') {
-            conn.release();
+            await conn.rollback();
+            transactionStarted = false;
             return res.status(400).json({
                 success: false,
                 message: 'Cannot delete a finalized tournament. Finalized results are locked.',
             });
         }
 
-        // Block if any match has actually started or finished
-        const [started] = await pool.execute(
-            `SELECT COUNT(*) AS c FROM matches
-             WHERE m.tournament_id = ?
-               AND status IN ('ongoing', 'completed', 'in_progress')`,
+        // Lock and validate matches before deleting so none can start mid-delete.
+        const [matchRows] = await conn.execute(
+            `SELECT id, status FROM matches WHERE tournament_id = ? ORDER BY id FOR UPDATE`,
             [id]
         );
-        const startedCount = Number(started[0]?.c || 0);
+        const startedCount = matchRows.filter(match =>
+            ['ongoing', 'completed', 'in_progress'].includes(String(match.status || '').toLowerCase())
+        ).length;
         if (startedCount > 0) {
-            conn.release();
+            await conn.rollback();
+            transactionStarted = false;
             return res.status(400).json({
                 success: false,
                 message: `Cannot delete — ${startedCount} match(es) have already started or been completed.`,
             });
         }
 
-        await conn.beginTransaction();
-
-        // Match IDs for this tournament (scheduled / pending only at this point)
-        const [matchRows] = await conn.execute(
-            `SELECT id FROM matches WHERE tournament_id = ?`,
-            [id]
-        );
         const matchIds = matchRows.map((r) => r.id);
 
         if (matchIds.length) {
@@ -819,18 +820,12 @@ const remove = async (req, res, next) => {
         const [del] = await conn.execute(`DELETE FROM tournaments WHERE id = ?`, [id]);
         if (!del.affectedRows) {
             await conn.rollback();
-            conn.release();
+            transactionStarted = false;
             return res.status(404).json({ success: false, message: 'Tournament not found' });
         }
 
         await conn.commit();
-
-        await notifyRoles(['admin', 'sgo_president', 'dean_adviser', 'sgo_officer'], {
-            type: 'tournament', severity: 'success', title: 'Tournament finalized',
-            message: `${t.name} was finalized and ${recorded} result(s) were recorded.`,
-            link: `/president/tournament-export?tournament_id=${req.params.id}`,
-            entity_type: 'tournament', entity_id: req.params.id, created_by: req.user?.id || null,
-        });
+        transactionStarted = false;
 
         cache.clearPrefix('leaderboard:');
 
@@ -843,7 +838,9 @@ const remove = async (req, res, next) => {
             },
         });
     } catch (err) {
-        try { await conn.rollback(); } catch (_) { }
+        if (transactionStarted) {
+            try { await conn.rollback(); } catch (_) { }
+        }
         console.error('remove tournament error:', err);
         next(err);
     } finally {

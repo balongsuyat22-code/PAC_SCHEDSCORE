@@ -23,7 +23,7 @@ function makeRoundRobinMatches(teamIds) {
     return matches;
 }
 
-function makePool(matches, { failMatchId = null, conflictWhen = null } = {}) {
+function makePool(matches, { failMatchId = null, conflictWhen = null, staleScheduleConflict = false } = {}) {
     const updates = [];
     let rollbacks = 0;
     let commits = 0;
@@ -36,6 +36,9 @@ function makePool(matches, { failMatchId = null, conflictWhen = null } = {}) {
             if (sql.includes('FROM tournaments')) return [[{ id: 1, format: 'round_robin' }]];
             if (sql.includes('FROM matches m') && sql.includes('WHERE m.tournament_id')) return [matches];
             if (sql.includes('SELECT id, tournament_id')) {
+                if (staleScheduleConflict && !sql.includes("AND NOT (tournament_id = ? AND status IN ('pending', 'scheduled'))")) {
+                    return [[{ id: 99 }]];
+                }
                 return conflictWhen?.(params) ? [[{ id: 99 }]] : [[]];
             }
             if (sql.includes('UPDATE matches')) {
@@ -164,6 +167,19 @@ test('round-robin replans after a conflicting fixture is skipped', async () => {
             false
         );
     }
+});
+
+test('scheduler can reschedule fixtures that already have stale scheduled times', async () => {
+    const matches = makeRoundRobinMatches([1, 2, 3]).map(match => ({ ...match, status: 'scheduled' }));
+    const pool = makePool(matches, { staleScheduleConflict: true });
+
+    const result = await rebuildAutoSchedule(1, {
+        day_plans: [{ date: '2026-10-28', times: ['09:00', '10:00', '11:00', '12:00', '13:00'] }],
+    }, pool);
+
+    assert.equal(result.scheduled, matches.length);
+    assert.equal(result.skipped, 0);
+    assert.equal(pool.updates.length, matches.length);
 });
 
 test('scheduler uses the exact per-day plans supplied by the UI', async () => {

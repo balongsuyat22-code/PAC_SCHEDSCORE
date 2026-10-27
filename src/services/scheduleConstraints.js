@@ -73,6 +73,7 @@ async function findTeamConflict(pool, {
     date,
     time,
     excludeMatchId = null,
+    ignoreOpenMatchesInTournamentId = null,
 } = {}) {
     if (!departmentId || !date || !time) return null;
     const d = toDateStr(date);
@@ -90,6 +91,10 @@ async function findTeamConflict(pool, {
     if (excludeMatchId) {
         sql += ' AND id != ?';
         params.push(excludeMatchId);
+    }
+    if (ignoreOpenMatchesInTournamentId) {
+        sql += ` AND NOT (tournament_id = ? AND status IN ('pending', 'scheduled'))`;
+        params.push(ignoreOpenMatchesInTournamentId);
     }
     sql += ' LIMIT 1';
     const [rows] = await pool.execute(sql, params);
@@ -453,6 +458,7 @@ async function rebuildAutoScheduleInTransaction(tournamentId, options, pool) {
                     date,
                     time,
                     excludeMatchId: match.id,
+                    ignoreOpenMatchesInTournamentId: tournamentId,
                 });
                 if (row) { conflict = true; break; }
             }
