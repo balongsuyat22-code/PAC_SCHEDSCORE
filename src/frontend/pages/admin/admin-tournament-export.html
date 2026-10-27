@@ -525,7 +525,63 @@
         }
 
         function downloadPdf(event) { const sheet = document.querySelector('.sheet'); if (!sheet) return; const button = event?.target?.closest('button'); if (button) button.disabled = true; html2pdf().set({ margin: .3, filename: `${sheetTitle}.pdf`, image: { type: 'jpeg', quality: .98 }, html2canvas: { scale: 2, useCORS: true }, jsPDF: { unit: 'in', format: 'letter', orientation: 'portrait' }, pagebreak: { mode: ['css', 'legacy'] } }).from(sheet).save().finally(() => { if (button) button.disabled = false; }); }
-        function downloadWord() { const sheet = document.querySelector('.sheet'); if (!sheet) return; const blob = new Blob([`<html><head><meta charset="utf-8"><title>${esc(sheetTitle)}</title></head><body>${sheet.outerHTML}</body></html>`], { type: 'application/msword' }); const url = URL.createObjectURL(blob); const link = document.createElement('a'); link.href = url; link.download = `${sheetTitle}.doc`; link.click(); URL.revokeObjectURL(url); }
+        function downloadWord() {
+            const sheet = document.querySelector('.sheet');
+            if (!sheet) return;
+            const styledSheet = sheet.cloneNode(true);
+            const sourceElements = [sheet, ...sheet.querySelectorAll('*')];
+            const exportElements = [styledSheet, ...styledSheet.querySelectorAll('*')];
+            const wordProperties = [
+                'background-color', 'color', 'font-family', 'font-size', 'font-weight', 'font-style',
+                'line-height', 'text-align', 'vertical-align', 'text-transform', 'white-space',
+                'padding-top', 'padding-right', 'padding-bottom', 'padding-left',
+                'margin-top', 'margin-right', 'margin-bottom', 'margin-left',
+                'border-top-color', 'border-top-style', 'border-top-width',
+                'border-right-color', 'border-right-style', 'border-right-width',
+                'border-bottom-color', 'border-bottom-style', 'border-bottom-width',
+                'border-left-color', 'border-left-style', 'border-left-width',
+            ];
+            sourceElements.forEach((element, index) => {
+                const computed = window.getComputedStyle(element);
+                wordProperties.forEach(property => {
+                    const value = computed.getPropertyValue(property);
+                    if (value) exportElements[index].style.setProperty(property, value);
+                });
+            });
+            styledSheet.style.setProperty('width', '100%');
+            styledSheet.style.setProperty('max-width', 'none');
+            styledSheet.style.setProperty('margin', '0');
+            styledSheet.style.setProperty('box-shadow', 'none');
+            styledSheet.style.setProperty('border-radius', '0');
+            const pageStyles = Array.from(document.querySelectorAll('style'))
+                .map(style => style.textContent)
+                .join('\n');
+            const html = `<html xmlns:o="urn:schemas-microsoft-com:office:office"
+                xmlns:w="urn:schemas-microsoft-com:office:word"
+                xmlns="http://www.w3.org/TR/REC-html40">
+                <head><meta charset="utf-8"><title>${esc(sheetTitle)}</title>
+                <!--[if gte mso 9]><xml><w:WordDocument><w:View>Print</w:View></w:WordDocument></xml><![endif]-->
+                <style>${pageStyles}
+                    @page { size: letter; margin: 0.55in; }
+                    body { font-family: Calibri, Arial, sans-serif; color: #111; background: #fff; }
+                    .sheet { width: 100%; max-width: none; margin: 0; border-radius: 0; box-shadow: none; }
+                    .sheet-header { display: table; width: 100%; table-layout: fixed; }
+                    .sheet-header > div, .sheet-header > .sheet-badge { display: table-cell; vertical-align: middle; }
+                    .sheet-header > .sheet-badge { text-align: right; }
+                    .sheet-body { padding: 20px 24px; }
+                    table { width: 100%; border-collapse: collapse; }
+                    th, td { border: 1px solid #c8c8c8; padding: 6px 8px; font-size: 10pt; }
+                    th { background: #e8e8e8 !important; color: #111 !important; }
+                    tr, .tournament-block, .champion { page-break-inside: avoid; }
+                </style></head><body>${styledSheet.outerHTML}</body></html>`;
+            const blob = new Blob(['\ufeff', html], { type: 'application/msword' });
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = `${sheetTitle}.doc`;
+            link.click();
+            setTimeout(() => URL.revokeObjectURL(url), 1000);
+        }
     </script>
 </body>
 

@@ -172,8 +172,24 @@ async function pickOfficer(pool, date, time, preferredId = null) {
 async function rebuildAutoSchedule(tournamentId, options = {}, pool) {
     if (!pool) throw new Error('Database pool is required.');
 
+    const connection = await pool.getConnection();
+    try {
+        await connection.beginTransaction();
+        const result = await rebuildAutoScheduleInTransaction(tournamentId, options, connection);
+        await connection.commit();
+        return result;
+    } catch (error) {
+        try { await connection.rollback(); } catch (_) { }
+        throw error;
+    } finally {
+        connection.release();
+    }
+}
+
+async function rebuildAutoScheduleInTransaction(tournamentId, options, pool) {
+
     const [[tournament]] = await pool.execute(
-        `SELECT id, sport_id, status, format, name FROM tournaments WHERE id = ?`,
+        `SELECT id, sport_id, status, format, name FROM tournaments WHERE id = ? FOR UPDATE`,
         [tournamentId]
     );
     if (!tournament) {
@@ -190,7 +206,8 @@ async function rebuildAutoSchedule(tournamentId, options = {}, pool) {
          FROM matches m
          WHERE m.tournament_id = ?
            AND m.status IN ('pending', 'scheduled')
-         ORDER BY m.round_number ASC, m.match_number ASC, m.id ASC`,
+                 ORDER BY m.round_number ASC, m.match_number ASC, m.id ASC
+                 FOR UPDATE`,
         [tournamentId]
     );
 
@@ -241,6 +258,7 @@ async function rebuildAutoSchedule(tournamentId, options = {}, pool) {
     // before DB writes are visible to later iterations.
     const occupiedByDept = new Set(); // `${deptId}|${date}|${time}`
     const occupiedSlots = new Set();  // `${date}|${time}` — one match per slot by default
+    const lastSlotByDepartment = new Map();
 
     let slotIdx = 0;
 
@@ -261,6 +279,11 @@ async function rebuildAutoSchedule(tournamentId, options = {}, pool) {
             for (const deptId of [deptA, deptB].filter(Boolean)) {
                 const memKey = `${deptId}|${date}|${time}`;
                 if (occupiedByDept.has(memKey)) { conflict = true; break; }
+                const previousSlot = lastSlotByDepartment.get(deptId);
+                if (tournament.format === 'round_robin' && previousSlot?.date === date && i <= previousSlot.index + 1) {
+                    conflict = true;
+                    break;
+                }
                 const row = await findTeamConflict(pool, {
                     departmentId: deptId,
                     date,
@@ -306,6 +329,7 @@ async function rebuildAutoSchedule(tournamentId, options = {}, pool) {
         occupiedSlots.add(`${date}|${time}`);
         for (const deptId of [deptA, deptB].filter(Boolean)) {
             occupiedByDept.add(`${deptId}|${date}|${time}`);
+            lastSlotByDepartment.set(deptId, { date, index: slotIndex });
         }
         // Advance cursor so earlier slots are preferred for earlier matches
         // but later matches can still use gaps we skipped due to conflicts.

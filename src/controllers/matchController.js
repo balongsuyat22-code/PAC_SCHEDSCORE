@@ -2010,6 +2010,8 @@ const scheduleAuto = async (req, res, next) => {
         const result = await rebuildAutoSchedule(tournamentId, {
             defaultVenueId: req.body.default_venue_id ?? null,
             defaultRefereeId: req.body.default_referee_id ?? null,
+            day_plans: req.body.day_plans,
+            slots: req.body.slots,
             dayStart: req.body.day_start,
             dayEnd: req.body.day_end,
             slotMinutes: req.body.slot_minutes,

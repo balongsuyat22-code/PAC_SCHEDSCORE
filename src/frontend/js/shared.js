@@ -313,6 +313,7 @@ const Realtime = {
     _maxFeed: 40,
     _ioReady: null,
     _availability: null,
+    _tournamentRooms: new Set(),
 
     async _isAvailable() {
         if (!this._availability) {
@@ -372,6 +373,7 @@ const Realtime = {
             if (token) this.socket.emit('authenticate', token);
             this.socket.emit('joinLeaderboard');
             this.socket.emit('join', 'notifications');
+            this._tournamentRooms.forEach((tournamentId) => this.socket.emit('joinTournament', tournamentId));
             this._setConnDot(true);
             console.info('[Realtime] connected', this.socket.id);
         });
@@ -500,6 +502,21 @@ const Realtime = {
         this.socket = null;
         this.connected = false;
         this._setConnDot(false);
+    },
+
+    joinTournament(tournamentId) {
+        const id = parseInt(tournamentId, 10);
+        if (!Number.isInteger(id) || id <= 0) return;
+        this._tournamentRooms.add(id);
+        if (!this.socket) this.connect().catch(() => { });
+        if (this.socket?.connected) this.socket.emit('joinTournament', id);
+    },
+
+    leaveTournament(tournamentId) {
+        const id = parseInt(tournamentId, 10);
+        if (!Number.isInteger(id) || id <= 0) return;
+        this._tournamentRooms.delete(id);
+        if (this.socket?.connected) this.socket.emit('leaveTournament', id);
     },
 
     on(event, fn) {

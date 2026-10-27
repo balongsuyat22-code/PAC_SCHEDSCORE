@@ -1554,6 +1554,7 @@
     </div>
 
     <script src="../../js/api.js"></script>
+    <script src="../../js/shared.js"></script>
     <script src="../../js/sgo_president.js"></script>
 
     <div class="modal-overlay" id="modal-delete-tournament">
@@ -1683,6 +1684,17 @@
         let venuesCache = [];
         let officersCache = [];
         let deptsCache = [];
+
+        function setCurrentTournamentId(id) {
+            const nextId = id ? String(id) : null;
+            if (currentTournamentId && currentTournamentId !== nextId && typeof Realtime !== 'undefined') {
+                Realtime.leaveTournament(currentTournamentId);
+            }
+            currentTournamentId = nextId;
+            if (currentTournamentId && typeof Realtime !== 'undefined') {
+                Realtime.joinTournament(currentTournamentId);
+            }
+        }
         let allSports = [];
         let pointsRows = [];
 
@@ -2256,7 +2268,7 @@
             const params = new URLSearchParams(window.location.search);
             const deepId = params.get('tournament_id') || params.get('id');
             if (deepId) {
-                currentTournamentId = deepId;
+                setCurrentTournamentId(deepId);
                 showWorkspace();
                 await refreshAll();
             } else {
@@ -2268,11 +2280,11 @@
                 const id = new URLSearchParams(window.location.search).get('tournament_id')
                     || new URLSearchParams(window.location.search).get('id');
                 if (id) {
-                    currentTournamentId = id;
+                    setCurrentTournamentId(id);
                     showWorkspace();
                     await refreshAll();
                 } else {
-                    currentTournamentId = null;
+                    setCurrentTournamentId(null);
                     showList();
                     await loadTournaments();
                 }
@@ -2338,7 +2350,7 @@
         }
 
         function backToList() {
-            currentTournamentId = null;
+            setCurrentTournamentId(null);
             currentTournament = null;
             currentBracketMatches = [];
             const url = new URL(window.location.href);
@@ -2350,7 +2362,7 @@
         }
 
         function openTournament(id) {
-            currentTournamentId = String(id);
+            setCurrentTournamentId(id);
             const url = new URL(window.location.href);
             url.searchParams.set('tournament_id', id);
             history.pushState({}, '', url.pathname + '?' + url.searchParams.toString());
@@ -3836,6 +3848,7 @@
         }
 
         async function submitAutoSchedule() {
+            const btn = document.getElementById('as-submit-btn');
             const plans = collectDayPlans();
             const incomplete = plans.filter(p => !p.date || !p.times.length);
             if (!plans.length) { Toast.show('Add at least one competition day', 'error'); return; }
@@ -3870,18 +3883,36 @@
                 assign_officers,
             };
 
-            let res = await api(`/tournaments/${currentTournamentId}/schedule-auto`, {
-                method: 'POST',
-                body,
-            });
-            if (res && res.success === false && /Cannot POST|not found|404|HTTP 404/i.test(res.message || '')) {
-                res = await api(`/tournaments/${currentTournamentId}/schedule-round-robin`, {
+            if (btn) {
+                btn.disabled = true;
+                btn.dataset.originalText = btn.innerHTML;
+                btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Scheduling…';
+            }
+            try {
+                let res = await api(`/tournaments/${currentTournamentId}/schedule-auto`, {
                     method: 'POST',
                     body,
                 });
+                if (res && res.success === false && /Cannot POST|not found|404|HTTP 404/i.test(res.message || '')) {
+                    res = await api(`/tournaments/${currentTournamentId}/schedule-round-robin`, {
+                        method: 'POST',
+                        body,
+                    });
+                }
+                Toast.show(res.message || (res.success ? 'Scheduled!' : 'Error'), res.success ? 'success' : 'error');
+                if (res.success) {
+                    await refreshAll();
+                    Modal.close('modal-auto-schedule');
+                }
+            } catch (error) {
+                Toast.show(error.message || 'Auto-scheduling failed', 'error');
+            } finally {
+                if (btn) {
+                    btn.disabled = false;
+                    btn.innerHTML = btn.dataset.originalText || 'Start Auto-Scheduling';
+                    delete btn.dataset.originalText;
+                }
             }
-            Toast.show(res.message || (res.success ? 'Scheduled!' : 'Error'), res.success ? 'success' : 'error');
-            if (res.success) { Modal.close('modal-auto-schedule'); refreshAll(); }
         }
 
 
@@ -4017,7 +4048,7 @@
                 Toast.show(res.message || (res.success ? 'Tournament deleted.' : 'Could not delete tournament'), res.success ? 'success' : 'error');
                 if (res.success) {
                     Modal.close('modal-delete-tournament');
-                    currentTournamentId = null;
+                    setCurrentTournamentId(null);
                     currentTournament = null;
                     currentBracketMatches = [];
                     backToList();

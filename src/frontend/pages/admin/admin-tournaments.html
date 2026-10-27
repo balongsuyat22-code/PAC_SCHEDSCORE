@@ -1350,6 +1350,7 @@
         document.addEventListener('DOMContentLoaded', () => {
             Auth.requireAuth('admin');
             renderSidebar('tournaments');
+            if (PAGE_ID && typeof Realtime !== 'undefined') Realtime.joinTournament(PAGE_ID);
             if (typeof populateIcons === 'function') populateIcons();
             PAGE_ID ? initDetail() : initList();
 

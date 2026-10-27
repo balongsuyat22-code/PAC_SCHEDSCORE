@@ -1234,6 +1234,34 @@
         function downloadWord() {
             const sheet = document.querySelector('#sheet-host .sheet');
             if (!sheet) return;
+            const styledSheet = sheet.cloneNode(true);
+            const sourceElements = [sheet, ...sheet.querySelectorAll('*')];
+            const exportElements = [styledSheet, ...styledSheet.querySelectorAll('*')];
+            const wordProperties = [
+                'background-color', 'color', 'font-family', 'font-size', 'font-weight', 'font-style',
+                'line-height', 'text-align', 'vertical-align', 'text-transform', 'white-space',
+                'padding-top', 'padding-right', 'padding-bottom', 'padding-left',
+                'margin-top', 'margin-right', 'margin-bottom', 'margin-left',
+                'border-top-color', 'border-top-style', 'border-top-width',
+                'border-right-color', 'border-right-style', 'border-right-width',
+                'border-bottom-color', 'border-bottom-style', 'border-bottom-width',
+                'border-left-color', 'border-left-style', 'border-left-width',
+            ];
+            sourceElements.forEach((element, index) => {
+                const computed = window.getComputedStyle(element);
+                wordProperties.forEach(property => {
+                    const value = computed.getPropertyValue(property);
+                    if (value) exportElements[index].style.setProperty(property, value);
+                });
+            });
+            styledSheet.style.setProperty('width', '100%');
+            styledSheet.style.setProperty('max-width', 'none');
+            styledSheet.style.setProperty('margin', '0');
+            styledSheet.style.setProperty('box-shadow', 'none');
+            styledSheet.style.setProperty('border-radius', '0');
+            const pageStyles = Array.from(document.querySelectorAll('style'))
+                .map(style => style.textContent)
+                .join('\n');
 
             const preface = `<html xmlns:o="urn:schemas-microsoft-com:office:office"
                   xmlns:w="urn:schemas-microsoft-com:office:word"
@@ -1242,14 +1270,22 @@
                 <!--[if gte mso 9]>
                 <xml><w:WordDocument><w:View>Print</w:View><w:Zoom>90</w:Zoom></w:WordDocument></xml>
                 <![endif]-->
-                <style>
-                    body { font-family: Calibri, Arial, sans-serif; }
+                <style>${pageStyles}
+                    @page { size: letter; margin: 0.55in; }
+                    body { font-family: Calibri, Arial, sans-serif; color: #111; background: #fff; }
+                    .sheet { width: 100%; max-width: none; margin: 0; border-radius: 0; box-shadow: none; }
+                    .sheet-header { display: table; width: 100%; box-sizing: border-box; }
+                    .sheet-header > div, .sheet-header > .sheet-badge { display: table-cell; vertical-align: middle; }
+                    .sheet-header > .sheet-badge { text-align: right; }
+                    .sheet-body { padding: 20px 24px; }
                     table { border-collapse: collapse; width: 100%; }
-                    th, td { border: 1px solid #ddd; padding: 6px 8px; font-size: 12px; }
-                    th { background: #f2f2f2; }
+                    th, td { border: 1px solid #c8c8c8; padding: 6px 8px; font-size: 10pt; }
+                    th { background: #e8e8e8 !important; color: #111 !important; }
+                    .sheet-section-title { page-break-after: avoid; }
+                    tr, .sheet-badge, .champion-card { page-break-inside: avoid; }
                 </style></head><body>`;
             const postface = `</body></html>`;
-            const html = preface + sheet.outerHTML + postface;
+            const html = preface + styledSheet.outerHTML + postface;
 
             const blob = new Blob(['\ufeff', html], { type: 'application/msword' });
             const url = URL.createObjectURL(blob);
