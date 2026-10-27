@@ -92,11 +92,14 @@ CREATE TABLE IF NOT EXISTS activity_logs (
     action VARCHAR(100) NOT NULL,
     entity_type VARCHAR(50),
     entity_id INT NULL,
+    sport_fest_id INT NULL,
+    ip_address VARCHAR(45) NULL,
     description TEXT,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     CONSTRAINT fk_al_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE
     SET NULL,
-        INDEX idx_al_created (created_at)
+        INDEX idx_al_created (created_at),
+        INDEX idx_al_sport_fest (sport_fest_id)
 ) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4;
 CREATE TABLE IF NOT EXISTS sports (
     id INT AUTO_INCREMENT PRIMARY KEY,

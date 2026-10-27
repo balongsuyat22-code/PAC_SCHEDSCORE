@@ -128,7 +128,10 @@ async function computeFinalStandings(conn, tournamentId, format) {
     return singleEliminationStandings(conn, tournamentId);
 }
 async function recordResultsAndRebuild(conn, tournamentId, pointsMap = DEFAULT_MEDAL_POINTS) {
-    const [[t]] = await conn.execute('SELECT format, is_exhibition FROM tournaments WHERE id = ?', [tournamentId]);
+    const [[t]] = await conn.execute(
+        'SELECT format, is_exhibition FROM tournaments WHERE id = ?',
+        [tournamentId]
+    );
     if (!t) return { recorded: 0 };
 
     let standings = await computeFinalStandings(conn, tournamentId, t.format);
@@ -171,10 +174,34 @@ async function recordResultsAndRebuild(conn, tournamentId, pointsMap = DEFAULT_M
         );
     }
 
-    await rebuildDepartmentScores(conn);
+    await rebuildTournamentDepartmentScores(conn, tournamentId);
     return { recorded: standings.length };
 }
-async function rebuildDepartmentScores(conn) {
+
+async function rebuildTournamentDepartmentScores(conn, tournamentId) {
+    const [linkedSeasons] = await conn.execute(
+        `SELECT sport_fest_id FROM sport_fest_tournaments
+         WHERE tournament_id = ? ORDER BY sport_fest_id`,
+        [tournamentId]
+    );
+    const seasonIds = [...new Set(linkedSeasons.map((row) => row.sport_fest_id))];
+
+    if (!seasonIds.length) {
+        const [[tournament]] = await conn.execute(
+            'SELECT sport_fest_id FROM tournaments WHERE id = ?',
+            [tournamentId]
+        );
+        if (!tournament) return;
+        seasonIds.push(tournament.sport_fest_id);
+    }
+
+    for (const sportFestId of seasonIds) {
+        await rebuildDepartmentScores(conn, sportFestId);
+    }
+}
+
+async function rebuildDepartmentScores(conn, sportFestId) {
+    const scoped = sportFestId !== undefined;
     await conn.execute(
         `UPDATE department_scores
          SET total_points       = 0,
@@ -183,7 +210,8 @@ async function rebuildDepartmentScores(conn) {
              silver_medals      = 0,
              bronze_medals      = 0,
              total_participations = 0,
-             tournaments_entered  = 0`
+             tournaments_entered  = 0${scoped ? '\n         WHERE sport_fest_id <=> ?' : ''}`,
+        scoped ? [sportFestId] : []
     );
 
     const [results] = await conn.execute(
@@ -204,7 +232,9 @@ async function rebuildDepartmentScores(conn) {
              ON tp.tournament_id = tr.tournament_id
             AND tp.department_id = tr.department_id
          WHERE d.is_exhibition = 0 AND t.is_exhibition = 0 AND tp.no_points = 0
-         GROUP BY tr.department_id, COALESCE(sft.sport_fest_id, t.sport_fest_id)`
+         ${scoped ? 'AND COALESCE(sft.sport_fest_id, t.sport_fest_id) <=> ?' : ''}
+         GROUP BY tr.department_id, COALESCE(sft.sport_fest_id, t.sport_fest_id)`,
+        scoped ? [sportFestId] : []
     );
 
     for (const r of results) {
@@ -226,7 +256,9 @@ async function rebuildDepartmentScores(conn) {
     const [bonuses] = await conn.execute(
         `SELECT department_id, sport_fest_id, SUM(points) AS bonus_points
          FROM sport_fest_bonus_points
+         ${scoped ? 'WHERE sport_fest_id <=> ?' : ''}
          GROUP BY department_id, sport_fest_id`
+        , scoped ? [sportFestId] : []
     );
 
     for (const bonus of bonuses) {
@@ -246,5 +278,6 @@ module.exports = {
     DEFAULT_MEDAL_POINTS,
     computeFinalStandings,
     recordResultsAndRebuild,
+    rebuildTournamentDepartmentScores,
     rebuildDepartmentScores,
 };

@@ -1,6 +1,6 @@
 const { pool } = require('../config/database');
 const { logActivity } = require('../utils/logger');
-const { getActiveSportFestId } = require('../utils/season');
+const { getActiveSportFestId, resolveSportFestId } = require('../utils/season');
 const { emitToLeaderboard } = require('../utils/socketEmit');
 const cache = require('../utils/cache');
 const { rebuildDepartmentScores } = require('../utils/scoring');
@@ -546,6 +546,11 @@ const getOverallChampion = async (req, res, next) => {
 const getDepartmentMVP = async (req, res, next) => {
     try {
         const { departmentId } = req.params;
+        const { sportFestId, unscoped } = await resolveSportFestId(req.query.season_id);
+        const seasonFilter = unscoped ? '1 = 1' : `EXISTS (
+            SELECT 1 FROM sport_fest_tournaments sft
+            WHERE sft.tournament_id = t.id AND sft.sport_fest_id <=> ?
+        )`;
 
         const [rows] = await pool.execute(
             `SELECT
@@ -559,12 +564,13 @@ const getDepartmentMVP = async (req, res, next) => {
              LEFT JOIN tournaments t ON m.tournament_id = t.id
              LEFT JOIN sports      s ON t.sport_id      = s.id
              WHERE m.winner_department_id = ?
+                             AND ${seasonFilter}
                AND mr.mvp_player_name IS NOT NULL
                AND mr.mvp_player_name != ''
              GROUP BY mr.mvp_player_id, mr.mvp_player_name, s.id, s.name
              ORDER BY mvp_count DESC
              LIMIT 10`,
-            [departmentId]
+            unscoped ? [departmentId] : [departmentId, sportFestId]
         );
 
         return res.json({ success: true, data: rows });
@@ -575,6 +581,11 @@ const getDepartmentMVP = async (req, res, next) => {
 
 const getOverallMVP = async (req, res, next) => {
     try {
+        const { sportFestId, unscoped } = await resolveSportFestId(req.query.season_id);
+        const seasonFilter = unscoped ? '1 = 1' : `EXISTS (
+            SELECT 1 FROM sport_fest_tournaments sft
+            WHERE sft.tournament_id = t.id AND sft.sport_fest_id <=> ?
+        )`;
         const [rows] = await pool.execute(
             `SELECT
                 mr.mvp_player_id   AS player_id,
@@ -589,10 +600,12 @@ const getOverallMVP = async (req, res, next) => {
              LEFT JOIN departments d ON m.winner_department_id = d.id
              LEFT JOIN tournaments t ON m.tournament_id     = t.id
              LEFT JOIN sports      s ON t.sport_id          = s.id
-             WHERE mr.mvp_player_name IS NOT NULL AND mr.mvp_player_name != ''
+                         WHERE ${seasonFilter}
+                             AND mr.mvp_player_name IS NOT NULL AND mr.mvp_player_name != ''
              GROUP BY mr.mvp_player_id, mr.mvp_player_name, d.id, d.name, d.color, s.id, s.name
              ORDER BY mvp_count DESC
-             LIMIT 10`
+            LIMIT 10`,
+            unscoped ? [] : [sportFestId]
         );
 
         return res.json({ success: true, data: rows });

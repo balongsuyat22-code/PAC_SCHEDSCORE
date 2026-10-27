@@ -10,7 +10,8 @@ const os = require('os');
 const app = express();
 app.set('trust proxy', 1);
 
-const { testConnection } = require('./config/database');
+const { pool, testConnection } = require('./config/database');
+const { ensureActivityLogSchema } = require('./config/activityLogSchema');
 const { errorHandler, notFound } = require('./middleware/errorHandler');
 
 const authRoutes = require('./routes/auth');
@@ -118,6 +119,18 @@ app.get('/live/mvp', sendPageFrom(frontendVisitor, 'mvp.html'));
 app.get('/live/highlights', sendPageFrom(frontendVisitor, 'highlights.html'));
 
 const API = '/api';
+let activityLogSchemaReady;
+app.use(API, async (_req, _res, next) => {
+    try {
+        activityLogSchemaReady ||= ensureActivityLogSchema(pool);
+        await activityLogSchemaReady;
+        next();
+    } catch (err) {
+        activityLogSchemaReady = null;
+        next(err);
+    }
+});
+
 app.use(`${API}/auth`, authRoutes);
 app.use(`${API}/departments`, departmentRoutes);
 app.use(`${API}/sports`, sportsRoutes);
@@ -273,6 +286,7 @@ app.use(errorHandler);
 const start = async () => {
     try {
         await testConnection();
+        await ensureActivityLogSchema(pool);
 
         const requiredDirs = [
             frontendRoot,

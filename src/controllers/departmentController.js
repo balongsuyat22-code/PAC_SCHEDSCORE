@@ -363,8 +363,10 @@ const remove = async (req, res, next) => {
             });
         }
 
-        await pool.execute('DELETE FROM sport_fest_champions WHERE department_id = ?', [req.params.id]);
-        const [result] = await pool.execute('DELETE FROM departments WHERE id = ?', [req.params.id]);
+        const [result] = await pool.execute(
+            'UPDATE departments SET is_active = 0, updated_at = NOW() WHERE id = ? AND is_active = 1',
+            [req.params.id]
+        );
         if (!result.affectedRows) {
             return res.status(404).json({ success: false, message: 'Department not found.' });
         }
@@ -374,10 +376,10 @@ const remove = async (req, res, next) => {
             'DEPARTMENT_DELETED',
             'department',
             req.params.id,
-            'Department permanently deleted'
+            'Department deactivated; historical season records preserved'
         );
 
-        return res.json({ success: true, message: 'Department deleted successfully.' });
+        return res.json({ success: true, message: 'Department deactivated successfully. Historical season records were preserved.' });
     } catch (err) {
         next(err);
     }

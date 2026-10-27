@@ -1,6 +1,6 @@
 const { pool } = require('../config/database');
 const { getActiveSportFestId } = require('../utils/season');
-const { recordResultsAndRebuild, DEFAULT_MEDAL_POINTS } = require('../utils/scoring');
+const { recordResultsAndRebuild, rebuildTournamentDepartmentScores, DEFAULT_MEDAL_POINTS } = require('../utils/scoring');
 const cache = require('../utils/cache');
 const { emitToLeaderboard } = require('../utils/socketEmit');
 const { generateBracket: generateBracketService } = require('../services/bracketService');
@@ -714,7 +714,7 @@ const update = async (req, res, next) => {
                 [id]
             );
             if (Number(resultCount.count) > 0) await recordResultsAndRebuild(pool, id);
-            else await rebuildDepartmentScores(pool);
+            else await rebuildTournamentDepartmentScores(pool, id);
         }
 
         res.json({ success: true, message: 'Tournament updated' });

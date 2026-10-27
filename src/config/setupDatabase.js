@@ -4,6 +4,7 @@ const bcrypt = require('bcryptjs');
 const fs = require('fs');
 const path = require('path');
 const { getDatabaseSslConfig } = require('./databaseSsl');
+const { ensureActivityLogSchema } = require('./activityLogSchema');
 
 const RESET_DATABASE = process.env.RESET_DATABASE === '1' || process.env.RESET_DATABASE === 'true';
 const SEED_DATABASE = process.env.SEED_DATABASE === '1' || process.env.SEED_DATABASE === 'true';
@@ -592,6 +593,7 @@ const run = async () => {
         }
 
         await ensureUsersTable(conn);
+        await ensureActivityLogSchema(conn);
         await createInitialAdmin(conn);
 
         if (hasSchema && !RESET_DATABASE && !SEED_DATABASE) {
