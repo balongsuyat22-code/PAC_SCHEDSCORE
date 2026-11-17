@@ -11,7 +11,9 @@
         window.CONFIG?.API_BASE ||
         (typeof BASE !== 'undefined' ? String(BASE).replace(/\/$/, '') + '/api' : '/api')
     ).replace(/\/$/, '');
-    const SOCKET_URL = window.SOCKET_URL || window.CONFIG?.SOCKET_URL || undefined;
+    const SOCKET_URL = window.SOCKET_URL || window.CONFIG?.SOCKET_URL ||
+        (API_BASE.startsWith('http') ? new URL(API_BASE).origin : undefined);
+    const FALLBACK_POLL_MS = 5000;
 
     let allMatches = [];
     let filteredMatches = [];
@@ -20,6 +22,7 @@
     let currentDivision = 'all';
     let spotlightDeptId = null;
     let socket = null;
+    let fallbackPollTimer = null;
     let countdownTimer = null;
     let clockTimer = null;
     let championData = null;
@@ -791,9 +794,11 @@
 
     async function connectSocket() {
         try {
-            const status = await fetch('/socket-status', { cache: 'no-store' });
+            const statusUrl = new URL('/socket-status', SOCKET_URL || window.location.origin);
+            const status = await fetch(statusUrl, { cache: 'no-store' });
             if (status.ok && (await status.json())?.data?.available === false) {
                 setWsStatus(false);
+                startFallbackPolling();
                 return;
             }
         } catch (error) {
@@ -801,32 +806,31 @@
         }
         if (typeof io === 'undefined') {
             setWsStatus(false);
+            startFallbackPolling();
             return;
         }
         try {
             socket = io(SOCKET_URL, { transports: ['websocket', 'polling'] });
-            socket.on('connect', () => setWsStatus(true));
-            socket.on('disconnect', () => setWsStatus(false));
+            socket.on('connect', () => {
+                setWsStatus(true);
+                stopFallbackPolling();
+                loadMatches();
+            });
+            socket.on('disconnect', () => {
+                setWsStatus(false);
+                startFallbackPolling();
+            });
+            socket.on('connect_error', () => {
+                setWsStatus(false);
+                startFallbackPolling();
+            });
             socket.on('live:tick', (payload) => {
-                if (!payload?.match_id) return;
-                const m = allMatches.find((x) => x.id === payload.match_id);
-                if (!m) return;
-                if (payload.total_a != null) m.live_total_a = payload.total_a;
-                if (payload.total_b != null) m.live_total_b = payload.total_b;
-                applyFilters();
-                updateTicker();
+                applyLiveScoreUpdate(payload);
             });
             socket.on('live:matchStarted', () => loadMatches());
             socket.on('match:completed', () => loadMatches());
             socket.on('score:update', (payload) => {
-                if (!payload?.match_id) return;
-                const m = allMatches.find((x) => x.id === payload.match_id);
-                if (m) {
-                    if (payload.total_a != null) m.live_total_a = payload.total_a;
-                    if (payload.total_b != null) m.live_total_b = payload.total_b;
-                    applyFilters();
-                    updateTicker();
-                }
+                applyLiveScoreUpdate(payload);
             });
             socket.on('ffa:resultsUpdated', () => loadMatches());
             socket.on('match:scheduled', () => loadMatches());
@@ -853,7 +857,44 @@
         } catch (e) {
             console.warn('Socket failed', e);
             setWsStatus(false);
+            startFallbackPolling();
         }
+    }
+
+    function applyLiveScoreUpdate(payload) {
+        if (!payload?.match_id) return;
+        const match = allMatches.find((item) => String(item.id) === String(payload.match_id));
+        if (!match) {
+            loadMatches();
+            return;
+        }
+
+        if (payload.total_a != null) match.live_total_a = Number(payload.total_a);
+        if (payload.total_b != null) match.live_total_b = Number(payload.total_b);
+        if (Array.isArray(payload.all_scores)) {
+            match.scores = payload.all_scores;
+            match.sets_won_a = payload.all_scores.filter(
+                (score) => Number(score.score_a) > Number(score.score_b)
+            ).length;
+            match.sets_won_b = payload.all_scores.filter(
+                (score) => Number(score.score_b) > Number(score.score_a)
+            ).length;
+        }
+        applyFilters();
+        updateTicker();
+    }
+
+    function startFallbackPolling() {
+        if (fallbackPollTimer) return;
+        fallbackPollTimer = setInterval(() => {
+            if (!socket?.connected) loadMatches();
+        }, FALLBACK_POLL_MS);
+    }
+
+    function stopFallbackPolling() {
+        if (!fallbackPollTimer) return;
+        clearInterval(fallbackPollTimer);
+        fallbackPollTimer = null;
     }
 
     function setWsStatus(ok) {

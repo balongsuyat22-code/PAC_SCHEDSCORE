@@ -3235,7 +3235,7 @@
         preloadTheme();
 
         const BASE = window.location.origin;
-        const WS_URL = BASE.replace(/^http/, 'ws') || 'ws://localhost:5000';
+        const WS_URL = BASE || undefined;
         let allMatches = [], allDepts = [], allLbData = [];
         let currentStatusFilter = 'all', currentSportFilter = 'all', currentSpotlight = '';
         let countdownInterval = null, matchesRefreshTimer = null, lbRefreshTimer = null, modalRefreshTimer = null, confettiFired = false;
@@ -3399,16 +3399,17 @@
         }
 
         function handleScoreUpdate(data) {
-            const match = allMatches.find(m => m.id === data.match_id);
+            const match = allMatches.find(m => String(m.id) === String(data.match_id));
             if (match) {
                 match.live_score_a = data.total_a;
                 match.live_score_b = data.total_b;
                 match.total_score_a = data.total_a;
                 match.total_score_b = data.total_b;
                 if (data.all_scores) {
+                    match.scores = data.all_scores;
                     setsDataCache[data.match_id] = {
-                        setsWonA: data.all_scores.filter(s => s.score_a > s.score_b).length,
-                        setsWonB: data.all_scores.filter(s => s.score_b > s.score_a).length,
+                        setsWonA: data.all_scores.filter(s => Number(s.score_a) > Number(s.score_b)).length,
+                        setsWonB: data.all_scores.filter(s => Number(s.score_b) > Number(s.score_a)).length,
                         currentSet: data.all_scores[data.all_scores.length - 1] || null
                     };
                 }
@@ -3416,20 +3417,28 @@
                     renderMatches();
                 }
                 updateTicker();
-                if (openModalMatchId === data.match_id) {
-                    loadAndRenderModal(data.match_id, true);
+                if (String(openModalMatchId) === String(data.match_id)) {
+                    loadAndRenderModal(openModalMatchId, true);
                 }
                 flashScore(data.match_id);
             }
         }
 
         function updateMatchScore(data) {
-            const match = allMatches.find(m => m.id === data.match_id);
+            const match = allMatches.find(m => String(m.id) === String(data.match_id));
             if (match) {
                 match.live_score_a = data.total_a;
                 match.live_score_b = data.total_b;
                 match.total_score_a = data.total_a;
                 match.total_score_b = data.total_b;
+                if (data.all_scores) {
+                    match.scores = data.all_scores;
+                    setsDataCache[data.match_id] = {
+                        setsWonA: data.all_scores.filter(s => Number(s.score_a) > Number(s.score_b)).length,
+                        setsWonB: data.all_scores.filter(s => Number(s.score_b) > Number(s.score_a)).length,
+                        currentSet: data.all_scores[data.all_scores.length - 1] || null
+                    };
+                }
                 if (document.getElementById('sec-scores').classList.contains('active')) {
                     renderMatches();
                 }

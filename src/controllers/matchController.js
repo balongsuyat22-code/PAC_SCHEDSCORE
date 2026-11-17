@@ -937,6 +937,7 @@ const updateScore = async (req, res, next) => {
             match_id: matchId,
             total_a: totals.total_a,
             total_b: totals.total_b,
+            all_scores: allScores,
             updated_at: new Date()
         });
 
