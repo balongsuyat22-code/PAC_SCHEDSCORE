@@ -2721,11 +2721,26 @@ value="${p.ffa_result_value != null ? fmtScore(p.ffa_result_value, isFfaTime()) 
                 const d = e.detail || {};
                 const mid = d.match_id || d.id;
                 if (selectedMatch && mid && String(mid) === String(selectedMatch.id)) {
-                    if (d.score_a != null) scores.a = d.score_a;
-                    if (d.score_b != null) scores.b = d.score_b;
+                    if (scoringType === 'sets' && setState && Array.isArray(d.all_scores)) {
+                        const currentSet = d.all_scores.find(
+                            row => Number(row.period) === Number(setState.currentSet)
+                        );
+                        if (currentSet) {
+                            setState.scores = {
+                                a: normalizeScore(currentSet.score_a),
+                                b: normalizeScore(currentSet.score_b),
+                            };
+                        }
+                    } else {
+                        const scoreA = d.total_a ?? d.score_a;
+                        const scoreB = d.total_b ?? d.score_b;
+                        if (scoreA != null) scores.a = normalizeScore(scoreA);
+                        if (scoreB != null) scores.b = normalizeScore(scoreB);
+                    }
                     const displayEl = document.getElementById('display-main');
                     if (displayEl && typeof renderMainScore === 'function') {
-                        displayEl.innerHTML = renderMainScore(scores.a, scores.b);
+                        const liveScores = scoringType === 'sets' && setState ? setState.scores : scores;
+                        displayEl.innerHTML = renderMainScore(liveScores.a, liveScores.b);
                     }
                 }
                 softReloadList();
