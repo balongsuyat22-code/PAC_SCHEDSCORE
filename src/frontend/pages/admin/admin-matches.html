@@ -1862,7 +1862,11 @@
                 notes: notes || null,
             };
             const res = await api(`/matches/${activeId}/schedule`, { method: 'PATCH', body: JSON.stringify(body) });
-            Toast.show(res.message || (res.success ? 'Match schedule saved!' : 'Error'), res.success ? 'success' : 'error');
+            if (!res.success && /already assigned to another match at this time/i.test(res.message || '')) {
+                await Modal.alert(res.message, 'Scheduling conflict');
+            } else {
+                Toast.show(res.message || (res.success ? 'Match schedule saved!' : 'Error'), res.success ? 'success' : 'error');
+            }
             if (res.success) { Modal.close('modal-schedule'); await refresh(); }
         }
 

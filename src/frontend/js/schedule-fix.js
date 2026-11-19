@@ -194,7 +194,10 @@ async function saveSFSchedule() {
             if (typeof Toast !== 'undefined') Toast.show(data.message || 'Match scheduled!', 'success');
         } else {
             const msg = data.message || 'Failed to schedule match';
-            if (typeof Toast !== 'undefined') Toast.show(msg, 'error');
+            if (/already assigned to another match at this time/i.test(msg)
+                && typeof Modal !== 'undefined') {
+                await Modal.alert(msg, 'Scheduling conflict');
+            } else if (typeof Toast !== 'undefined') Toast.show(msg, 'error');
             else if (typeof Modal !== 'undefined') await Modal.alert('Error: ' + msg, 'Schedule error');
         }
     } catch (e) {

@@ -3168,6 +3168,12 @@
                     await reloadDetail();
                     Modal.close('modal-schedule-config');
                     switchTab('schedule');
+                    if (skipped) {
+                        await Modal.alert(
+                            `${skipped} match(es) could not be scheduled because no conflict-free time, venue, or referee was available. Review the schedule and add more slots or resources.`,
+                            'Scheduling warning'
+                        );
+                    }
                 } else {
                     Toast.show(res.message || 'Auto-scheduling failed', 'error');
                 }

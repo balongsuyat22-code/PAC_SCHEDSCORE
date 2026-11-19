@@ -101,6 +101,48 @@ async function findTeamConflict(pool, {
     return rows[0] || null;
 }
 
+async function findMatchResourceConflict(pool, {
+    venueId = null,
+    refereeId = null,
+    date,
+    time,
+    excludeMatchId = null,
+    ignoreOpenMatchesInTournamentId = null,
+} = {}) {
+    if ((!venueId && !refereeId) || !date || !time) return null;
+
+    const resourceConditions = [];
+    const params = [toDateStr(date), toTimeStr(time)];
+    if (venueId) {
+        resourceConditions.push('venue_id = ?');
+        params.push(venueId);
+    }
+    if (refereeId) {
+        resourceConditions.push('referee_id = ?');
+        params.push(refereeId);
+    }
+
+    let sql = `
+        SELECT id, venue_id, referee_id
+        FROM matches
+        WHERE scheduled_date = ?
+          AND DATE_FORMAT(scheduled_time, '%H:%i') = ?
+          AND status IN ('pending', 'scheduled', 'ongoing')
+          AND (${resourceConditions.join(' OR ')})
+    `;
+    if (excludeMatchId) {
+        sql += ' AND id != ?';
+        params.push(excludeMatchId);
+    }
+    if (ignoreOpenMatchesInTournamentId) {
+        sql += ` AND NOT (tournament_id = ? AND status IN ('pending', 'scheduled'))`;
+        params.push(ignoreOpenMatchesInTournamentId);
+    }
+    sql += ' LIMIT 1';
+    const [rows] = await pool.execute(sql, params);
+    return rows[0] || null;
+}
+
 /**
  * Sort open matches into a sensible schedule order:
  * earlier rounds first, upper before lower before grand final.
@@ -289,18 +331,10 @@ function orderRoundRobinMatches(list, precedingMatches = []) {
  * Pick an active officer with the fewest concurrent assignments at date+time.
  * Returns user id or null.
  */
-async function pickOfficer(pool, date, time, preferredId = null) {
-    if (preferredId) {
-        const [busy] = await pool.execute(
-            `SELECT id FROM matches
-             WHERE referee_id = ? AND scheduled_date = ? AND DATE_FORMAT(scheduled_time, '%H:%i') = ?
-               AND status IN ('pending', 'scheduled', 'ongoing')
-             LIMIT 1`,
-            [preferredId, date, time]
-        );
-        if (!busy.length) return preferredId;
-    }
-
+async function pickOfficer(pool, date, time, preferredId = null, {
+    ignoreOpenMatchesInTournamentId = null,
+    occupiedRefereeSlots = new Set(),
+} = {}) {
     const [officers] = await pool.execute(
         `SELECT u.id,
                 (SELECT COUNT(*) FROM matches m
@@ -310,17 +344,20 @@ async function pickOfficer(pool, date, time, preferredId = null) {
          WHERE u.role = 'sgo_officer' AND u.is_active = 1
          ORDER BY active_assignments ASC, u.first_name ASC`
     );
-    if (!officers.length) return null;
-
-    for (const o of officers) {
-        const [busy] = await pool.execute(
-            `SELECT id FROM matches
-             WHERE referee_id = ? AND scheduled_date = ? AND DATE_FORMAT(scheduled_time, '%H:%i') = ?
-               AND status IN ('pending', 'scheduled', 'ongoing')
-             LIMIT 1`,
-            [o.id, date, time]
-        );
-        if (!busy.length) return o.id;
+    const orderedOfficers = preferredId
+        ? [...officers].sort((a, b) =>
+            Number(Number(b.id) === Number(preferredId)) - Number(Number(a.id) === Number(preferredId))
+        )
+        : officers;
+    for (const o of orderedOfficers) {
+        if (occupiedRefereeSlots.has(`${o.id}|${date}|${time}`)) continue;
+        const conflict = await findMatchResourceConflict(pool, {
+            refereeId: o.id,
+            date,
+            time,
+            ignoreOpenMatchesInTournamentId,
+        });
+        if (!conflict) return o.id;
     }
     return null;
 }
@@ -424,7 +461,8 @@ async function rebuildAutoScheduleInTransaction(tournamentId, options, pool) {
     // Track in-memory occupancy so two matches in the same run don't clash
     // before DB writes are visible to later iterations.
     const occupiedByDept = new Set(); // `${deptId}|${date}|${time}`
-    const occupiedSlots = new Set();  // `${date}|${time}` — one match per slot by default
+    const occupiedVenueSlots = new Set();
+    const occupiedRefereeSlots = new Set();
     const scheduledRoundRobinMatches = [];
 
     let slotIdx = 0;
@@ -444,11 +482,6 @@ async function rebuildAutoScheduleInTransaction(tournamentId, options, pool) {
         // Search from current index forward for a free slot
         for (let i = slotIdx; i < slotList.length; i++) {
             const { date, time } = slotList[i];
-            const slotKey = `${date}|${time}`;
-
-            // Prefer unique slots; allow reuse only if we run out (handled by outer skip)
-            if (occupiedSlots.has(slotKey)) continue;
-
             let conflict = false;
             for (const deptId of [deptA, deptB].filter(Boolean)) {
                 const memKey = `${deptId}|${date}|${time}`;
@@ -464,7 +497,29 @@ async function rebuildAutoScheduleInTransaction(tournamentId, options, pool) {
             }
             if (conflict) continue;
 
-            placed = { date, time, slotIndex: i };
+            const venueId = defaultVenueId || match.venue_id || null;
+            const refereeId = assignOfficers || defaultRefereeId
+                ? await pickOfficer(pool, date, time, defaultRefereeId || match.referee_id, {
+                    ignoreOpenMatchesInTournamentId: tournamentId,
+                    occupiedRefereeSlots,
+                })
+                : match.referee_id || null;
+            const venueSlot = venueId ? `${venueId}|${date}|${time}` : null;
+            const refereeSlot = refereeId ? `${refereeId}|${date}|${time}` : null;
+            if ((venueSlot && occupiedVenueSlots.has(venueSlot))
+                || (refereeSlot && occupiedRefereeSlots.has(refereeSlot))) continue;
+
+            const resourceConflict = await findMatchResourceConflict(pool, {
+                venueId,
+                refereeId,
+                date,
+                time,
+                excludeMatchId: match.id,
+                ignoreOpenMatchesInTournamentId: tournamentId,
+            });
+            if (resourceConflict) continue;
+
+            placed = { date, time, slotIndex: i, venueId, refereeId };
             break;
         }
 
@@ -477,29 +532,22 @@ async function rebuildAutoScheduleInTransaction(tournamentId, options, pool) {
             continue;
         }
 
-        const { date, time, slotIndex } = placed;
-        let refereeId = match.referee_id || null;
-        if (assignOfficers || defaultRefereeId) {
-            refereeId = await pickOfficer(pool, date, time, defaultRefereeId || refereeId);
-        } else if (defaultRefereeId) {
-            refereeId = defaultRefereeId;
-        }
-
-        const venueId = defaultVenueId || match.venue_id || null;
+        const { date, time, slotIndex, venueId, refereeId } = placed;
 
         await pool.execute(
             `UPDATE matches
              SET scheduled_date = ?,
                  scheduled_time = ?,
-                 venue_id = COALESCE(?, venue_id),
-                 referee_id = COALESCE(?, referee_id),
+                 venue_id = ?,
+                 referee_id = ?,
                  status = CASE WHEN status = 'pending' THEN 'scheduled' ELSE status END,
                  updated_at = NOW()
              WHERE id = ?`,
             [date, time, venueId, refereeId, match.id]
         );
 
-        occupiedSlots.add(`${date}|${time}`);
+        if (venueId) occupiedVenueSlots.add(`${venueId}|${date}|${time}`);
+        if (refereeId) occupiedRefereeSlots.add(`${refereeId}|${date}|${time}`);
         for (const deptId of [deptA, deptB].filter(Boolean)) {
             occupiedByDept.add(`${deptId}|${date}|${time}`);
         }
@@ -529,6 +577,7 @@ async function rebuildAutoScheduleInTransaction(tournamentId, options, pool) {
 
 module.exports = {
     findTeamConflict,
+    findMatchResourceConflict,
     rebuildAutoSchedule,
     buildSlotList,
     sortMatchesForSchedule,

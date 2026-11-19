@@ -556,7 +556,11 @@
                 };
 
                 const res = await api(`/matches/${id}/schedule`, { method: 'PUT', body });
-                Toast.show(res.message || (res.success ? 'Match scheduled!' : 'Error'), res.success ? 'success' : 'error');
+                if (!res.success && /already assigned to another match at this time/i.test(res.message || '')) {
+                    await Modal.alert(res.message, 'Scheduling conflict');
+                } else {
+                    Toast.show(res.message || (res.success ? 'Match scheduled!' : 'Error'), res.success ? 'success' : 'error');
+                }
 
                 if (res.success) {
                     Modal.close('modal-schedule');

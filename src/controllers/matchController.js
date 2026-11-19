@@ -2,7 +2,11 @@ const { pool } = require('../config/database');
 const { progressBracket } = require('../services/matchService');
 const { logActivity } = require('../utils/logger');
 const { getActiveSportFestId } = require('../utils/season');
-const { findTeamConflict, rebuildAutoSchedule } = require('../services/scheduleConstraints');
+const {
+    findTeamConflict,
+    findMatchResourceConflict,
+    rebuildAutoSchedule,
+} = require('../services/scheduleConstraints');
 const {
     emitToMatch,
     emitToTournament,
@@ -28,7 +32,7 @@ const canComplete = (status) => status === 'ongoing';
  */
 async function ensureOfficerCanAct(matchId, userId) {
     const [[row]] = await pool.execute(
-        'SELECT referee_id FROM matches WHERE id = ?',
+        'SELECT referee_id, scheduled_date, scheduled_time FROM matches WHERE id = ?',
         [matchId]
     );
     if (!row) return { ok: false, status: 404, message: 'Match not found.' };
@@ -40,6 +44,19 @@ async function ensureOfficerCanAct(matchId, userId) {
         };
     }
     if (!row.referee_id) {
+        const conflict = await findMatchResourceConflict(pool, {
+            refereeId: userId,
+            date: row.scheduled_date,
+            time: row.scheduled_time,
+            excludeMatchId: matchId,
+        });
+        if (conflict) {
+            return {
+                ok: false,
+                status: 409,
+                message: 'You are already assigned to another match at this time.',
+            };
+        }
         await pool.execute(
             'UPDATE matches SET referee_id = ?, updated_at = NOW() WHERE id = ? AND referee_id IS NULL',
             [userId, matchId]
@@ -658,20 +675,21 @@ const schedule = async (req, res, next) => {
             }
         }
 
-        // Only hard conflict left: same officer at the exact same date+time
-        if (finalReferee && finalDate && finalTime) {
-            const [conflicts] = await pool.execute(
-                `SELECT id FROM matches
-                 WHERE referee_id = ? AND scheduled_date = ? AND scheduled_time = ? AND id != ?
-                   AND status IN ('pending', 'scheduled', 'ongoing')`,
-                [finalReferee, finalDate, finalTime, matchId]
-            );
-            if (conflicts.length) {
-                return res.status(409).json({
-                    success: false,
-                    message: 'Selected officer is already assigned to another match at this time. Pick a different officer or time.',
-                });
-            }
+        const resourceConflict = await findMatchResourceConflict(pool, {
+            venueId: finalVenue,
+            refereeId: finalReferee,
+            date: finalDate,
+            time: finalTime,
+            excludeMatchId: matchId,
+        });
+        if (resourceConflict) {
+            const venueConflict = finalVenue && Number(resourceConflict.venue_id) === finalVenue;
+            return res.status(409).json({
+                success: false,
+                message: venueConflict
+                    ? 'Selected venue is already assigned to another match at this time. Pick a different venue or time.'
+                    : 'Selected officer is already assigned to another match at this time. Pick a different officer or time.',
+            });
         }
 
         await pool.execute(
@@ -1697,6 +1715,22 @@ const createCustom = async (req, res, next) => {
         const venueId = safeFK(req.body.venue_id);
         const refereeId = safeFK(req.body.referee_id);
         const roundNumber = Number.isInteger(parseInt(req.body.round_number)) ? parseInt(req.body.round_number) : null;
+
+        const resourceConflict = await findMatchResourceConflict(pool, {
+            venueId,
+            refereeId,
+            date: scheduledDate,
+            time: scheduledTime,
+        });
+        if (resourceConflict) {
+            const venueConflict = venueId && Number(resourceConflict.venue_id) === venueId;
+            return res.status(409).json({
+                success: false,
+                message: venueConflict
+                    ? 'Selected venue is already assigned to another match at this time.'
+                    : 'Selected officer is already assigned to another match at this time.',
+            });
+        }
 
         const [[{ nextNum }]] = await pool.execute(
             'SELECT COALESCE(MAX(match_number), 0) + 1 AS nextNum FROM matches WHERE tournament_id = ?', [tournamentId]

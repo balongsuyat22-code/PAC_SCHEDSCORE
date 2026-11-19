@@ -2,6 +2,7 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const {
     rebuildAutoSchedule,
+    findMatchResourceConflict,
     orderRoundRobinMatches,
 } = require('../src/services/scheduleConstraints');
 
@@ -23,7 +24,12 @@ function makeRoundRobinMatches(teamIds) {
     return matches;
 }
 
-function makePool(matches, { failMatchId = null, conflictWhen = null, staleScheduleConflict = false } = {}) {
+function makePool(matches, {
+    failMatchId = null,
+    conflictWhen = null,
+    resourceConflictWhen = null,
+    staleScheduleConflict = false,
+} = {}) {
     const updates = [];
     let rollbacks = 0;
     let commits = 0;
@@ -41,10 +47,21 @@ function makePool(matches, { failMatchId = null, conflictWhen = null, staleSched
                 }
                 return conflictWhen?.(params) ? [[{ id: 99 }]] : [[]];
             }
+            if (sql.includes('SELECT id, venue_id, referee_id')) {
+                return resourceConflictWhen?.(params, sql)
+                    ? [[{ id: 99, venue_id: params[2] || null, referee_id: params[3] || null }]]
+                    : [[]];
+            }
             if (sql.includes('UPDATE matches')) {
                 const matchId = params[params.length - 1];
                 if (matchId === failMatchId) throw new Error('simulated update failure');
-                updates.push({ matchId, date: params[0], time: params[1] });
+                updates.push({
+                    matchId,
+                    date: params[0],
+                    time: params[1],
+                    venueId: params[2],
+                    refereeId: params[3],
+                });
                 return [{ affectedRows: 1 }];
             }
             throw new Error(`Unexpected SQL in test: ${sql}`);
@@ -58,6 +75,46 @@ function makePool(matches, { failMatchId = null, conflictWhen = null, staleSched
         execute: (...args) => connection.execute(...args),
     };
 }
+
+test('resource conflicts check venue and referee across sports at the same time', async () => {
+    let capturedSql = '';
+    const pool = {
+        execute: async (sql, params) => {
+            capturedSql = sql;
+            assert.deepEqual(params, ['2026-10-28', '09:00', 7, 12, 4]);
+            return [[{ id: 3, venue_id: 7, referee_id: 12 }]];
+        },
+    };
+
+    const conflict = await findMatchResourceConflict(pool, {
+        venueId: 7,
+        refereeId: 12,
+        date: '2026-10-28',
+        time: '09:00:00',
+        excludeMatchId: 4,
+    });
+
+    assert.equal(conflict.id, 3);
+    assert.match(capturedSql, /venue_id = \? OR referee_id = \?/);
+    assert.doesNotMatch(capturedSql, /sport_id/);
+});
+
+test('auto-scheduler does not reuse a venue or referee in the same time slot', async () => {
+    const matches = [
+        { id: 1, participant_a_department_id: 1, participant_b_department_id: 2, venue_id: 7, referee_id: 12, status: 'pending' },
+        { id: 2, participant_a_department_id: 3, participant_b_department_id: 4, venue_id: 7, referee_id: 12, status: 'pending' },
+    ];
+    const pool = makePool(matches);
+
+    const result = await rebuildAutoSchedule(1, {
+        day_plans: [{ date: '2026-10-28', times: ['09:00', '10:00'] }],
+    }, pool);
+
+    assert.equal(result.scheduled, 2);
+    assert.deepEqual(pool.updates.map(({ time }) => time).sort(), ['09:00', '10:00']);
+    assert.equal(new Set(pool.updates.map(({ venueId, time }) => `${venueId}|${time}`)).size, 2);
+    assert.equal(new Set(pool.updates.map(({ refereeId, time }) => `${refereeId}|${time}`)).size, 2);
+});
 
 test('round-robin prefers disjoint matches and prevents three-match team streaks', async () => {
     const matches = makeRoundRobinMatches([1, 2, 3, 4]);
