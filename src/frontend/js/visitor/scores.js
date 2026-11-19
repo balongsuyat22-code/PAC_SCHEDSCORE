@@ -13,7 +13,7 @@
     ).replace(/\/$/, '');
     const SOCKET_URL = window.SOCKET_URL || window.CONFIG?.SOCKET_URL ||
         (API_BASE.startsWith('http') ? new URL(API_BASE).origin : undefined);
-    const FALLBACK_POLL_MS = 5000;
+    const REFRESH_POLL_MS = 5000;
 
     let allMatches = [];
     let filteredMatches = [];
@@ -22,7 +22,7 @@
     let currentDivision = 'all';
     let spotlightDeptId = null;
     let socket = null;
-    let fallbackPollTimer = null;
+    let refreshPollTimer = null;
     let countdownTimer = null;
     let clockTimer = null;
     let championData = null;
@@ -36,6 +36,19 @@
         startClock();
         bindMatchCardClicks('#matches-container');
         bindMatchCardClicks('#featured-match-wrap');
+        startRefreshPolling();
+        document.addEventListener('visibilitychange', () => {
+            if (document.visibilityState === 'visible') {
+                loadMatches();
+                loadChampion();
+            }
+        });
+        window.addEventListener('pageshow', (event) => {
+            if (event.persisted) {
+                loadMatches();
+                loadChampion();
+            }
+        });
         await loadMatches();
         await loadChampion();
         connectSocket();
@@ -48,7 +61,7 @@
         const ts = $('#refresh-ts');
         if (ts) ts.textContent = 'Loading…';
         try {
-            const res = await fetch(`${API_BASE}/matches`);
+            const res = await fetch(`${API_BASE}/matches`, { cache: 'no-store' });
             const json = await res.json();
             if (!json.success) throw new Error(json.message || 'Failed to load');
             allMatches = (json.data || []).map(normalizeMatch);
@@ -798,7 +811,7 @@
             const status = await fetch(statusUrl, { cache: 'no-store' });
             if (status.ok && (await status.json())?.data?.available === false) {
                 setWsStatus(false);
-                startFallbackPolling();
+                startRefreshPolling();
                 return;
             }
         } catch (error) {
@@ -806,23 +819,22 @@
         }
         if (typeof io === 'undefined') {
             setWsStatus(false);
-            startFallbackPolling();
+            startRefreshPolling();
             return;
         }
         try {
             socket = io(SOCKET_URL, { transports: ['websocket', 'polling'] });
             socket.on('connect', () => {
                 setWsStatus(true);
-                stopFallbackPolling();
                 loadMatches();
             });
             socket.on('disconnect', () => {
                 setWsStatus(false);
-                startFallbackPolling();
+                startRefreshPolling();
             });
             socket.on('connect_error', () => {
                 setWsStatus(false);
-                startFallbackPolling();
+                startRefreshPolling();
             });
             socket.on('live:tick', (payload) => {
                 applyLiveScoreUpdate(payload);
@@ -857,7 +869,7 @@
         } catch (e) {
             console.warn('Socket failed', e);
             setWsStatus(false);
-            startFallbackPolling();
+            startRefreshPolling();
         }
     }
 
@@ -884,17 +896,9 @@
         updateTicker();
     }
 
-    function startFallbackPolling() {
-        if (fallbackPollTimer) return;
-        fallbackPollTimer = setInterval(() => {
-            if (!socket?.connected) loadMatches();
-        }, FALLBACK_POLL_MS);
-    }
-
-    function stopFallbackPolling() {
-        if (!fallbackPollTimer) return;
-        clearInterval(fallbackPollTimer);
-        fallbackPollTimer = null;
+    function startRefreshPolling() {
+        if (refreshPollTimer) return;
+        refreshPollTimer = setInterval(loadMatches, REFRESH_POLL_MS);
     }
 
     function setWsStatus(ok) {
